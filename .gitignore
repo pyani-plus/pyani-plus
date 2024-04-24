@@ -1,2 +1,10 @@
 # Mac related files
 .DS_Store
+
+
+#Snakemake related files
+.snakemake
+
+
+#mypy cache files
+.mypy_cache

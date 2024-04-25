@@ -13,6 +13,12 @@ DOI: [10.1039/C5AY02550H](https://doi.org/10.1039/C5AY02550H)
 
 ## Installation
 
+There are currently no stable releases of `pyani-plus`. If you would like to use the in-progress development version, please follow the usual installation procedure for GitHub repositories, e.g.
+
+1. Clone the repository: `git clone git@github.com:pyani-plus/pyani-plus.git`
+2. Change directory to the repository: `cd pyani-plus`
+3. Install using `pip`, e.g.: `pip install -e .`
+
 ## Walkthrough: A First Analysis
 
 ## Contributing

@@ -17,7 +17,7 @@
 # Python distribution/packaging files
 build/
 dist/
-pyani-plus.egg-info/
+pyani_plus.egg-info/
 distribute*
 
 # Issue development subdirectories

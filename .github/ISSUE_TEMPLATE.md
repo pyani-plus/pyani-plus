@@ -7,6 +7,7 @@ Please provide a short summary of your issue (in a couple of sentences).
 Describe the issue in detail, as clearly as possible.
 
 ## Reproducible Steps:
+
 Please report a series of steps (e.g. command-line instructions) that would enable someone else to reproduce the issue. If possible, please attach a small set of input files/data that would be sufficient to allow someone else to reproduce the issue. 
 
 If it's not possible to reproduce the issue, please include a description of how you discovered the issue.

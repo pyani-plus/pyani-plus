@@ -3,7 +3,7 @@
 
 # Assume Python 3.12
 target-version = "py312"
-line-length = 89  # Set maximum line length. This does not override Flake8 settings.
+line-length = 89         # Set maximum line length. This does not override Flake8 settings.
 
 [lint]
 # 1. Ignore flake8 rules

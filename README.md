@@ -17,7 +17,9 @@ There are currently no stable releases of `pyani-plus`. If you would like to use
 
 1. Clone the repository: `git clone git@github.com:pyani-plus/pyani-plus.git`
 2. Change directory to the repository: `cd pyani-plus`
-3. Install using `pip`, e.g.: `pip install -e .`
+3. Install using one of the following methods:
+   1.  `pip`, e.g.: `pip install -U -e .`
+   2.  `Make`, e.g.: `make install_macos` or `make install_linux`
 
 ## Walkthrough: A First Analysis
 

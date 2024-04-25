@@ -1,10 +1,40 @@
-# Mac related files
+# Ignore macOS-specific files
 .DS_Store
 
+# Emacs edit files
+*~
+*#
+.#
 
-#Snakemake related files
-.snakemake
+# Config files for development tools
+.ipynb_checkpoints
+.Rhistory
+.vscode
 
+# Compiled Python modules
+*.pyc
 
-#mypy cache files
-.mypy_cache
+# Python distribution files
+build/
+dist/
+pyani.egg-info/
+distribute*
+
+# Issue development subdirectories
+issue_*/
+
+# Test coverage output
+cover/
+htmlcov/
+.coverage*
+
+# Virtualenvs
+venv-*
+.python-version
+
+# Local pyani-plus config directory
+.pyani-plus
+
+# DTD files supporting imported modules
+ulist.DTD
+esummary_assembly.dtd

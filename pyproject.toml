@@ -1,5 +1,9 @@
 [build-system]
+<<<<<<< HEAD
 requires = ["setuptools>=61.0", "setuptools-scm>=8.0"]
+=======
+requires = ["setuptools>=61.0"]
+>>>>>>> 4fc35ae (add initial packaging/installation files)
 build-backend = "setuptools.build_meta"
 
 [project]

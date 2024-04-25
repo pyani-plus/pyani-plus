@@ -14,10 +14,10 @@
 # Compiled Python modules
 *.pyc
 
-# Python distribution files
+# Python distribution/packaging files
 build/
 dist/
-pyani.egg-info/
+pyani-plus.egg-info/
 distribute*
 
 # Issue development subdirectories

@@ -1,0 +1,6 @@
+coverage
+pre-commit
+pytest
+pytest-cov
+ruff
+types-tqdm

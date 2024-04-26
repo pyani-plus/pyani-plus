@@ -10,6 +10,39 @@ from snakemake.settings import ConfigSettings, DAGSettings, ResourceSettings
 from itertools import permutations
 
 
+# FOR DEMONSTRATION PURPOSES ONLY - UNTESTED AND MAY NOT WORK
+def run_workflow(targetset):
+    """Runs the snakemake_anim workflow for the passed pairwise comparisons
+
+    This function should be able to take a collection of targets of arbitrary
+    size, and pass them to the workflow for distribution, e.g.
+
+    run_workflow(["A_vs_B.filter"])
+
+    mytargets = (["X_vs_Y.filter", "Y_vs_X.filter", "G_vs_M.filter"])
+    run_workflow(mytargets)
+
+    We should expect this to be the standard way to run the workflow - passing
+    a list of targets to the final rule in the dependency graph - as we will
+    be using it to pick up missed comparisons/compare only unanalysed genomes,
+    etc.
+    """
+    pass
+
+# FOR DEMONSTRATION PURPOSES ONLY - UNTESTED AND MAY NOT WORK
+run_workflow_dir(dirpath):
+    """Runs the snakemake_anim workflow on all files in the passed directory
+
+    This function should emulate running the workflow on a directory from the
+    command-line. All files in the directory will be compared in a pairwise
+    manner.
+
+    We don't necessarily need this for running pyani-plus, but it may be useful.
+    Mostly we will expect to have to filter out some pre-calculated comparisons,
+    in normal use.
+    """
+    pass
+
 # Define a subset of target files to generate
 def get_target_files(input_genomes):
 

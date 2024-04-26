@@ -30,7 +30,7 @@ def run_workflow(targetset):
     pass
 
 # FOR DEMONSTRATION PURPOSES ONLY - UNTESTED AND MAY NOT WORK
-run_workflow_dir(dirpath):
+def run_workflow_dir(dirpath):
     """Runs the snakemake_anim workflow on all files in the passed directory
 
     This function should emulate running the workflow on a directory from the

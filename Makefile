@@ -20,11 +20,6 @@ install_macos: setup_conda
 	@conda install --file requirements-thirdparty-macos.txt --yes
 	@pip install -U -e .
 
-# Run tests
-# When the tests complete, the coverage output will be opened in a browser
-test:
-	@python -m pytest --cov-report=html --cov=pyani-plus -v tests/ && open htmlcov/index.html
-
 # Set up development environment (OS-dependent)
 setup_dev_linux: setup_conda setup_conda-dev
 	@conda install --file requirements-thirdparty-linux.txt --yes
@@ -36,3 +31,13 @@ setup_dev_macos: setup_conda setup_conda-dev
 	@pre-commit install
 	@pip install -U -e .
 
+# Run tests
+# When the tests complete, the coverage output will be opened in a browser
+test:
+	@python -m pytest --cov-report=html --cov=pyani_plus -v tests/ && open htmlcov/index.html
+
+# Clean up test output
+clean_test:
+	@rm -rf htmlcov
+	@rm -rf tests/nucmer_filter_output
+	@rm -rf tests/nucmer_delta_output

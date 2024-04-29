@@ -1,12 +1,11 @@
-
-# The nucmer rule runs nucmer 
+# The delta rule runs nucmer
 # NOTE: We do not need to construct forward and reverse comparisions separately
 # This is done by secifying target files in `run_anim_workflow.py` and rule all.
-rule nucmer:
+rule delta:
     params:
-        indir = config['indir'],
-        mode = config['mode'],
-        outdir = config['outdir']
+        indir=config["indir"],
+        mode=config["mode"],
+        outdir=config["outdir"],
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.delta",
     run:
@@ -15,13 +14,14 @@ rule nucmer:
         )
 
 
-#The filter rule runs delta-filter wraper for nucmer
+# The filter rule runs delta-filter wrapper for nucmer
 # NOTE: by specifying delta files as input will enfore the order in wich the rules will be executed
 # eg. nucmer rule to provide delta files, then filter rule to obtain filter files
 
+
 rule filter:
     input:
-        "{outdir}/{genomeA}_vs_{genomeB}.delta"
+        "{outdir}/{genomeA}_vs_{genomeB}.delta",
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.filter",
     run:

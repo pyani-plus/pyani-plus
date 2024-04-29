@@ -38,3 +38,9 @@ venv-*
 # DTD files supporting imported modules
 ulist.DTD
 esummary_assembly.dtd
+
+# Snakemake directories generated during testing
+.snakemake
+
+# MUMmer error files from testing
+nucmer.error

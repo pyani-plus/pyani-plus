@@ -29,9 +29,10 @@ These tests are intended to be run from the repository root using:
 pytest -v
 """
 
-#Set Up 
+# Set Up
 from pathlib import Path
 import sys
+
 sys.path.append("..")
 from itertools import permutations
 from scripts.run_anim_workflow import get_target_files
@@ -39,29 +40,26 @@ import pytest
 
 
 config_args = {
-        "outdir": "../issue_1/output",
-        "indir": "../issue_1/input",
-        "cores": 8,
-        "mode": 'maxmatch'
-    }
-
- 
+    "outdir": "../issue_1/output",
+    "indir": "../issue_1/input",
+    "cores": 8,
+    "mode": "maxmatch",
+}
 
 
 @pytest.fixture
 def target_files():
     path_to_target_files = Path("test_targets/anim")
-    return [fname.name for fname in sorted(list(path_to_target_files.glob("*"))) if fname.suffix == '.filter']
-
-
+    return [
+        fname.name
+        for fname in sorted(path_to_target_files.glob("*"))
+        if fname.suffix == ".filter"
+    ]
 
 
 # Test function that uses the fixture
 def test_get_target_files(target_files):
     path_to_inputs = Path("test_input/anim")
 
-    assert target_files ==  get_target_files(path_to_inputs)
+    assert target_files == get_target_files(path_to_inputs)
     # Add more assertions or tests as needed
-
-
-

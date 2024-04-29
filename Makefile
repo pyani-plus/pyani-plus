@@ -5,7 +5,7 @@
 
 # Install OS-independent conda dependencies
 setup_conda:
-	@conda install --file requirements-dev.txt --yes
+	@conda install --file requirements.txt --yes
 
 # Install OS-independent conda dependencies for development
 setup_conda-dev:
@@ -13,9 +13,11 @@ setup_conda-dev:
 
 # Install pyani-plus (OS-dependent, not developer version)
 install_linux: setup_conda
+	@conda install --file requirements-thirdparty-linux.txt --yes
 	@pip install -U -e .
 
 install_macos: setup_conda
+	@conda install --file requirements-thirdparty-macos.txt --yes
 	@pip install -U -e .
 
 # Run tests
@@ -24,11 +26,13 @@ test:
 	@python -m pytest --cov-report=html --cov=pyani-plus -v tests/ && open htmlcov/index.html
 
 # Set up development environment (OS-dependent)
-setup_dev_linux: setup_conda-dev
+setup_dev_linux: setup_conda setup_conda-dev
+	@conda install --file requirements-thirdparty-linux.txt --yes
 	@pre-commit install
 	@pip install -U -e .
 
-setup_dev_macos: setup_conda-dev
+setup_dev_macos: setup_conda setup_conda-dev
+	@conda install --file requirements-thirdparty-macos.txt --yes
 	@pre-commit install
 	@pip install -U -e .
 

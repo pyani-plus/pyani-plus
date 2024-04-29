@@ -1,6 +1,7 @@
 # The delta rule runs nucmer
-# NOTE: We do not need to construct forward and reverse comparisions separately
-# This is done by secifying target files in `run_anim_workflow.py` and rule all.
+# NOTE: We do not need to construct forward and reverse comparisions within this
+# rule. This is done in the context of pyani_plus by specifying target files in
+# the calling code
 rule delta:
     params:
         indir=config["indir"],
@@ -15,10 +16,8 @@ rule delta:
 
 
 # The filter rule runs delta-filter wrapper for nucmer
-# NOTE: by specifying delta files as input will enfore the order in wich the rules will be executed
-# eg. nucmer rule to provide delta files, then filter rule to obtain filter files
-
-
+# NOTE: This rule is used for ANIm in the context of pyani_plus. The .filter file
+# is used to calculate ANI values
 rule filter:
     input:
         "{outdir}/{genomeA}_vs_{genomeB}.delta",

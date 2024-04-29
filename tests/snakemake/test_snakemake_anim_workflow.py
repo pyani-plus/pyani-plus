@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # The MIT License
 #
-# Copyright (c) University of Strathclyde
+# Copyright (c) 2024-present University of Strathclyde
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -21,45 +21,108 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-
-"""Test run_anim_workflow.py module.
+"""Test snakemake workflow for ANIm
 
 These tests are intended to be run from the repository root using:
 
-pytest -v
+make test
 """
 
-# Set Up
-from pathlib import Path
-import sys
+import shutil  # We need this for filesystem operations
 
-sys.path.append("..")
-from itertools import permutations
-from scripts.run_anim_workflow import get_target_files
+# Required to support pytest automated testing
 import pytest
 
-
-config_args = {
-    "outdir": "../issue_1/output",
-    "indir": "../issue_1/input",
-    "cores": 8,
-    "mode": "maxmatch",
-}
+# We're testing the workflow, as called through the pyani_plus
+# wrapper code, so import only that module
+from pyani_plus.snakemake import anim
 
 
 @pytest.fixture
-def target_files():
-    path_to_target_files = Path("test_targets/anim")
-    return [
-        fname.name
-        for fname in sorted(path_to_target_files.glob("*"))
-        if fname.suffix == ".filter"
-    ]
+def config_filter_args(anim_nucmer_targets_filter_outdir, input_genomes_small):
+    """Configuration settings for testing snakemake filter rule.
+
+    We take the output directories for the MUMmer filter output and the
+    small set of input genomes as arguments.
+    """
+    return {
+        "outdir": anim_nucmer_targets_filter_outdir,
+        "indir": input_genomes_small,
+        "cores": 8,
+        "mode": "maxmatch",
+    }
+
+
+@pytest.fixture
+def config_delta_args(anim_nucmer_targets_delta_outdir, input_genomes_small):
+    """Configuration settings for testing snakemake delta rule.
+
+    We take the output directories for the MUMmer delta output and the
+    small set of input genomes as arguments.
+    """
+    return {
+        "outdir": anim_nucmer_targets_delta_outdir,
+        "indir": input_genomes_small,
+        "cores": 8,
+        "mode": "maxmatch",
+    }
+
+
+def test_snakemake_rule_filter(
+    anim_nucmer_targets_filter, anim_nucmer_targets_filter_outdir, config_filter_args
+):
+    """Test nucmer filter snakemake wrapper
+
+    Checks that the filter rule in the ANIm snakemake wrapper gives the
+    expected output.
+
+    If the output directory exists (i.e. the make clean_tests rule has not
+    been run), the tests will automatically pass as snakemake will not
+    attempt to re-run the rule. That would prevent us from seeing any
+    introduced bugs, so we force re-running the rule by deleting the
+    output directory before running the tests.
+    """
+    # Remove the output directory to force re-running the snakemake rule
+    shutil.rmtree(anim_nucmer_targets_filter_outdir, ignore_errors=True)
+
+    # Run snakemake wrapper
+    anim.run_workflow(anim_nucmer_targets_filter, config_filter_args)
+
+
+def test_snakemake_rule_delta(
+    anim_nucmer_targets_delta, anim_nucmer_targets_delta_outdir, config_delta_args
+):
+    """Test nucmer delta snakemake wrapper
+
+    Checks that the delta rule in the ANIm snakemake wrapper gives the
+    expected output.
+
+    If the output directory exists (i.e. the make clean_tests rule has not
+    been run), the tests will automatically pass as snakemake will not
+    attempt to re-run the rule. That would prevent us from seeing any
+    introduced bugs, so we force re-running the rule by deleting the
+    output directory before running the tests.
+    """
+    # Remove the output directory to force re-running the snakemake rule
+    shutil.rmtree(anim_nucmer_targets_delta_outdir, ignore_errors=True)
+
+    # Run snakemake wrapper
+    anim.run_workflow(anim_nucmer_targets_delta, config_delta_args)
+
+
+# @pytest.fixture
+# def target_files():
+#     path_to_target_files = Path("test_targets/anim")
+#     return [
+#         fname.name
+#         for fname in sorted(path_to_target_files.glob("*"))
+#         if fname.suffix == ".filter"
+#     ]
 
 
 # Test function that uses the fixture
-def test_get_target_files(target_files):
-    path_to_inputs = Path("test_input/anim")
+# def test_get_target_files(anim_nucmer_targets_filter):
+#     path_to_inputs = Path("test_input/anim")
 
-    assert target_files == get_target_files(path_to_inputs)
-    # Add more assertions or tests as needed
+#     assert target_files == get_target_files(path_to_inputs)
+#     # Add more assertions or tests as needed

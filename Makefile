@@ -7,16 +7,11 @@
 setup_conda:
 	@conda install --file requirements-dev.txt --yes
 
-# Set up development environment (OS-dependent)
-setup_dev_linux: setup_conda
-	@pre-commit install
-	@pip install -U -e .
+# Install OS-independent conda dependencies for development
+setup_conda-dev:
+	@conda install --file requirements-dev.txt --yes
 
-setup_dev_macos: setup_conda
-	@pre-commit install
-	@pip install -U -e .
-
-# Install pyani-plus (OS-dependent)
+# Install pyani-plus (OS-dependent, not developer version)
 install_linux: setup_conda
 	@pip install -U -e .
 
@@ -27,3 +22,13 @@ install_macos: setup_conda
 # When the tests complete, the coverage output will be opened in a browser
 test:
 	@python -m pytest --cov-report=html --cov=pyani-plus -v tests/ && open htmlcov/index.html
+
+# Set up development environment (OS-dependent)
+setup_dev_linux: setup_conda-dev
+	@pre-commit install
+	@pip install -U -e .
+
+setup_dev_macos: setup_conda-dev
+	@pre-commit install
+	@pip install -U -e .
+

@@ -1,4 +1,4 @@
-/Users/angelikakiepas/Desktop/pyani_plus/issue_1/input/NC_014100.fna /Users/angelikakiepas/Desktop/pyani_plus/issue_1/input/NC_002696.fna
+/Users/angelikakiepas/Desktop/pyani_plus/tests/generate_fixtures/../fixtures/sequences/NC_014100.fna /Users/angelikakiepas/Desktop/pyani_plus/tests/generate_fixtures/../fixtures/sequences/NC_002696.fna
 NUCMER
 >gi|295687459|ref|NC_014100.1| NC_002696_part_1 4655622 1050
 4614757 4615741 1050 69 127 127 0

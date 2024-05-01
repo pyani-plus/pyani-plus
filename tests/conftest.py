@@ -116,6 +116,28 @@ def anim_nucmer_targets_delta(anim_nucmer_targets_delta_outdir):
 
 
 @pytest.fixture
+def fastani_targets_outdir():
+    """Output directory for fastani snakemake tests.
+
+    This path indicates the location to which fastANI should write
+    its output files during fastani testing
+    """
+    return TESTSPATH / "fastani_output"
+
+
+@pytest.fixture
+def fastani_targets(fastani_targets_outdir):
+    """Target files for ANIm tests.
+
+    These are paths to the output files we want to generate using
+    nucmer for ANIm. We aim to ask MUMmer to generate a set of
+    .filter files that could later be processed to obtain ANI values
+    """
+    reference_paths = (FIXTUREPATH / "fastani" / "targets").glob("*.fastani")
+    return [fastani_targets_outdir / _.name for _ in reference_paths]
+
+
+@pytest.fixture
 def input_genomes_small():
     """Path to small set of input genomes."""
     return str(FIXTUREPATH / "sequences")

@@ -92,6 +92,18 @@ def anim_nucmer_targets_delta(anim_nucmer_targets_delta_outdir):
 
 
 @pytest.fixture
+def anim_nucmer_expected_targets_filter():
+    """Target files for ANIm tests.
+
+    These are paths to the output files we want to generate using
+    nucmer for ANIm. We aim to ask MUMmer to generate a set of
+    .filter files that could later be processed to obtain ANI values
+    """
+
+    return FIXTUREPATH / "anim" / "targets" / "filter"
+
+
+@pytest.fixture
 def input_genomes_small():
     """Path to small set of input genomes."""
     return str(FIXTUREPATH / "sequences")

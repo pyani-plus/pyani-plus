@@ -49,7 +49,7 @@ def config_filter_args(anim_nucmer_targets_filter_outdir, input_genomes_small):
         "outdir": anim_nucmer_targets_filter_outdir,
         "indir": input_genomes_small,
         "cores": 8,
-        "mode": "maxmatch",
+        "mode": "mum",
     }
 
 
@@ -64,7 +64,7 @@ def config_delta_args(anim_nucmer_targets_delta_outdir, input_genomes_small):
         "outdir": anim_nucmer_targets_delta_outdir,
         "indir": input_genomes_small,
         "cores": 8,
-        "mode": "maxmatch",
+        "mode": "mum",
     }
 
 

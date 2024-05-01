@@ -14,20 +14,24 @@ setup_conda-dev:
 # Install pyani-plus (OS-dependent, not developer version)
 install_linux: setup_conda
 	@conda install --file requirements-thirdparty-linux.txt --yes
+	@conda install --file requirements-fastani-linux.txt --yes
 	@pip install -U -e .
 
 install_macos: setup_conda
 	@conda install --file requirements-thirdparty-macos.txt --yes
+	@conda install --file requirements-fastani-macos.txt --yes
 	@pip install -U -e .
 
 # Set up development environment (OS-dependent)
 setup_dev_linux: setup_conda setup_conda-dev
 	@conda install --file requirements-thirdparty-linux.txt --yes
+	@conda install --file requirements-fastani-linux.txt --yes
 	@pre-commit install
 	@pip install -U -e .
 
 setup_dev_macos: setup_conda setup_conda-dev
 	@conda install --file requirements-thirdparty-macos.txt --yes
+	@conda install --file requirements-fastani-macos.txt --yes
 	@pre-commit install
 	@pip install -U -e .
 

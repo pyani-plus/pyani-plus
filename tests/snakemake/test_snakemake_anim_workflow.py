@@ -108,21 +108,3 @@ def test_snakemake_rule_delta(
 
     # Run snakemake wrapper
     anim.run_workflow(anim_nucmer_targets_delta, config_delta_args)
-
-
-# @pytest.fixture
-# def target_files():
-#     path_to_target_files = Path("test_targets/anim")
-#     return [
-#         fname.name
-#         for fname in sorted(path_to_target_files.glob("*"))
-#         if fname.suffix == ".filter"
-#     ]
-
-
-# Test function that uses the fixture
-# def test_get_target_files(anim_nucmer_targets_filter):
-#     path_to_inputs = Path("test_input/anim")
-
-#     assert target_files == get_target_files(path_to_inputs)
-#     # Add more assertions or tests as needed

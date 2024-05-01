@@ -4,10 +4,8 @@ target outputs (delta files) for aniM analysis.
 
 # Set Up (importing libraries)
 from importlib import resources as impresources
-from itertools import permutations
-from pathlib import Path
 
-from snakemake.api import SnakemakeApi, _get_executor_plugin_registry
+from snakemake.api import SnakemakeApi
 from snakemake.settings import ConfigSettings, DAGSettings, ResourceSettings
 
 from pyani_plus import workflows

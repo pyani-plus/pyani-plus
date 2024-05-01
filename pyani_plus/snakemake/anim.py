@@ -12,23 +12,6 @@ from snakemake.settings import ConfigSettings, DAGSettings, ResourceSettings
 
 from pyani_plus import workflows
 
-# config_args = {
-#     "outdir": "../issue_1/output3",
-#     "indir": "../issue_1/input",
-#     "cores": 8,
-#     "mode": "maxmatch",
-# }
-
-
-# targets = [
-#     "../issue_1/output3/NC_002696_vs_NC_010338.filter",
-#     "../issue_1/output3/NC_002696_vs_NC_011916.filter",
-#     "../issue_1/output3/NC_002696_vs_NC_014100.filter",
-#     "../issue_1/output3/NC_010338_vs_NC_002696.filter",
-#     "../issue_1/output3/NC_010338_vs_NC_011916.filter",
-#     "../issue_1/output3/NC_010338_vs_NC_014100.filter",
-# ]
-
 
 # FOR DEMONSTRATION PURPOSES ONLY - UNTESTED AND MAY NOT WORK
 def run_workflow(targetset, config_args):
@@ -71,17 +54,6 @@ def run_workflow(targetset, config_args):
         dag_api.execute_workflow()
 
     pass
-
-
-# run_workflow(targets)
-
-
-# config_args = {
-#     "outdir": "../issue_1/output4",
-#     "indir": "../issue_1/input",
-#     "cores": 8,
-#     "mode": "maxmatch",
-# }
 
 
 # # FOR DEMONSTRATION PURPOSES ONLY - UNTESTED AND MAY NOT WORK
@@ -132,6 +104,3 @@ def run_workflow(targetset, config_args):
 #         )
 #         dag_api.execute_workflow()
 #     pass
-
-
-# run_workflow_dir(config_args["indir"])

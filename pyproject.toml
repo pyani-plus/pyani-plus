@@ -1,13 +1,13 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61.0", "setuptools-scm>=8.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyani-plus"
 version = "0.0.1"
 authors = [
-    { name="Leighton Pritchard", email="leighton.pritchard@strath.ac.uk" },
-    { name="Angelika Kiepas", email="angelika.kiepas@strath.ac.uk"}
+    { name = "Leighton Pritchard", email = "leighton.pritchard@strath.ac.uk" },
+    { name = "Angelika Kiepas", email = "angelika.kiepas@strath.ac.uk" },
 ]
 readme = "README.md"
 requires-python = ">=3.11"
@@ -16,6 +16,10 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+dependencies = ["snakemake"]
+
+[tool.setuptools.packages.find]
+where = ["pyani_plus"]
 
 [project.urls]
 Homepage = "https://github.com/pyani-plus/pyani-plus"

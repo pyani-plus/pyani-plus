@@ -2,24 +2,21 @@
 # which can be found at https://docs.astral.sh/ruff/configuration/
 
 # Assume Python 3.12
-target-version = "3.12"
+target-version = "py312"
+line-length = 89  # Set maximum line length. This does not override Flake8 settings.
 
-#
 [lint]
 # 1. Ignore flake8 rules
 ignore = [
-    "E203",  # Whitespace before ':'
-    "E231",  # Missing whitespace after ','
-    "E266",  # Too many leading '#' for block comment
-    "E501",  # Line too long
-    "E731",  # Do not assign a lambda expression, use a def
-    "W503",  # Line break occurred before a binary operator
-    "F401",  # 'module' imported but unused
-    "F403",  # 'from module import *' used; unable to detect undefined names
+    "E203", # Whitespace before ':'
+    "E231", # Missing whitespace after ','
+    "E266", # Too many leading '#' for block comment
+    "E501", # Line too long
+    "E731", # Do not assign a lambda expression, use a def
+    #    "W503", # Line break occurred before a binary operator
+    "F401", # 'module' imported but unused
+    "F403", # 'from module import *' used; unable to detect undefined names
 ]
 
-# 2. Enforce maximum complexity
-max-complexity = 18
-
-# 3. Enable rulesets
-select = ["B", "C", "E", "F", "W", "T4", "B9"]
+# 2. Enable rulesets
+select = ["B", "C", "E", "F", "W", "B9"]

@@ -23,6 +23,9 @@ distribute*
 # Issue development subdirectories
 issue_*/
 
+# Test output directories
+tests/*output
+
 # Test coverage output
 cover/
 htmlcov/
@@ -38,3 +41,9 @@ venv-*
 # DTD files supporting imported modules
 ulist.DTD
 esummary_assembly.dtd
+
+# Snakemake directories generated during testing
+.snakemake
+
+# MUMmer error files from testing
+nucmer.error

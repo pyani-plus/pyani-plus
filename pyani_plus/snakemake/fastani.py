@@ -12,25 +12,6 @@ from snakemake.settings import ConfigSettings, DAGSettings, ResourceSettings
 
 from pyani_plus import workflows
 
-# config_args = {
-#     "outdir": "../../issue_1/output5",
-#     "indir": "../../issue_1/input",
-#     "cores": 8,
-#     "fragLen": 3000,
-#     "kmerSize": 16,
-#     "minFrac": 0.2,
-# }
-
-
-# targets = [
-#     "../../issue_1/output5/NC_002696_vs_NC_010338.fastani",
-#     "../../issue_1/output5/NC_002696_vs_NC_011916.fastani",
-#     "../../issue_1/output5/NC_002696_vs_NC_014100.fastani",
-#     "../../issue_1/output5/NC_010338_vs_NC_002696.fastani",
-#     "../../issue_1/output5/NC_010338_vs_NC_011916.fastani",
-#     "../../issue_1/output5/NC_010338_vs_NC_014100.fastani",
-# ]
-
 
 def run_workflow(targetset, config_args):
     """Runs the snakemake_fastani workflow for the passed pairwise comparisons"""
@@ -38,7 +19,6 @@ def run_workflow(targetset, config_args):
     print(f"{targetset=}")
 
     # Path to anim snakemake file
-    # snakefile = Path("../workflows/snakemake_fastani.smk")
     snakefile = impresources.files(workflows) / "snakemake_fastani.smk"
 
     # Use the defined workflow from the Python API
@@ -58,6 +38,3 @@ def run_workflow(targetset, config_args):
         dag_api.execute_workflow()
 
     pass
-
-
-# run_workflow(targets,config_args)

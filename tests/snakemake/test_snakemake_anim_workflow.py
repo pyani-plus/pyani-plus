@@ -68,8 +68,28 @@ def config_delta_args(anim_nucmer_targets_delta_outdir, input_genomes_small):
     }
 
 
+def compare_files_with_skip(file1, file2, skip=1):
+    """Compare two files, line by line, except for the first line.
+
+    This function expects two text files as input and returns True if the content
+    of the files is the same, and False if the two files differ.
+    """
+
+    with file1.open() as if1, file2.open() as if2:
+        for line1, line2 in zip(
+            if1.readlines()[skip:], if2.readlines()[skip:], strict=False
+        ):
+            if line1 != line2:
+                return False
+
+    return True
+
+
 def test_snakemake_rule_filter(
-    anim_nucmer_targets_filter, anim_nucmer_targets_filter_outdir, config_filter_args
+    anim_nucmer_targets_filter,
+    anim_nucmer_targets_filter_indir,
+    anim_nucmer_targets_filter_outdir,
+    config_filter_args,
 ):
     """Test nucmer filter snakemake wrapper
 
@@ -88,9 +108,19 @@ def test_snakemake_rule_filter(
     # Run snakemake wrapper
     anim.run_workflow(anim_nucmer_targets_filter, config_filter_args)
 
+    # Check output against target fixtures
+    for fname in anim_nucmer_targets_filter:
+        assert compare_files_with_skip(
+            anim_nucmer_targets_filter_indir / fname,
+            anim_nucmer_targets_filter_outdir / fname,
+        )
+
 
 def test_snakemake_rule_delta(
-    anim_nucmer_targets_delta, anim_nucmer_targets_delta_outdir, config_delta_args
+    anim_nucmer_targets_delta,
+    anim_nucmer_targets_delta_indir,
+    anim_nucmer_targets_delta_outdir,
+    config_delta_args,
 ):
     """Test nucmer delta snakemake wrapper
 
@@ -108,3 +138,10 @@ def test_snakemake_rule_delta(
 
     # Run snakemake wrapper
     anim.run_workflow(anim_nucmer_targets_delta, config_delta_args)
+
+    # Check output against target fixtures
+    for fname in anim_nucmer_targets_delta:
+        assert compare_files_with_skip(
+            anim_nucmer_targets_delta_indir / fname,
+            anim_nucmer_targets_delta_outdir / fname,
+        )

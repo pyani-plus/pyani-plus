@@ -48,8 +48,25 @@ def config_fastani_args(fastani_targets_outdir, input_genomes_small):
     }
 
 
+def compare_fastani_files(file1, file2):
+    """Compare two fastANI files.
+
+    This function expects two text files as input and returns True if the content
+    of the files is the same, and False if the two files differ.
+
+    As the Path to both Query and Reference might be diffrent,
+    we will only consider file name.
+    """
+
+    with file1.open() as if1, file2.open() as if2:
+        for line1, line2 in zip(if1.readlines(), if2.readlines(), strict=False):
+            if line1.split("\t")[2:] != line2.split("\t")[2:]:
+                return False
+        return True
+
+
 def test_snakemake_rule_fastani(
-    fastani_targets, fastani_targets_outdir, config_fastani_args
+    fastani_targets, fastani_targets_outdir, config_fastani_args, fastani_targets_indir
 ):
     """Test fastANI snakemake wrapper
 
@@ -61,3 +78,10 @@ def test_snakemake_rule_fastani(
 
     # Run snakemake wrapper
     fastani.run_workflow(fastani_targets, config_fastani_args)
+
+    # Check output against target fixtures
+    for fname in fastani_targets:
+        assert compare_fastani_files(
+            fastani_targets_indir / fname,
+            fastani_targets_outdir / fname,
+        )

@@ -1,3 +1,5 @@
 gsl=2.7
 fastani
+blast
+blast-legacy
 mummer=3.23

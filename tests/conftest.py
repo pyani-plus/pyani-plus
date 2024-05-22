@@ -138,6 +138,91 @@ def fastani_targets_indir():
 
 
 @pytest.fixture
+def dnadiff_nucmer_targets_filter_indir():
+    """Directory containing MUMmer filter snakemake reference files."""
+    return FIXTUREPATH / "dnadiff" / "targets" / "filter"
+
+
+@pytest.fixture
+def dnadiff_nucmer_targets_filter_outdir():
+    """Output directory for MUMmer filter snakemake tests.
+
+    This path indicates the location to which MUMmer should write
+    its output files during dnadiff testing
+    """
+    return TESTSPATH / "dnadiff_nucmer_filter_output"
+
+
+@pytest.fixture
+def dnadiff_nucmer_targets_delta_indir():
+    """Directory containing MUMmer delta snakemake reference files."""
+    return FIXTUREPATH / "dnadiff" / "targets" / "delta"
+
+
+@pytest.fixture
+def dnadiff_nucmer_targets_delta_outdir():
+    """Output directory for MUMmer filter snakemake tests.
+
+    This path indicates the location to which MUMmer should write
+    its output files during dnadiff testing
+    """
+    return TESTSPATH / "dnadiff_nucmer_delta_output"
+
+
+@pytest.fixture
+def dnadiff_targets_showdiff_indir():
+    """Directory containing snadiff show_diff snakemake reference files."""
+    return FIXTUREPATH / "dnadiff" / "targets" / "show_diff"
+
+
+@pytest.fixture
+def dnadiff_targets_showdiff_outdir():
+    """Output directory for MUMmer filter snakemake tests.
+
+    This path indicates the location to which dnadiff should write
+    its output files during dnadiff testing
+    """
+    return TESTSPATH / "dnadiff_show_diff_output"
+
+
+@pytest.fixture
+def dnadiff_nucmer_targets_filter(dnadiff_nucmer_targets_filter_outdir):
+    """Target files for dnadiff tests.
+
+    These are paths to the output files we want to generate using
+    nucmer for dnadiff. We aim to ask MUMmer to generate a set of
+    .filter files that could later be processed to obtain AlignedBases
+    values
+    """
+    reference_paths = (FIXTUREPATH / "dnadiff" / "targets" / "filter").glob("*.filter")
+    return [dnadiff_nucmer_targets_filter_outdir / _.name for _ in reference_paths]
+
+
+@pytest.fixture
+def dnadiff_nucmer_targets_delta(dnadiff_nucmer_targets_delta_outdir):
+    """Target files for dnadiff tests.
+
+    These are paths to the output files we want to generate using
+    nucmer for dnadiff. We aim to generate a set of .delta files that
+    could later be processed to obtain AlignedBases values
+    """
+    reference_paths = (FIXTUREPATH / "dnadiff" / "targets" / "delta").glob("*.delta")
+    return [dnadiff_nucmer_targets_delta_outdir / _.name for _ in reference_paths]
+
+
+@pytest.fixture
+def dnadiff_targets_showdiff(dnadiff_targets_showdiff_outdir):
+    """Target files for ANIm tests.
+
+    These are paths to the output files we want to generate using
+    nucmer for ANIm. We aim to generate a set of .delta files that
+    could later be processed to obtain ANI values
+    """
+    reference_paths = (FIXTUREPATH / "dnadiff" / "targets" / "show_diff").glob("*.rdiff")
+    return [dnadiff_targets_showdiff_outdir / _.name for _ in reference_paths]
+
+
+@pytest.fixture
 def input_genomes_small():
     """Path to small set of input genomes."""
     return str(FIXTUREPATH / "sequences")

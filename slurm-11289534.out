@@ -1,0 +1,44 @@
+===================================================================================
+SLURM Job ID:            11289534
+Submit time:             Fri May 24 16:34:52 BST 2024 (Unix Epoch time: 1716564892)
+Start time:              Fri May 24 16:34:52 BST 2024 (Unix Epoch time: 1716564892)
+No. nodes:               1
+No. tasks:               12
+Job name:                snakemake_test
+Account:                 pritchard-grxiv
+QoS:                     priority
+Partition (queue):       dev
+Submit directory:        /users/xmb20196/pyani_plus
+Script name:             /users/xmb20196/pyani_plus/slurm_testing.sh
+Master node:             dev1
+Nodes used:              dev1
+Task distribution:       
+===================================================================================
+
+============================= test session starts ==============================
+platform linux -- Python 3.11.9, pytest-8.2.1, pluggy-1.5.0 -- /users/xmb20196/.conda/envs/pyani_plus_smk/bin/python
+cachedir: .pytest_cache
+rootdir: /users/xmb20196/pyani_plus
+configfile: pyproject.toml
+plugins: cov-5.0.0
+collecting ... collected 6 items
+
+tests/snakemake/test_snakemake_slurm.py::test_snakemake_rule_delta_slurm PASSED [ 16%]
+tests/snakemake/test_snakemake_slurm.py::test_snakemake_rule_filter_slurm PASSED [ 33%]
+tests/snakemake/test_snakemake_slurm.py::test_snakemake_rule_fastani_slurm PASSED [ 50%]
+tests/snakemake/test_snakemake_slurm.py::test_dnadiff_rule_delta_slurm PASSED [ 66%]
+tests/snakemake/test_snakemake_slurm.py::test_dnadiff_rule_filter_slurm PASSED [ 83%]
+tests/snakemake/test_snakemake_slurm.py::test_dnadiff_rule_show_diff_slurm PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/snakemake/test_snakemake_slurm.py::test_snakemake_rule_delta_slurm
+  /users/xmb20196/.conda/envs/pyani_plus_smk/lib/python3.11/site-packages/stopit/__init__.py:10: DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=================== 6 passed, 1 warning in 117.14s (0:01:57) ===================
+===================================================================================
+SLURM job 11289534 ended:     Fri May 24 16:36:58 BST 2024 (Unix Epoch time: 1716565018)
+This is an estimated end time using the 'date' command from node dev1.hpc.strath.ac.uk
+For accurate timings, use 'sacct -j 11289534 -X --format=Submit,Start,End,Elapsed'
+======================================================================================

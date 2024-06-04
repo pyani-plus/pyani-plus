@@ -21,63 +21,66 @@ INPUT_DIR=../fixtures/sequences
 DELTA_DIR=../fixtures/dnadiff/targets/delta
 FILTER_DIR=../fixtures/dnadiff/targets/filter
 SHOW_DIFF_DIR=../fixtures/dnadiff/targets/show_diff
+SHOW_COORDS_DIR=../fixtures/dnadiff/targets/show_coords
+
 
 #Running comparisions
 nucmer -p $DELTA_DIR/NC_002696_vs_NC_010338 --maxmatch $INPUT_DIR/NC_002696.fna $INPUT_DIR/NC_010338.fna
 delta-filter -m $DELTA_DIR/NC_002696_vs_NC_010338.delta > $FILTER_DIR/NC_002696_vs_NC_010338.filter
 show-diff -rH $FILTER_DIR/NC_002696_vs_NC_010338.filter > $SHOW_DIFF_DIR/NC_002696_vs_NC_010338.rdiff
-
+show-coods $FILTER_DIR/NC_002696_vs_NC_010338.filter > $SHOW_COORDS_DIR/NC_002696_vs_NC_010338.mcoords
 
 nucmer -p $DELTA_DIR/NC_002696_vs_NC_011916 --maxmatch $INPUT_DIR/NC_002696.fna $INPUT_DIR/NC_011916.fna
 delta-filter -m $DELTA_DIR/NC_002696_vs_NC_011916.delta > $FILTER_DIR/NC_002696_vs_NC_011916.filter
 show-diff -rH $FILTER_DIR/NC_002696_vs_NC_011916.filter > $SHOW_DIFF_DIR/NC_002696_vs_NC_011916.rdiff
-
+show-coords $FILTER_DIR/NC_002696_vs_NC_011916.filter > $SHOW_COORDS_DIR/NC_002696_vs_NC_011916.mcoords
 
 nucmer -p $DELTA_DIR/NC_002696_vs_NC_014100 --maxmatch $INPUT_DIR/NC_002696.fna $INPUT_DIR/NC_014100.fna
 delta-filter -m $DELTA_DIR/NC_002696_vs_NC_014100.delta > $FILTER_DIR/NC_002696_vs_NC_014100.filter
 show-diff -rH  $FILTER_DIR/NC_002696_vs_NC_014100.filter > $SHOW_DIFF_DIR/NC_002696_vs_NC_014100.rdiff
-
+show-coords $FILTER_DIR/NC_002696_vs_NC_014100.filter > $SHOW_COORDS_DIR/NC_002696_vs_NC_014100.mcoords
 
 nucmer -p $DELTA_DIR/NC_010338_vs_NC_002696 --maxmatch $INPUT_DIR/NC_010338.fna $INPUT_DIR/NC_002696.fna
 delta-filter -m $DELTA_DIR/NC_010338_vs_NC_002696.delta > $FILTER_DIR/NC_010338_vs_NC_002696.filter 
 show-diff -rH  $FILTER_DIR/NC_010338_vs_NC_002696.filter > $SHOW_DIFF_DIR/NC_010338_vs_NC_002696.rdiff
-
+show-coords $FILTER_DIR/NC_010338_vs_NC_002696.filter > $SHOW_COORDS_DIR/NC_010338_vs_NC_002696.mcoords
 
 nucmer -p $DELTA_DIR/NC_010338_vs_NC_011916 --maxmatch $INPUT_DIR/NC_010338.fna $INPUT_DIR/NC_011916.fna
 delta-filter -m $DELTA_DIR/NC_010338_vs_NC_011916.delta > $FILTER_DIR/NC_010338_vs_NC_011916.filter 
 show-diff -rH  $FILTER_DIR/NC_010338_vs_NC_011916.filter > $SHOW_DIFF_DIR/NC_010338_vs_NC_011916.rdiff
-
+show-coords $FILTER_DIR/NC_010338_vs_NC_011916.filter > $SHOW_COORDS_DIR/NC_010338_vs_NC_011916.mcoords
 
 nucmer -p $DELTA_DIR/NC_010338_vs_NC_014100 --maxmatch $INPUT_DIR/NC_010338.fna $INPUT_DIR/NC_014100.fna
 delta-filter -m $DELTA_DIR/NC_010338_vs_NC_014100.delta > $FILTER_DIR/NC_010338_vs_NC_014100.filter
 show-diff -rH  $FILTER_DIR/NC_010338_vs_NC_014100.filter > $SHOW_DIFF_DIR/NC_010338_vs_NC_014100.rdiff
-
+show-coords $FILTER_DIR/NC_010338_vs_NC_014100.filter > $SHOW_COORDS_DIR/NC_010338_vs_NC_014100.mcoords
 
 nucmer -p $DELTA_DIR/NC_011916_vs_NC_002696 --maxmatch $INPUT_DIR/NC_011916.fna $INPUT_DIR/NC_002696.fna
 delta-filter -m $DELTA_DIR/NC_011916_vs_NC_002696.delta > $FILTER_DIR/NC_011916_vs_NC_002696.filter
 show-diff -rH  $FILTER_DIR/NC_011916_vs_NC_002696.filter > $SHOW_DIFF_DIR/NC_011916_vs_NC_002696.rdiff
-
+show-coords $FILTER_DIR/NC_011916_vs_NC_002696.filter > $SHOW_COORDS_DIR/NC_011916_vs_NC_002696.mcoords
 
 nucmer -p $DELTA_DIR/NC_011916_vs_NC_010338 --maxmatch $INPUT_DIR/NC_011916.fna $INPUT_DIR/NC_010338.fna
 delta-filter -m $DELTA_DIR/NC_011916_vs_NC_010338.delta > $FILTER_DIR/NC_011916_vs_NC_010338.filter
 show-diff -rH  $FILTER_DIR/NC_011916_vs_NC_010338.filter > $SHOW_DIFF_DIR/NC_011916_vs_NC_010338.rdiff
-
+show-coords $FILTER_DIR/NC_011916_vs_NC_010338.filter > $SHOW_COORDS_DIR/NC_011916_vs_NC_010338.mcoords
 
 nucmer -p $DELTA_DIR/NC_011916_vs_NC_014100 --maxmatch $INPUT_DIR/NC_011916.fna $INPUT_DIR/NC_014100.fna
 delta-filter -m $DELTA_DIR/NC_011916_vs_NC_014100.delta > $FILTER_DIR/NC_011916_vs_NC_014100.filter
 show-diff -rH  $FILTER_DIR/NC_011916_vs_NC_014100.filter > $SHOW_DIFF_DIR/NC_011916_vs_NC_014100.rdiff
-
+show-coords $FILTER_DIR/NC_011916_vs_NC_014100.filter > $SHOW_COORDS_DIR/NC_011916_vs_NC_014100.mcoords
 
 nucmer -p $DELTA_DIR/NC_014100_vs_NC_002696 --maxmatch $INPUT_DIR/NC_014100.fna $INPUT_DIR/NC_002696.fna
 delta-filter -m $DELTA_DIR/NC_014100_vs_NC_002696.delta > $FILTER_DIR/NC_014100_vs_NC_002696.filter
 show-diff -rH  $FILTER_DIR/NC_014100_vs_NC_002696.filter > $SHOW_DIFF_DIR/NC_014100_vs_NC_002696.rdiff
-
+show-coords $FILTER_DIR/NC_014100_vs_NC_002696.filter > $SHOW_COORDS_DIR/NC_014100_vs_NC_002696.mcoords
 
 nucmer -p $DELTA_DIR/NC_014100_vs_NC_010338 --maxmatch $INPUT_DIR/NC_014100.fna $INPUT_DIR/NC_010338.fna
 delta-filter -m $DELTA_DIR/NC_014100_vs_NC_010338.delta > $FILTER_DIR/NC_014100_vs_NC_010338.filter
 show-diff -rH  $FILTER_DIR/NC_014100_vs_NC_010338.filter > $SHOW_DIFF_DIR/NC_014100_vs_NC_010338.rdiff
-
+show-coords $FILTER_DIR/NC_014100_vs_NC_010338.filter > $SHOW_COORDS_DIR/NC_014100_vs_NC_010338.mcoords
 
 nucmer -p $DELTA_DIR/NC_014100_vs_NC_011916 --maxmatch $INPUT_DIR/NC_014100.fna $INPUT_DIR/NC_011916.fna
 delta-filter -m $DELTA_DIR/NC_014100_vs_NC_011916.delta > $FILTER_DIR/NC_014100_vs_NC_011916.filter
 show-diff -rH  $FILTER_DIR/NC_014100_vs_NC_011916.filter > $SHOW_DIFF_DIR/NC_014100_vs_NC_011916.rdiff
+show-coords $FILTER_DIR/NC_014100_vs_NC_011916.filter > $SHOW_COORDS_DIR/NC_014100_vs_NC_011916.mcoords

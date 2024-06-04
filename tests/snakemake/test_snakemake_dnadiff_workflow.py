@@ -74,6 +74,18 @@ def config_dnadiff_showdiff_args(dnadiff_targets_showdiff_outdir, input_genomes_
     }
 
 
+@pytest.fixture
+def config_dnadiff_showcoords_args(
+    dnadiff_targets_showcoords_outdir, input_genomes_small
+):
+    """Configuration settings for testing snakemake show_diff rule."""
+    return {
+        "outdir": dnadiff_targets_showcoords_outdir,
+        "indir": input_genomes_small,
+        "cores": 8,
+    }
+
+
 def compare_files_with_skip(file1, file2, skip=1):
     """Compare two files, line by line, except for the first line.
 
@@ -91,7 +103,7 @@ def compare_files_with_skip(file1, file2, skip=1):
     return True
 
 
-def compare_show_diff_files(file1, file2):
+def compare_show_files(file1, file2):
     """Compare two files.
 
     This function expects two text files as input and returns True if the content
@@ -193,7 +205,38 @@ def test_snakemake_rule_show_diff(
 
     # Check output against target fixtures
     for fname in dnadiff_targets_showdiff:
-        assert compare_files_with_skip(
+        assert compare_show_files(
             dnadiff_targets_showdiff_indir / fname,
             dnadiff_targets_showdiff_outdir / fname,
+        )
+
+
+def test_snakemake_rule_show_coords(
+    dnadiff_targets_showcoords,
+    dnadiff_targets_showcoords_indir,
+    dnadiff_targets_showcoords_outdir,
+    config_dnadiff_showcoords_args,
+):
+    """Test dnadiff show-diff snakemake wrapper
+
+    Checks that the show-diff rule in the dnadiff snakemake wrapper gives the
+    expected output.
+
+    If the output directory exists (i.e. the make clean_tests rule has not
+    been run), the tests will automatically pass as snakemake will not
+    attempt to re-run the rule. That would prevent us from seeing any
+    introduced bugs, so we force re-running the rule by deleting the
+    output directory before running the tests.
+    """
+    # Remove the output directory to force re-running the snakemake rule
+    shutil.rmtree(dnadiff_targets_showcoords_outdir, ignore_errors=True)
+
+    # Run snakemake wrapper
+    dnadiff.run_workflow(dnadiff_targets_showcoords, config_dnadiff_showcoords_args)
+
+    # Check output against target fixtures
+    for fname in dnadiff_targets_showcoords:
+        assert compare_show_files(
+            dnadiff_targets_showcoords_indir / fname,
+            dnadiff_targets_showcoords_outdir / fname,
         )

@@ -48,6 +48,12 @@ FIXTUREPATH = TESTSPATH / "fixtures"
 
 
 @pytest.fixture
+def dir_anim_results():
+    """Input result datafrmes for ANIm tests."""
+    return FIXTUREPATH / "anim" / "dataframes"
+
+
+@pytest.fixture
 def anim_nucmer_targets_filter_indir():
     """Directory containing MUMmer filter snakemake reference files."""
     return FIXTUREPATH / "anim" / "targets" / "filter"

@@ -6,21 +6,23 @@
 # Define acceptable extensions
 extensions = {".fna", ".fasta", ".fas"}
 
-def get_correct_file(genome):
-    "Return file for a given genome with acceptable extention."
+def check_files(indir):
+    "Return a dictionary of files in indir with acceptable extensions, raising an error on duplicates."
+    file_dict = {}
+    for file in Path(indir).iterdir():
+        if file.suffix in extensions:
+            if  file.stem in file_dict:
+                raise ValueError(f"Duplicate genome name with different extensions found: {file.stem}")
+            file_dict[file.stem] = str(file)
+    return file_dict
 
-    for ext in extensions:
-        file = Path(config["indir"]) / f"{genome}{ext}"
-        if file.exists():
-            return file
+indir_files = check_files(config['indir'])
 
-def resolve_genomeA(wildcards):
-    "Return genome A."
-    return get_correct_file(wildcards.genomeA)
+def get_genomeA(wildcards):
+    return indir_files[wildcards.genomeA]
 
-def resolve_genomeB(wildcards):
-    "Return genome B."
-    return get_correct_file(wildcards.genomeB)
+def get_genomeB(wildcards):
+    return indir_files[wildcards.genomeB]
 
 
 rule delta:
@@ -31,8 +33,8 @@ rule delta:
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.delta"
     input:
-        genomeA=resolve_genomeA,
-        genomeB=resolve_genomeB
+        genomeA=get_genomeA,
+        genomeB=get_genomeB
     shell:
         "nucmer -p {params.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --{params.mode} {input.genomeA} {input.genomeB}"
 

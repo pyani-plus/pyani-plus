@@ -92,30 +92,16 @@ def compare_files_with_skip(file1, file2, skip=1):
     This function expects two text files as input and returns True if the content
     of the files is the same, and False if the two files differ.
     """
-
-    with file1.open() as if1, file2.open() as if2:
-        for line1, line2 in zip(
-            if1.readlines()[skip:], if2.readlines()[skip:], strict=False
-        ):
-            if line1 != line2:
-                return False
-
-    return True
-
-
-def compare_show_files(file1, file2):
-    """Compare two files.
-
-    This function expects two text files as input and returns True if the content
-    of the files is the same, and False if the two files differ.
-    """
-
-    with file1.open() as if1, file2.open() as if2:
-        for line1, line2 in zip(if1.readlines(), if2.readlines(), strict=False):
-            if line1 != line2:
-                return False
-
-    return True
+    try:
+        with file1.open() as if1, file2.open() as if2:
+            for line1, line2 in zip(
+                if1.readlines()[skip:], if2.readlines()[skip:], strict=True
+            ):
+                if line1 != line2:
+                    return False
+        return True
+    except ValueError:
+        return False
 
 
 def test_snakemake_rule_delta(
@@ -205,9 +191,10 @@ def test_snakemake_rule_show_diff(
 
     # Check output against target fixtures
     for fname in dnadiff_targets_showdiff:
-        assert compare_show_files(
+        assert compare_files_with_skip(
             dnadiff_targets_showdiff_indir / fname,
             dnadiff_targets_showdiff_outdir / fname,
+            skip=0,
         )
 
 
@@ -236,7 +223,8 @@ def test_snakemake_rule_show_coords(
 
     # Check output against target fixtures
     for fname in dnadiff_targets_showcoords:
-        assert compare_show_files(
+        assert compare_files_with_skip(
             dnadiff_targets_showcoords_indir / fname,
             dnadiff_targets_showcoords_outdir / fname,
+            skip=0,
         )

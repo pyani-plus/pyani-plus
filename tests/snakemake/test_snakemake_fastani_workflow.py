@@ -59,10 +59,13 @@ def compare_fastani_files(file1, file2):
     """
 
     with file1.open() as if1, file2.open() as if2:
-        for line1, line2 in zip(if1.readlines(), if2.readlines(), strict=False):
-            if line1.split("\t")[2:] != line2.split("\t")[2:]:
-                return False
-        return True
+        try:
+            for line1, line2 in zip(if1.readlines(), if2.readlines(), strict=True):
+                if line1.split("\t")[2:] != line2.split("\t")[2:]:
+                    return False
+            return True
+        except ValueError:
+            return False
 
 
 def test_snakemake_rule_fastani(

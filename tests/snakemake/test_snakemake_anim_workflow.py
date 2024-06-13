@@ -74,15 +74,16 @@ def compare_files_with_skip(file1, file2, skip=1):
     This function expects two text files as input and returns True if the content
     of the files is the same, and False if the two files differ.
     """
-
-    with file1.open() as if1, file2.open() as if2:
-        for line1, line2 in zip(
-            if1.readlines()[skip:], if2.readlines()[skip:], strict=False
-        ):
-            if line1 != line2:
-                return False
-
-    return True
+    try:
+        with file1.open() as if1, file2.open() as if2:
+            for line1, line2 in zip(
+                if1.readlines()[skip:], if2.readlines()[skip:], strict=True
+            ):
+                if line1 != line2:
+                    return False
+        return True
+    except ValueError:
+        return False
 
 
 def test_snakemake_rule_filter(

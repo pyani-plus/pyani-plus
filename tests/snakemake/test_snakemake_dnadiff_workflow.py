@@ -31,7 +31,7 @@ make test
 import shutil
 import pytest
 
-from pyani_plus.snakemake import dnadiff
+from pyani_plus.snakemake import snakemake_scheduler
 
 
 @pytest.fixture
@@ -139,7 +139,9 @@ def test_snakemake_rule_delta(
     shutil.rmtree(dnadiff_nucmer_targets_delta_outdir, ignore_errors=True)
 
     # Run snakemake wrapper
-    dnadiff.run_workflow(dnadiff_nucmer_targets_delta, config_delta_args)
+    runner = snakemake_scheduler.SnakemakeRunner("snakemake_dnadiff.smk")
+
+    runner.run_workflow(dnadiff_nucmer_targets_delta, config_delta_args)
 
     # Check output against target fixtures
     for fname in dnadiff_nucmer_targets_delta:
@@ -170,7 +172,8 @@ def test_snakemake_rule_filter(
     shutil.rmtree(dnadiff_nucmer_targets_filter_outdir, ignore_errors=True)
 
     # Run snakemake wrapper
-    dnadiff.run_workflow(dnadiff_nucmer_targets_filter, config_filter_args)
+    runner = snakemake_scheduler.SnakemakeRunner("snakemake_dnadiff.smk")
+    runner.run_workflow(dnadiff_nucmer_targets_filter, config_filter_args)
 
     # Check output against target fixtures
     for fname in dnadiff_nucmer_targets_filter:
@@ -201,7 +204,9 @@ def test_snakemake_rule_show_diff(
     shutil.rmtree(dnadiff_targets_showdiff_outdir, ignore_errors=True)
 
     # Run snakemake wrapper
-    dnadiff.run_workflow(dnadiff_targets_showdiff, config_dnadiff_showdiff_args)
+    runner = snakemake_scheduler.SnakemakeRunner("snakemake_dnadiff.smk")
+
+    runner.run_workflow(dnadiff_targets_showdiff, config_dnadiff_showdiff_args)
 
     # Check output against target fixtures
     for fname in dnadiff_targets_showdiff:
@@ -232,7 +237,9 @@ def test_snakemake_rule_show_coords(
     shutil.rmtree(dnadiff_targets_showcoords_outdir, ignore_errors=True)
 
     # Run snakemake wrapper
-    dnadiff.run_workflow(dnadiff_targets_showcoords, config_dnadiff_showcoords_args)
+    runner = snakemake_scheduler.SnakemakeRunner("snakemake_dnadiff.smk")
+
+    runner.run_workflow(dnadiff_targets_showcoords, config_dnadiff_showcoords_args)
 
     # Check output against target fixtures
     for fname in dnadiff_targets_showcoords:

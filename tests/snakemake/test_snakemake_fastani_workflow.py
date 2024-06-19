@@ -32,7 +32,7 @@ import shutil
 import pytest
 
 
-from pyani_plus.snakemake import fastani
+from pyani_plus.snakemake import snakemake_scheduler
 
 
 @pytest.fixture
@@ -77,7 +77,9 @@ def test_snakemake_rule_fastani(
     shutil.rmtree(fastani_targets_outdir, ignore_errors=True)
 
     # Run snakemake wrapper
-    fastani.run_workflow(fastani_targets, config_fastani_args)
+    runner = snakemake_scheduler.SnakemakeRunner("snakemake_fastani.smk")
+
+    runner.run_workflow(fastani_targets, config_fastani_args)
 
     # Check output against target fixtures
     for fname in fastani_targets:

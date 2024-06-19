@@ -35,7 +35,7 @@ import pytest
 
 # We're testing the workflow, as called through the pyani_plus
 # wrapper code, so import only that module
-from pyani_plus.snakemake import anim
+from pyani_plus.snakemake import snakemake_scheduler
 
 
 @pytest.fixture
@@ -106,7 +106,9 @@ def test_snakemake_rule_filter(
     shutil.rmtree(anim_nucmer_targets_filter_outdir, ignore_errors=True)
 
     # Run snakemake wrapper
-    anim.run_workflow(anim_nucmer_targets_filter, config_filter_args)
+    runner = snakemake_scheduler.SnakemakeRunner("snakemake_anim.smk")
+
+    runner.run_workflow(anim_nucmer_targets_filter, config_filter_args)
 
     # Check output against target fixtures
     for fname in anim_nucmer_targets_filter:
@@ -137,7 +139,9 @@ def test_snakemake_rule_delta(
     shutil.rmtree(anim_nucmer_targets_delta_outdir, ignore_errors=True)
 
     # Run snakemake wrapper
-    anim.run_workflow(anim_nucmer_targets_delta, config_delta_args)
+    runner = snakemake_scheduler.SnakemakeRunner("snakemake_anim.smk")
+
+    runner.run_workflow(anim_nucmer_targets_delta, config_delta_args)
 
     # Check output against target fixtures
     for fname in anim_nucmer_targets_delta:

@@ -3,20 +3,9 @@
 # rule. This is done in the context of pyani_plus by specifying target files in
 # the calling code
 
-# Define acceptable extensions
-extensions = {".fna", ".fasta", ".fas"}
+from pyani_plus.snakemake import anim
 
-def check_files(indir):
-    "Return a dictionary of files in indir with acceptable extensions, raising an error on duplicates."
-    file_dict = {}
-    for file in Path(indir).iterdir():
-        if file.suffix in extensions:
-            if  file.stem in file_dict:
-                raise ValueError(f"Duplicate genome name with different extensions found: {file.stem}")
-            file_dict[file.stem] = str(file)
-    return file_dict
-
-indir_files = check_files(config['indir'])
+indir_files = anim.check_input_stems(config['indir'])
 
 def get_genomeA(wildcards):
     return indir_files[wildcards.genomeA]

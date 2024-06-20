@@ -3,6 +3,8 @@ target outputs (delta files) for aniM analysis.
 """
 
 # Set Up (importing libraries)
+from pathlib import Path
+
 from importlib import resources as impresources
 
 # Although `from snakemake.settings import ConfigSettings` works fine for <8.14
@@ -10,6 +12,30 @@ from importlib import resources as impresources
 from snakemake.api import SnakemakeApi, ConfigSettings, DAGSettings, ResourceSettings
 
 from pyani_plus import workflows
+
+
+def check_input_stems(indir):
+    """Check input files agans approved list of extenions.
+    If duplicate stems with approved extenions are present
+    raise a ValueError.
+    """
+
+    extensions = [".fasta", ".fas", ".fna"]
+    stems = [_.stem for _ in Path(indir).glob("*") if _.suffix in extensions]
+
+    if len(stems) == len(set(stems)):
+        input_files = {
+            _.stem: _ for _ in Path(indir).glob("*") if _.suffix in extensions
+        }
+    else:
+        duplicates = [
+            item for item in stems if stems.count(item) > 1 and item in set(stems)
+        ]
+        raise ValueError(
+            f"Duplicated stems found for {list(set(duplicates))}. Please investigate."
+        )
+
+    return input_files
 
 
 def run_workflow(targetset, config_args):
@@ -32,6 +58,7 @@ def run_workflow(targetset, config_args):
     print(f"{targetset=}")
 
     # Path to anim snakemake file
+    # snakefile = Path("../workflows/snakemake_anim.smk")
     snakefile = impresources.files(workflows) / "snakemake_anim.smk"
 
     # Use the defined workflow from the Python API
@@ -43,11 +70,7 @@ def run_workflow(targetset, config_args):
                 config=config_args,
             ),
         )
-        dag_api = workflow_api.dag(
-            dag_settings=DAGSettings(
-                targets=targetset,
-            )
-        )
+        dag_api = workflow_api.dag(dag_settings=DAGSettings(targets=targetset))
         dag_api.execute_workflow()
 
     pass

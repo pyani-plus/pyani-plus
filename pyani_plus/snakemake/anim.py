@@ -3,6 +3,8 @@ target outputs (delta files) for aniM analysis.
 """
 
 # Set Up (importing libraries)
+from pathlib import Path
+
 from importlib import resources as impresources
 
 # Although `from snakemake.settings import ConfigSettings` works fine for <8.14
@@ -12,7 +14,30 @@ from snakemake.api import SnakemakeApi, ConfigSettings, DAGSettings, ResourceSet
 from pyani_plus import workflows
 
 
-# FOR DEMONSTRATION PURPOSES ONLY - UNTESTED AND MAY NOT WORK
+def check_input_stems(indir):
+    """Check input files agans approved list of extenions.
+    If duplicate stems with approved extenions are present
+    raise a ValueError.
+    """
+
+    extensions = [".fasta", ".fas", ".fna"]
+    stems = [_.stem for _ in Path(indir).glob("*") if _.suffix in extensions]
+
+    if len(stems) == len(set(stems)):
+        input_files = {
+            _.stem: _ for _ in Path(indir).glob("*") if _.suffix in extensions
+        }
+    else:
+        duplicates = [
+            item for item in stems if stems.count(item) > 1 and item in set(stems)
+        ]
+        raise ValueError(
+            f"Duplicated stems found for {list(set(duplicates))}. Please investigate."
+        )
+
+    return input_files
+
+
 def run_workflow(targetset, config_args):
     """Runs the snakemake_anim workflow for the passed pairwise comparisons
 
@@ -45,61 +70,7 @@ def run_workflow(targetset, config_args):
                 config=config_args,
             ),
         )
-        dag_api = workflow_api.dag(
-            dag_settings=DAGSettings(
-                targets=targetset,
-            )
-        )
+        dag_api = workflow_api.dag(dag_settings=DAGSettings(targets=targetset))
         dag_api.execute_workflow()
 
     pass
-
-
-# # FOR DEMONSTRATION PURPOSES ONLY - UNTESTED AND MAY NOT WORK
-# def run_workflow_dir(dirpath):
-#     """Runs the snakemake_anim workflow on all files in the passed directory
-
-
-#     We don't necessarily need this for running pyani-plus, but it may be useful.
-#     Mostly we will expect to have to filter out some pre-calculated comparisons,
-#     in normal use.
-#     """
-
-#     # Path to anim snakemake file
-#     # snakefile = Path("../workflows/snakemake_anim.smk")
-#     snakefile = impresources.files(workflows) / "snakemake_anim.smk"
-
-#     # Path to input files
-#     datadir = Path(dirpath)
-#     filenames = sorted(datadir.glob("*"))
-
-#     # Just incase there are other hidden files in the input directory...
-#     # We can construct target files for given FASTA files
-#     FASTA_extensions = [".fna", ".fasta"]
-
-#     comparisions = list(
-#         permutations(
-#             [fname.stem for fname in filenames if fname.suffix in FASTA_extensions], 2
-#         )
-#     )
-#     targetset = [
-#         config_args["outdir"] + "/" + _[0] + "_vs_" + _[1] + ".filter"
-#         for _ in comparisions
-#     ]
-
-#     # Use the defined workflow from the Python API
-#     with SnakemakeApi() as snakemake_api:
-#         workflow_api = snakemake_api.workflow(
-#             snakefile=snakefile,
-#             resource_settings=ResourceSettings(cores=config_args["cores"]),
-#             config_settings=ConfigSettings(
-#                 config=config_args,
-#             ),
-#         )
-#         dag_api = workflow_api.dag(
-#             dag_settings=DAGSettings(
-#                 targets=targetset,
-#             )
-#         )
-#         dag_api.execute_workflow()
-#     pass

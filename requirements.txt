@@ -1,1 +1,1 @@
-snakemake
+snakemake>=8.12

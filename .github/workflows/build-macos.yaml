@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: [macos-14, x64]
+    runs-on: macos-13
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -57,7 +57,7 @@ jobs:
         run: python -m pytest -v --collect-only
 
       - name: Run Tests with pytest
-        run: python -m pytest -v --cov=ncbi_cds_from_protein --cov-report=xml:.coverage-macos-${{ matrix.python-version }}.xml
+        run: python -m pytest -v --cov=pyani_plus --cov-report=xml:.coverage-macos-${{ matrix.python-version }}.xml
 
       - name: Store coverage Results
         uses: actions/upload-artifact@v4

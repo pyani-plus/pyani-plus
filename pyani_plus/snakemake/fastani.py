@@ -8,7 +8,7 @@ from itertools import permutations
 from pathlib import Path
 
 from snakemake.api import SnakemakeApi, _get_executor_plugin_registry
-from snakemake.settings import ConfigSettings, DAGSettings, ResourceSettings
+from snakemake.api import ConfigSettings, DAGSettings, ResourceSettings
 
 from pyani_plus import workflows
 

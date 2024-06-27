@@ -13,8 +13,11 @@ from pyani_plus import workflows
 
 
 # FOR DEMONSTRATION PURPOSES ONLY - UNTESTED AND MAY NOT WORK
-def run_workflow(targetset, config_args):
-    """Runs the snakemake_anim workflow for the passed pairwise comparisons
+def run_workflow(targetset: list[str], config_args) -> None:
+    """Run snakemake_anim workflow for the passed pairwise comparisons.
+
+    - targetset: list of target output files to trigger snakemake rules
+    - config_args:
 
     This function should be able to take a collection of targets of arbitrary
     size, and pass them to the workflow for distribution, e.g.
@@ -51,8 +54,6 @@ def run_workflow(targetset, config_args):
             )
         )
         dag_api.execute_workflow()
-
-    pass
 
 
 # # FOR DEMONSTRATION PURPOSES ONLY - UNTESTED AND MAY NOT WORK

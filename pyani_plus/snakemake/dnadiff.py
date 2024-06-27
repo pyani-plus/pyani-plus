@@ -1,22 +1,21 @@
-"""Calling snakemake scheduler from Python to generate
-target outputs (delta files) for dnadiff analysis.
-"""
+"""Interface to snakemake that generates target outputs (delta files) for dnadiff analysis."""
 
 # Set Up (importing libraries)
 from importlib import resources as impresources
-from itertools import permutations
-from pathlib import Path
 
-from snakemake.api import SnakemakeApi, _get_executor_plugin_registry
-from snakemake.api import ConfigSettings, DAGSettings, ResourceSettings
+from snakemake.api import (  # type: ignore  # noqa: PGH003
+    ConfigSettings,
+    DAGSettings,
+    ResourceSettings,
+    SnakemakeApi,
+)
 
 from pyani_plus import workflows
 
 
-def run_workflow(targetset, config_args):
-    """Runs the snakemake_fastani workflow for the passed pairwise comparisons"""
+def run_workflow(targetset: list[str], config_args: dict) -> None:
+    """Run snakemake_fastani workflow for the passed pairwise comparisons."""
     targetset = [str(_) for _ in targetset]
-    print(f"{targetset=}")
 
     # Path to anim snakemake file
     snakefile = impresources.files(workflows) / "snakemake_dnadiff.smk"
@@ -33,8 +32,6 @@ def run_workflow(targetset, config_args):
         dag_api = workflow_api.dag(
             dag_settings=DAGSettings(
                 targets=targetset,
-            )
+            ),
         )
         dag_api.execute_workflow()
-
-    pass

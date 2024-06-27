@@ -10,9 +10,13 @@
 .ipynb_checkpoints
 .Rhistory
 .vscode
+.mypy_cache
+.pytest_cache
+.ruff_cache
 
-# Compiled Python modules
+# Compiled Python modules and caches
 *.pyc
+**/__pycache__/
 
 # Python distribution/packaging files
 build/

@@ -5,7 +5,12 @@ from importlib import resources as impresources
 
 # Although `from snakemake.settings import ConfigSettings` works fine for <8.14
 # the new import choice is required after that point but is backwards-compatible.
-from snakemake.api import ConfigSettings, DAGSettings, ResourceSettings, SnakemakeApi
+from snakemake.api import (  # type: ignore # noqa:PGH003
+    ConfigSettings,
+    DAGSettings,
+    ResourceSettings,
+    SnakemakeApi,
+)
 
 from pyani_plus import workflows
 

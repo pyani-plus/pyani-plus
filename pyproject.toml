@@ -1,22 +1,13 @@
 [build-system]
-<<<<<<< HEAD
 requires = ["setuptools>=61.0", "setuptools-scm>=8.0"]
-=======
-requires = ["setuptools>=61.0"]
->>>>>>> 4fc35ae (add initial packaging/installation files)
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyani-plus"
 version = "0.0.1"
 authors = [
-<<<<<<< HEAD
     { name = "Leighton Pritchard", email = "leighton.pritchard@strath.ac.uk" },
     { name = "Angelika Kiepas", email = "angelika.kiepas@strath.ac.uk" },
-=======
-    { name="Leighton Pritchard", email="leighton.pritchard@strath.ac.uk" },
-    { name="Angelika Kiepas", email="angelika.kiepas@strath.ac.uk"}
->>>>>>> 4fc35ae (add initial packaging/installation files)
 ]
 readme = "README.md"
 requires-python = ">=3.11"

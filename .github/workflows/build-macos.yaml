@@ -1,0 +1,88 @@
+name: build-macos
+
+on:
+  push:
+    branches: 
+      - main
+  # To be able to trigger a manual build
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }} 
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Install Miniconda (Python ${{ matrix.python-version }})
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
+          activate-environment: pyani-github
+          auto-activate-base: false
+          channels: defaults,bioconda,conda-forge
+          channel-priority: flexible
+
+      - name: Check Miniconda Installation
+        run: |
+          conda info
+          conda list
+
+      - name: Install pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install Development Requirements
+        run: conda install --file requirements-dev.txt -y
+
+      - name: Install Requirements
+        run: conda install --file requirements.txt -y
+
+      - name: Install pip requirements
+        run: pip install -r requirements-pip.txt
+
+      - name: Install third-party tools
+        run: conda install --file requirements-thirdparty-macos.txt -y
+
+      - name: Install pyani-plus
+        run: pip install -e .
+
+      - name: Check pytest modules
+        run: python -m pytest -v --collect-only
+
+      - name: Run Tests with pytest
+        run: python -m pytest -v --cov=ncbi_cds_from_protein --cov-report=xml:.coverage-macos-${{ matrix.python-version }}.xml
+
+      - name: Store coverage Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-coverage-macos-${{ matrix.python-version }}
+          path: .coverage-macos-${{ matrix.python-version }}.xml
+          retention-days: 3
+        if: ${{ always() }}
+
+      - name: Codacy Coverage Reporter
+        uses: codacy/codacy-coverage-reporter-action@v1.3.0
+        with:
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          coverage-reports: .coverage-macos-${{ matrix.python-version }}.xml
+        if: ${{ always() }}
+
+      - name: Codecov Coverage Report
+        uses: codecov/codecov-action@v4.0.1
+        with:
+          fail_ci_if_error: true # optional (default = false)
+          files: .coverage-macos-${{ matrix.python-version }}.xml # optional
+          name: codecov-umbrella-macos-${{ matrix.python-version }}.xml # optional
+          token: ${{ secrets.CODECOV_TOKEN }} # required
+          verbose: true # optional (default = false)
+        if: ${{ always() }}

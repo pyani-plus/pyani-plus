@@ -18,6 +18,10 @@ classifiers = [
 ]
 dependencies = ["snakemake"]
 
+[tool.ruff.lint]
+select = ["ALL"]
+pycodestyle.max-line-length = 120
+
 [tool.setuptools.packages.find]
 where = ["pyani_plus"]
 

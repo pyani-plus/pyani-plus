@@ -24,3 +24,6 @@ where = ["pyani_plus"]
 [project.urls]
 Homepage = "https://github.com/pyani-plus/pyani-plus"
 Issues = "https://github.com/pyani-plus/pyani-plus/issues"
+
+[project.scripts]
+anim_parse = "pyani_plus.method.method_anim:parse_delta"

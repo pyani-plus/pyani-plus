@@ -274,14 +274,14 @@ def dnadiff_targets_showdiff_outdir() -> Path:
     return TESTSPATH / "dnadiff_show_diff_output"
 
 
-@pytest.fixture
-def dnadiff_targets_showcoords_indir():
+@pytest.fixture()
+def dnadiff_targets_showcoords_indir() -> Path:
     """Directory containing snadiff show_diff snakemake reference files."""
     return FIXTUREPATH / "dnadiff" / "targets" / "show_coords"
 
 
-@pytest.fixture
-def dnadiff_targets_showcoords_outdir():
+@pytest.fixture()
+def dnadiff_targets_showcoords_outdir() -> Path:
     """Output directory for MUMmer filter snakemake tests.
 
     This path indicates the location to which dnadiff should write
@@ -374,8 +374,8 @@ def dnadiff_targets_showdiff(dnadiff_targets_showdiff_outdir: Path) -> list[str]
     return [dnadiff_targets_showdiff_outdir / _.name for _ in reference_paths]
 
 
-@pytest.fixture
-def dnadiff_targets_showcoords(dnadiff_targets_showcoords_outdir):
+@pytest.fixture()
+def dnadiff_targets_showcoords(dnadiff_targets_showcoords_outdir: Path) -> list[Path]:
     """Target files for ANIm tests.
 
     These are paths to the output files we want to generate using
@@ -383,7 +383,7 @@ def dnadiff_targets_showcoords(dnadiff_targets_showcoords_outdir):
     could later be processed to obtain ANI values
     """
     reference_paths = (FIXTUREPATH / "dnadiff" / "targets" / "show_coords").glob(
-        "*.mcoords"
+        "*.mcoords",
     )
     return [dnadiff_targets_showcoords_outdir / _.name for _ in reference_paths]
 

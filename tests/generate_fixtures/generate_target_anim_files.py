@@ -44,14 +44,14 @@ delta-filter runs with the -1 parameter to filter only 1-to-1 matches
 """
 
 # Imports
-import os
+import subprocess
 from itertools import permutations
 from pathlib import Path
 
 # Paths to directories (eg, input sequences, delta and filter)
-INPUT_DIR = "../fixtures/sequences"
-DELTA_DIR = "../fixtures/anim/targets/delta"
-FILTER_DIR = "../fixtures/anim/targets/filter"
+INPUT_DIR = Path("../fixtures/sequences")
+DELTA_DIR = Path("../fixtures/anim/targets/delta")
+FILTER_DIR = Path("../fixtures/anim/targets/filter")
 
 # Running ANIm comparisions
 comparisions = permutations([_.stem for _ in Path(INPUT_DIR).glob("*")], 2)
@@ -59,9 +59,23 @@ inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*")}
 
 for genomes in comparisions:
     stem = "_vs_".join(genomes)
-    os.system(
-        f"nucmer -p {DELTA_DIR + "/" + stem} --mum {inputs[genomes[0]]} {inputs[genomes[1]]}",
+    subprocess.run(
+        [
+            "nucmer",
+            "-p",
+            DELTA_DIR / stem,
+            "--mum",
+            inputs[genomes[0]],
+            inputs[genomes[1]],
+        ],
+        check=True,
     )
-    os.system(
-        f"delta-filter -1 {DELTA_DIR + "/" + stem}.delta > {FILTER_DIR + '/' + stem}.filter",
-    )
+
+    # To redirect using subprocess.run, we need to open the output file and
+    # pipe from within the call to stdout
+    with (FILTER_DIR / (stem + ".filter")).open("w") as ofh:
+        subprocess.run(
+            ["delta-filter", "-1", DELTA_DIR / (stem + ".delta")],
+            check=True,
+            stdout=ofh,
+        )

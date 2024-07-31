@@ -48,16 +48,16 @@ sequences in the query too.
 """
 
 # Imports
-import os
+import subprocess
 from itertools import permutations
 from pathlib import Path
 
 # Paths to directories (eg. input sequences, outputs for delta, filter...)
-INPUT_DIR = "../fixtures/sequences"
-DELTA_DIR = "../fixtures/dnadiff/targets/delta"
-FILTER_DIR = "../fixtures/dnadiff/targets/filter"
-SHOW_DIFF_DIR = "../fixtures/dnadiff/targets/show_diff"
-SHOW_COORDS_DIR = "../fixtures/dnadiff/targets/show_coords"
+INPUT_DIR = Path("../fixtures/sequences")
+DELTA_DIR = Path("../fixtures/dnadiff/targets/delta")
+FILTER_DIR = Path("../fixtures/dnadiff/targets/filter")
+SHOW_DIFF_DIR = Path("../fixtures/dnadiff/targets/show_diff")
+SHOW_COORDS_DIR = Path("../fixtures/dnadiff/targets/show_coords")
 
 # Running comparisions
 comparisions = permutations([_.stem for _ in Path(INPUT_DIR).glob("*")], 2)
@@ -65,15 +65,37 @@ inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*")}
 
 for genomes in comparisions:
     stem = "_vs_".join(genomes)
-    os.system(
-        f"nucmer -p {DELTA_DIR + "/" + stem} --maxmatch {inputs[genomes[0]]} {inputs[genomes[1]]}",
+    subprocess.run(
+        [
+            "nucmer",
+            "-p",
+            DELTA_DIR / stem,
+            "--maxmatch",
+            inputs[genomes[0]],
+            inputs[genomes[1]],
+        ],
+        check=True,
     )
-    os.system(
-        f"delta-filter -m {DELTA_DIR + "/" + stem}.delta > {FILTER_DIR + '/' + stem}.filter",
-    )
-    os.system(
-        f"show-diff -rH {DELTA_DIR + "/" + stem}.filter > {SHOW_DIFF_DIR + '/' + stem}.rdiff",
-    )
-    os.system(
-        f"show-coords {DELTA_DIR + "/" + stem}.filter > {SHOW_COORDS_DIR + '/' + stem}.mcoords",
-    )
+
+    # To redirect using subprocess.run, we need to open the output file and
+    # pipe from within the call to stdout
+    with (FILTER_DIR / (stem + ".filter")).open("w") as ofh:
+        subprocess.run(
+            ["delta-filter", "-m", DELTA_DIR / (stem + ".delta")],
+            check=True,
+            stdout=ofh,
+        )
+
+    with (SHOW_DIFF_DIR / (stem + ".rdiff")).open("w") as ofh:
+        subprocess.run(
+            ["show-diff", "-rH", FILTER_DIR / (stem + ".filter")],
+            check=True,
+            stdout=ofh,
+        )
+
+    with (SHOW_COORDS_DIR / (stem + ".mcoords")).open("w") as ofh:
+        subprocess.run(
+            ["show-coords", FILTER_DIR / (stem + ".filter")],
+            check=True,
+            stdout=ofh,
+        )

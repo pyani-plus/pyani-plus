@@ -275,6 +275,22 @@ def dnadiff_targets_showdiff_outdir() -> Path:
 
 
 @pytest.fixture()
+def dnadiff_targets_showcoords_indir() -> Path:
+    """Directory containing snadiff show_diff snakemake reference files."""
+    return FIXTUREPATH / "dnadiff" / "targets" / "show_coords"
+
+
+@pytest.fixture()
+def dnadiff_targets_showcoords_outdir() -> Path:
+    """Output directory for MUMmer filter snakemake tests.
+
+    This path indicates the location to which dnadiff should write
+    its output files during dnadiff testing
+    """
+    return TESTSPATH / "dnadiff_show_coords_output"
+
+
+@pytest.fixture()
 def dnadiff_targets_showdiff_slurm_outdir() -> Path:
     """Output directory for MUMmer filter snakemake tests.
 
@@ -356,6 +372,20 @@ def dnadiff_targets_showdiff(dnadiff_targets_showdiff_outdir: Path) -> list[str]
         "*.rdiff",
     )
     return [dnadiff_targets_showdiff_outdir / _.name for _ in reference_paths]
+
+
+@pytest.fixture()
+def dnadiff_targets_showcoords(dnadiff_targets_showcoords_outdir: Path) -> list[Path]:
+    """Target files for ANIm tests.
+
+    These are paths to the output files we want to generate using
+    nucmer for ANIm. We aim to generate a set of .delta files that
+    could later be processed to obtain ANI values
+    """
+    reference_paths = (FIXTUREPATH / "dnadiff" / "targets" / "show_coords").glob(
+        "*.mcoords",
+    )
+    return [dnadiff_targets_showcoords_outdir / _.name for _ in reference_paths]
 
 
 @pytest.fixture()

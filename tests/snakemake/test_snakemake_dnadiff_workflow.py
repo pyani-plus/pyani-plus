@@ -1,4 +1,4 @@
-# (c) University of Strathclyde 2019-
+# (c) University of Strathclyde 2024-present
 # Author: Leighton Pritchard
 #
 # Contact:
@@ -92,6 +92,19 @@ def config_dnadiff_showdiff_args(
     """Return configuration settings for testing snakemake show_diff rule."""
     return {
         "outdir": dnadiff_targets_showdiff_outdir,
+        "indir": str(input_genomes_small),
+        "cores": 8,
+    }
+
+
+@pytest.fixture()
+def config_dnadiff_showcoords_args(
+    dnadiff_targets_showcoords_outdir: Path,
+    input_genomes_small: Path,
+) -> dict:
+    """Return configuration settings for snakemake show_coords rule."""
+    return {
+        "outdir": dnadiff_targets_showcoords_outdir,
         "indir": str(input_genomes_small),
         "cores": 8,
     }
@@ -219,4 +232,37 @@ def test_snakemake_rule_show_diff(
         assert compare_files_with_skip(  # noqa: S101
             dnadiff_targets_showdiff_indir / fname,
             dnadiff_targets_showdiff_outdir / fname,
+            skip=0,
+        )
+
+
+def test_snakemake_rule_show_coords(
+    dnadiff_targets_showcoords: list[str],
+    dnadiff_targets_showcoords_indir: Path,
+    dnadiff_targets_showcoords_outdir: Path,
+    config_dnadiff_showcoords_args: dict,
+) -> None:
+    """Test dnadiff show-coords snakemake wrapper.
+
+    Checks that the show-coords rule in the dnadiff snakemake wrapper gives the
+    expected output.
+
+    If the output directory exists (i.e. the make clean_tests rule has not
+    been run), the tests will automatically pass as snakemake will not
+    attempt to re-run the rule. That would prevent us from seeing any
+    introduced bugs, so we force re-running the rule by deleting the
+    output directory before running the tests.
+    """
+    # Remove the output directory to force re-running the snakemake rule
+    shutil.rmtree(dnadiff_targets_showcoords_outdir, ignore_errors=True)
+
+    # Run snakemake wrapper
+    dnadiff.run_workflow(dnadiff_targets_showcoords, config_dnadiff_showcoords_args)
+
+    # Check output against target fixtures
+    for fname in dnadiff_targets_showcoords:
+        assert compare_files_with_skip(  # noqa: S101
+            dnadiff_targets_showcoords_indir / fname,
+            dnadiff_targets_showcoords_outdir / fname,
+            skip=0,
         )

@@ -1,0 +1,11 @@
+/Users/lpritc/Documents/Development/GitHub/pyani-plus/pyani-plus/tests/generate_fixtures/../fixtures/sequences/NC_002696.fasta /Users/lpritc/Documents/Development/GitHub/pyani-plus/pyani-plus/tests/generate_fixtures/../fixtures/sequences/NC_011916.fas
+NUCMER
+
+    [S1]     [E1]  |     [S2]     [E2]  |  [LEN 1]  [LEN 2]  |  [% IDY]  | [TAGS]
+=====================================================================================
+       1     1050  |        1     1050  |     1050     1050  |   100.00  | NC_002696_part_1	gi|221232939|ref|NC_011916.1|
+       1   472018  |     1051   473068  |   472018   472018  |    99.99  | NC_002696_part_2	gi|221232939|ref|NC_011916.1|
+  471998  1055603  |   499078  1082684  |   583606   583607  |    99.99  | NC_002696_part_2	gi|221232939|ref|NC_011916.1|
+ 1055604  3739186  |  1082631  3766218  |  2683583  2683588  |    99.99  | NC_002696_part_2	gi|221232939|ref|NC_011916.1|
+ 2582034  2582863  |   475080   474250  |      830      831  |    88.45  | NC_002696_part_2	gi|221232939|ref|NC_011916.1|
+ 3719184  4015897  |  3746225  4042929  |   296714   296705  |    99.99  | NC_002696_part_2	gi|221232939|ref|NC_011916.1|

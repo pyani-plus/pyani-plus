@@ -1,4 +1,4 @@
-# (c) University of Strathclyde 2019-
+# (c) University of Strathclyde 2024-present
 # Author: Leighton Pritchard
 #
 # Contact:
@@ -74,10 +74,16 @@ def compare_fastani_files(file1: Path, file2: Path) -> bool:
     we will only consider file name.
     """
     with file1.open() as if1, file2.open() as if2:
-        for line1, line2 in zip(if1.readlines(), if2.readlines(), strict=False):
-            if line1.split("\t")[2:] != line2.split("\t")[2:]:
-                return False
-        return True
+        # return False if any errors found
+        try:
+            for line1, line2 in zip(if1.readlines(), if2.readlines(), strict=True):
+                if line1.split("\t")[2:] != line2.split("\t")[2:]:
+                    return False
+        except ValueError:
+            return False
+
+    # by default return True
+    return True
 
 
 def test_snakemake_rule_fastani(

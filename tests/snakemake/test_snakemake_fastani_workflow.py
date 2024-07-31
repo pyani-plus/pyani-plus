@@ -1,5 +1,17 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+# (c) University of Strathclyde 2019-
+# Author: Leighton Pritchard
+#
+# Contact:
+# leighton.pritchard@strath.ac.uk
+#
+# Leighton Pritchard,
+# Strathclyde Institute for Pharmacy and Biomedical Sciences,
+# Cathedral Street,
+# Glasgow,
+# G4 0RE
+# Scotland,
+# UK
+#
 # The MIT License
 #
 # Copyright (c) 2024-present University of Strathclyde
@@ -21,7 +33,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-"""Test snakemake workflow for fastANI
+"""Test snakemake workflow for fastANI.
 
 These tests are intended to be run from the repository root using:
 
@@ -29,18 +41,22 @@ make test
 """
 
 import shutil
-import pytest
+from pathlib import Path
 
+import pytest
 
 from pyani_plus.snakemake import fastani
 
 
-@pytest.fixture
-def config_fastani_args(fastani_targets_outdir, input_genomes_small):
-    """Configuration settings for testing snakemake fastANI rule."""
+@pytest.fixture()
+def config_fastani_args(
+    fastani_targets_outdir: Path,
+    input_genomes_small: Path,
+) -> dict:
+    """Return configuration settings for testing snakemake fastANI rule."""
     return {
         "outdir": fastani_targets_outdir,
-        "indir": input_genomes_small,
+        "indir": str(input_genomes_small),
         "cores": 8,
         "fragLen": 3000,
         "kmerSize": 16,
@@ -48,7 +64,7 @@ def config_fastani_args(fastani_targets_outdir, input_genomes_small):
     }
 
 
-def compare_fastani_files(file1, file2):
+def compare_fastani_files(file1: Path, file2: Path) -> bool:
     """Compare two fastANI files.
 
     This function expects two text files as input and returns True if the content
@@ -57,7 +73,6 @@ def compare_fastani_files(file1, file2):
     As the Path to both Query and Reference might be diffrent,
     we will only consider file name.
     """
-
     with file1.open() as if1, file2.open() as if2:
         try:
             for line1, line2 in zip(if1.readlines(), if2.readlines(), strict=True):
@@ -69,9 +84,12 @@ def compare_fastani_files(file1, file2):
 
 
 def test_snakemake_rule_fastani(
-    fastani_targets, fastani_targets_outdir, config_fastani_args, fastani_targets_indir
-):
-    """Test fastANI snakemake wrapper
+    fastani_targets: list[str],
+    fastani_targets_outdir: Path,
+    config_fastani_args: dict,
+    fastani_targets_indir: Path,
+) -> None:
+    """Test fastANI snakemake wrapper.
 
     Checks that the fastANI rule in the fastANI snakemake wrapper gives the
     expected output.
@@ -84,7 +102,7 @@ def test_snakemake_rule_fastani(
 
     # Check output against target fixtures
     for fname in fastani_targets:
-        assert compare_fastani_files(
+        assert compare_fastani_files(  # noqa: S101
             fastani_targets_indir / fname,
             fastani_targets_outdir / fname,
         )

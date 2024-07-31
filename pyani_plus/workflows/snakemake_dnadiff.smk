@@ -10,7 +10,7 @@ rule delta:
         "{outdir}/{genomeA}_vs_{genomeB}.delta",
     run:
         shell(
-            "nucmer -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --maxmatch {params.indir}/{wildcards.genomeA}.fna {params.indir}/{wildcards.genomeB}.fna"
+            "nucmer -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --maxmatch {params.indir}/{wildcards.genomeA}.* {params.indir}/{wildcards.genomeB}.*"
         )
 
 

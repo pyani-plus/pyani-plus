@@ -2,17 +2,30 @@
 # NOTE: We do not need to construct forward and reverse comparisions within this
 # rule. This is done in the context of pyani_plus by specifying target files in
 # the calling code
+
+from pyani_plus.snakemake import anim
+
+indir_files = anim.check_input_stems(config['indir'])
+
+def get_genomeA(wildcards):
+    return indir_files[wildcards.genomeA]
+
+def get_genomeB(wildcards):
+    return indir_files[wildcards.genomeB]
+
+
 rule delta:
     params:
         indir=config["indir"],
         mode=config["mode"],
-        outdir=config["outdir"],
+        outdir=config["outdir"]
     output:
-        "{outdir}/{genomeA}_vs_{genomeB}.delta",
-    run:
-        shell(
-            "nucmer -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --{params.mode} {params.indir}/{wildcards.genomeA}.fna {params.indir}/{wildcards.genomeB}.fna"
-        )
+        "{outdir}/{genomeA}_vs_{genomeB}.delta"
+    input:
+        genomeA=get_genomeA,
+        genomeB=get_genomeB
+    shell:
+        "nucmer -p {params.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --{params.mode} {input.genomeA} {input.genomeB}"
 
 
 # The filter rule runs delta-filter wrapper for nucmer

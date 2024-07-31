@@ -8,6 +8,30 @@ from snakemake.api import SnakemakeApi, ConfigSettings, DAGSettings, ResourceSet
 from pyani_plus import workflows
 
 
+def check_input_stems(indir):
+    """Check input files agans approved list of extenions.
+    If duplicate stems with approved extenions are present
+    raise a ValueError.
+    """
+
+    extensions = [".fasta", ".fas", ".fna"]
+    stems = [_.stem for _ in Path(indir).glob("*") if _.suffix in extensions]
+
+    if len(stems) == len(set(stems)):
+        input_files = {
+            _.stem: _ for _ in Path(indir).glob("*") if _.suffix in extensions
+        }
+    else:
+        duplicates = [
+            item for item in stems if stems.count(item) > 1 and item in set(stems)
+        ]
+        raise ValueError(
+            f"Duplicated stems found for {list(set(duplicates))}. Please investigate."
+        )
+
+    return input_files
+
+
 class SnakemakeRunner:
     def __init__(self, workflow_filename):
         self.workflow_filename = workflow_filename

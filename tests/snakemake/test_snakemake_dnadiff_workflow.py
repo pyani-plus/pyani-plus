@@ -97,11 +97,12 @@ def config_dnadiff_showdiff_args(
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def config_dnadiff_showcoords_args(
-    dnadiff_targets_showcoords_outdir, input_genomes_small
-):
-    """Configuration settings for testing snakemake show_diff rule."""
+    dnadiff_targets_showcoords_outdir: Path,
+    input_genomes_small: Path,
+) -> dict:
+    """Return configuration settings for snakemake show_coords rule."""
     return {
         "outdir": dnadiff_targets_showcoords_outdir,
         "indir": str(input_genomes_small),
@@ -236,14 +237,14 @@ def test_snakemake_rule_show_diff(
 
 
 def test_snakemake_rule_show_coords(
-    dnadiff_targets_showcoords,
-    dnadiff_targets_showcoords_indir,
-    dnadiff_targets_showcoords_outdir,
-    config_dnadiff_showcoords_args,
-):
-    """Test dnadiff show-diff snakemake wrapper
+    dnadiff_targets_showcoords: list[str],
+    dnadiff_targets_showcoords_indir: Path,
+    dnadiff_targets_showcoords_outdir: Path,
+    config_dnadiff_showcoords_args: dict,
+) -> None:
+    """Test dnadiff show-coords snakemake wrapper.
 
-    Checks that the show-diff rule in the dnadiff snakemake wrapper gives the
+    Checks that the show-coords rule in the dnadiff snakemake wrapper gives the
     expected output.
 
     If the output directory exists (i.e. the make clean_tests rule has not
@@ -254,21 +255,13 @@ def test_snakemake_rule_show_coords(
     """
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(dnadiff_targets_showcoords_outdir, ignore_errors=True)
-    # dnadiff_targets_showcoords_outdir.mkdir(parents=True, exist_ok=True)
-
-    # print(f"{dnadiff_targets_showcoords=}")
-    # print(f"{dnadiff_targets_showcoords_indir=}")
-    # print(f"{dnadiff_targets_showcoords_outdir=}")
-    # print(f"{config_dnadiff_showcoords_args=}")
 
     # Run snakemake wrapper
     dnadiff.run_workflow(dnadiff_targets_showcoords, config_dnadiff_showcoords_args)
 
-    return
-
     # Check output against target fixtures
     for fname in dnadiff_targets_showcoords:
-        assert compare_files_with_skip(
+        assert compare_files_with_skip(  # noqa: S101
             dnadiff_targets_showcoords_indir / fname,
             dnadiff_targets_showcoords_outdir / fname,
             skip=0,

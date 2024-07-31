@@ -253,28 +253,6 @@ def dnadiff_targets_showcoords(dnadiff_targets_showcoords_outdir):
 
 
 @pytest.fixture
-def anim_nucmer_targets_filter_values_outdir():
-    """Output directory for MUMmer filter snakemake tests.
-
-    This path indicates the location to which MUMmer should write
-    its output files during ANIm testing
-    """
-    return TESTSPATH / "nucmer_filter_values_output"
-
-
-@pytest.fixture
-def anim_nucmer_targets_filter_values(anim_nucmer_targets_filter_values_outdir):
-    """Target files for ANIm tests.
-
-    These are paths to the output files we want to generate using
-    nucmer for ANIm. We aim to ask MUMmer to generate a set of
-    .filter files that could later be processed to obtain ANI values
-    """
-    reference_paths = (FIXTUREPATH / "anim" / "targets" / "values").glob("*.txt")
-    return [anim_nucmer_targets_filter_values_outdir / _.name for _ in reference_paths]
-
-
-@pytest.fixture
 def input_genomes_small():
     """Path to small set of input genomes."""
     return str(FIXTUREPATH / "sequences")

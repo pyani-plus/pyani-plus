@@ -1,5 +1,17 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+# (c) University of Strathclyde 2019-
+# Author: Leighton Pritchard
+#
+# Contact:
+# leighton.pritchard@strath.ac.uk
+#
+# Leighton Pritchard,
+# Strathclyde Institute for Pharmacy and Biomedical Sciences,
+# Cathedral Street,
+# Glasgow,
+# G4 0RE
+# Scotland,
+# UK
+#
 # The MIT License
 #
 # Copyright (c) 2024-present University of Strathclyde
@@ -21,14 +33,15 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-"""Test snakemake workflow for ANIm
+"""Test snakemake workflow for ANIm.
 
 These tests are intended to be run from the repository root using:
 
-make test
+pytest -v or make test
 """
 
 import shutil  # We need this for filesystem operations
+from pathlib import Path
 
 # Required to support pytest automated testing
 import pytest
@@ -38,46 +51,55 @@ import pytest
 from pyani_plus.snakemake import anim
 
 
-@pytest.fixture
-def config_filter_args(anim_nucmer_targets_filter_outdir, input_genomes_small):
-    """Configuration settings for testing snakemake filter rule.
+@pytest.fixture()
+def config_filter_args(
+    anim_nucmer_targets_filter_outdir: Path,
+    input_genomes_small: Path,
+) -> dict:
+    """Return configuration settings for testing snakemake filter rule.
 
     We take the output directories for the MUMmer filter output and the
     small set of input genomes as arguments.
     """
     return {
         "outdir": anim_nucmer_targets_filter_outdir,
-        "indir": input_genomes_small,
+        "indir": str(input_genomes_small),
         "cores": 8,
         "mode": "mum",
     }
 
 
-@pytest.fixture
-def config_delta_args(anim_nucmer_targets_delta_outdir, input_genomes_small):
-    """Configuration settings for testing snakemake delta rule.
+@pytest.fixture()
+def config_delta_args(
+    anim_nucmer_targets_delta_outdir: Path,
+    input_genomes_small: Path,
+) -> dict:
+    """Return configuration settings for testing snakemake delta rule.
 
     We take the output directories for the MUMmer delta output and the
     small set of input genomes as arguments.
     """
     return {
         "outdir": anim_nucmer_targets_delta_outdir,
-        "indir": input_genomes_small,
+        "indir": str(input_genomes_small),
         "cores": 8,
         "mode": "mum",
     }
 
 
-def compare_files_with_skip(file1, file2, skip=1):
-    """Compare two files, line by line, except for the first line.
+def compare_files_with_skip(file1: Path, file2: Path, skip: int = 1) -> bool:
+    """Compare two files, line by line, skipping an initial count of lines.
+
+    - skip: int, number of initial lines to skip in each file
 
     This function expects two text files as input and returns True if the content
     of the files is the same, and False if the two files differ.
     """
-
     with file1.open() as if1, file2.open() as if2:
         for line1, line2 in zip(
-            if1.readlines()[skip:], if2.readlines()[skip:], strict=False
+            if1.readlines()[skip:],
+            if2.readlines()[skip:],
+            strict=False,
         ):
             if line1 != line2:
                 return False
@@ -86,12 +108,12 @@ def compare_files_with_skip(file1, file2, skip=1):
 
 
 def test_snakemake_rule_filter(
-    anim_nucmer_targets_filter,
-    anim_nucmer_targets_filter_indir,
-    anim_nucmer_targets_filter_outdir,
-    config_filter_args,
-):
-    """Test nucmer filter snakemake wrapper
+    anim_nucmer_targets_filter: list[str],
+    anim_nucmer_targets_filter_indir: Path,
+    anim_nucmer_targets_filter_outdir: Path,
+    config_filter_args: dict,
+) -> None:
+    """Test nucmer filter snakemake wrapper.
 
     Checks that the filter rule in the ANIm snakemake wrapper gives the
     expected output.
@@ -110,19 +132,19 @@ def test_snakemake_rule_filter(
 
     # Check output against target fixtures
     for fname in anim_nucmer_targets_filter:
-        assert compare_files_with_skip(
+        assert compare_files_with_skip(  # noqa: S101
             anim_nucmer_targets_filter_indir / fname,
             anim_nucmer_targets_filter_outdir / fname,
         )
 
 
 def test_snakemake_rule_delta(
-    anim_nucmer_targets_delta,
-    anim_nucmer_targets_delta_indir,
-    anim_nucmer_targets_delta_outdir,
-    config_delta_args,
-):
-    """Test nucmer delta snakemake wrapper
+    anim_nucmer_targets_delta: list[str],
+    anim_nucmer_targets_delta_indir: Path,
+    anim_nucmer_targets_delta_outdir: Path,
+    config_delta_args: dict,
+) -> None:
+    """Test nucmer delta snakemake wrapper.
 
     Checks that the delta rule in the ANIm snakemake wrapper gives the
     expected output.
@@ -141,7 +163,7 @@ def test_snakemake_rule_delta(
 
     # Check output against target fixtures
     for fname in anim_nucmer_targets_delta:
-        assert compare_files_with_skip(
+        assert compare_files_with_skip(  # noqa: S101
             anim_nucmer_targets_delta_indir / fname,
             anim_nucmer_targets_delta_outdir / fname,
         )

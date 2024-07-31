@@ -1,5 +1,17 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+# (c) University of Strathclyde 2019-
+# Author: Leighton Pritchard
+#
+# Contact:
+# leighton.pritchard@strath.ac.uk
+#
+# Leighton Pritchard,
+# Strathclyde Institute for Pharmacy and Biomedical Sciences,
+# Cathedral Street,
+# Glasgow,
+# G4 0RE
+# Scotland,
+# UK
+#
 # The MIT License
 #
 # Copyright (c) 2024-present University of Strathclyde
@@ -21,7 +33,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-"""Test snakemake workflow for execution on SLURM
+"""Test snakemake workflow for execution on SLURM.
 
 These tests are intended to be run from the repository root using:
 
@@ -29,49 +41,58 @@ make test
 """
 
 import shutil
+from pathlib import Path
+
 import pytest
 
-from pyani_plus.snakemake import anim
-from pyani_plus.snakemake import fastani
-from pyani_plus.snakemake import dnadiff
+from pyani_plus.snakemake import anim, dnadiff, fastani
 
 
-@pytest.fixture
-def config_filter_args(anim_nucmer_targets_filter_slurm_outdir, input_genomes_small):
-    """Configuration settings for testing snakemake filter rule.
+@pytest.fixture()
+def config_filter_args(
+    anim_nucmer_targets_filter_slurm_outdir: Path,
+    input_genomes_small: Path,
+) -> dict:
+    """Return configuration settings for testing snakemake filter rule.
 
     We take the output directories for the MUMmer filter output and the
     small set of input genomes as arguments.
     """
     return {
         "outdir": anim_nucmer_targets_filter_slurm_outdir,
-        "indir": input_genomes_small,
+        "indir": str(input_genomes_small),
         "cores": 12,
         "mode": "mum",
     }
 
 
-@pytest.fixture
-def config_delta_args(anim_nucmer_targets_delta_slurm_outdir, input_genomes_small):
-    """Configuration settings for testing snakemake delta rule.
+@pytest.fixture()
+def config_delta_args(
+    anim_nucmer_targets_delta_slurm_outdir: Path,
+    input_genomes_small: Path,
+) -> dict:
+    """Return configuration settings for testing snakemake delta rule.
 
     We take the output directories for the MUMmer delta output and the
     small set of input genomes as arguments.
     """
     return {
         "outdir": anim_nucmer_targets_delta_slurm_outdir,
-        "indir": input_genomes_small,
+        "indir": str(input_genomes_small),
         "cores": 12,
         "mode": "mum",
     }
 
 
-@pytest.fixture
-def config_fastani_args(fastani_targets_slurm_outdir, input_genomes_small):
-    """Configuration settings for testing snakemake fastANI rule."""
+@pytest.fixture()
+def config_fastani_args(
+    fastani_targets_slurm_outdir: Path,
+    input_genomes_small: Path,
+) -> dict:
+    """Return configuration settings for testing snakemake fastANI rule."""
     return {
         "outdir": fastani_targets_slurm_outdir,
-        "indir": input_genomes_small,
+        "indir": str(input_genomes_small),
         "cores": 12,
         "fragLen": 3000,
         "kmerSize": 16,
@@ -79,62 +100,66 @@ def config_fastani_args(fastani_targets_slurm_outdir, input_genomes_small):
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def config_delta_dnadiff_args(
-    dnadiff_nucmer_targets_delta_slurm_outdir, input_genomes_small
-):
-    """Configuration settings for testing snakemake delta rule.
+    dnadiff_nucmer_targets_delta_slurm_outdir: Path,
+    input_genomes_small: Path,
+) -> dict:
+    """Return configuration settings for testing snakemake delta rule.
 
     We take the output directories for the MUMmer delta output and the
     small set of input genomes as arguments.
     """
     return {
         "outdir": dnadiff_nucmer_targets_delta_slurm_outdir,
-        "indir": input_genomes_small,
+        "indir": str(input_genomes_small),
         "cores": 12,
         "mode": "mum",
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def config_filter_dnadiff_args(
-    dnadiff_nucmer_targets_filter_slurm_outdir, input_genomes_small
-):
-    """Configuration settings for testing snakemake dnadiff filter rule.
+    dnadiff_nucmer_targets_filter_slurm_outdir: Path,
+    input_genomes_small: Path,
+) -> dict:
+    """Return configuration settings for testing snakemake dnadiff filter rule.
 
     We take the output directories for the MUMmer filter output and the
     small set of input genomes as arguments.
     """
     return {
         "outdir": dnadiff_nucmer_targets_filter_slurm_outdir,
-        "indir": input_genomes_small,
+        "indir": str(input_genomes_small),
         "cores": 12,
         "mode": "mum",
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def config_dnadiff_showdiff_args(
-    dnadiff_targets_showdiff_slurm_outdir, input_genomes_small
-):
-    """Configuration settings for testing snakemake show_diff rule."""
+    dnadiff_targets_showdiff_slurm_outdir: Path,
+    input_genomes_small: Path,
+) -> dict:
+    """Return configuration settings for testing snakemake show_diff rule."""
     return {
         "outdir": dnadiff_targets_showdiff_slurm_outdir,
-        "indir": input_genomes_small,
+        "indir": str(input_genomes_small),
         "cores": 12,
     }
 
 
-def compare_files_with_skip(file1, file2, skip=1):
+def compare_files_with_skip(file1: Path, file2: Path, skip: int = 1) -> bool:
     """Compare two files, line by line, except for the first line.
 
     This function expects two text files as input and returns True if the content
     of the files is the same, and False if the two files differ.
     """
-
     with file1.open() as if1, file2.open() as if2:
         for line1, line2 in zip(
-            if1.readlines()[skip:], if2.readlines()[skip:], strict=False
+            if1.readlines()[skip:],
+            if2.readlines()[skip:],
+            strict=False,
         ):
             if line1 != line2:
                 return False
@@ -142,7 +167,7 @@ def compare_files_with_skip(file1, file2, skip=1):
     return True
 
 
-def compare_fastani_files(file1, file2):
+def compare_fastani_files(file1: Path, file2: Path) -> bool:
     """Compare two fastANI files.
 
     This function expects two text files as input and returns True if the content
@@ -151,7 +176,6 @@ def compare_fastani_files(file1, file2):
     As the Path to both Query and Reference might be diffrent,
     we will only consider file name.
     """
-
     with file1.open() as if1, file2.open() as if2:
         for line1, line2 in zip(if1.readlines(), if2.readlines(), strict=False):
             if line1.split("\t")[2:] != line2.split("\t")[2:]:
@@ -159,13 +183,12 @@ def compare_fastani_files(file1, file2):
         return True
 
 
-def compare_show_diff_files(file1, file2):
+def compare_show_diff_files(file1: Path, file2: Path) -> bool:
     """Compare two files.
 
     This function expects two text files as input and returns True if the content
     of the files is the same, and False if the two files differ.
     """
-
     with file1.open() as if1, file2.open() as if2:
         for line1, line2 in zip(if1.readlines(), if2.readlines(), strict=False):
             if line1 != line2:
@@ -175,12 +198,12 @@ def compare_show_diff_files(file1, file2):
 
 
 def test_snakemake_rule_delta_slurm(
-    anim_nucmer_targets_delta_slurm,
-    anim_nucmer_targets_delta_indir,
-    anim_nucmer_targets_delta_slurm_outdir,
-    config_delta_args,
-):
-    """Test nucmer delta snakemake wrapper
+    anim_nucmer_targets_delta_slurm: list[str],
+    anim_nucmer_targets_delta_indir: Path,
+    anim_nucmer_targets_delta_slurm_outdir: Path,
+    config_delta_args: dict,
+) -> None:
+    """Test nucmer delta snakemake wrapper.
 
     Checks that the delta rule in the ANIm snakemake wrapper gives the
     expected output.
@@ -199,19 +222,19 @@ def test_snakemake_rule_delta_slurm(
 
     # Check output against target fixtures
     for fname in anim_nucmer_targets_delta_slurm:
-        assert compare_files_with_skip(
+        assert compare_files_with_skip(  # noqa: S101
             anim_nucmer_targets_delta_indir / fname,
             anim_nucmer_targets_delta_slurm_outdir / fname,
         )
 
 
 def test_snakemake_rule_filter_slurm(
-    anim_nucmer_targets_filter_slurm,
-    anim_nucmer_targets_filter_indir,
-    anim_nucmer_targets_filter_slurm_outdir,
-    config_filter_args,
-):
-    """Test nucmer filter snakemake wrapper
+    anim_nucmer_targets_filter_slurm: list[str],
+    anim_nucmer_targets_filter_indir: Path,
+    anim_nucmer_targets_filter_slurm_outdir: Path,
+    config_filter_args: dict,
+) -> None:
+    """Test nucmer filter snakemake wrapper.
 
     Checks that the filter rule in the ANIm snakemake wrapper gives the
     expected output.
@@ -230,19 +253,19 @@ def test_snakemake_rule_filter_slurm(
 
     # Check output against target fixtures
     for fname in anim_nucmer_targets_filter_slurm:
-        assert compare_files_with_skip(
+        assert compare_files_with_skip(  # noqa: S101
             anim_nucmer_targets_filter_indir / fname,
             anim_nucmer_targets_filter_slurm_outdir / fname,
         )
 
 
 def test_snakemake_rule_fastani_slurm(
-    fastani_targets_slurm,
-    fastani_targets_slurm_outdir,
-    config_fastani_args,
-    fastani_targets_indir,
-):
-    """Test fastANI snakemake wrapper
+    fastani_targets_slurm: list[str],
+    fastani_targets_slurm_outdir: Path,
+    config_fastani_args: dict,
+    fastani_targets_indir: Path,
+) -> None:
+    """Test fastANI snakemake wrapper.
 
     Checks that the fastANI rule in the fastANI snakemake wrapper gives the
     expected output.
@@ -255,19 +278,19 @@ def test_snakemake_rule_fastani_slurm(
 
     # Check output against target fixtures
     for fname in fastani_targets_slurm:
-        assert compare_fastani_files(
+        assert compare_fastani_files(  # noqa: S101
             fastani_targets_indir / fname,
             fastani_targets_slurm_outdir / fname,
         )
 
 
 def test_dnadiff_rule_delta_slurm(
-    dnadiff_nucmer_targets_delta_slurm,
-    dnadiff_nucmer_targets_delta_indir,
-    dnadiff_nucmer_targets_delta_slurm_outdir,
-    config_delta_args,
-):
-    """Test nucmer delta snakemake wrapper
+    dnadiff_nucmer_targets_delta_slurm: list[str],
+    dnadiff_nucmer_targets_delta_indir: Path,
+    dnadiff_nucmer_targets_delta_slurm_outdir: Path,
+    config_delta_args: dict,
+) -> None:
+    """Test nucmer delta snakemake wrapper.
 
     Checks that the delta rule in the dnadiff snakemake wrapper gives the
     expected output.
@@ -286,19 +309,19 @@ def test_dnadiff_rule_delta_slurm(
 
     # Check output against target fixtures
     for fname in dnadiff_nucmer_targets_delta_slurm:
-        assert compare_files_with_skip(
+        assert compare_files_with_skip(  # noqa: S101
             dnadiff_nucmer_targets_delta_indir / fname,
             dnadiff_nucmer_targets_delta_slurm_outdir / fname,
         )
 
 
 def test_dnadiff_rule_filter_slurm(
-    dnadiff_nucmer_targets_filter_slurm,
-    dnadiff_nucmer_targets_filter_indir,
-    dnadiff_nucmer_targets_filter_slurm_outdir,
-    config_filter_args,
-):
-    """Test nucmer filter snakemake wrapper
+    dnadiff_nucmer_targets_filter_slurm: list[str],
+    dnadiff_nucmer_targets_filter_indir: Path,
+    dnadiff_nucmer_targets_filter_slurm_outdir: Path,
+    config_filter_args: dict,
+) -> None:
+    """Test nucmer filter snakemake wrapper.
 
     Checks that the filter rule in the dnadiff snakemake wrapper gives the
     expected output.
@@ -317,19 +340,19 @@ def test_dnadiff_rule_filter_slurm(
 
     # Check output against target fixtures
     for fname in dnadiff_nucmer_targets_filter_slurm:
-        assert compare_files_with_skip(
+        assert compare_files_with_skip(  # noqa: S101
             dnadiff_nucmer_targets_filter_indir / fname,
             dnadiff_nucmer_targets_filter_slurm_outdir / fname,
         )
 
 
 def test_dnadiff_rule_show_diff_slurm(
-    dnadiff_targets_showdiff_slurm,
-    dnadiff_targets_showdiff_indir,
-    dnadiff_targets_showdiff_slurm_outdir,
-    config_dnadiff_showdiff_args,
-):
-    """Test dnadiff show-diff snakemake wrapper
+    dnadiff_targets_showdiff_slurm: list[str],
+    dnadiff_targets_showdiff_indir: Path,
+    dnadiff_targets_showdiff_slurm_outdir: Path,
+    config_dnadiff_showdiff_args: dict,
+) -> None:
+    """Test dnadiff show-diff snakemake wrapper.
 
     Checks that the show-diff rule in the dnadiff snakemake wrapper gives the
     expected output.
@@ -348,7 +371,7 @@ def test_dnadiff_rule_show_diff_slurm(
 
     # Check output against target fixtures
     for fname in dnadiff_targets_showdiff_slurm:
-        assert compare_files_with_skip(
+        assert compare_files_with_skip(  # noqa: S101
             dnadiff_targets_showdiff_indir / fname,
             dnadiff_targets_showdiff_slurm_outdir / fname,
         )

@@ -10,6 +10,9 @@
 .ipynb_checkpoints
 .Rhistory
 .vscode
+.mypy_cache
+.pytest_cache
+.ruff_cache
 
 # Compiled Python modules
 *.pyc

@@ -34,4 +34,5 @@ class SnakemakeRunner:
                     targets=targetset,
                 )
             )
+            dag_api.unlock()
             dag_api.execute_workflow()

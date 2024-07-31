@@ -1,4 +1,4 @@
-# (c) University of Strathclyde 2019-
+# (c) University of Strathclyde 2024-present
 # Author: Leighton Pritchard
 #
 # Contact:

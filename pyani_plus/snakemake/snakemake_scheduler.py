@@ -37,7 +37,7 @@
 for pairwise comparisions for ANI analysis.
 """
 
-from importlib import resources as impresources
+import importlib_resources as impresources
 from itertools import permutations
 from pathlib import Path
 

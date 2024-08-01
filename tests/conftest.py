@@ -38,7 +38,7 @@
 
 from pathlib import Path
 
-import pytest
+import pytest  # type: ignore  # noqa: PGH003
 
 # Path to tests, contains tests and data subdirectories
 # This conftest.py file should be found in the top directory of the tests
@@ -47,14 +47,8 @@ TESTSPATH = Path(__file__).parents[0]
 FIXTUREPATH = TESTSPATH / "fixtures"
 
 
-@pytest.fixture
-def dir_anim_results():
-    """Input result datafrmes for ANIm tests."""
-    return FIXTUREPATH / "anim" / "dataframes"
-
-
 @pytest.fixture()
-def dir_anim_results():
+def dir_anim_results() -> Path:
     """Input result datafrmes for ANIm tests."""
     return FIXTUREPATH / "anim" / "dataframes"
 

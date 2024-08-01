@@ -72,13 +72,13 @@ def check_input_stems(indir) -> dict[str, Path]:
 class SnakemakeRunner:
     """Execute Snakemake workflows for pairwise comparisons."""
 
-    def __init__(self, workflow_filename):
+    def __init__(self, workflow_filename: str) -> None:
         """Initialise the SnakemakeRunner with the path to the
         Snakemake workflow file.
         """
         self.workflow_filename = workflow_filename
 
-    def run_workflow(self, targetset, config_args):
+    def run_workflow(self, targetset: list, config_args: dict) -> None:
         """Runs the snakemake workflow.
 
         :param targets: (list) List of target files that the workflow should return.

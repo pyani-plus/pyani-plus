@@ -1,0 +1,87 @@
+/Users/angelikakiepas/Desktop/pyani-plus/tests/generate_fixtures/../fixtures/sequences/NC_002696.fasta /Users/angelikakiepas/Desktop/pyani-plus/tests/generate_fixtures/../fixtures/sequences/NC_010338.fna
+NUCMER
+
+                               [REF]                [QRY]
+[Sequences]
+TotalSeqs                          2                    1
+AlignedSeqs                1(50.00%)           1(100.00%)
+UnalignedSeqs              1(50.00%)             0(0.00%)
+
+[Bases]
+TotalBases                   4016947              5477872
+AlignedBases         1414384(35.21%)      1424179(26.00%)
+UnalignedBases       2602563(64.79%)      4053693(74.00%)
+
+[Alignments]
+1-to-1                          1206                 1206
+TotalLength                  1408533              1409770
+AvgLength                    1167.94              1168.96
+AvgIdentity                    85.26                85.26
+
+M-to-M                          1275                 1275
+TotalLength                  1442608              1443869
+AvgLength                    1131.46              1132.45
+AvgIdentity                    85.28                85.28
+
+[Feature Estimates]
+Breakpoints                     2550                 2550
+Relocations                      173                  187
+Translocations                     0                    0
+Inversions                       168                  154
+
+Insertions                      1258                 1265
+InsertionSum                 2617378              4072432
+InsertionAvg                 2080.59              3219.31
+
+TandemIns                          0                    0
+TandemInsSum                       0                    0
+TandemInsAvg                    0.00                 0.00
+
+[SNPs]
+TotalSNPs                     190433               190433
+CA                       7735(4.06%)          9306(4.89%)
+CG                     38742(20.34%)        38555(20.25%)
+CT                      15997(8.40%)        19249(10.11%)
+TC                     19249(10.11%)         15997(8.40%)
+TA                       3911(2.05%)          3698(1.94%)
+TG                       9378(4.92%)          8073(4.24%)
+AG                     19630(10.31%)         16159(8.49%)
+AC                       9306(4.89%)          7735(4.06%)
+AT                       3698(1.94%)          3911(2.05%)
+GT                       8073(4.24%)          9378(4.92%)
+GC                     38555(20.25%)        38742(20.34%)
+GA                      16159(8.49%)        19630(10.31%)
+
+TotalGSNPs                      1835                 1835
+TC                       248(13.51%)           167(9.10%)
+TG                         46(2.51%)            40(2.18%)
+TA                         14(0.76%)            17(0.93%)
+CA                         41(2.23%)            46(2.51%)
+CG                       373(20.33%)          389(21.20%)
+CT                        167(9.10%)          248(13.51%)
+AG                       259(14.11%)          195(10.63%)
+AC                         46(2.51%)            41(2.23%)
+AT                         17(0.93%)            14(0.76%)
+GA                       195(10.63%)          259(14.11%)
+GC                       389(21.20%)          373(20.33%)
+GT                         40(2.18%)            46(2.51%)
+
+TotalIndels                    16899                16899
+C.                      2429(14.37%)         2868(16.97%)
+T.                       1486(8.79%)          1669(9.88%)
+A.                       1506(8.91%)         1711(10.12%)
+G.                      2422(14.33%)         2808(16.62%)
+.T                       1669(9.88%)          1486(8.79%)
+.C                      2868(16.97%)         2429(14.37%)
+.A                      1711(10.12%)          1506(8.91%)
+.G                      2808(16.62%)         2422(14.33%)
+
+TotalGIndels                       2                    2
+T.                          0(0.00%)             0(0.00%)
+C.                          0(0.00%)             0(0.00%)
+A.                          0(0.00%)             0(0.00%)
+G.                         1(50.00%)            1(50.00%)
+.A                          0(0.00%)             0(0.00%)
+.G                         1(50.00%)            1(50.00%)
+.C                          0(0.00%)             0(0.00%)
+.T                          0(0.00%)             0(0.00%)

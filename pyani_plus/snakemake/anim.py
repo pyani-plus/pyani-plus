@@ -3,13 +3,17 @@ target outputs (delta files) for aniM analysis.
 """
 
 # Set Up (importing libraries)
-from pathlib import Path
-
 from importlib import resources as impresources
+from pathlib import Path
 
 # Although `from snakemake.settings import ConfigSettings` works fine for <8.14
 # the new import choice is required after that point but is backwards-compatible.
-from snakemake.api import SnakemakeApi, ConfigSettings, DAGSettings, ResourceSettings  # type: ignore
+from snakemake.api import (  # type: ignore
+    ConfigSettings,
+    DAGSettings,
+    ResourceSettings,
+    SnakemakeApi,
+)
 
 from pyani_plus import workflows
 
@@ -19,7 +23,6 @@ def check_input_stems(indir):
     If duplicate stems with approved extenions are present
     raise a ValueError.
     """
-
     extensions = [".fasta", ".fas", ".fna"]
     stems = [_.stem for _ in Path(indir).glob("*") if _.suffix in extensions]
 
@@ -32,7 +35,7 @@ def check_input_stems(indir):
             item for item in stems if stems.count(item) > 1 and item in set(stems)
         ]
         raise ValueError(
-            f"Duplicated stems found for {list(set(duplicates))}. Please investigate."
+            f"Duplicated stems found for {list(set(duplicates))}. Please investigate.",
         )
 
     return input_files
@@ -72,5 +75,3 @@ def run_workflow(targetset, config_args):
         )
         dag_api = workflow_api.dag(dag_settings=DAGSettings(targets=targetset))
         dag_api.execute_workflow()
-
-    pass

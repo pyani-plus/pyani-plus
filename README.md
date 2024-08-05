@@ -8,6 +8,7 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/6b681f069a0443f7b2d7774dbb55de3d)](https://app.codacy.com/gh/pyani-plus/pyani-plus/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/6b681f069a0443f7b2d7774dbb55de3d)](https://app.codacy.com/gh/pyani-plus/pyani-plus/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
 
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/pyani-plus/pyani-plus/main.svg)](https://results.pre-commit.ci/latest/github/pyani-plus/pyani-plus/main)
 [![CodeFactor](https://www.codefactor.io/repository/github/pyani-plus/pyani-plus/badge)](https://www.codefactor.io/repository/github/pyani-plus/pyani-plus)
 [![codecov](https://codecov.io/gh/pyani-plus/pyani-plus/graph/badge.svg?token=NSSTP6CIW0)](https://codecov.io/gh/pyani-plus/pyani-plus)
 

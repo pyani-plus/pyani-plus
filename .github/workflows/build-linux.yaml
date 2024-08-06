@@ -31,7 +31,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           activate-environment: pyani-github
           auto-activate-base: false
-          channels: defaults,bioconda,conda-forge
+          channels: bioconda,conda-forge
           channel-priority: flexible
 
       - name: Check Miniconda Installation

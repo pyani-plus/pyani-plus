@@ -21,6 +21,7 @@ dependencies = ["snakemake"]
 [tool.ruff.lint]
 select = ["ALL"]
 pycodestyle.max-line-length = 120
+ignore = ["S603"]
 
 [tool.setuptools.packages.find]
 where = ["pyani_plus"]

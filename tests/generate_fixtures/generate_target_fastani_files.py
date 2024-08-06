@@ -1,4 +1,4 @@
-# (c) University of Strathclyde 2019-
+# (c) University of Strathclyde 2024-present
 # Author: Leighton Pritchard
 #
 # Contact:
@@ -8,7 +8,7 @@
 # Strathclyde Institute for Pharmacy and Biomedical Sciences,
 # Cathedral Street,
 # Glasgow,
-# G1 1XQ
+# G4 0RE
 # Scotland,
 # UK
 #
@@ -33,4 +33,46 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-"""Module code providing interfaces to snakemake."""
+"""Generate target files for pyani-plus fastANI tests.
+
+This bash script generates target files for fastani comparisions.
+Genomes are compared in both directions (forward and reverse)
+using fastANI.
+"""
+
+# Imports
+import subprocess
+from itertools import permutations
+from pathlib import Path
+
+# Parameters (eg, input sequences, fastANI outputs, k-mer sizes...)
+INPUT_DIR = Path("../fixtures/sequences")
+FASTANI_DIR = Path("../fixtures/fastani/targets")
+FRAG_LEN = 3000
+KMER_SIZE = 16
+MIN_FRAC = 0.2
+
+# Running comparisions
+comparisions = permutations([_.stem for _ in Path(INPUT_DIR).glob("*")], 2)
+inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*")}
+
+for genomes in comparisions:
+    stem = "_vs_".join(genomes)
+    subprocess.run(
+        [
+            "fastANI",
+            "-q",
+            inputs[genomes[0]],
+            "-r",
+            inputs[genomes[1]],
+            "-o",
+            FASTANI_DIR / (stem + ".fastani"),
+            "--fragLen",
+            str(FRAG_LEN),
+            "-k",
+            str(KMER_SIZE),
+            "--minFraction",
+            str(MIN_FRAC),
+        ],
+        check=True,
+    )

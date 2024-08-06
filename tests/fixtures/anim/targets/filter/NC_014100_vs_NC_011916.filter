@@ -1,4 +1,4 @@
-/Users/angelikakiepas/Desktop/pyani_plus/tests/generate_fixtures/../fixtures/sequences/NC_014100.fna /Users/angelikakiepas/Desktop/pyani_plus/tests/generate_fixtures/../fixtures/sequences/NC_011916.fna
+/Users/lpritc/Documents/Development/GitHub/pyani-plus/pyani-plus/tests/generate_fixtures/../fixtures/sequences/NC_014100.fna /Users/lpritc/Documents/Development/GitHub/pyani-plus/pyani-plus/tests/generate_fixtures/../fixtures/sequences/NC_011916.fas
 NUCMER
 >gi|295687459|ref|NC_014100.1| gi|221232939|ref|NC_011916.1| 4655622 4042929
 7 1493 5623 7106 175 175 0

@@ -1,4 +1,4 @@
-# (c) University of Strathclyde 2019-
+# (c) University of Strathclyde 2024-present
 # Author: Leighton Pritchard
 #
 # Contact:
@@ -8,7 +8,7 @@
 # Strathclyde Institute for Pharmacy and Biomedical Sciences,
 # Cathedral Street,
 # Glasgow,
-# G1 1XQ
+# G4 0RE
 # Scotland,
 # UK
 #
@@ -33,4 +33,4 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-"""Module code providing interfaces to snakemake."""
+"""Module providing scripts to autogenerate test fixtures."""

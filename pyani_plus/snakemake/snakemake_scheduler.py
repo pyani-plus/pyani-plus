@@ -37,11 +37,10 @@
 for pairwise comparisions for ANI analysis.
 """
 
-import importlib_resources as impresources
-from itertools import permutations
 from pathlib import Path
 
-from snakemake.api import SnakemakeApi, ConfigSettings, DAGSettings, ResourceSettings
+import importlib_resources as impresources
+from snakemake.api import ConfigSettings, DAGSettings, ResourceSettings, SnakemakeApi
 
 from pyani_plus import workflows
 
@@ -51,7 +50,6 @@ def check_input_stems(indir) -> dict[str, Path]:
     If duplicate stems with approved extenions are present
     raise a ValueError.
     """
-
     extensions = [".fasta", ".fas", ".fna"]
     stems = [_.stem for _ in Path(indir).glob("*") if _.suffix in extensions]
 

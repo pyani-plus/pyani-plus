@@ -33,9 +33,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-"""Module providing a snakemake scheduler from Python to generate target outputs
-for pairwise comparisions for ANI analysis.
-"""
+"""Snakemake scheduler for pairwise comparisons for ANI analysis."""
 
 from pathlib import Path
 
@@ -46,8 +44,9 @@ from pyani_plus import workflows
 
 
 def check_input_stems(indir) -> dict[str, Path]:
-    """Check input files agans approved list of extenions.
-    If duplicate stems with approved extenions are present
+    """Check input files against approved list of extensions.
+
+    If duplicate stems with approved extensions are present
     raise a ValueError.
     """
     extensions = [".fasta", ".fas", ".fna"]
@@ -67,13 +66,11 @@ class SnakemakeRunner:
     """Execute Snakemake workflows for pairwise comparisons."""
 
     def __init__(self, workflow_filename: str) -> None:
-        """Initialise the SnakemakeRunner with the path to the
-        Snakemake workflow file.
-        """
+        """Initialise SnakemakeRunner with SnakeMake workflow filename."""
         self.workflow_filename = workflow_filename
 
     def run_workflow(self, targetset: list, config_args: dict) -> None:
-        """Runs the snakemake workflow.
+        """Run the snakemake workflow.
 
         :param targets: (list) List of target files that the workflow should return.
         :config_args: (dict) Dictionary of configuration arguments to pass to the smk workflow.

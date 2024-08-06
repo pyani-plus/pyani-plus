@@ -23,7 +23,7 @@ Other branches may be created as and when necessary. Please name branches clearl
 
 ### Clone the repository
 
-If you are not in the `pyani-plus` development team, please fork this repository to your own GitHub account (you will need to create a GitHub account if you do not alread have one), and clone the repository from your own fork:
+If you are not in the `pyani-plus` development team, please fork this repository to your own GitHub account (you will need to create a GitHub account if you do not already have one), and clone the repository from your own fork:
 
 ```bash
 git clone git@github.com:<YOUR USERNAME>/pyani-plus.git
@@ -59,7 +59,7 @@ make setup_dev_macos  # macOS
 - The short description can, but need not, include the name of the file that is modified
 - There should be a short account of what the change does
 - The short description should not only contain the name of the file that is modified
-- The short description shoudl continue the sentence "This commit will..."
+- The short description should continue the sentence "This commit will..."
 
 For example, if the commit updates some documentation, the following are good short descriptions:
 

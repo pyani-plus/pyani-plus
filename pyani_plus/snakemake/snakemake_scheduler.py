@@ -39,7 +39,7 @@ for pairwise comparisions for ANI analysis.
 
 from pathlib import Path
 
-import importlib_resources as impresources
+import importlib.resources as impresources
 from snakemake.api import ConfigSettings, DAGSettings, ResourceSettings, SnakemakeApi
 
 from pyani_plus import workflows
@@ -54,13 +54,9 @@ def check_input_stems(indir) -> dict[str, Path]:
     stems = [_.stem for _ in Path(indir).glob("*") if _.suffix in extensions]
 
     if len(stems) == len(set(stems)):
-        input_files = {
-            _.stem: _ for _ in Path(indir).glob("*") if _.suffix in extensions
-        }
+        input_files = {_.stem: _ for _ in Path(indir).glob("*") if _.suffix in extensions}
     else:
-        duplicates = [
-            item for item in stems if stems.count(item) > 1 and item in set(stems)
-        ]
+        duplicates = [item for item in stems if stems.count(item) > 1 and item in set(stems)]
         msg = f"Duplicated stems found for {list(set(duplicates))}. Please investigate."
         raise ValueError(msg)
 

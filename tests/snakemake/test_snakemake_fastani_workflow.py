@@ -70,7 +70,7 @@ def compare_fastani_files(file1: Path, file2: Path) -> bool:
     This function expects two text files as input and returns True if the content
     of the files is the same, and False if the two files differ.
 
-    As the Path to both Query and Reference might be diffrent,
+    As the Path to both Query and Reference might be different,
     we will only consider file name.
     """
     with file1.open() as if1, file2.open() as if2:

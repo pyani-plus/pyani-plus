@@ -12,7 +12,7 @@ def get_genomeB(wildcards):
 
 
 # The delta rule runs nucmer
-# NOTE: We do not need to construct forward and reverse comparisions within this
+# NOTE: We do not need to construct forward and reverse comparisons within this
 # rule. This is done in the context of pyani_plus by specifying target files in
 # the calling code
 rule delta:

@@ -35,7 +35,7 @@
 # THE SOFTWARE.
 """Generate target files for pyani-plus fastANI tests.
 
-This bash script generates target files for fastani comparisions.
+This bash script generates target files for fastani comparisons.
 Genomes are compared in both directions (forward and reverse)
 using fastANI.
 """
@@ -52,11 +52,11 @@ FRAG_LEN = 3000
 KMER_SIZE = 16
 MIN_FRAC = 0.2
 
-# Running comparisions
-comparisions = permutations([_.stem for _ in Path(INPUT_DIR).glob("*")], 2)
+# Running comparisons
+comparisons = permutations([_.stem for _ in Path(INPUT_DIR).glob("*")], 2)
 inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*")}
 
-for genomes in comparisions:
+for genomes in comparisons:
     stem = "_vs_".join(genomes)
     subprocess.run(
         [

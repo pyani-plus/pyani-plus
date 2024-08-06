@@ -59,11 +59,11 @@ FILTER_DIR = Path("../fixtures/dnadiff/targets/filter")
 SHOW_DIFF_DIR = Path("../fixtures/dnadiff/targets/show_diff")
 SHOW_COORDS_DIR = Path("../fixtures/dnadiff/targets/show_coords")
 
-# Running comparisions
-comparisions = permutations([_.stem for _ in Path(INPUT_DIR).glob("*")], 2)
+# Running comparisons
+comparisons = permutations([_.stem for _ in Path(INPUT_DIR).glob("*")], 2)
 inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*")}
 
-for genomes in comparisions:
+for genomes in comparisons:
     stem = "_vs_".join(genomes)
     subprocess.run(
         [

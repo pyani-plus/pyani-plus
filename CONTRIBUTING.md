@@ -4,7 +4,7 @@ Contributions, including bugfixes and addition of new features, are welcomed!
 
 This document provides a brief introduction to contributing to `pyani-plus`. More complete documentation will be made available elsewhere.
 
-## Licensing
+## Licensing
 
 `pyani-plus` is licensed under a permissive MIT Licence (see `LICENSE` file for details). Any contributions you make will be licensed under this agreement.
 

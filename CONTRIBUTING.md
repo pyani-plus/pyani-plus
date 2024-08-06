@@ -35,7 +35,7 @@ cd pyani-plus
 We recommend creating a `conda` environment specifically for development of `pyani-plus`.
 
 ```bash
-conda create --name pyani-plus_py312 python=3.12 -y   
+conda create --name pyani-plus_py312 python=3.12 -y
 conda activate pyani-plus_py312
 ```
 
@@ -96,4 +96,3 @@ A typical workflow might look something like this:
 5. When you're finished, test locally with `pytest -v` or `make test`.
 6. Push the branch to your fork, and submit a pull request
 7. Continue the discussion in the [Pull Requests](https://github.com/pyani-plus/pyani-plus/pulls) section of this repository on GitHub.
-

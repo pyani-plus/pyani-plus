@@ -60,7 +60,7 @@ inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*")}
 for genomes in comparisons:
     stem = "_vs_".join(genomes)
     subprocess.run(
-        [
+        [  # noqa: S607
             "nucmer",
             "-p",
             DELTA_DIR / stem,
@@ -75,7 +75,7 @@ for genomes in comparisons:
     # pipe from within the call to stdout
     with (FILTER_DIR / (stem + ".filter")).open("w") as ofh:
         subprocess.run(
-            ["delta-filter", "-1", DELTA_DIR / (stem + ".delta")],
+            ["delta-filter", "-1", DELTA_DIR / (stem + ".delta")],  # noqa: S607
             check=True,
             stdout=ofh,
         )

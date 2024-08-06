@@ -59,7 +59,7 @@ inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*")}
 for genomes in comparisons:
     stem = "_vs_".join(genomes)
     subprocess.run(
-        [
+        [  # noqa: S607
             "fastANI",
             "-q",
             inputs[genomes[0]],

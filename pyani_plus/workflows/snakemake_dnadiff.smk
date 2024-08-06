@@ -1,9 +1,11 @@
 from pyani_plus.snakemake import snakemake_scheduler
 
-indir_files = snakemake_scheduler.check_input_stems(config['indir'])
+indir_files = snakemake_scheduler.check_input_stems(config["indir"])
+
 
 def get_genomeA(wildcards):
     return indir_files[wildcards.genomeA]
+
 
 def get_genomeB(wildcards):
     return indir_files[wildcards.genomeB]
@@ -21,7 +23,7 @@ rule delta:
         "{outdir}/{genomeA}_vs_{genomeB}.delta",
     input:
         genomeA=get_genomeA,
-        genomeB=get_genomeB
+        genomeB=get_genomeB,
     run:
         shell(
             "nucmer -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --maxmatch {input.genomeA} {input.genomeB}"
@@ -30,7 +32,7 @@ rule delta:
 
 # The filter rule runs delta-filter wrapper for nucmer
 # NOTE: This rule is used for dnadiff in the context of pyani_plus. The .filter file
-# is used to generate delta-filter files, which are used to replicate AlignedBases. 
+# is used to generate delta-filter files, which are used to replicate AlignedBases.
 rule filter:
     input:
         "{outdir}/{genomeA}_vs_{genomeB}.delta",
@@ -41,28 +43,26 @@ rule filter:
             "delta-filter -m {input} > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter"
         )
 
+
 # The filter rule runs show-diff wrapper for nucmer
 # NOTE: This rule is used for dnadiff in the context of pyani_plus. The .filter file
-# is used to generate show-diff files, which are used to replicate AlignedBases. 
+# is used to generate show-diff files, which are used to replicate AlignedBases.
 rule show_diff:
     input:
         "{outdir}/{genomeA}_vs_{genomeB}.filter",
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.rdiff",
     run:
-        shell(
-            "show-diff -rH {input} > {output}"
-        )
+        shell("show-diff -rH {input} > {output}")
+
 
 # The filter rule runs show-coords wrapper for nucmer
 # NOTE: This rule is used for dnadiff in the context of pyani_plus. The .filter file
-# is used to generate show-coords files, which are used to replicate AlignedBases. 
+# is used to generate show-coords files, which are used to replicate AlignedBases.
 rule show_coords:
     input:
         "{outdir}/{genomeA}_vs_{genomeB}.filter",
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.mcoords",
     run:
-        shell(
-            "show-coords {input} > {output}"
-        )
+        shell("show-coords {input} > {output}")

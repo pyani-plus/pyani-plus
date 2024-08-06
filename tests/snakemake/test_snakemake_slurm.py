@@ -45,7 +45,7 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus.snakemake import anim, dnadiff, fastani
+from pyani_plus.snakemake import snakemake_scheduler
 
 
 @pytest.fixture()
@@ -218,7 +218,8 @@ def test_snakemake_rule_delta_slurm(
     shutil.rmtree(anim_nucmer_targets_delta_slurm_outdir, ignore_errors=True)
 
     # Run snakemake wrapper
-    anim.run_workflow(anim_nucmer_targets_delta_slurm, config_delta_args)
+    runner = snakemake_scheduler.SnakemakeRunner("snakemake_anim.smk")
+    runner.run_workflow(anim_nucmer_targets_delta_slurm, config_delta_args)
 
     # Check output against target fixtures
     for fname in anim_nucmer_targets_delta_slurm:
@@ -249,7 +250,8 @@ def test_snakemake_rule_filter_slurm(
     shutil.rmtree(anim_nucmer_targets_filter_slurm_outdir, ignore_errors=True)
 
     # Run snakemake wrapper
-    anim.run_workflow(anim_nucmer_targets_filter_slurm, config_filter_args)
+    runner = snakemake_scheduler.SnakemakeRunner("snakemake_anim.smk")
+    runner.run_workflow(anim_nucmer_targets_filter_slurm, config_filter_args)
 
     # Check output against target fixtures
     for fname in anim_nucmer_targets_filter_slurm:
@@ -274,7 +276,8 @@ def test_snakemake_rule_fastani_slurm(
     shutil.rmtree(fastani_targets_slurm_outdir, ignore_errors=True)
 
     # Run snakemake wrapper
-    fastani.run_workflow(fastani_targets_slurm, config_fastani_args)
+    runner = snakemake_scheduler.SnakemakeRunner("snakemake_fastani.smk")
+    runner.run_workflow(fastani_targets_slurm, config_fastani_args)
 
     # Check output against target fixtures
     for fname in fastani_targets_slurm:
@@ -305,7 +308,8 @@ def test_dnadiff_rule_delta_slurm(
     shutil.rmtree(dnadiff_nucmer_targets_delta_slurm_outdir, ignore_errors=True)
 
     # Run snakemake wrapper
-    dnadiff.run_workflow(dnadiff_nucmer_targets_delta_slurm, config_delta_args)
+    runner = snakemake_scheduler.SnakemakeRunner("snakemake_dnadiff.smk")
+    runner.run_workflow(dnadiff_nucmer_targets_delta_slurm, config_delta_args)
 
     # Check output against target fixtures
     for fname in dnadiff_nucmer_targets_delta_slurm:
@@ -336,7 +340,8 @@ def test_dnadiff_rule_filter_slurm(
     shutil.rmtree(dnadiff_nucmer_targets_filter_slurm_outdir, ignore_errors=True)
 
     # Run snakemake wrapper
-    dnadiff.run_workflow(dnadiff_nucmer_targets_filter_slurm, config_filter_args)
+    runner = snakemake_scheduler.SnakemakeRunner("snakemake_dnadiff.smk")
+    runner.run_workflow(dnadiff_nucmer_targets_filter_slurm, config_filter_args)
 
     # Check output against target fixtures
     for fname in dnadiff_nucmer_targets_filter_slurm:
@@ -367,7 +372,8 @@ def test_dnadiff_rule_show_diff_slurm(
     shutil.rmtree(dnadiff_targets_showdiff_slurm_outdir, ignore_errors=True)
 
     # Run snakemake wrapper
-    dnadiff.run_workflow(dnadiff_targets_showdiff_slurm, config_dnadiff_showdiff_args)
+    runner = snakemake_scheduler.SnakemakeRunner("snakemake_dnadiff.smk")
+    runner.run_workflow(dnadiff_targets_showdiff_slurm, config_dnadiff_showdiff_args)
 
     # Check output against target fixtures
     for fname in dnadiff_targets_showdiff_slurm:

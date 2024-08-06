@@ -10,6 +10,9 @@ repos:
     # Run the formatter.
     - id: ruff-format
       types_or: [ python, pyi, jupyter ]
+      args: [
+        '--config=format.docstring-code-format=true'
+      ]
 - repo: https://github.com/codespell-project/codespell
   rev: v2.2.6
   hooks:

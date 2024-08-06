@@ -43,7 +43,7 @@ from snakemake.api import ConfigSettings, DAGSettings, ResourceSettings, Snakema
 from pyani_plus import workflows
 
 
-def check_input_stems(indir) -> dict[str, Path]:
+def check_input_stems(indir: str) -> dict[str, Path]:
     """Check input files against approved list of extensions.
 
     If duplicate stems with approved extensions are present

@@ -66,7 +66,7 @@ inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*")}
 for genomes in comparisons:
     stem = "_vs_".join(genomes)
     subprocess.run(
-        [
+        [  # noqa: S607
             "nucmer",
             "-p",
             DELTA_DIR / stem,
@@ -81,21 +81,21 @@ for genomes in comparisons:
     # pipe from within the call to stdout
     with (FILTER_DIR / (stem + ".filter")).open("w") as ofh:
         subprocess.run(
-            ["delta-filter", "-m", DELTA_DIR / (stem + ".delta")],
+            ["delta-filter", "-m", DELTA_DIR / (stem + ".delta")],  # noqa: S607
             check=True,
             stdout=ofh,
         )
 
     with (SHOW_DIFF_DIR / (stem + ".rdiff")).open("w") as ofh:
         subprocess.run(
-            ["show-diff", "-rH", FILTER_DIR / (stem + ".filter")],
+            ["show-diff", "-rH", FILTER_DIR / (stem + ".filter")],  # noqa: S607
             check=True,
             stdout=ofh,
         )
 
     with (SHOW_COORDS_DIR / (stem + ".mcoords")).open("w") as ofh:
         subprocess.run(
-            ["show-coords", FILTER_DIR / (stem + ".filter")],
+            ["show-coords", FILTER_DIR / (stem + ".filter")],  # noqa: S607
             check=True,
             stdout=ofh,
         )

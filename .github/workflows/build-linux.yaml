@@ -3,7 +3,7 @@ name: build-linux
 on:
   push:
   pull_request:
-    branches: 
+    branches:
       - main
   # To be able to trigger a manual build
   workflow_dispatch:
@@ -16,7 +16,7 @@ jobs:
         python-version: ["3.11", "3.12"]
 
     env:
-      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }} 
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     defaults:
       run:
         shell: bash -l {0}

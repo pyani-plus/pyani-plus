@@ -24,9 +24,10 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v4
 
-      - name: Install Miniconda (Python ${{ matrix.python-version }})
+      - name: Install MiniForge (Python ${{ matrix.python-version }})
         uses: conda-incubator/setup-miniconda@v3
         with:
+          miniforge-version: latest
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
           activate-environment: pyani-github

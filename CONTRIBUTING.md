@@ -90,9 +90,9 @@ Please use a short, descriptive branch name to make your changes in. If you are 
 A typical workflow might look something like this:
 
 1. Identify something you think you can change or add
-2. Fork this repository into your own account (**please add write access for `pyani-plus` maintainers**)
+2. Fork this repository into your own account
 3. Obtain source code and set up a development environment as outlined above
 4. Create a new branch with a short, descriptive name (for the thing you're fixing/adding), and work on this branch locally
 5. When you're finished, test locally with `pytest -v` or `make test`.
-6. Push the branch to your fork, and submit a pull request
+6. Push the branch to your fork, and submit a pull request (please tick "Allow edits by maintainers")
 7. Continue the discussion in the [Pull Requests](https://github.com/pyani-plus/pyani-plus/pulls) section of this repository on GitHub.

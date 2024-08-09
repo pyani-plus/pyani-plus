@@ -1,5 +1,2 @@
-blast
-blast-legacy
-mummer=3.23
 fastani
-gsl=2.7=h93259b0_0
+mummer=3.23

@@ -57,10 +57,12 @@ def compare_anim_results(filterfile: Path, datadir: pd.DataFrame) -> bool:
 
 
 def test_anim_average_identity(
-    anim_nucmer_targets_filter: list, anim_results: pd.DataFrame
+    anim_nucmer_targets_filter_indir: Path, anim_results: pd.DataFrame
 ) -> None:
     """Check aniM average identity."""
-    for fname in anim_nucmer_targets_filter:
+    for fname in (
+        anim_nucmer_targets_filter_indir / "anim" / "targets" / "filter"
+    ).glob("*.filter"):
         assert compare_anim_results(fname, anim_results)
 
 

@@ -33,13 +33,7 @@ TESTSPATH = Path(__file__).parents[0].resolve()
 FIXTUREPATH = TESTSPATH / "fixtures"
 
 
-@pytest.fixture
-def dir_anim_results():
-    """Input result datafrmes for ANIm tests."""
-    return FIXTUREPATH / "anim" / "dataframes"
-
-
-@pytest.fixture
+@pytest.fixture()
 def dir_anim_results() -> Path:
     """Input result datafrmes for ANIm tests."""
     return FIXTUREPATH / "anim" / "dataframes"

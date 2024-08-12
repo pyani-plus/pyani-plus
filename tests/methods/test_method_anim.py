@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 # The MIT License
 #
 # Copyright (c) 2024-present University of Strathclyde
@@ -21,7 +19,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-"""Test methods for calculating ANIm
+"""Test methods for calculating ANIm.
 
 These tests are intended to be run from the repository root using:
 
@@ -29,38 +27,45 @@ make test
 """
 
 # Required to support pytest automated testing
-import pytest
+from pathlib import Path
 
 import pandas as pd
-from pathlib import Path
+import pytest
 
 from pyani_plus.methods import method_anim
 
 
-@pytest.fixture
-def anim_results(dir_anim_results):
-    """Expected results for anim."""
+@pytest.fixture()
+def anim_results(dir_anim_results: Path) -> pd.DataFrame:
+    """Return expected results for anim."""
     return pd.read_csv(dir_anim_results / "deltadir_result.csv", index_col=0)
 
 
-def compare_anim_results(filterfile, datadir):
+def compare_anim_results(filterfile: Path, datadir: pd.DataFrame) -> bool:
     """Compare delta-filter files and expected anim results.
 
     This function expects delta-filter file and dataframe with expected
     anim results as input and returns True if the anim values is the same,
     and False if the two files differ.
     """
-
     reference, query = filterfile.stem.split("_vs_")
 
-    if round(method_anim.parse_delta(filterfile)[2], 6) != datadir.at[reference, query]:
-        return False
+    return (
+        round(method_anim.parse_delta(filterfile)[2], 6)
+        == datadir.loc[reference, query]
+    )
 
-    return True
 
-
-def test_anim_parsing(anim_nucmer_targets_filter, anim_results):
-    """Check parsing of test NUCmer .filter file."""
-
+def test_anim_parsing(
+    anim_nucmer_targets_filter: list, anim_results: pd.DataFrame
+) -> None:
+    """Check aniM average identity."""
     for fname in anim_nucmer_targets_filter:
         assert compare_anim_results(fname, anim_results)
+
+
+def test_anim_parsed(anim_nucmer_targets_delta_indir: Path) -> None:
+    """Check parsing of test NUCmer .delta/.filter file."""
+    assert method_anim.parse_delta(
+        anim_nucmer_targets_delta_indir / "NC_002696_vs_NC_011916.delta"
+    ) == (4016947, 4017751, 0.9994621994447228, 2191)

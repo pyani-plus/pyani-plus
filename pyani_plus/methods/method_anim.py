@@ -1,12 +1,49 @@
-import intervaltree
+# The MIT License
+#
+# Copyright (c) 2016-2019 The James Hutton Institute
+# Copyright (c) 2019-2024 University of Strathclyde
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+"""Code to implement the ANIm average nucleotide identity method.
+
+Calculates ANI by the ANIm method, as described in Richter et al (2009)
+Proc Natl Acad Sci USA 106: 19126-19131 doi:10.1073/pnas.0906412106.
+
+All input FASTA format files are compared against each other, pairwise,
+using NUCmer (binary location must be provided). NUCmer output will be stored
+in a specified output directory.
+
+The NUCmer .delta file output is parsed to obtain an alignment length
+and similarity error count for every unique region alignment. These are
+processed to give matrices of aligned sequence lengths, similarity error
+counts, average nucleotide identity (ANI) percentages, and minimum aligned
+percentage (of whole genome) for each pairwise comparison.
+"""
 
 from collections import defaultdict
 from pathlib import Path
-from typing import Tuple
+
+import intervaltree
 
 
-def parse_delta(filename: Path) -> Tuple[int, int, float, int]:
-    """Return (reference alignment length, query alignment length, average identity, similarity erors)
+def parse_delta(filename: Path) -> tuple[int, int, float, int]:
+    """Return (reference alignment length, query alignment length, average identity, similarity errors).
 
     :param filename: Path to the input .delta file
 
@@ -63,8 +100,7 @@ def parse_delta(filename: Path) -> Tuple[int, int, float, int]:
     (either for query or reference) provided in the .delta file and merge the overlapping
     regions with IntervalTree. Then, we calculate the total sum of all aligned regions.
     """
-
-    current_ref, current_qry, raln_length, qaln_length, sim_error, avrg_ID = (
+    current_ref, current_qry, raln_length, qaln_length, sim_error, avrg_identity = (
         None,
         None,
         0,
@@ -87,7 +123,7 @@ def parse_delta(filename: Path) -> Tuple[int, int, float, int]:
             current_ref = line[0].strip(">")
             current_qry = line[1]
         # Lines with seven columns are alignment region headers:
-        if len(line) == 7:
+        if len(line) == 7:  # noqa: PLR2004
             # Obtaining aligned regions needed to check for overlaps
             regions_ref[current_ref].append(
                 tuple(sorted([int(line[0]), int(line[1])]))
@@ -103,13 +139,13 @@ def parse_delta(filename: Path) -> Tuple[int, int, float, int]:
             aligned_bases.append(qry_aln_lengths)
 
             # Calculate weighted identical bases
-            sim_error += int(line[5])
+            sim_error += int(line[4])
             weighted_identical_bases.append(
                 (ref_aln_lengths + qry_aln_lengths) - (2 * int(line[5]))
             )
 
     # Calculate average %ID
-    avrg_ID = sum(weighted_identical_bases) / sum(aligned_bases)
+    avrg_identity = sum(weighted_identical_bases) / sum(aligned_bases)
 
     # Calculate total aligned bases (no overlaps)
     for seq_id in regions_qry:
@@ -124,4 +160,4 @@ def parse_delta(filename: Path) -> Tuple[int, int, float, int]:
         for interval in ref_tree:
             raln_length += interval.end - interval.begin + 1
 
-    return (raln_length, qaln_length, avrg_ID, sim_error)
+    return (raln_length, qaln_length, avrg_identity, sim_error)

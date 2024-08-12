@@ -34,7 +34,7 @@ setup_dev_macos: setup_conda setup_conda-dev
 # Run tests
 # When the tests complete, the coverage output will be opened in a browser
 test:
-	@python -m pytest --cov-report=html --cov=pyani_plus -v tests/ && open htmlcov/index.html
+	@python -m pytest -n auto --cov-report=html --cov=pyani_plus -v tests/ && open htmlcov/index.html
 
 # Clean up test output
 clean_test:

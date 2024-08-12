@@ -56,10 +56,10 @@ jobs:
         run: pip install -e .
 
       - name: Check pytest modules
-        run: python -m pytest -v --collect-only
+        run: python -m pytest -v -m "not slurm" --collect-only
 
       - name: Run Tests with pytest
-        run: python -m pytest -v --cov=pyani_plus --cov-report=xml:.coverage-macos-${{ matrix.python-version }}.xml
+        run: python -m pytest -v -m "not slurm" --cov=pyani_plus --cov-report=xml:.coverage-macos-${{ matrix.python-version }}.xml
 
       - name: Store coverage Results
         uses: actions/upload-artifact@v4

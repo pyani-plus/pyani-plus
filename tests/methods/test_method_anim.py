@@ -56,7 +56,7 @@ def compare_anim_results(filterfile: Path, datadir: pd.DataFrame) -> bool:
     )
 
 
-def test_anim_parsing(
+def test_anim_average_identity(
     anim_nucmer_targets_filter: list, anim_results: pd.DataFrame
 ) -> None:
     """Check aniM average identity."""
@@ -64,7 +64,7 @@ def test_anim_parsing(
         assert compare_anim_results(fname, anim_results)
 
 
-def test_anim_parsed(anim_nucmer_targets_delta_indir: Path) -> None:
+def test_anim_parsing(anim_nucmer_targets_delta_indir: Path) -> None:
     """Check parsing of test NUCmer .delta/.filter file."""
     assert method_anim.parse_delta(
         anim_nucmer_targets_delta_indir / "NC_002696_vs_NC_011916.delta"

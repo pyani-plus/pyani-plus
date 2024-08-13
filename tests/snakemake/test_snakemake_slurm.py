@@ -101,42 +101,6 @@ def config_fastani_args(
 
 
 @pytest.fixture()
-def config_delta_dnadiff_args(
-    dnadiff_nucmer_targets_delta_slurm_outdir: Path,
-    input_genomes_small: Path,
-) -> dict:
-    """Return configuration settings for testing snakemake delta rule.
-
-    We take the output directories for the MUMmer delta output and the
-    small set of input genomes as arguments.
-    """
-    return {
-        "outdir": dnadiff_nucmer_targets_delta_slurm_outdir,
-        "indir": str(input_genomes_small),
-        "cores": 12,
-        "mode": "mum",
-    }
-
-
-@pytest.fixture()
-def config_filter_dnadiff_args(
-    dnadiff_nucmer_targets_filter_slurm_outdir: Path,
-    input_genomes_small: Path,
-) -> dict:
-    """Return configuration settings for testing snakemake dnadiff filter rule.
-
-    We take the output directories for the MUMmer filter output and the
-    small set of input genomes as arguments.
-    """
-    return {
-        "outdir": dnadiff_nucmer_targets_filter_slurm_outdir,
-        "indir": str(input_genomes_small),
-        "cores": 12,
-        "mode": "mum",
-    }
-
-
-@pytest.fixture()
 def config_dnadiff_showdiff_args(
     dnadiff_targets_showdiff_slurm_outdir: Path,
     input_genomes_small: Path,

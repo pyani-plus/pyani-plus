@@ -26,9 +26,6 @@ distribute*
 # Issue development subdirectories
 issue_*/
 
-# Test output directories
-tests/*output
-
 # Test coverage output
 cover/
 htmlcov/

@@ -43,7 +43,8 @@ import pytest
 # Path to tests, contains tests and data subdirectories
 # This conftest.py file should be found in the top directory of the tests
 # module. The fixture data should be in a subdirectory named fixtures
-TESTSPATH = Path(__file__).parents[0]
+# Resolve this to an absolute path so that the working directory can be changed
+TESTSPATH = Path(__file__).parents[0].resolve()
 FIXTUREPATH = TESTSPATH / "fixtures"
 
 

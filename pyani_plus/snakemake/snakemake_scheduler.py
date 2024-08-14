@@ -73,7 +73,9 @@ class SnakemakeRunner:
         """Initialise SnakemakeRunner with SnakeMake workflow filename."""
         self.workflow_filename = workflow_filename
 
-    def run_workflow(self, targetset: list, config_args: dict) -> None:
+    def run_workflow(
+        self, targetset: list, config_args: dict, workdir: Path | None = None
+    ) -> None:
         """Run the snakemake workflow.
 
         :param targets: (list) List of target files that the workflow should return.
@@ -92,6 +94,7 @@ class SnakemakeRunner:
                 config_settings=ConfigSettings(
                     config=config_args,
                 ),
+                workdir=workdir,
             )
             dag_api = workflow_api.dag(
                 dag_settings=DAGSettings(

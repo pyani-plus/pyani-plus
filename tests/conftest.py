@@ -54,23 +54,23 @@ def anim_nucmer_targets_filter_indir() -> Path:
 
 
 @pytest.fixture()
-def anim_nucmer_targets_filter_outdir() -> Path:
+def anim_nucmer_targets_filter_outdir(tmp_path: str) -> Path:
     """Output directory for MUMmer filter snakemake tests.
 
     This path indicates the location to which MUMmer should write
     its output files during ANIm testing
     """
-    return TESTSPATH / "nucmer_filter_output"
+    return Path(tmp_path) / "nucmer_filter_output"
 
 
 @pytest.fixture()
-def anim_nucmer_targets_filter_slurm_outdir() -> Path:
+def anim_nucmer_targets_filter_slurm_outdir(tmp_path: str) -> Path:
     """Output directory for MUMmer filter snakemake tests.
 
     This path indicates the location to which MUMmer should write
     its output files during ANIm testing
     """
-    return TESTSPATH / "nucmer_filter_slurm_output"
+    return Path(tmp_path) / "nucmer_filter_slurm_output"
 
 
 @pytest.fixture()
@@ -80,23 +80,23 @@ def anim_nucmer_targets_delta_indir() -> Path:
 
 
 @pytest.fixture()
-def anim_nucmer_targets_delta_outdir() -> Path:
+def anim_nucmer_targets_delta_outdir(tmp_path: str) -> Path:
     """Output directory for MUMmer delta snakemake tests.
 
     This path indicates the location to which MUMmer should write
     its output files during ANIm testing
     """
-    return TESTSPATH / "nucmer_delta_output"
+    return Path(tmp_path) / "nucmer_delta_output"
 
 
 @pytest.fixture()
-def anim_nucmer_targets_delta_slurm_outdir() -> Path:
+def anim_nucmer_targets_delta_slurm_outdir(tmp_path: str) -> Path:
     """Output directory for MUMmer delta snakemake tests.
 
     This path indicates the location to which MUMmer should write
     its output files during ANIm testing
     """
-    return TESTSPATH / "nucmer_delta_slurm_output"
+    return Path(tmp_path) / "nucmer_delta_slurm_output"
 
 
 @pytest.fixture()
@@ -152,23 +152,23 @@ def anim_nucmer_targets_delta_slurm(
 
 
 @pytest.fixture()
-def fastani_targets_outdir() -> Path:
+def fastani_targets_outdir(tmp_path: str) -> Path:
     """Output directory for fastani snakemake tests.
 
     This path indicates the location to which fastANI should write
     its output files during fastani testing
     """
-    return TESTSPATH / "fastani_output"
+    return Path(tmp_path) / "fastani_output"
 
 
 @pytest.fixture()
-def fastani_targets_slurm_outdir() -> Path:
+def fastani_targets_slurm_outdir(tmp_path: str) -> Path:
     """Output directory for fastani snakemake tests.
 
     This path indicates the location to which fastANI should write
     its output files during fastani testing
     """
-    return TESTSPATH / "fastani_slurm_output"
+    return Path(tmp_path) / "fastani_slurm_output"
 
 
 @pytest.fixture()
@@ -213,23 +213,23 @@ def dnadiff_nucmer_targets_filter_indir() -> Path:
 
 
 @pytest.fixture()
-def dnadiff_nucmer_targets_filter_outdir() -> Path:
+def dnadiff_nucmer_targets_filter_outdir(tmp_path: str) -> Path:
     """Output directory for MUMmer filter snakemake tests.
 
     This path indicates the location to which MUMmer should write
     its output files during dnadiff testing
     """
-    return TESTSPATH / "dnadiff_nucmer_filter_output"
+    return Path(tmp_path) / "dnadiff_nucmer_filter_output"
 
 
 @pytest.fixture()
-def dnadiff_nucmer_targets_filter_slurm_outdir() -> Path:
+def dnadiff_nucmer_targets_filter_slurm_outdir(tmp_path: str) -> Path:
     """Output directory for MUMmer filter snakemake tests.
 
     This path indicates the location to which MUMmer should write
     its output files during dnadiff testing
     """
-    return TESTSPATH / "dnadiff_nucmer_filter_slurm_output"
+    return Path(tmp_path) / "dnadiff_nucmer_filter_slurm_output"
 
 
 @pytest.fixture()
@@ -239,23 +239,23 @@ def dnadiff_nucmer_targets_delta_indir() -> Path:
 
 
 @pytest.fixture()
-def dnadiff_nucmer_targets_delta_outdir() -> Path:
+def dnadiff_nucmer_targets_delta_outdir(tmp_path: str) -> Path:
     """Output directory for MUMmer filter snakemake tests.
 
     This path indicates the location to which MUMmer should write
     its output files during dnadiff testing
     """
-    return TESTSPATH / "dnadiff_nucmer_delta_output"
+    return Path(tmp_path) / "dnadiff_nucmer_delta_output"
 
 
 @pytest.fixture()
-def dnadiff_nucmer_targets_delta_slurm_outdir() -> Path:
+def dnadiff_nucmer_targets_delta_slurm_outdir(tmp_path: str) -> Path:
     """Output directory for MUMmer filter snakemake tests.
 
     This path indicates the location to which MUMmer should write
     its output files during dnadiff testing
     """
-    return TESTSPATH / "dnadiff_nucmer_delta_slurm_output"
+    return Path(tmp_path) / "dnadiff_nucmer_delta_slurm_output"
 
 
 @pytest.fixture()
@@ -265,13 +265,13 @@ def dnadiff_targets_showdiff_indir() -> Path:
 
 
 @pytest.fixture()
-def dnadiff_targets_showdiff_outdir() -> Path:
+def dnadiff_targets_showdiff_outdir(tmp_path: str) -> Path:
     """Output directory for MUMmer filter snakemake tests.
 
     This path indicates the location to which dnadiff should write
     its output files during dnadiff testing
     """
-    return TESTSPATH / "dnadiff_show_diff_output"
+    return Path(tmp_path) / "dnadiff_show_diff_output"
 
 
 @pytest.fixture()
@@ -281,23 +281,23 @@ def dnadiff_targets_showcoords_indir() -> Path:
 
 
 @pytest.fixture()
-def dnadiff_targets_showcoords_outdir() -> Path:
+def dnadiff_targets_showcoords_outdir(tmp_path: str) -> Path:
     """Output directory for MUMmer filter snakemake tests.
 
     This path indicates the location to which dnadiff should write
     its output files during dnadiff testing
     """
-    return TESTSPATH / "dnadiff_show_coords_output"
+    return Path(tmp_path) / "dnadiff_show_coords_output"
 
 
 @pytest.fixture()
-def dnadiff_targets_showdiff_slurm_outdir() -> Path:
+def dnadiff_targets_showdiff_slurm_outdir(tmp_path: str) -> Path:
     """Output directory for MUMmer filter snakemake tests.
 
     This path indicates the location to which dnadiff should write
     its output files during dnadiff testing
     """
-    return TESTSPATH / "dnadiff_showdiff_slurm_output"
+    return Path(tmp_path) / "dnadiff_showdiff_slurm_output"
 
 
 @pytest.fixture()

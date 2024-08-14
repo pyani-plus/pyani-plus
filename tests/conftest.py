@@ -61,7 +61,7 @@ def anim_nucmer_targets_filter_outdir(tmp_path: str) -> Path:
     This path indicates the location to which MUMmer should write
     its output files during ANIm testing
     """
-    return Path(tmp_path) / "nucmer_filter_output"
+    return Path(tmp_path).resolve() / "nucmer_filter_output"
 
 
 @pytest.fixture()
@@ -71,7 +71,7 @@ def anim_nucmer_targets_filter_slurm_outdir(tmp_path: str) -> Path:
     This path indicates the location to which MUMmer should write
     its output files during ANIm testing
     """
-    return Path(tmp_path) / "nucmer_filter_slurm_output"
+    return Path(tmp_path).resolve() / "nucmer_filter_slurm_output"
 
 
 @pytest.fixture()
@@ -87,7 +87,7 @@ def anim_nucmer_targets_delta_outdir(tmp_path: str) -> Path:
     This path indicates the location to which MUMmer should write
     its output files during ANIm testing
     """
-    return Path(tmp_path) / "nucmer_delta_output"
+    return Path(tmp_path).resolve() / "nucmer_delta_output"
 
 
 @pytest.fixture()
@@ -97,7 +97,7 @@ def anim_nucmer_targets_delta_slurm_outdir(tmp_path: str) -> Path:
     This path indicates the location to which MUMmer should write
     its output files during ANIm testing
     """
-    return Path(tmp_path) / "nucmer_delta_slurm_output"
+    return Path(tmp_path).resolve() / "nucmer_delta_slurm_output"
 
 
 @pytest.fixture()
@@ -159,7 +159,7 @@ def fastani_targets_outdir(tmp_path: str) -> Path:
     This path indicates the location to which fastANI should write
     its output files during fastani testing
     """
-    return Path(tmp_path) / "fastani_output"
+    return Path(tmp_path).resolve() / "fastani_output"
 
 
 @pytest.fixture()
@@ -169,7 +169,7 @@ def fastani_targets_slurm_outdir(tmp_path: str) -> Path:
     This path indicates the location to which fastANI should write
     its output files during fastani testing
     """
-    return Path(tmp_path) / "fastani_slurm_output"
+    return Path(tmp_path).resolve() / "fastani_slurm_output"
 
 
 @pytest.fixture()
@@ -220,7 +220,7 @@ def dnadiff_nucmer_targets_filter_outdir(tmp_path: str) -> Path:
     This path indicates the location to which MUMmer should write
     its output files during dnadiff testing
     """
-    return Path(tmp_path) / "dnadiff_nucmer_filter_output"
+    return Path(tmp_path).resolve() / "dnadiff_nucmer_filter_output"
 
 
 @pytest.fixture()
@@ -230,7 +230,7 @@ def dnadiff_nucmer_targets_filter_slurm_outdir(tmp_path: str) -> Path:
     This path indicates the location to which MUMmer should write
     its output files during dnadiff testing
     """
-    return Path(tmp_path) / "dnadiff_nucmer_filter_slurm_output"
+    return Path(tmp_path).resolve() / "dnadiff_nucmer_filter_slurm_output"
 
 
 @pytest.fixture()
@@ -246,7 +246,7 @@ def dnadiff_nucmer_targets_delta_outdir(tmp_path: str) -> Path:
     This path indicates the location to which MUMmer should write
     its output files during dnadiff testing
     """
-    return Path(tmp_path) / "dnadiff_nucmer_delta_output"
+    return Path(tmp_path).resolve() / "dnadiff_nucmer_delta_output"
 
 
 @pytest.fixture()
@@ -256,7 +256,7 @@ def dnadiff_nucmer_targets_delta_slurm_outdir(tmp_path: str) -> Path:
     This path indicates the location to which MUMmer should write
     its output files during dnadiff testing
     """
-    return Path(tmp_path) / "dnadiff_nucmer_delta_slurm_output"
+    return Path(tmp_path).resolve() / "dnadiff_nucmer_delta_slurm_output"
 
 
 @pytest.fixture()
@@ -272,7 +272,7 @@ def dnadiff_targets_showdiff_outdir(tmp_path: str) -> Path:
     This path indicates the location to which dnadiff should write
     its output files during dnadiff testing
     """
-    return Path(tmp_path) / "dnadiff_show_diff_output"
+    return Path(tmp_path).resolve() / "dnadiff_show_diff_output"
 
 
 @pytest.fixture()
@@ -288,7 +288,7 @@ def dnadiff_targets_showcoords_outdir(tmp_path: str) -> Path:
     This path indicates the location to which dnadiff should write
     its output files during dnadiff testing
     """
-    return Path(tmp_path) / "dnadiff_show_coords_output"
+    return Path(tmp_path).resolve() / "dnadiff_show_coords_output"
 
 
 @pytest.fixture()
@@ -298,7 +298,7 @@ def dnadiff_targets_showdiff_slurm_outdir(tmp_path: str) -> Path:
     This path indicates the location to which dnadiff should write
     its output files during dnadiff testing
     """
-    return Path(tmp_path) / "dnadiff_showdiff_slurm_output"
+    return Path(tmp_path).resolve() / "dnadiff_showdiff_slurm_output"
 
 
 @pytest.fixture()

@@ -31,6 +31,10 @@ repos:
       args: [
         '--config=format.docstring-code-format=true'
       ]
+- repo: https://github.com/snakemake/snakefmt
+  rev: v0.10.2
+  hooks:
+    - id: snakefmt
 - repo: https://github.com/codespell-project/codespell
   rev: v2.3.0
   hooks:

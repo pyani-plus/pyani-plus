@@ -24,7 +24,7 @@ pycodestyle.max-line-length = 120
 ignore = ["ANN101", "ANN102", "COM812", "D203", "D213", "S603"]
 
 [tool.setuptools.packages.find]
-where = ["pyani_plus"]
+include = ["pyani_plus"]
 
 [project.urls]
 Homepage = "https://github.com/pyani-plus/pyani-plus"

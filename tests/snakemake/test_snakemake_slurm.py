@@ -167,6 +167,7 @@ def test_snakemake_rule_delta_slurm(
     anim_nucmer_targets_delta_indir: Path,
     anim_nucmer_targets_delta_slurm_outdir: Path,
     config_delta_args: dict,
+    tmp_path: str,
 ) -> None:
     """Test nucmer delta snakemake wrapper.
 
@@ -184,7 +185,9 @@ def test_snakemake_rule_delta_slurm(
 
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_anim.smk")
-    runner.run_workflow(anim_nucmer_targets_delta_slurm, config_delta_args)
+    runner.run_workflow(
+        anim_nucmer_targets_delta_slurm, config_delta_args, workdir=Path(tmp_path)
+    )
 
     # Check output against target fixtures
     for fname in anim_nucmer_targets_delta_slurm:
@@ -200,6 +203,7 @@ def test_snakemake_rule_filter_slurm(
     anim_nucmer_targets_filter_indir: Path,
     anim_nucmer_targets_filter_slurm_outdir: Path,
     config_filter_args: dict,
+    tmp_path: str,
 ) -> None:
     """Test nucmer filter snakemake wrapper.
 
@@ -217,7 +221,9 @@ def test_snakemake_rule_filter_slurm(
 
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_anim.smk")
-    runner.run_workflow(anim_nucmer_targets_filter_slurm, config_filter_args)
+    runner.run_workflow(
+        anim_nucmer_targets_filter_slurm, config_filter_args, workdir=Path(tmp_path)
+    )
 
     # Check output against target fixtures
     for fname in anim_nucmer_targets_filter_slurm:
@@ -233,6 +239,7 @@ def test_snakemake_rule_fastani_slurm(
     fastani_targets_slurm_outdir: Path,
     config_fastani_args: dict,
     fastani_targets_indir: Path,
+    tmp_path: str,
 ) -> None:
     """Test fastANI snakemake wrapper.
 
@@ -244,7 +251,9 @@ def test_snakemake_rule_fastani_slurm(
 
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_fastani.smk")
-    runner.run_workflow(fastani_targets_slurm, config_fastani_args)
+    runner.run_workflow(
+        fastani_targets_slurm, config_fastani_args, workdir=Path(tmp_path)
+    )
 
     # Check output against target fixtures
     for fname in fastani_targets_slurm:
@@ -260,6 +269,7 @@ def test_dnadiff_rule_delta_slurm(
     dnadiff_nucmer_targets_delta_indir: Path,
     dnadiff_nucmer_targets_delta_slurm_outdir: Path,
     config_delta_args: dict,
+    tmp_path: str,
 ) -> None:
     """Test nucmer delta snakemake wrapper.
 
@@ -277,7 +287,9 @@ def test_dnadiff_rule_delta_slurm(
 
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_dnadiff.smk")
-    runner.run_workflow(dnadiff_nucmer_targets_delta_slurm, config_delta_args)
+    runner.run_workflow(
+        dnadiff_nucmer_targets_delta_slurm, config_delta_args, workdir=Path(tmp_path)
+    )
 
     # Check output against target fixtures
     for fname in dnadiff_nucmer_targets_delta_slurm:
@@ -293,6 +305,7 @@ def test_dnadiff_rule_filter_slurm(
     dnadiff_nucmer_targets_filter_indir: Path,
     dnadiff_nucmer_targets_filter_slurm_outdir: Path,
     config_filter_args: dict,
+    tmp_path: str,
 ) -> None:
     """Test nucmer filter snakemake wrapper.
 
@@ -310,7 +323,9 @@ def test_dnadiff_rule_filter_slurm(
 
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_dnadiff.smk")
-    runner.run_workflow(dnadiff_nucmer_targets_filter_slurm, config_filter_args)
+    runner.run_workflow(
+        dnadiff_nucmer_targets_filter_slurm, config_filter_args, workdir=Path(tmp_path)
+    )
 
     # Check output against target fixtures
     for fname in dnadiff_nucmer_targets_filter_slurm:
@@ -326,6 +341,7 @@ def test_dnadiff_rule_show_diff_slurm(
     dnadiff_targets_showdiff_indir: Path,
     dnadiff_targets_showdiff_slurm_outdir: Path,
     config_dnadiff_showdiff_args: dict,
+    tmp_path: str,
 ) -> None:
     """Test dnadiff show-diff snakemake wrapper.
 
@@ -343,7 +359,11 @@ def test_dnadiff_rule_show_diff_slurm(
 
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_dnadiff.smk")
-    runner.run_workflow(dnadiff_targets_showdiff_slurm, config_dnadiff_showdiff_args)
+    runner.run_workflow(
+        dnadiff_targets_showdiff_slurm,
+        config_dnadiff_showdiff_args,
+        workdir=Path(tmp_path),
+    )
 
     # Check output against target fixtures
     for fname in dnadiff_targets_showdiff_slurm:

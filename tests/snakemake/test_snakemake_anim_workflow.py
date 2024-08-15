@@ -112,6 +112,7 @@ def test_snakemake_rule_filter(
     anim_nucmer_targets_filter_indir: Path,
     anim_nucmer_targets_filter_outdir: Path,
     config_filter_args: dict,
+    tmp_path: str,
 ) -> None:
     """Test nucmer filter snakemake wrapper.
 
@@ -130,7 +131,9 @@ def test_snakemake_rule_filter(
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_anim.smk")
 
-    runner.run_workflow(anim_nucmer_targets_filter, config_filter_args)
+    runner.run_workflow(
+        anim_nucmer_targets_filter, config_filter_args, workdir=Path(tmp_path)
+    )
 
     # Check output against target fixtures
     for fname in anim_nucmer_targets_filter:
@@ -145,6 +148,7 @@ def test_snakemake_rule_delta(
     anim_nucmer_targets_delta_indir: Path,
     anim_nucmer_targets_delta_outdir: Path,
     config_delta_args: dict,
+    tmp_path: str,
 ) -> None:
     """Test nucmer delta snakemake wrapper.
 
@@ -163,7 +167,9 @@ def test_snakemake_rule_delta(
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_anim.smk")
 
-    runner.run_workflow(anim_nucmer_targets_delta, config_delta_args)
+    runner.run_workflow(
+        anim_nucmer_targets_delta, config_delta_args, workdir=Path(tmp_path)
+    )
 
     # Check output against target fixtures
     for fname in anim_nucmer_targets_delta:

@@ -91,6 +91,7 @@ def test_snakemake_rule_fastani(
     fastani_targets_outdir: Path,
     config_fastani_args: dict,
     fastani_targets_indir: Path,
+    tmp_path: str,
 ) -> None:
     """Test fastANI snakemake wrapper.
 
@@ -103,7 +104,7 @@ def test_snakemake_rule_fastani(
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_fastani.smk")
 
-    runner.run_workflow(fastani_targets, config_fastani_args)
+    runner.run_workflow(fastani_targets, config_fastani_args, workdir=Path(tmp_path))
 
     # Check output against target fixtures
     for fname in fastani_targets:

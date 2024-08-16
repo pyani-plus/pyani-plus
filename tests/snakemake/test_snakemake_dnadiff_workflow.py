@@ -147,6 +147,7 @@ def test_snakemake_rule_delta(
     dnadiff_nucmer_targets_delta_indir: Path,
     dnadiff_nucmer_targets_delta_outdir: Path,
     config_delta_args: dict,
+    tmp_path: str,
 ) -> None:
     """Test nucmer delta snakemake wrapper.
 
@@ -165,7 +166,9 @@ def test_snakemake_rule_delta(
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_dnadiff.smk")
 
-    runner.run_workflow(dnadiff_nucmer_targets_delta, config_delta_args)
+    runner.run_workflow(
+        dnadiff_nucmer_targets_delta, config_delta_args, workdir=Path(tmp_path)
+    )
 
     # Check output against target fixtures
     for fname in dnadiff_nucmer_targets_delta:
@@ -180,6 +183,7 @@ def test_snakemake_rule_filter(
     dnadiff_nucmer_targets_filter_indir: Path,
     dnadiff_nucmer_targets_filter_outdir: Path,
     config_filter_args: dict,
+    tmp_path: str,
 ) -> None:
     """Test nucmer filter snakemake wrapper.
 
@@ -197,7 +201,9 @@ def test_snakemake_rule_filter(
 
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_dnadiff.smk")
-    runner.run_workflow(dnadiff_nucmer_targets_filter, config_filter_args)
+    runner.run_workflow(
+        dnadiff_nucmer_targets_filter, config_filter_args, workdir=Path(tmp_path)
+    )
 
     # Check output against target fixtures
     for fname in dnadiff_nucmer_targets_filter:
@@ -212,6 +218,7 @@ def test_snakemake_rule_show_diff(
     dnadiff_targets_showdiff_indir: Path,
     dnadiff_targets_showdiff_outdir: Path,
     config_dnadiff_showdiff_args: dict,
+    tmp_path: str,
 ) -> None:
     """Test dnadiff show-diff snakemake wrapper.
 
@@ -230,7 +237,9 @@ def test_snakemake_rule_show_diff(
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_dnadiff.smk")
 
-    runner.run_workflow(dnadiff_targets_showdiff, config_dnadiff_showdiff_args)
+    runner.run_workflow(
+        dnadiff_targets_showdiff, config_dnadiff_showdiff_args, workdir=Path(tmp_path)
+    )
 
     # Check output against target fixtures
     for fname in dnadiff_targets_showdiff:
@@ -246,6 +255,7 @@ def test_snakemake_rule_show_coords(
     dnadiff_targets_showcoords_indir: Path,
     dnadiff_targets_showcoords_outdir: Path,
     config_dnadiff_showcoords_args: dict,
+    tmp_path: str,
 ) -> None:
     """Test dnadiff show-coords snakemake wrapper.
 
@@ -264,7 +274,11 @@ def test_snakemake_rule_show_coords(
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_dnadiff.smk")
 
-    runner.run_workflow(dnadiff_targets_showcoords, config_dnadiff_showcoords_args)
+    runner.run_workflow(
+        dnadiff_targets_showcoords,
+        config_dnadiff_showcoords_args,
+        workdir=Path(tmp_path),
+    )
 
     # Check output against target fixtures
     for fname in dnadiff_targets_showcoords:

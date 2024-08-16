@@ -29,11 +29,3 @@ include = ["pyani_plus"]
 [project.urls]
 Homepage = "https://github.com/pyani-plus/pyani-plus"
 Issues = "https://github.com/pyani-plus/pyani-plus/issues"
-
-[tool.pytest.ini_options]
-# Using --strict-markers ensures any new marker decoration used has
-# a matching definition here in the configuration file:
-addopts = "--strict-markers"
-markers = [
-    "slurm: Tests using the SLURM job scheduler (deselect with '-m \"not slurm\"')",
-]

@@ -161,7 +161,6 @@ def compare_show_diff_files(file1: Path, file2: Path) -> bool:
     return True
 
 
-@pytest.mark.slurm()
 def test_snakemake_rule_delta_slurm(
     anim_nucmer_targets_delta_slurm: list[str],
     anim_nucmer_targets_delta_indir: Path,
@@ -197,7 +196,6 @@ def test_snakemake_rule_delta_slurm(
         )
 
 
-@pytest.mark.slurm()
 def test_snakemake_rule_filter_slurm(
     anim_nucmer_targets_filter_slurm: list[str],
     anim_nucmer_targets_filter_indir: Path,
@@ -233,7 +231,6 @@ def test_snakemake_rule_filter_slurm(
         )
 
 
-@pytest.mark.slurm()
 def test_snakemake_rule_fastani_slurm(
     fastani_targets_slurm: list[str],
     fastani_targets_slurm_outdir: Path,
@@ -263,7 +260,6 @@ def test_snakemake_rule_fastani_slurm(
         )
 
 
-@pytest.mark.slurm()
 def test_dnadiff_rule_delta_slurm(
     dnadiff_nucmer_targets_delta_slurm: list[str],
     dnadiff_nucmer_targets_delta_indir: Path,
@@ -299,7 +295,6 @@ def test_dnadiff_rule_delta_slurm(
         )
 
 
-@pytest.mark.slurm()
 def test_dnadiff_rule_filter_slurm(
     dnadiff_nucmer_targets_filter_slurm: list[str],
     dnadiff_nucmer_targets_filter_indir: Path,
@@ -335,7 +330,6 @@ def test_dnadiff_rule_filter_slurm(
         )
 
 
-@pytest.mark.slurm()
 def test_dnadiff_rule_show_diff_slurm(
     dnadiff_targets_showdiff_slurm: list[str],
     dnadiff_targets_showdiff_indir: Path,

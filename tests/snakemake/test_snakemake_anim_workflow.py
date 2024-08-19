@@ -51,7 +51,7 @@ import pytest
 from pyani_plus.snakemake import snakemake_scheduler
 
 
-@pytest.fixture()
+@pytest.fixture
 def config_filter_args(
     anim_nucmer_targets_filter_outdir: Path,
     input_genomes_small: Path,
@@ -69,7 +69,7 @@ def config_filter_args(
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def config_delta_args(
     anim_nucmer_targets_delta_outdir: Path,
     input_genomes_small: Path,

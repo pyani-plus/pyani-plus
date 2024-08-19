@@ -48,7 +48,7 @@ import pytest
 from pyani_plus.snakemake import snakemake_scheduler
 
 
-@pytest.fixture()
+@pytest.fixture
 def config_delta_args(
     dnadiff_nucmer_targets_delta_outdir: Path,
     input_genomes_small: Path,
@@ -66,7 +66,7 @@ def config_delta_args(
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def config_filter_args(
     dnadiff_nucmer_targets_filter_outdir: Path,
     input_genomes_small: Path,
@@ -84,7 +84,7 @@ def config_filter_args(
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def config_dnadiff_showdiff_args(
     dnadiff_targets_showdiff_outdir: Path,
     input_genomes_small: Path,
@@ -97,7 +97,7 @@ def config_dnadiff_showdiff_args(
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def config_dnadiff_showcoords_args(
     dnadiff_targets_showcoords_outdir: Path,
     input_genomes_small: Path,

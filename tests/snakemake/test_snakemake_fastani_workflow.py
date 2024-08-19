@@ -48,7 +48,7 @@ import pytest
 from pyani_plus.snakemake import snakemake_scheduler
 
 
-@pytest.fixture()
+@pytest.fixture
 def config_fastani_args(
     fastani_targets_outdir: Path,
     input_genomes_small: Path,

@@ -38,8 +38,21 @@ percentage (of whole genome) for each pairwise comparison.
 
 from collections import defaultdict
 from pathlib import Path
+from typing import NamedTuple
 
 import intervaltree  # type: ignore  # noqa: PGH003
+
+
+class ComparisonResult(NamedTuple):
+    """Convenience struct for a single nucmer comparison result."""
+
+    qname: str
+    rname: str
+    qaln_length: int
+    raln_length: int
+    sim_errs: int
+    avg_id: float
+    program: str
 
 
 def get_aln_length(aln_regions: dict) -> int:
@@ -166,3 +179,31 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
     raln_length = get_aln_length(regions_ref)
 
     return (raln_length, qaln_length, avrg_identity, sim_error)
+
+
+def update_comparision_results(completed_jobs: Path) -> list[ComparisonResult]:
+    """Update the Comparison namedtuple with the completed result set.
+
+    :param completed_jobs: Path to the filter files
+    """
+    run = []
+    for deltafilter in completed_jobs.iterdir():
+        if deltafilter.is_file():  # Ensure it's a file
+            rname, qname = deltafilter.stem.split("_vs_")
+            raln_length, qaln_length, avrg_identity, sim_error = parse_delta(
+                deltafilter
+            )
+
+        result = ComparisonResult(
+            qname=qname,
+            rname=rname,
+            qaln_length=qaln_length,
+            raln_length=raln_length,
+            sim_errs=sim_error,
+            avg_id=avrg_identity,
+            program="nucmer",
+        )
+
+        run.append(result)
+
+    return run

@@ -52,12 +52,13 @@ from pyani_plus.snakemake import snakemake_scheduler
 def config_fastani_args(
     fastani_targets_outdir: Path,
     input_genomes_small: Path,
+    snakemake_cores: int,
 ) -> dict:
     """Return configuration settings for testing snakemake fastANI rule."""
     return {
         "outdir": fastani_targets_outdir,
         "indir": str(input_genomes_small),
-        "cores": 8,
+        "cores": snakemake_cores,
         "fragLen": 3000,
         "kmerSize": 16,
         "minFrac": 0.2,

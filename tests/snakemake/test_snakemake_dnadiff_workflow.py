@@ -52,6 +52,7 @@ from pyani_plus.snakemake import snakemake_scheduler
 def config_delta_args(
     dnadiff_nucmer_targets_delta_outdir: Path,
     input_genomes_small: Path,
+    snakemake_cores: int,
 ) -> dict:
     """Return configuration settings for testing snakemake delta rule.
 
@@ -61,7 +62,7 @@ def config_delta_args(
     return {
         "outdir": dnadiff_nucmer_targets_delta_outdir,
         "indir": str(input_genomes_small),
-        "cores": 8,
+        "cores": snakemake_cores,
         "mode": "mum",
     }
 
@@ -70,6 +71,7 @@ def config_delta_args(
 def config_filter_args(
     dnadiff_nucmer_targets_filter_outdir: Path,
     input_genomes_small: Path,
+    snakemake_cores: int,
 ) -> dict:
     """Return configuration settings for testing snakemake dnadiff filter rule.
 
@@ -79,7 +81,7 @@ def config_filter_args(
     return {
         "outdir": dnadiff_nucmer_targets_filter_outdir,
         "indir": str(input_genomes_small),
-        "cores": 8,
+        "cores": snakemake_cores,
         "mode": "mum",
     }
 
@@ -88,12 +90,13 @@ def config_filter_args(
 def config_dnadiff_showdiff_args(
     dnadiff_targets_showdiff_outdir: Path,
     input_genomes_small: Path,
+    snakemake_cores: int,
 ) -> dict:
     """Return configuration settings for testing snakemake show_diff rule."""
     return {
         "outdir": dnadiff_targets_showdiff_outdir,
         "indir": str(input_genomes_small),
-        "cores": 8,
+        "cores": snakemake_cores,
     }
 
 
@@ -101,12 +104,13 @@ def config_dnadiff_showdiff_args(
 def config_dnadiff_showcoords_args(
     dnadiff_targets_showcoords_outdir: Path,
     input_genomes_small: Path,
+    snakemake_cores: int,
 ) -> dict:
     """Return configuration settings for snakemake show_coords rule."""
     return {
         "outdir": dnadiff_targets_showcoords_outdir,
         "indir": str(input_genomes_small),
-        "cores": 8,
+        "cores": snakemake_cores,
     }
 
 

@@ -39,7 +39,22 @@ percentage (of whole genome) for each pairwise comparison.
 from collections import defaultdict
 from pathlib import Path
 
-import intervaltree
+import intervaltree  # type: ignore  # noqa: PGH003
+
+
+def get_aln_length(aln_regions: dict) -> int:
+    """Return number of aligned bases (no overlaps).
+
+    :param aln_regions: dict of aligned regions
+    """
+    aln_length = 0
+    for seq_id in aln_regions:
+        tree = intervaltree.IntervalTree.from_tuples(aln_regions[seq_id])
+        tree.merge_overlaps(strict=False)
+        for interval in tree:
+            aln_length += interval.end - interval.begin + 1
+
+    return aln_length
 
 
 def parse_delta(filename: Path) -> tuple[int, int, float, int]:
@@ -112,7 +127,7 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
     regions_ref = defaultdict(list)  # Hold a dictionary for query regions
     regions_qry = defaultdict(list)  # Hold a dictionary for query regions
 
-    aligned_bases = []  # Hold a list for aligned bases for each sequence
+    aligned_bases = 0  # Hold a list for aligned bases for each sequence
     weighted_identical_bases = []  # Hold a list for weighted identical bases
 
     for line in [_.strip().split() for _ in filename.open("r").readlines()]:
@@ -135,8 +150,7 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
             # Calculate aligned bases for each sequence
             ref_aln_lengths = abs(int(line[1]) - int(line[0])) + 1
             qry_aln_lengths = abs(int(line[3]) - int(line[2])) + 1
-            aligned_bases.append(ref_aln_lengths)
-            aligned_bases.append(qry_aln_lengths)
+            aligned_bases += ref_aln_lengths + qry_aln_lengths
 
             # Calculate weighted identical bases
             sim_error += int(line[4])
@@ -145,19 +159,10 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
             )
 
     # Calculate average %ID
-    avrg_identity = sum(weighted_identical_bases) / sum(aligned_bases)
+    avrg_identity = sum(weighted_identical_bases) / aligned_bases
 
     # Calculate total aligned bases (no overlaps)
-    for seq_id in regions_qry:
-        qry_tree = intervaltree.IntervalTree.from_tuples(regions_qry[seq_id])
-        qry_tree.merge_overlaps(strict=False)
-        for interval in qry_tree:
-            qaln_length += interval.end - interval.begin + 1
-
-    for seq_id in regions_ref:
-        ref_tree = intervaltree.IntervalTree.from_tuples(regions_ref[seq_id])
-        ref_tree.merge_overlaps(strict=False)
-        for interval in ref_tree:
-            raln_length += interval.end - interval.begin + 1
+    qaln_length = get_aln_length(regions_qry)
+    raln_length = get_aln_length(regions_ref)
 
     return (raln_length, qaln_length, avrg_identity, sim_error)

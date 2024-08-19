@@ -55,6 +55,7 @@ from pyani_plus.snakemake import snakemake_scheduler
 def config_filter_args(
     anim_nucmer_targets_filter_outdir: Path,
     input_genomes_small: Path,
+    snakemake_cores: int,
 ) -> dict:
     """Return configuration settings for testing snakemake filter rule.
 
@@ -64,7 +65,7 @@ def config_filter_args(
     return {
         "outdir": anim_nucmer_targets_filter_outdir,
         "indir": str(input_genomes_small),
-        "cores": 8,
+        "cores": snakemake_cores,
         "mode": "mum",
     }
 
@@ -73,6 +74,7 @@ def config_filter_args(
 def config_delta_args(
     anim_nucmer_targets_delta_outdir: Path,
     input_genomes_small: Path,
+    snakemake_cores: int,
 ) -> dict:
     """Return configuration settings for testing snakemake delta rule.
 
@@ -82,7 +84,7 @@ def config_delta_args(
     return {
         "outdir": anim_nucmer_targets_delta_outdir,
         "indir": str(input_genomes_small),
-        "cores": 8,
+        "cores": snakemake_cores,
         "mode": "mum",
     }
 

@@ -1,0 +1,4 @@
+#!/bin/bash
+# This is a dummy test script for version checking
+echo "blastn: 2.16.0+"
+echo " Package: blast 2.16.0, build Aug  6 2024 15:58:44"

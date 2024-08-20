@@ -124,14 +124,14 @@ def get_blastn(cmd: str | Path = "blastn") -> ExternalToolData:
     return ExternalToolData(exe_path, version)
 
 
-def get_fastani(cmd: str | Path = "fastani") -> ExternalToolData:
+def get_fastani(cmd: str | Path = "fastANI") -> ExternalToolData:
     """Return FastANI path and version as a named tuple.
 
     We expect the tool to behave as follows:
 
     .. code-block:: bash
 
-        $ fastani -v
+        $ fastANI -v
         version 1.33
 
     Here the function would return the binary path and "1.33" as the version.

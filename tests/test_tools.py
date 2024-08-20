@@ -96,7 +96,7 @@ def test_find_fastani() -> None:
     """Confirm can find fastANI on $PATH and determine its version."""
     # At the time of writing this dependency is installed for CI testing
     info = tools.get_fastani()
-    assert info.exe_path.parts[-1] == "fastani"
+    assert info.exe_path.parts[-1] == "fastANI"
     assert info.version.startswith("1.")
 
 

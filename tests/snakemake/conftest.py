@@ -41,7 +41,7 @@ import os
 import pytest
 
 
-@pytest.fixture()
+@pytest.fixture
 def snakemake_cores() -> int:
     """How many CPU cores/threads for snakemake, 8 unless capped by those available to use.
 

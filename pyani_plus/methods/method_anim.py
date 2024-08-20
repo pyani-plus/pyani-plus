@@ -44,30 +44,36 @@ import intervaltree  # type: ignore  # noqa: PGH003
 
 
 class ComparisonResult(NamedTuple):
-    """Convenience struct for a single nucmer comparison result."""
+    """A single nucmer comparison result for ANIm.
 
-    qname: str
-    rname: str
-    qaln_length: int
-    raln_length: int
-    sim_errs: int
-    avg_id: float
-    program: str
+    We use a NamedTuple rather than a Dataclass because the
+    anim result can be immutable (we don't need to change it),
+    and we don't need to add any additional methods to it, or
+    set default values.
+    """
+
+    qname: str  # query sequence name
+    rname: str  # reference sequence name
+    qaln_length: int  # aligned length of query sequence
+    raln_length: int  # aligned length of reference sequence
+    sim_errs: int  # count of similarity errors
+    avg_id: float  # average nucleotide identity (as a percentage)
+    program: str  # the program used to calculate the comparison
 
 
-def get_aln_length(aln_regions: dict) -> int:
+def get_aligned_bases_count(alnigned_regions: dict) -> int:
     """Return number of aligned bases (no overlaps).
 
-    :param aln_regions: dict of aligned regions
+    :param aligned_regions: dict of aligned regions
     """
-    aln_length = 0
-    for seq_id in aln_regions:
-        tree = intervaltree.IntervalTree.from_tuples(aln_regions[seq_id])
+    aligned_bases = 0
+    for seq_id in aligned_regions:
+        tree = intervaltree.IntervalTree.from_tuples(aligned_regions[seq_id])
         tree.merge_overlaps(strict=False)
         for interval in tree:
-            aln_length += interval.end - interval.begin + 1
+            aligned_bases += interval.end - interval.begin + 1
 
-    return aln_length
+    return aligned_bases
 
 
 def parse_delta(filename: Path) -> tuple[int, int, float, int]:
@@ -168,11 +174,7 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
     # Calculate average %ID
     avrg_identity = sum(weighted_identical_bases) / aligned_bases
 
-    # Calculate total aligned bases (no overlaps)
-    qaln_length = get_aln_length(regions_qry)
-    raln_length = get_aln_length(regions_ref)
-
-    return (raln_length, qaln_length, avrg_identity, sim_error)
+    return (get_aligned_bases_count(regions_ref), get_aligned_bases_count(regions_qry), avrg_identity, sim_error)
 
 
 def update_comparision_results(completed_jobs: Path) -> list[ComparisonResult]:

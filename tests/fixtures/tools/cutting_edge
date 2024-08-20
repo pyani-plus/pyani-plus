@@ -1,0 +1,3 @@
+#!/bin/bash
+# This is a dummy test script for version checking
+echo "This is the cutting edge very lastest version!"

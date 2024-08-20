@@ -21,6 +21,14 @@ import pytest
 from pyani_plus import tools
 
 
+def test_bad_path_missing() -> None:
+    """Confirm giving an empty path fails."""
+    with pytest.raises(
+        ValueError, match="Function check_cmd requires a command or full path."
+    ):
+        tools.get_nucmer("")
+
+
 def test_bad_path() -> None:
     """Confirm giving an invalid binary path fails."""
     with pytest.raises(RuntimeError, match="/does/not/exist/nucmer is not executable"):
@@ -44,6 +52,10 @@ def test_non_exec() -> None:
 
 def test_fake_blastn() -> None:
     """Confirm simple blastn version parsing works."""
+    info = tools.get_blastn("tests/fixtures/tools/mock_blastn")  # parsed like mummer v4
+    assert info.exe_path == Path("tests/fixtures/tools/mock_blastn").resolve()
+    assert info.version == "2.16.0+"
+
     cmd = Path("tests/fixtures/tools/version_one")  # outputs "version 1.0.0"
     msg = f"Executable exists at {cmd.resolve()} but could not retrieve version"
     with pytest.raises(RuntimeError, match=msg):
@@ -78,6 +90,11 @@ def test_fake_nucmer() -> None:
     info = tools.get_nucmer("tests/fixtures/tools/version_one")  # parsed like mummer v3
     assert info.exe_path == Path("tests/fixtures/tools/version_one").resolve()
     assert info.version == "1.0.0"
+
+    cmd = Path("tests/fixtures/tools/cutting_edge")  # no numerical output
+    msg = f"Executable exists at {cmd.resolve()} but could not retrieve version"
+    with pytest.raises(RuntimeError, match=msg):
+        tools.get_nucmer(cmd)
 
 
 def test_find_blastn() -> None:

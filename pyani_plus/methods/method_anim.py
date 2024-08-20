@@ -47,9 +47,9 @@ class ComparisonResult(NamedTuple):
     """A single nucmer comparison result for ANIm.
 
     We use a NamedTuple rather than a Dataclass because the
-    anim result can be immutable (we don't need to change it),
-    and we don't need to add any additional methods to it, or
-    set default values.
+    anim result should be immutable (we don't need to change it),
+    and we don't need to add any additional methods, or set
+    default values.
     """
 
     qname: str  # query sequence name
@@ -61,8 +61,12 @@ class ComparisonResult(NamedTuple):
     program: str  # the program used to calculate the comparison
 
 
-def get_aligned_bases_count(alnigned_regions: dict) -> int:
-    """Return number of aligned bases (no overlaps).
+def get_aligned_bases_count(aligned_regions: dict) -> int:
+    """Return count of aligned bases across a set of aligned regions
+
+    Returns the count of bases in the input sequence that participate in
+    an alignment. This is calculated using an intervaltree to merge overlapping
+    regions and sum the total number of bases in the merged regions.
 
     :param aligned_regions: dict of aligned regions
     """
@@ -134,20 +138,13 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
     (either for query or reference) provided in the .delta file and merge the overlapping
     regions with IntervalTree. Then, we calculate the total sum of all aligned regions.
     """
-    current_ref, current_qry, raln_length, qaln_length, sim_error, avrg_identity = (
-        None,
-        None,
-        0,
-        0,
-        0,
-        0.0,
-    )
+    sim_error = 0  # Hold a count for similarity errors
 
     regions_ref = defaultdict(list)  # Hold a dictionary for query regions
     regions_qry = defaultdict(list)  # Hold a dictionary for query regions
 
-    aligned_bases = 0  # Hold a list for aligned bases for each sequence
-    weighted_identical_bases = []  # Hold a list for weighted identical bases
+    aligned_bases = 0  # Hold a count of aligned bases for each sequence
+    weighted_identical_bases = 0  # Hold a count of weighted identical bases
 
     for line in [_.strip().split() for _ in filename.open("r").readlines()]:
         if line[0] == "NUCMER":  # Skip headers
@@ -169,10 +166,10 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
 
             # Calculate weighted identical bases
             sim_error += int(line[4])
-            weighted_identical_bases.append((ref_aln_lengths + qry_aln_lengths) - (2 * int(line[5])))
+            weighted_identical_bases += (ref_aln_lengths + qry_aln_lengths) - (2 * int(line[5]))
 
     # Calculate average %ID
-    avrg_identity = sum(weighted_identical_bases) / aligned_bases
+    avrg_identity = weighted_identical_bases / aligned_bases
 
     return (get_aligned_bases_count(regions_ref), get_aligned_bases_count(regions_qry), avrg_identity, sim_error)
 

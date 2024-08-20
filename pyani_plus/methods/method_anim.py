@@ -52,6 +52,9 @@ class ComparisonResult(NamedTuple):
     default values.
     """
 
+    # TODO @kiepczi: We need to add a coverage value for the comparison
+    # https://github.com/pyani-plus/pyani-plus/issues/4
+
     qname: str  # query sequence name
     rname: str  # reference sequence name
     qaln_length: int  # aligned length of query sequence
@@ -62,7 +65,7 @@ class ComparisonResult(NamedTuple):
 
 
 def get_aligned_bases_count(aligned_regions: dict) -> int:
-    """Return count of aligned bases across a set of aligned regions
+    """Return count of aligned bases across a set of aligned regions.
 
     Returns the count of bases in the input sequence that participate in
     an alignment. This is calculated using an intervaltree to merge overlapping
@@ -156,8 +159,12 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
         # Lines with seven columns are alignment region headers:
         if len(line) == 7:  # noqa: PLR2004
             # Obtaining aligned regions needed to check for overlaps
-            regions_ref[current_ref].append(tuple(sorted([int(line[0]), int(line[1])])))  # aligned regions reference
-            regions_qry[current_qry].append(tuple(sorted([int(line[2]), int(line[3])])))  # aligned regions qry
+            regions_ref[current_ref].append(
+                tuple(sorted([int(line[0]), int(line[1])]))
+            )  # aligned regions reference
+            regions_qry[current_qry].append(
+                tuple(sorted([int(line[2]), int(line[3])]))
+            )  # aligned regions qry
 
             # Calculate aligned bases for each sequence
             ref_aln_lengths = abs(int(line[1]) - int(line[0])) + 1
@@ -166,35 +173,63 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
 
             # Calculate weighted identical bases
             sim_error += int(line[4])
-            weighted_identical_bases += (ref_aln_lengths + qry_aln_lengths) - (2 * int(line[5]))
+            weighted_identical_bases += (ref_aln_lengths + qry_aln_lengths) - (
+                2 * int(line[5])
+            )
 
     # Calculate average %ID
     avrg_identity = weighted_identical_bases / aligned_bases
 
-    return (get_aligned_bases_count(regions_ref), get_aligned_bases_count(regions_qry), avrg_identity, sim_error)
+    return (
+        get_aligned_bases_count(regions_ref),
+        get_aligned_bases_count(regions_qry),
+        avrg_identity,
+        sim_error,
+    )
 
 
-def update_comparision_results(completed_jobs: Path) -> list[ComparisonResult]:
-    """Update the Comparison namedtuple with the completed result set.
+def collect_results_directory(completed_jobs: Path) -> list[ComparisonResult]:
+    """Return a list of ComparisonResults for a directory of completed nucmer comparisons.
 
-    :param completed_jobs: Path to the filter files
+    The passed directory should contain the output of nucmer comparisons for a single
+    run on a set of input sequences. Each comparison is stored in a separate file,
+    parsed to obtain the count of aligned bases from the query and reference
+    sequences, similarity errors, and average nucleotide identity for each comparison.
+
+    :param completed_jobs: Path to the filter files directory
     """
-    run = []
+    # TODO @kiepczi: This function requires a test
+    # https://github.com/pyani-plus/pyani-plus/issues/4
+
+    run_results = []
     for deltafilter in completed_jobs.iterdir():
         if deltafilter.is_file():  # Ensure it's a file
             rname, qname = deltafilter.stem.split("_vs_")
-            raln_length, qaln_length, avrg_identity, sim_error = parse_delta(deltafilter)
+            r_aligned_bases, q_aligned_bases, avrg_identity, sim_error = parse_delta(
+                deltafilter
+            )
 
-        result = ComparisonResult(
-            qname=qname,
-            rname=rname,
-            qaln_length=qaln_length,
-            raln_length=raln_length,
-            sim_errs=sim_error,
-            avg_id=avrg_identity,
-            program="nucmer",
+        # TODO @kiepczi: add coverage value to the ComparisonResult
+        # https://github.com/pyani-plus/pyani-plus/issues/4
+        #       We need to obtain the query and reference sequence lengths
+        #       at this point to calculate the coverage value(s) for the
+        #       comparison. This will require a corresponding change to the
+        #       ComparisonResult NamedTuple.
+        # NOTE: In the pyani implementation, the query and reference sequence
+        #       lengths were obtained from a Job object, which we do not have
+        #       implemented yet. It may be that we obtain these values in a
+        #       different way in pyani-plus
+
+        run_results.append(
+            ComparisonResult(
+                qname=qname,
+                rname=rname,
+                qaln_length=q_aligned_bases,
+                raln_length=r_aligned_bases,
+                sim_errs=sim_error,
+                avg_id=avrg_identity,
+                program="nucmer",
+            ),
         )
 
-        run.append(result)
-
-    return run
+    return run_results

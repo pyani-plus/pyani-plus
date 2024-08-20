@@ -57,8 +57,8 @@ class ComparisonResult(NamedTuple):
 
     qname: str  # query sequence name
     rname: str  # reference sequence name
-    qaln_length: int  # aligned length of query sequence
-    raln_length: int  # aligned length of reference sequence
+    q_aligned_bases: int  # aligned base count of query sequence
+    r_aligned_bases: int  # aligned base count of reference sequence
     sim_errs: int  # count of similarity errors
     avg_id: float  # average nucleotide identity (as a percentage)
     program: str  # the program used to calculate the comparison
@@ -224,8 +224,8 @@ def collect_results_directory(completed_jobs: Path) -> list[ComparisonResult]:
             ComparisonResult(
                 qname=qname,
                 rname=rname,
-                qaln_length=q_aligned_bases,
-                raln_length=r_aligned_bases,
+                q_aligned_bases=q_aligned_bases,
+                r_aligned_bases=r_aligned_bases,
                 sim_errs=sim_error,
                 avg_id=avrg_identity,
                 program="nucmer",

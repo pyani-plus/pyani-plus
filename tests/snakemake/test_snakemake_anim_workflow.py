@@ -137,7 +137,7 @@ def test_snakemake_rule_filter(
 
     # Check output against target fixtures
     for fname in anim_nucmer_targets_filter:
-        assert compare_files_with_skip(  # noqa: S101
+        assert compare_files_with_skip(
             anim_nucmer_targets_filter_indir / fname,
             anim_nucmer_targets_filter_outdir / fname,
         )
@@ -173,7 +173,7 @@ def test_snakemake_rule_delta(
 
     # Check output against target fixtures
     for fname in anim_nucmer_targets_delta:
-        assert compare_files_with_skip(  # noqa: S101
+        assert compare_files_with_skip(
             anim_nucmer_targets_delta_indir / fname,
             anim_nucmer_targets_delta_outdir / fname,
         )

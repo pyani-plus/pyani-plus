@@ -108,7 +108,7 @@ def test_snakemake_rule_fastani(
 
     # Check output against target fixtures
     for fname in fastani_targets:
-        assert compare_fastani_files(  # noqa: S101
+        assert compare_fastani_files(
             fastani_targets_indir / fname,
             fastani_targets_outdir / fname,
         )

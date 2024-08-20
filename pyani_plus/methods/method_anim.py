@@ -1,7 +1,7 @@
 # The MIT License
 #
 # Copyright (c) 2016-2019 The James Hutton Institute
-# Copyright (c) 2019-2024 University of Strathclyde
+# Copyright (c) 2019-present University of Strathclyde
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -153,12 +153,8 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
         # Lines with seven columns are alignment region headers:
         if len(line) == 7:  # noqa: PLR2004
             # Obtaining aligned regions needed to check for overlaps
-            regions_ref[current_ref].append(
-                tuple(sorted([int(line[0]), int(line[1])]))
-            )  # aligned regions reference
-            regions_qry[current_qry].append(
-                tuple(sorted([int(line[2]), int(line[3])]))
-            )  # aligned regions qry
+            regions_ref[current_ref].append(tuple(sorted([int(line[0]), int(line[1])])))  # aligned regions reference
+            regions_qry[current_qry].append(tuple(sorted([int(line[2]), int(line[3])])))  # aligned regions qry
 
             # Calculate aligned bases for each sequence
             ref_aln_lengths = abs(int(line[1]) - int(line[0])) + 1
@@ -167,9 +163,7 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
 
             # Calculate weighted identical bases
             sim_error += int(line[4])
-            weighted_identical_bases.append(
-                (ref_aln_lengths + qry_aln_lengths) - (2 * int(line[5]))
-            )
+            weighted_identical_bases.append((ref_aln_lengths + qry_aln_lengths) - (2 * int(line[5])))
 
     # Calculate average %ID
     avrg_identity = sum(weighted_identical_bases) / aligned_bases
@@ -190,9 +184,7 @@ def update_comparision_results(completed_jobs: Path) -> list[ComparisonResult]:
     for deltafilter in completed_jobs.iterdir():
         if deltafilter.is_file():  # Ensure it's a file
             rname, qname = deltafilter.stem.split("_vs_")
-            raln_length, qaln_length, avrg_identity, sim_error = parse_delta(
-                deltafilter
-            )
+            raln_length, qaln_length, avrg_identity, sim_error = parse_delta(deltafilter)
 
         result = ComparisonResult(
             qname=qname,

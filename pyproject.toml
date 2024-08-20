@@ -25,10 +25,10 @@ include = ["pyani_plus"]
 [tool.ruff.lint]
 select = ["ALL"]
 pycodestyle.max-line-length = 120
-ignore = ["ANN101", "ANN102", "COM812", "D203", "D213", "S603"]
+ignore = ["ANN101", "ANN102", "COM812", "D203", "D213", "S603", "FIX002"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101"]
+"tests/*" = ["S101", "PT001"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"

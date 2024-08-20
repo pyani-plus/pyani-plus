@@ -35,7 +35,7 @@ import pytest
 from pyani_plus.methods import method_anim
 
 
-@pytest.fixture()
+@pytest.fixture
 def anim_results(dir_anim_results: Path) -> pd.DataFrame:
     """Return expected results for anim."""
     return pd.read_csv(dir_anim_results / "deltadir_result.csv", index_col=0)
@@ -57,7 +57,8 @@ def compare_anim_results(filterfile: Path, datadir: pd.DataFrame) -> bool:
 
 
 def test_anim_average_identity(
-    anim_nucmer_targets_filter_indir: Path, anim_results: pd.DataFrame
+    anim_nucmer_targets_filter_indir: Path,
+    anim_results: pd.DataFrame,
 ) -> None:
     """Check aniM average identity."""
     for fname in (
@@ -69,5 +70,16 @@ def test_anim_average_identity(
 def test_anim_parsing(anim_nucmer_targets_delta_indir: Path) -> None:
     """Check parsing of test NUCmer .delta/.filter file."""
     assert method_anim.parse_delta(
-        anim_nucmer_targets_delta_indir / "NC_002696_vs_NC_011916.delta"
-    ) == (4016947, 4017751, 0.9994621994447228, 2191)
+        anim_nucmer_targets_delta_indir / "NC_002696_vs_NC_011916.delta",
+    ) == (
+        4016947,
+        4017751,
+        0.9994621994447228,
+        2191,
+    )
+
+
+# TODO @kiepczi: Add a test for method_anim.py::get_aligned_bases_count()
+# https://github.com/pyani-plus/pyani-plus/issues/4
+# TODO @kiepczi: Add a test for method_anim.py::collect_results_directory()
+# https://github.com/pyani-plus/pyani-plus/issues/4

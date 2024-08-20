@@ -23,6 +23,9 @@ select = ["ALL"]
 pycodestyle.max-line-length = 120
 ignore = ["ANN101", "ANN102", "COM812", "D203", "D213", "S603"]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
 [tool.setuptools.packages.find]
 include = ["pyani_plus"]
 

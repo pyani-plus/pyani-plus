@@ -41,6 +41,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 import intervaltree  # type: ignore  # noqa: PGH003
+from Bio import SeqIO  # type: ignore  # noqa: PGH003
 
 
 class ComparisonResult(NamedTuple):
@@ -62,6 +63,24 @@ class ComparisonResult(NamedTuple):
     sim_errs: int  # count of similarity errors
     avg_id: float  # average nucleotide identity (as a percentage)
     program: str  # the program used to calculate the comparison
+    q_length: int  # total base count of query sequence
+    r_length: int  # total base count of reference sequence
+    q_cov: float  # query coverage (as a percentage)
+    r_cov: float  # reference coverage (as a percentage)
+    r_hadamard: float  # reference hadamard (percentage identity * percentage coverage)
+    q_hadamard: float  # query hadamard (percentage identity * percentage coverage)
+
+
+# NOTE It might be worth having a separate script to get genome lengths
+# as well as other sequence information (eg. lengths of all regions in a genome)
+# as this will be useful for other methods like dnadiff
+def get_genome_length(filename: Path) -> int:
+    """Return total length of all sequences in a FASTA file.
+
+    :param filename:  path to FASTA file
+    """
+    with Path.open(filename) as ifh:
+        return sum([len(record) for record in SeqIO.parse(ifh, "fasta")])
 
 
 def get_aligned_bases_count(aligned_regions: dict) -> int:
@@ -188,7 +207,9 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
     )
 
 
-def collect_results_directory(completed_jobs: Path) -> list[ComparisonResult]:
+def collect_results_directory(
+    completed_jobs: Path, indir: Path
+) -> list[ComparisonResult]:
     """Return a list of ComparisonResults for a directory of completed nucmer comparisons.
 
     The passed directory should contain the output of nucmer comparisons for a single
@@ -197,9 +218,14 @@ def collect_results_directory(completed_jobs: Path) -> list[ComparisonResult]:
     sequences, similarity errors, and average nucleotide identity for each comparison.
 
     :param completed_jobs: Path to the filter files directory
+    :param indir: Path to input directory (FASTA files)
     """
     # TODO @kiepczi: This function requires a test
     # https://github.com/pyani-plus/pyani-plus/issues/4
+
+    genome_lengths = {
+        record.stem: get_genome_length(record) for record in Path(indir).iterdir()
+    }
 
     run_results = []
     for deltafilter in completed_jobs.iterdir():
@@ -208,7 +234,8 @@ def collect_results_directory(completed_jobs: Path) -> list[ComparisonResult]:
             r_aligned_bases, q_aligned_bases, avrg_identity, sim_error = parse_delta(
                 deltafilter
             )
-
+            rlen = genome_lengths[rname]
+            qlen = genome_lengths[qname]
         # TODO @kiepczi: add coverage value to the ComparisonResult
         # https://github.com/pyani-plus/pyani-plus/issues/4
         #       We need to obtain the query and reference sequence lengths
@@ -229,6 +256,12 @@ def collect_results_directory(completed_jobs: Path) -> list[ComparisonResult]:
                 sim_errs=sim_error,
                 avg_id=avrg_identity,
                 program="nucmer",
+                r_length=rlen,
+                q_length=qlen,
+                r_cov=r_aligned_bases / rlen,
+                q_cov=q_aligned_bases / qlen,
+                r_hadamard=(r_aligned_bases / rlen) * avrg_identity,
+                q_hadamard=(q_aligned_bases / rlen) * avrg_identity,
             ),
         )
 

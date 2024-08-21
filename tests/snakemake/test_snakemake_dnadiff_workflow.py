@@ -46,6 +46,12 @@ from pathlib import Path
 import pytest
 
 from pyani_plus.snakemake import snakemake_scheduler
+from pyani_plus.tools import (
+    get_delta_filter,
+    get_nucmer,
+    get_show_coords,
+    get_show_diff,
+)
 
 
 @pytest.fixture
@@ -60,6 +66,10 @@ def config_delta_args(
     small set of input genomes as arguments.
     """
     return {
+        "nucmer": get_nucmer().exe_path,
+        "delta_filter": get_delta_filter().exe_path,
+        "show_coords": get_show_coords().exe_path,
+        "show_diff": get_show_diff().exe_path,
         "outdir": dnadiff_nucmer_targets_delta_outdir,
         "indir": str(input_genomes_small),
         "cores": snakemake_cores,
@@ -79,6 +89,10 @@ def config_filter_args(
     small set of input genomes as arguments.
     """
     return {
+        "nucmer": get_nucmer().exe_path,
+        "delta_filter": get_delta_filter().exe_path,
+        "show_coords": get_show_coords().exe_path,
+        "show_diff": get_show_diff().exe_path,
         "outdir": dnadiff_nucmer_targets_filter_outdir,
         "indir": str(input_genomes_small),
         "cores": snakemake_cores,
@@ -94,6 +108,10 @@ def config_dnadiff_showdiff_args(
 ) -> dict:
     """Return configuration settings for testing snakemake show_diff rule."""
     return {
+        "nucmer": get_nucmer().exe_path,
+        "delta_filter": get_delta_filter().exe_path,
+        "show_coords": get_show_coords().exe_path,
+        "show_diff": get_show_diff().exe_path,
         "outdir": dnadiff_targets_showdiff_outdir,
         "indir": str(input_genomes_small),
         "cores": snakemake_cores,
@@ -108,6 +126,10 @@ def config_dnadiff_showcoords_args(
 ) -> dict:
     """Return configuration settings for snakemake show_coords rule."""
     return {
+        "nucmer": get_nucmer().exe_path,
+        "delta_filter": get_delta_filter().exe_path,
+        "show_coords": get_show_coords().exe_path,
+        "show_diff": get_show_diff().exe_path,
         "outdir": dnadiff_targets_showcoords_outdir,
         "indir": str(input_genomes_small),
         "cores": snakemake_cores,

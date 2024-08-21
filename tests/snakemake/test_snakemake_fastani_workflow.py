@@ -46,6 +46,7 @@ from pathlib import Path
 import pytest
 
 from pyani_plus.snakemake import snakemake_scheduler
+from pyani_plus.tools import get_fastani
 
 
 @pytest.fixture
@@ -56,6 +57,7 @@ def config_fastani_args(
 ) -> dict:
     """Return configuration settings for testing snakemake fastANI rule."""
     return {
+        "fastani": get_fastani().exe_path,
         "outdir": fastani_targets_outdir,
         "indir": str(input_genomes_small),
         "cores": snakemake_cores,

@@ -53,6 +53,7 @@ def get_genomeB(wildcards):
 # the calling code
 rule delta:
     params:
+        nucmer=config["nucmer"],
         indir=config["indir"],
         mode=config["mode"],
         outdir=config["outdir"],
@@ -62,16 +63,18 @@ rule delta:
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.delta",
     shell:
-        "nucmer -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --{params.mode} {input.genomeA} {input.genomeB}"
+        "{params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --{params.mode} {input.genomeA} {input.genomeB}"
 
 
 # The filter rule runs delta-filter wrapper for nucmer
 # NOTE: This rule is used for ANIm in the context of pyani_plus. The .filter file
 # is used to calculate ANI values
 rule filter:
+    params:
+        delta_filter=config["delta_filter"],
     input:
         "{outdir}/{genomeA}_vs_{genomeB}.delta",
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.filter",
     shell:
-        "delta-filter -1 {input} > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter"
+        "{params.delta_filter} -1 {input} > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter"

@@ -45,6 +45,8 @@ import subprocess
 from itertools import permutations
 from pathlib import Path
 
+from pyani_plus.tools import get_fastani
+
 # Parameters (eg, input sequences, fastANI outputs, k-mer sizes...)
 INPUT_DIR = Path("../fixtures/sequences")
 FASTANI_DIR = Path("../fixtures/fastani/targets")
@@ -56,11 +58,14 @@ MIN_FRAC = 0.2
 comparisons = permutations([_.stem for _ in Path(INPUT_DIR).glob("*")], 2)
 inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*")}
 
+fastani = get_fastani()
+print(f"Using fastANI {fastani.version} at {fastani.exe_path}")
+
 for genomes in comparisons:
     stem = "_vs_".join(genomes)
     subprocess.run(
-        [  # noqa: S607
-            "fastANI",
+        [
+            fastani.exe_path,
             "-q",
             inputs[genomes[0]],
             "-r",

@@ -49,6 +49,7 @@ import pytest
 # We're testing the workflow, as called through the pyani_plus
 # wrapper code, so import only that module
 from pyani_plus.snakemake import snakemake_scheduler
+from pyani_plus.tools import get_delta_filter, get_nucmer
 
 
 @pytest.fixture
@@ -63,6 +64,8 @@ def config_filter_args(
     small set of input genomes as arguments.
     """
     return {
+        "nucmer": get_nucmer().exe_path,
+        "delta_filter": get_delta_filter().exe_path,
         "outdir": anim_nucmer_targets_filter_outdir,
         "indir": str(input_genomes_small),
         "cores": snakemake_cores,
@@ -82,6 +85,8 @@ def config_delta_args(
     small set of input genomes as arguments.
     """
     return {
+        "nucmer": get_nucmer().exe_path,
+        "delta_filter": get_delta_filter().exe_path,
         "outdir": anim_nucmer_targets_delta_outdir,
         "indir": str(input_genomes_small),
         "cores": snakemake_cores,

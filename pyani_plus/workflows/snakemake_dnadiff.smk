@@ -17,6 +17,7 @@ def get_genomeB(wildcards):
 # the calling code
 rule delta:
     params:
+        nucmer=config["nucmer"],
         indir=config["indir"],
         outdir=config["outdir"],
     input:
@@ -25,40 +26,46 @@ rule delta:
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.delta",
     shell:
-        "nucmer -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --maxmatch {input.genomeA} {input.genomeB}"
+        "{params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --maxmatch {input.genomeA} {input.genomeB}"
 
 
 # The filter rule runs delta-filter wrapper for nucmer
 # NOTE: This rule is used for dnadiff in the context of pyani_plus. The .filter file
 # is used to generate delta-filter files, which are used to replicate AlignedBases.
 rule filter:
+    params:
+        delta_filter=config["delta_filter"],
     input:
         "{outdir}/{genomeA}_vs_{genomeB}.delta",
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.filter",
     shell:
-        "delta-filter -m {input} > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter"
+        "{params.delta_filter} -m {input} > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter"
 
 
 # The filter rule runs show-diff wrapper for nucmer
 # NOTE: This rule is used for dnadiff in the context of pyani_plus. The .filter file
 # is used to generate show-diff files, which are used to replicate AlignedBases.
 rule show_diff:
+    params:
+        show_diff=config["show_diff"],
     input:
         "{outdir}/{genomeA}_vs_{genomeB}.filter",
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.rdiff",
     shell:
-        "show-diff -rH {input} > {output}"
+        "{params.show_diff} -rH {input} > {output}"
 
 
 # The filter rule runs show-coords wrapper for nucmer
 # NOTE: This rule is used for dnadiff in the context of pyani_plus. The .filter file
 # is used to generate show-coords files, which are used to replicate AlignedBases.
 rule show_coords:
+    params:
+        show_coords=config["show_coords"],
     input:
         "{outdir}/{genomeA}_vs_{genomeB}.filter",
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.mcoords",
     shell:
-        "show-coords {input} > {output}"
+        "{params.show_coords} {input} > {output}"

@@ -59,7 +59,7 @@ comparisons = permutations([_.stem for _ in Path(INPUT_DIR).glob("*")], 2)
 inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*")}
 
 fastani = get_fastani()
-print(f"Using fastANI {fastani.version} at {fastani.exe_path}")
+print(f"Using fastANI {fastani.version} at {fastani.exe_path}")  # noqa: T201
 
 for genomes in comparisons:
     stem = "_vs_".join(genomes)

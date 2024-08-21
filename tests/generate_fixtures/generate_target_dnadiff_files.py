@@ -52,7 +52,12 @@ import subprocess
 from itertools import permutations
 from pathlib import Path
 
-from pyani_plus.tools import get_nucmer
+from pyani_plus.tools import (
+    get_delta_filter,
+    get_nucmer,
+    get_show_coords,
+    get_show_diff,
+)
 
 # Paths to directories (eg. input sequences, outputs for delta, filter...)
 INPUT_DIR = Path("../fixtures/sequences")
@@ -66,7 +71,10 @@ comparisons = permutations([_.stem for _ in Path(INPUT_DIR).glob("*")], 2)
 inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*")}
 
 nucmer = get_nucmer()
-print(f"Using nucmer {nucmer.version} at {nucmer.exe_path}")
+delta_filter = get_delta_filter()
+show_coords = get_show_coords()
+show_diff = get_show_diff()
+print(f"Using nucmer {nucmer.version} at {nucmer.exe_path}")  # noqa: T201
 
 for genomes in comparisons:
     stem = "_vs_".join(genomes)
@@ -86,21 +94,21 @@ for genomes in comparisons:
     # pipe from within the call to stdout
     with (FILTER_DIR / (stem + ".filter")).open("w") as ofh:
         subprocess.run(
-            ["delta-filter", "-m", DELTA_DIR / (stem + ".delta")],  # noqa: S607
+            [delta_filter.exe_path, "-m", DELTA_DIR / (stem + ".delta")],
             check=True,
             stdout=ofh,
         )
 
     with (SHOW_DIFF_DIR / (stem + ".rdiff")).open("w") as ofh:
         subprocess.run(
-            ["show-diff", "-rH", FILTER_DIR / (stem + ".filter")],  # noqa: S607
+            [show_diff.exe_path, "-rH", FILTER_DIR / (stem + ".filter")],
             check=True,
             stdout=ofh,
         )
 
     with (SHOW_COORDS_DIR / (stem + ".mcoords")).open("w") as ofh:
         subprocess.run(
-            ["show-coords", FILTER_DIR / (stem + ".filter")],  # noqa: S607
+            [show_coords.exe_path, FILTER_DIR / (stem + ".filter")],
             check=True,
             stdout=ofh,
         )

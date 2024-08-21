@@ -48,6 +48,8 @@ import subprocess
 from itertools import permutations
 from pathlib import Path
 
+from pyani_plus.tools import get_nucmer
+
 # Paths to directories (eg, input sequences, delta and filter)
 INPUT_DIR = Path("../fixtures/sequences")
 DELTA_DIR = Path("../fixtures/anim/targets/delta")
@@ -57,11 +59,14 @@ FILTER_DIR = Path("../fixtures/anim/targets/filter")
 comparisons = permutations([_.stem for _ in Path(INPUT_DIR).glob("*")], 2)
 inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*")}
 
+nucmer = get_nucmer()
+print(f"Using nucmer {nucmer.version} at {nucmer.exe_path}")
+
 for genomes in comparisons:
     stem = "_vs_".join(genomes)
     subprocess.run(
-        [  # noqa: S607
-            "nucmer",
+        [
+            nucmer.exe_path,
             "-p",
             DELTA_DIR / stem,
             "--mum",

@@ -61,10 +61,8 @@ rule delta:
     input:
         genomeA=get_genomeA,
         genomeB=get_genomeB,
-    run:
-        shell(
-            "nucmer -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --{params.mode} {input.genomeA} {input.genomeB}"
-        )
+    shell:
+        "nucmer -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --{params.mode} {input.genomeA} {input.genomeB}"
 
 
 # The filter rule runs delta-filter wrapper for nucmer
@@ -75,7 +73,5 @@ rule filter:
         "{outdir}/{genomeA}_vs_{genomeB}.delta",
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.filter",
-    run:
-        shell(
-            "delta-filter -1 {input} > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter"
-        )
+    shell:
+        "delta-filter -1 {input} > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter"

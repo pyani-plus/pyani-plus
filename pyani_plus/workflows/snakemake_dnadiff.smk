@@ -24,10 +24,8 @@ rule delta:
     input:
         genomeA=get_genomeA,
         genomeB=get_genomeB,
-    run:
-        shell(
-            "nucmer -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --maxmatch {input.genomeA} {input.genomeB}"
-        )
+    shell:
+        "nucmer -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --maxmatch {input.genomeA} {input.genomeB}"
 
 
 # The filter rule runs delta-filter wrapper for nucmer
@@ -38,10 +36,8 @@ rule filter:
         "{outdir}/{genomeA}_vs_{genomeB}.delta",
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.filter",
-    run:
-        shell(
-            "delta-filter -m {input} > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter"
-        )
+    shell:
+        "delta-filter -m {input} > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter"
 
 
 # The filter rule runs show-diff wrapper for nucmer
@@ -52,8 +48,8 @@ rule show_diff:
         "{outdir}/{genomeA}_vs_{genomeB}.filter",
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.rdiff",
-    run:
-        shell("show-diff -rH {input} > {output}")
+    shell:
+        "show-diff -rH {input} > {output}"
 
 
 # The filter rule runs show-coords wrapper for nucmer
@@ -64,5 +60,5 @@ rule show_coords:
         "{outdir}/{genomeA}_vs_{genomeB}.filter",
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.mcoords",
-    run:
-        shell("show-coords {input} > {output}")
+    shell:
+        "show-coords {input} > {output}"

@@ -23,7 +23,5 @@ rule fastani:
     input:
         genomeA=get_genomeA,
         genomeB=get_genomeB,
-    run:
-        shell(
-            "fastANI -q {input.genomeA} -r {input.genomeB} -o {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.fastani --fragLen {params.fragLen} -k {params.kmerSize} --minFraction {params.minFrac}"
-        )
+    shell:
+        "fastANI -q {input.genomeA} -r {input.genomeB} -o {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.fastani --fragLen {params.fragLen} -k {params.kmerSize} --minFraction {params.minFrac}"

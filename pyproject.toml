@@ -8,6 +8,7 @@ version = "0.0.1"
 authors = [
     { name = "Leighton Pritchard", email = "leighton.pritchard@strath.ac.uk" },
     { name = "Angelika Kiepas", email = "angelika.kiepas@strath.ac.uk" },
+    { name = "Peter J. A. Cock", email = "peter.cock@strath.ac.uk" },
 ]
 readme = "README.md"
 requires-python = ">=3.11"

@@ -72,6 +72,7 @@ rule delta:
 rule filter:
     params:
         delta_filter=config["delta_filter"],
+        outdir=config["outdir"],
     input:
         "{outdir}/{genomeA}_vs_{genomeB}.delta",
     output:

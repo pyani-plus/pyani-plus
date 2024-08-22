@@ -195,3 +195,84 @@ def get_nucmer(cmd: str | Path = "nucmer") -> ExternalToolData:
         raise RuntimeError(msg)
 
     return ExternalToolData(exe_path, version)
+
+
+def get_delta_filter(cmd: str | Path = "delta-filter") -> ExternalToolData:
+    """Return mummer script delta-filter path and empty version as a named tuple.
+
+    :param cmd:  path to mummer delta-filter script.
+
+    Sadly the NUCmer Perl scripts have no explicit version themselves:
+
+    .. code-block:: bash
+
+        $ delta-filter -h
+        ...
+
+    Therefore the return value would be the full path of the command,
+    and "" as the version.
+
+    Raises a RuntimeError if the command cannot be found, run, or if the
+    help output does not match a simple check.
+    """
+    version = ""
+    exe_path, output = _get_path_and_version_output(cmd, ["-h"])
+    if "Reads a delta alignment file from either nucmer or promer" not in output:
+        msg = f"Executable exists at {exe_path} but does not seem to be from mummer"
+        raise RuntimeError(msg)
+
+    return ExternalToolData(exe_path, version)
+
+
+def get_show_coords(cmd: str | Path = "show-coords") -> ExternalToolData:
+    """Return mummer script show-coords path and empty version as a named tuple.
+
+    :param cmd:  path to mummer show-coords script.
+
+    Sadly the NUCmer Perl scripts have no explicit version themselves:
+
+    .. code-block:: bash
+
+        $ show-coords -h
+        ...
+
+    Therefore the return value would be the full path of the command,
+    and "" as the version.
+
+    Raises a RuntimeError if the command cannot be found, run, or if the
+    help output does not match a simple check.
+    """
+    version = ""
+    exe_path, output = _get_path_and_version_output(cmd, ["-h"])
+    if 'Input is the .delta output of either the "nucmer" or' not in output:
+        msg = f"Executable exists at {exe_path} but does not seem to be from mummer"
+        raise RuntimeError(msg)
+
+    return ExternalToolData(exe_path, version)
+
+
+def get_show_diff(cmd: str | Path = "show-diff") -> ExternalToolData:
+    """Return mummer script show-diff path and empty version as a named tuple.
+
+    :param cmd:  path to mummer show-diff script.
+
+    Sadly the NUCmer Perl scripts have no explicit version themselves:
+
+    .. code-block:: bash
+
+        $ show-diff -h
+        ...
+
+    Therefore the return value would be the full path of the command,
+    and "" as the version.
+
+    Raises a RuntimeError if the command cannot be found, run, or if the
+    help output does not match a simple check.
+    """
+    version = ""
+    exe_path, output = _get_path_and_version_output(cmd, ["-h"])
+    if "Outputs a list of structural differences for each sequence" not in output:
+        msg = f"Executable exists at {exe_path} but does not seem to be from mummer"
+        raise RuntimeError(msg)
+
+    return ExternalToolData(exe_path, version)

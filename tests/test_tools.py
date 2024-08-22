@@ -97,6 +97,30 @@ def test_fake_nucmer() -> None:
         tools.get_nucmer(cmd)
 
 
+def test_fake_delta_filter() -> None:
+    """Confirm simple delta-filter output parsing works."""
+    cmd = Path("tests/fixtures/tools/just_one")  # no numerical output
+    msg = f"Executable exists at {cmd.resolve()} but does not seem to be from mummer"
+    with pytest.raises(RuntimeError, match=msg):
+        tools.get_delta_filter(cmd)
+
+
+def test_fake_show_coords() -> None:
+    """Confirm simple show-coords output parsing works."""
+    cmd = Path("tests/fixtures/tools/just_one")  # no numerical output
+    msg = f"Executable exists at {cmd.resolve()} but does not seem to be from mummer"
+    with pytest.raises(RuntimeError, match=msg):
+        tools.get_show_coords(cmd)
+
+
+def test_fake_show_diff() -> None:
+    """Confirm simple show-diff output parsing works."""
+    cmd = Path("tests/fixtures/tools/just_one")  # no numerical output
+    msg = f"Executable exists at {cmd.resolve()} but does not seem to be from mummer"
+    with pytest.raises(RuntimeError, match=msg):
+        tools.get_show_diff(cmd)
+
+
 def test_find_blastn() -> None:
     """Confirm can find NCBI blastn if on $PATH and determine its version."""
     # At the time of writing this dependency is NOT installed for CI testing
@@ -123,3 +147,27 @@ def test_find_nucmer() -> None:
     info = tools.get_nucmer()
     assert info.exe_path.parts[-1] == "nucmer"
     assert info.version.startswith("3.")
+
+
+def test_find_delta_filter() -> None:
+    """Confirm can find mummer delta-filter on $PATH."""
+    # At the time of writing this dependency is installed for CI testing
+    info = tools.get_delta_filter()
+    assert info.exe_path.parts[-1] == "delta-filter"
+    assert info.version == ""
+
+
+def test_find_show_coords() -> None:
+    """Confirm can find mummer show-coords on $PATH."""
+    # At the time of writing this dependency is installed for CI testing
+    info = tools.get_show_coords()
+    assert info.exe_path.parts[-1] == "show-coords"
+    assert info.version == ""
+
+
+def test_find_show_diff() -> None:
+    """Confirm can find mummer show-diff on $PATH."""
+    # At the time of writing this dependency is installed for CI testing
+    info = tools.get_show_diff()
+    assert info.exe_path.parts[-1] == "show-diff"
+    assert info.version == ""

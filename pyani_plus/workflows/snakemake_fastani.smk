@@ -18,10 +18,10 @@ rule fastani:
         fragLen=config["fragLen"],
         kmerSize=config["kmerSize"],
         minFrac=config["minFrac"],
-    output:
-        "{outdir}/{genomeA}_vs_{genomeB}.fastani",
     input:
         genomeA=get_genomeA,
         genomeB=get_genomeB,
+    output:
+        "{outdir}/{genomeA}_vs_{genomeB}.fastani",
     shell:
         "fastANI -q {input.genomeA} -r {input.genomeB} -o {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.fastani --fragLen {params.fragLen} -k {params.kmerSize} --minFraction {params.minFrac}"

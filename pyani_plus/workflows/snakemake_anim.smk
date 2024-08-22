@@ -56,11 +56,11 @@ rule delta:
         indir=config["indir"],
         mode=config["mode"],
         outdir=config["outdir"],
-    output:
-        "{outdir}/{genomeA}_vs_{genomeB}.delta",
     input:
         genomeA=get_genomeA,
         genomeB=get_genomeB,
+    output:
+        "{outdir}/{genomeA}_vs_{genomeB}.delta",
     shell:
         "nucmer -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --{params.mode} {input.genomeA} {input.genomeB}"
 

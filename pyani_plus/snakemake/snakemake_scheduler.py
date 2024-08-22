@@ -91,15 +91,11 @@ class SnakemakeRunner:
             workflow_api = snakemake_api.workflow(
                 snakefile=snakefile,
                 resource_settings=ResourceSettings(cores=config_args["cores"]),
-                config_settings=ConfigSettings(
-                    config=config_args,
-                ),
+                config_settings=ConfigSettings(config=config_args),
                 workdir=workdir,
             )
             dag_api = workflow_api.dag(
-                dag_settings=DAGSettings(
-                    targets=targetset,
-                ),
+                dag_settings=DAGSettings(targets=targetset),
             )
             dag_api.unlock()
             dag_api.execute_workflow()

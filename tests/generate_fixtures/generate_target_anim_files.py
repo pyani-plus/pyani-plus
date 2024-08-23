@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # (c) University of Strathclyde 2024-present
 # Author: Leighton Pritchard
 #

@@ -31,6 +31,18 @@ setup_dev_macos: setup_conda setup_conda-dev
 	@pre-commit install
 	@pip install -U -e .
 
+fixtures:
+	@echo "Running scripts to recreate the input files to the test suite."
+	@echo "This will take several minutes..."
+	@echo ""
+	cd tests/generate_fixtures/; ./generate_target_anim_files.py
+	cd tests/generate_fixtures/; ./generate_target_dnadiff_files.py
+	cd tests/generate_fixtures/; ./generate_target_fastani_files.py
+	@echo ""
+	@echo "WARNING: If the tool version has changed, the test input files"
+	@echo "under fixtures/ may have changed (check using 'git diff'), and"
+	@echo "thus the test output too. Beware!"
+
 # Run tests
 # When the tests complete, the coverage output will be opened in a browser
 test:

@@ -46,6 +46,14 @@ make setup_dev_linux  # Linux OR...
 make setup_dev_macos  # macOS
 ```
 
+This will set up the tool pre-commit as a git pre-commit hook, which will run
+assorted checks including ruff for formatting and style checking.
+
+This will also install development dependencies like ``pytest`` which we use to run
+our test suite. Run the test with ``make test``, or by directly calling pytest if
+you want to modify the arguments to pytest, e.g. ``pytest -v -n auto`` will run with
+multiple worker threads which can be significantly faster on a many-core machine.
+
 ### Commit message conventions
 
 `git` commit messages are an important way to manage a readable revision history. We use the following conventions:

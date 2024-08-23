@@ -37,6 +37,10 @@
 # THE SOFTWARE.
 """Generate target files for pyani-plus dnadiff tests.
 
+This script can be run with ``./generate_target_dnadiff_files.py`` in the script's
+directory, or from the project root directory via ``make fixtures``. It will
+regenerate and potentially modify test input files under the fixtures directory.
+
 nucmer runs with the --maxmatch parameter to find initial matches
 regardless of their uniqueness.
 delta-filter runs with the -m parameter to filter only M-to-M

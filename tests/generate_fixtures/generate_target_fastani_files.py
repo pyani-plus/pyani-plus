@@ -37,7 +37,11 @@
 # THE SOFTWARE.
 """Generate target files for pyani-plus fastANI tests.
 
-This bash script generates target files for fastani comparisons.
+This script can be run with ``./generate_target_fastani_files.py`` in the script's
+directory, or from the project root directory via ``make fixtures``. It will
+regenerate and potentially modify test input files under the fixtures directory.
+
+This script generates target files for fastani comparisons.
 Genomes are compared in both directions (forward and reverse)
 using fastANI.
 """

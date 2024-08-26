@@ -40,6 +40,8 @@ These tests are intended to be run from the repository root using:
 make test
 """
 
+import os
+import re
 import shutil
 from pathlib import Path
 
@@ -115,3 +117,36 @@ def test_snakemake_rule_fastani(
             fastani_targets_indir / fname,
             fastani_targets_outdir / fname,
         )
+
+
+def test_snakemake_duplicate_stems(
+    fastani_targets: list[str],
+    fastani_targets_outdir: Path,
+    config_fastani_args: dict,
+    tmp_path: str,
+) -> None:
+    """Test fastANI snakemake wrapper with duplicated stems in inputs.
+
+    Checks this error condition is caught by duplicating the main fastani
+    test, but using a modified copy of the input directory under temp.
+    """
+    # Remove the output directory to force re-running the snakemake rule
+    shutil.rmtree(fastani_targets_outdir, ignore_errors=True)
+
+    dup_input_dir = Path(tmp_path) / "duplicated_stems"
+    dup_input_dir.mkdir()
+    stems = set()
+    for sequence in Path(config_fastani_args["indir"]).glob("*.f*"):
+        # For every input FASTA file, make two versions - XXX.fasta and XXX.fna
+        os.symlink(sequence, dup_input_dir / (sequence.stem + ".fasta"))
+        os.symlink(sequence, dup_input_dir / (sequence.stem + ".fna"))
+        stems.add(sequence.stem)
+    dup_config = config_fastani_args.copy()
+    dup_config["indir"] = dup_input_dir
+    msg = f"Duplicated stems found for {sorted(stems)}. Please investigate."
+
+    # Run snakemake wrapper
+    runner = snakemake_scheduler.SnakemakeRunner("snakemake_fastani.smk")
+
+    with pytest.raises(ValueError, match=re.escape(msg)):
+        runner.run_workflow(fastani_targets, dup_config, workdir=Path(tmp_path))

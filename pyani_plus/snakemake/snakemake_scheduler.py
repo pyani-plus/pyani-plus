@@ -60,7 +60,9 @@ def check_input_stems(indir: str) -> dict[str, Path]:
         duplicates = [
             item for item in stems if stems.count(item) > 1 and item in set(stems)
         ]
-        msg = f"Duplicated stems found for {list(set(duplicates))}. Please investigate."
+        msg = (
+            f"Duplicated stems found for {sorted(set(duplicates))}. Please investigate."
+        )
         raise ValueError(msg)
 
     return input_files

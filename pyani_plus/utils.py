@@ -1,0 +1,76 @@
+# (c) The University of Strathclyde 2024-present
+# Author: Peter Cock
+#
+# Contact:
+# peter.cock@strath.ac.uk
+#
+# Peter Cock,
+# Strathclyde Institute of Pharmaceutical and Biomedical Sciences
+# The University of Strathclyde
+# 161 Cathedral Street
+# Glasgow
+# G4 0RE
+# Scotland,
+# UK
+#
+# The MIT License
+#
+# (c) The University of Strathclyde 2024-present
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+"""Assorted utility functions used within the pyANI-plus software."""
+
+import hashlib
+from pathlib import Path
+
+
+def file_md5sum(filename: Path | str) -> str:
+    """Return the MD5 checksum hash digest of the passed file contents.
+
+    :param filename:  Path or string, path to file for hashing
+
+    Behaves like the command line tool ``md5sum``, giving a 32 character
+    hexadecimal representation of the MD5 checksum of the file contents::
+
+        $ md5sum tests/fixtures/sequences/NC_002696.fasta
+        f19cb07198a41a4406a22b2f57a6b5e7  tests/fixtures/sequences/NC_002696.fasta
+
+    In Python:
+
+        >>> file_md5sum("tests/fixtures/sequences/NC_002696.fasta")
+        'f19cb07198a41a4406a22b2f57a6b5e7'
+
+    This is used in pyANI-plus on input FASTA format sequence files, to give a
+    fingerprint of the file contents allowing us to cache and reused comparison
+    results even when the sequence files are renamed or moved. Note any change
+    to the file contents (e.g. editing a description) will change the checksum.
+    """
+    fname = Path(filename)  # ensure we have a Path object
+    # We're ignoring the linter warning as not using MD5 for security:
+    # S324 Probable use of insecure hash functions in `hashlib`: `md5`
+    hash_md5 = hashlib.md5()  # noqa: S324
+    try:
+        with fname.open("rb") as fhandle:
+            for chunk in iter(lambda: fhandle.read(65536), b""):
+                hash_md5.update(chunk)
+    except FileNotFoundError:
+        msg = f"Input file {fname} is not a file or symlink"
+        raise ValueError(msg) from None
+
+    return hash_md5.hexdigest()

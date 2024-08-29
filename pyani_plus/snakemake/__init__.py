@@ -1,4 +1,4 @@
-# (c) University of Strathclyde 2019-
+# Copyright (c) 2019-present University of Strathclyde
 # Author: Leighton Pritchard
 #
 # Contact:

@@ -1,4 +1,4 @@
-# (c) The University of Strathclude 2024-present
+# (c) The University of Strathclyde 2024-present
 # Author: Peter Cock
 #
 # Contact:
@@ -15,7 +15,7 @@
 #
 # The MIT License
 #
-# (c) The University of Strathclude 2024-present
+# (c) The University of Strathclyde 2024-present
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal

@@ -1,4 +1,4 @@
-# (c) The University of Strathclyde 2024-present
+# Copyright (c) 2024-present University of Strathclyde
 # Author: Leighton Pritchard
 #
 # Contact:
@@ -15,7 +15,7 @@
 #
 # The MIT License
 #
-# (c) The University of Strathclyde 2024-present
+# Copyright (c) 2024-present University of Strathclyde
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal

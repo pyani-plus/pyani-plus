@@ -17,7 +17,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-dependencies = ["snakemake"]
+dependencies = ["snakemake", "sqlalchemy"]
 
 [tool.ruff.lint]
 select = ["ALL"]

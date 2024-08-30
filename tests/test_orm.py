@@ -67,6 +67,21 @@ def test_make_and_populate_new_db(tmp_path: str) -> None:
 
     session = db_orm.connect_to_db(tmp_db)
 
+    config = db_orm.Configuration(
+        method="guessing",
+        program="guestimate",
+        version="v0.1.2beta3",
+        fragsize=17,
+        kmersize=17,
+    )
+    # Test the __repr__
+    assert repr(config) == (
+        "Configuration(configuration_id=None,"
+        " program='guestimate', version='v0.1.2beta3',"
+        " fragsize=17, maxmatch=None, kmersize=17, minmatch=None)"
+    )
+    session.add(config)
+
     for name in names:
         seq = "ACGT" * 100 * len(name)
         fasta = f">{name}\n{seq}\n"
@@ -93,6 +108,7 @@ def test_make_and_populate_new_db(tmp_path: str) -> None:
         assert magic == b"SQLite format 3\0"
 
     with db_orm.connect_to_db(tmp_db) as new_session:
+        assert new_session.query(db_orm.Configuration).count() == 1
         assert new_session.query(db_orm.Genome).count() == len(names)
 
     tmp_db.unlink()

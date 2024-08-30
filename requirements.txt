@@ -1,1 +1,2 @@
 snakemake>=8.12
+sqlalchemy

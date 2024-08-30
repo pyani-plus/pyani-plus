@@ -61,7 +61,8 @@ def test_make_new_db(tmp_path: str) -> None:
 
 def test_make_and_populate_new_db(tmp_path: str) -> None:
     """Confirm can create a new empty database, add genomes, close, and reopen."""
-    names = ("Alpha", "Beta", "Gamma")
+    DUMMY_ALIGN_LEN = 400  # noqa: N806
+    NAMES = ("Alpha", "Beta", "Gamma")  # noqa: N806
     tmp_db = Path(tmp_path) / "genomes.sqlite"
     assert not tmp_db.is_file()
 
@@ -81,11 +82,17 @@ def test_make_and_populate_new_db(tmp_path: str) -> None:
         " fragsize=17, maxmatch=None, kmersize=17, minmatch=None)"
     )
     session.add(config)
+    assert len(config.comparisons) == 0
+    assert config.configuration_id is None
+    session.commit()
+    assert config.configuration_id == 1
 
-    for name in names:
-        seq = "ACGT" * 100 * len(name)
+    hashes = {}
+    for name in NAMES:
+        seq = "ACGT" * int(DUMMY_ALIGN_LEN / 4) * len(name)
         fasta = f">{name}\n{seq}\n"
         md5 = hashlib.md5(fasta.encode("ascii")).hexdigest()  # noqa: S324
+        hashes[md5] = name
         genome = db_orm.Genome(
             genome_hash=md5,
             path=f"/mnt/shared/data/{name}.fasta",
@@ -99,7 +106,52 @@ def test_make_and_populate_new_db(tmp_path: str) -> None:
         )
         session.add(genome)
     session.commit()
-    assert session.query(db_orm.Genome).count() == len(names)
+    assert session.query(db_orm.Genome).count() == len(NAMES)
+
+    assert config.configuration_id == 1
+    for query in hashes:
+        for subject in hashes:
+            comparison = db_orm.Comparison(
+                # configuration=config,  <-- should this work?
+                configuration_id=config.configuration_id,
+                query_hash=query,
+                subject_hash=subject,
+                identity=0.96,
+                aln_length=DUMMY_ALIGN_LEN,
+            )
+            assert comparison.configuration_id == config.configuration_id
+            assert repr(comparison) == (
+                f"Comparison(comparison_id=None,"
+                f" query_hash={query!r}, subject_hash={subject!r},"
+                f" configuration_id={config.configuration_id},"
+                f" identity=0.96, aln_length={DUMMY_ALIGN_LEN}, sim_errs=None,"
+                " cov_query=None, cov_subject=None)"
+            )
+            session.add(comparison)
+    session.commit()
+    assert session.query(db_orm.Comparison).count() == len(NAMES) ** 2
+    assert len(config.comparisons) == len(NAMES) ** 2
+    for comparison in config.comparisons:
+        assert comparison.aln_length == DUMMY_ALIGN_LEN
+        assert comparison.configuration_id == 1
+
+        # Check the configuration object attribute:
+        assert comparison.configuration is config  # matches the object!
+        assert comparison in config.comparisons  # back link!
+
+        # Check the query object attribute:
+        assert comparison.query.description.startswith("Example ")
+        assert (
+            "Example " + hashes[comparison.query_hash] == comparison.query.description
+        )
+
+        # Check the subject object attribute:
+        assert comparison.subject.description.startswith("Example ")
+        assert (
+            "Example " + hashes[comparison.subject_hash]
+            == comparison.subject.description
+        )
+
     del session  # disconnect
 
     assert tmp_db.is_file()
@@ -109,6 +161,7 @@ def test_make_and_populate_new_db(tmp_path: str) -> None:
 
     with db_orm.connect_to_db(tmp_db) as new_session:
         assert new_session.query(db_orm.Configuration).count() == 1
-        assert new_session.query(db_orm.Genome).count() == len(names)
+        assert new_session.query(db_orm.Genome).count() == len(NAMES)
+        assert new_session.query(db_orm.Comparison).count() == len(NAMES) ** 2
 
     tmp_db.unlink()

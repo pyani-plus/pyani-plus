@@ -47,12 +47,13 @@ from sqlalchemy import (
     Boolean,
     Column,
     Float,
+    ForeignKey,
     Integer,
     String,
     UniqueConstraint,
     create_engine,
 )
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, relationship, sessionmaker
 
 
 class Base(DeclarativeBase):
@@ -129,6 +130,7 @@ class Configuration(Base):
     )
 
     configuration_id = Column(Integer, primary_key=True)
+    comparisons = relationship("Comparison", back_populates="configuration")
 
     # This was part of the Run table in pyANI v0.2
     method = Column(String)
@@ -148,6 +150,63 @@ class Configuration(Base):
             f" program={self.program!r}, version={self.version!r},"
             f" fragsize={self.fragsize}, maxmatch={self.maxmatch},"
             f" kmersize={self.kmersize}, minmatch={self.maxmatch})"
+        )
+
+
+class Comparison(Base):
+    """Describes a single pairwise comparison between two genomes (query and subject)."""
+
+    __tablename__ = "comparisons"
+    __table_args__ = (
+        UniqueConstraint(
+            "query_hash",
+            "subject_hash",
+            "configuration_id",
+        ),
+    )
+
+    comparison_id = Column(Integer, primary_key=True)
+
+    # See https://docs.sqlalchemy.org/en/20/orm/basic_relationships.html
+    query_hash = Column(String, ForeignKey("genomes.genome_hash"), nullable=False)
+    query = relationship(Genome, foreign_keys=[query_hash])
+
+    subject_hash = Column(String, ForeignKey("genomes.genome_hash"), nullable=False)
+    subject = relationship(Genome, foreign_keys=[subject_hash])
+
+    configuration_id = Column(
+        Integer, ForeignKey("configuration.configuration_id"), nullable=False
+    )
+    configuration = relationship(Configuration, foreign_keys=[configuration_id])
+
+    # The results of the comparison
+    identity = Column(Float)
+    aln_length = Column(Integer)  # in fastANI this is matchedfrags * fragLength
+    sim_errs = Column(Integer)  # in fastANI this is allfrags - matchedfrags
+    cov_query = Column(Float)  # in fastANI this is matchedfrags/allfrags
+    cov_subject = Column(Float)  # in fastANI this is Null
+
+    def __str__(self) -> str:
+        """Return string summarising the Comparison table row."""
+        return (
+            f"Query: {self.query_hash}, Subject: {self.subject_hash}, "
+            f"%%ID={self.identity}, ({self.configuration.program} {self.configuration.version}), "
+            f"FragSize: {self.configuration.fragsize}, MaxMatch: {self.configuration.maxmatch}, "
+            f"KmerSize: {self.configuration.kmersize}, MinMatch: {self.configuration.minmatch}"
+        )
+
+    def __repr__(self) -> str:
+        """Return string representation of Comparison table object."""
+        return (
+            f"Comparison(comparison_id={self.comparison_id!r}, "
+            f"query_hash={self.query_hash!r}, "
+            f"subject_hash={self.subject_hash!r}, "
+            f"configuration_id={self.configuration_id!r}, "
+            f"identity={self.identity}, "
+            f"aln_length={self.aln_length}, "
+            f"sim_errs={self.sim_errs}, "
+            f"cov_query={self.cov_query}, "
+            f"cov_subject={self.cov_subject})"
         )
 
 

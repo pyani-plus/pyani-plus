@@ -82,7 +82,6 @@ def test_make_and_populate_new_db(tmp_path: str) -> None:
         " fragsize=17, maxmatch=None, kmersize=17, minmatch=None)"
     )
     session.add(config)
-    assert len(config.comparisons) == 0
     assert config.configuration_id is None
     session.commit()
     assert config.configuration_id == 1
@@ -106,6 +105,7 @@ def test_make_and_populate_new_db(tmp_path: str) -> None:
         )
         session.add(genome)
     session.commit()
+    assert len(config.comparisons) == 0
     assert session.query(db_orm.Genome).count() == len(NAMES)
 
     assert config.configuration_id == 1
@@ -133,24 +133,29 @@ def test_make_and_populate_new_db(tmp_path: str) -> None:
     assert len(config.comparisons) == len(NAMES) ** 2
     for comparison in config.comparisons:
         assert comparison.aln_length == DUMMY_ALIGN_LEN
-        assert comparison.configuration_id == 1
 
         # Check the configuration object attribute:
         assert comparison.configuration is config  # matches the object!
         assert comparison in config.comparisons  # back link!
 
         # Check the query object attribute:
-        assert comparison.query.description.startswith("Example ")
         assert (
             "Example " + hashes[comparison.query_hash] == comparison.query.description
         )
 
         # Check the subject object attribute:
-        assert comparison.subject.description.startswith("Example ")
         assert (
             "Example " + hashes[comparison.subject_hash]
             == comparison.subject.description
         )
+
+    for genome in session.query(db_orm.Genome):
+        assert len(genome.query_comparisons) == len(NAMES)
+        for comparison in genome.query_comparisons:
+            assert comparison.configuration is config
+        assert len(genome.subject_comparisons) == len(NAMES)
+        for comparison in genome.subject_comparisons:
+            assert comparison.configuration is config
 
     del session  # disconnect
 

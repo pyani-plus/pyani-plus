@@ -89,6 +89,17 @@ class Genome(Base):
     length = Column(Integer)  # total length of all the sequences
     description = Column(String)
 
+    query_comparisons = relationship(
+        "Comparison",
+        back_populates="query",
+        primaryjoin="Genome.genome_hash == Comparison.query_hash",
+    )
+    subject_comparisons = relationship(
+        "Comparison",
+        back_populates="subject",
+        primaryjoin="Genome.genome_hash == Comparison.subject_hash",
+    )
+
     def __repr__(self) -> str:
         """Return string representation of Genome table object."""
         return (

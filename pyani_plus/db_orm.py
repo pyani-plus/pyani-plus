@@ -43,7 +43,15 @@ Python objects.
 
 from pathlib import Path
 
-from sqlalchemy import Column, Integer, String, create_engine
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Float,
+    Integer,
+    String,
+    UniqueConstraint,
+    create_engine,
+)
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 
@@ -85,6 +93,61 @@ class Genome(Base):
         return (
             f"Genome(genome_hash={self.genome_hash!r}, path={self.path!r},"
             f" length={self.length}, description={self.description!r})"
+        )
+
+
+class Configuration(Base):
+    """Describes the configuration of a pyANI-plus run.
+
+    Each run is a set of all-vs-all comparisons between a set of FASTA
+    files (genome table rows), for a specific ANI algorithm or method,
+    recorded as a set of comparison table rows.
+
+    Each Run entry represents a specific instance of an analysis run which
+    records details like the exact command line, and when it was run. It will
+    point to a single Configuration entry (this class) which records the tool
+    name, version, and parameters like k-mer size (some parameters are tool
+    specific).
+
+    Comparison entries are cached for unique combinations of the query and
+    subject genomes (via the hash of their file contents, not via filenames),
+    AND the run configuration.
+    """
+
+    __tablename__ = "configuration"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "method",
+            "program",
+            "version",
+            "fragsize",
+            "maxmatch",
+            "kmersize",
+            "minmatch",
+        ),
+    )
+
+    configuration_id = Column(Integer, primary_key=True)
+
+    # This was part of the Run table in pyANI v0.2
+    method = Column(String)
+    # These were all part of the Comparison table in pyANI v0.2, which had
+    # them as part of the uniqueness constraint.
+    program = Column(String)
+    version = Column(String)
+    fragsize = Column(Integer)  # in fastANI this is fragLength
+    maxmatch = Column(Boolean)  # in fastANi this is Null
+    kmersize = Column(Integer)
+    minmatch = Column(Float)
+
+    def __repr__(self) -> str:
+        """Return string representation of Genome table object."""
+        return (
+            f"Configuration(configuration_id={self.configuration_id},"
+            f" program={self.program!r}, version={self.version!r},"
+            f" fragsize={self.fragsize}, maxmatch={self.maxmatch},"
+            f" kmersize={self.kmersize}, minmatch={self.maxmatch})"
         )
 
 

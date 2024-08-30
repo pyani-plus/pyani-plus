@@ -215,7 +215,7 @@ class Comparison(Base):
         """Return string summarising the Comparison table row."""
         return (
             f"Query: {self.query_hash}, Subject: {self.subject_hash}, "
-            f"%%ID={self.identity}, ({self.configuration.program} {self.configuration.version}), "
+            f"%ID={self.identity}, ({self.configuration.program} {self.configuration.version}), "
             f"FragSize: {self.configuration.fragsize}, MaxMatch: {self.configuration.maxmatch}, "
             f"KmerSize: {self.configuration.kmersize}, MinMatch: {self.configuration.minmatch}"
         )

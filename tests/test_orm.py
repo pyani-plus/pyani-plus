@@ -104,7 +104,6 @@ def test_make_and_populate_new_db(tmp_path: str) -> None:
             f" length={len(seq)}, description='Example {name}')"
         )
         session.add(genome)
-    session.commit()
     assert len(config.comparisons) == 0
     assert session.query(db_orm.Genome).count() == len(NAMES)
 
@@ -121,18 +120,24 @@ def test_make_and_populate_new_db(tmp_path: str) -> None:
             )
             assert comparison.configuration_id == config.configuration_id
             assert repr(comparison) == (
-                f"Comparison(comparison_id=None,"
+                "Comparison(comparison_id=None,"
                 f" query_hash={query!r}, subject_hash={subject!r},"
                 f" configuration_id={config.configuration_id},"
                 f" identity=0.96, aln_length={DUMMY_ALIGN_LEN}, sim_errs=None,"
                 " cov_query=None, cov_subject=None)"
             )
+            # Can't test __str__ yet as .configuration not yet live?
             session.add(comparison)
     session.commit()
     assert session.query(db_orm.Comparison).count() == len(NAMES) ** 2
     assert len(config.comparisons) == len(NAMES) ** 2
     for comparison in config.comparisons:
         assert comparison.aln_length == DUMMY_ALIGN_LEN
+        assert str(comparison) == (
+            f"Query: {comparison.query_hash}, Subject: {comparison.subject_hash},"
+            " %ID=0.96, (guestimate v0.1.2beta3), "
+            "FragSize: 17, MaxMatch: None, KmerSize: 17, MinMatch: None"
+        )
 
         # Check the configuration object attribute:
         assert comparison.configuration is config  # matches the object!

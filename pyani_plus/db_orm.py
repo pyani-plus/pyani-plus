@@ -44,16 +44,18 @@ Python objects.
 from pathlib import Path
 
 from sqlalchemy import (
-    Boolean,
-    Column,
-    Float,
     ForeignKey,
-    Integer,
-    String,
     UniqueConstraint,
     create_engine,
 )
-from sqlalchemy.orm import DeclarativeBase, Session, relationship, sessionmaker
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    Session,
+    mapped_column,
+    relationship,
+    sessionmaker,
+)
 
 
 class Base(DeclarativeBase):
@@ -84,17 +86,17 @@ class Genome(Base):
 
     __tablename__ = "genomes"
 
-    genome_hash = Column(String, primary_key=True)
-    path = Column(String)
-    length = Column(Integer)  # total length of all the sequences
-    description = Column(String)
+    genome_hash: Mapped[str] = mapped_column(primary_key=True)
+    path: Mapped[str] = mapped_column()
+    length: Mapped[int] = mapped_column()  # total length of all the sequences
+    description: Mapped[str] = mapped_column()
 
-    query_comparisons = relationship(
+    query_comparisons: Mapped[list["Comparison"]] = relationship(
         "Comparison",
         back_populates="query",
         primaryjoin="Genome.genome_hash == Comparison.query_hash",
     )
-    subject_comparisons = relationship(
+    subject_comparisons: Mapped[list["Comparison"]] = relationship(
         "Comparison",
         back_populates="subject",
         primaryjoin="Genome.genome_hash == Comparison.subject_hash",
@@ -140,19 +142,21 @@ class Configuration(Base):
         ),
     )
 
-    configuration_id = Column(Integer, primary_key=True)
-    comparisons = relationship("Comparison", back_populates="configuration")
+    configuration_id: Mapped[int] = mapped_column(primary_key=True)
+    comparisons: Mapped[list["Comparison"]] = relationship(
+        "Comparison", back_populates="configuration"
+    )
 
     # This was part of the Run table in pyANI v0.2
-    method = Column(String)
+    method: Mapped[str] = mapped_column()
     # These were all part of the Comparison table in pyANI v0.2, which had
     # them as part of the uniqueness constraint.
-    program = Column(String)
-    version = Column(String)
-    fragsize = Column(Integer)  # in fastANI this is fragLength
-    maxmatch = Column(Boolean)  # in fastANi this is Null
-    kmersize = Column(Integer)
-    minmatch = Column(Float)
+    program: Mapped[str] = mapped_column()
+    version: Mapped[str] = mapped_column()
+    fragsize: Mapped[int | None] = mapped_column()  # in fastANI this is fragLength
+    maxmatch: Mapped[bool | None] = mapped_column()  # in fastANi this is Null
+    kmersize: Mapped[int | None] = mapped_column()
+    minmatch: Mapped[float | None] = mapped_column()
 
     def __repr__(self) -> str:
         """Return string representation of Genome table object."""
@@ -176,26 +180,36 @@ class Comparison(Base):
         ),
     )
 
-    comparison_id = Column(Integer, primary_key=True)
+    comparison_id: Mapped[int] = mapped_column(primary_key=True)
 
     # See https://docs.sqlalchemy.org/en/20/orm/basic_relationships.html
-    query_hash = Column(String, ForeignKey("genomes.genome_hash"), nullable=False)
-    query = relationship(Genome, foreign_keys=[query_hash])
-
-    subject_hash = Column(String, ForeignKey("genomes.genome_hash"), nullable=False)
-    subject = relationship(Genome, foreign_keys=[subject_hash])
-
-    configuration_id = Column(
-        Integer, ForeignKey("configuration.configuration_id"), nullable=False
+    query_hash: Mapped[str] = mapped_column(
+        ForeignKey("genomes.genome_hash"), nullable=False
     )
-    configuration = relationship(Configuration, foreign_keys=[configuration_id])
+    query: Mapped[Genome] = relationship(Genome, foreign_keys=[query_hash])
+
+    subject_hash: Mapped[str] = mapped_column(
+        ForeignKey("genomes.genome_hash"), nullable=False
+    )
+    subject: Mapped[Genome] = relationship(Genome, foreign_keys=[subject_hash])
+
+    configuration_id: Mapped[int] = mapped_column(
+        ForeignKey("configuration.configuration_id"), nullable=False
+    )
+    configuration: Mapped[Configuration] = relationship(
+        Configuration, foreign_keys=[configuration_id]
+    )
 
     # The results of the comparison
-    identity = Column(Float)
-    aln_length = Column(Integer)  # in fastANI this is matchedfrags * fragLength
-    sim_errs = Column(Integer)  # in fastANI this is allfrags - matchedfrags
-    cov_query = Column(Float)  # in fastANI this is matchedfrags/allfrags
-    cov_subject = Column(Float)  # in fastANI this is Null
+    identity: Mapped[float] = mapped_column()
+    # in fastANI this is matchedfrags * fragLength:
+    aln_length: Mapped[int] = mapped_column()
+    # in fastANI this is allfrags - matchedfrags
+    sim_errs: Mapped[int | None] = mapped_column()
+    # in fastANI this is matchedfrags/allfrags
+    cov_query: Mapped[float | None] = mapped_column()
+    # in fastANI this is Null
+    cov_subject: Mapped[float | None] = mapped_column()
 
     def __str__(self) -> str:
         """Return string summarising the Comparison table row."""

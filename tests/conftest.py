@@ -1,18 +1,3 @@
-# Copyright (c) 2024-present University of Strathclyde
-# Author: Leighton Pritchard
-#
-# Contact:
-# leighton.pritchard@strath.ac.uk
-#
-# Leighton Pritchard,
-# Strathclyde Institute of Pharmaceutical and Biomedical Sciences
-# The University of Strathclyde
-# 161 Cathedral Street
-# Glasgow
-# G4 0RE
-# Scotland,
-# UK
-#
 # The MIT License
 #
 # Copyright (c) 2024-present University of Strathclyde

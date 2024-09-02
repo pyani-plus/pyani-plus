@@ -1,21 +1,6 @@
-# (c) The University of Strathclyde 2024-present
-# Author: Peter Cock
-#
-# Contact:
-# peter.cock@strath.ac.uk
-#
-# Peter Cock,
-# Strathclyde Institute of Pharmaceutical and Biomedical Sciences
-# The University of Strathclyde
-# 161 Cathedral Street
-# Glasgow
-# G4 0RE
-# Scotland,
-# UK
-#
 # The MIT License
 #
-# (c) The University of Strathclyde 2024-present
+# Copyright (c) 2024 University of Strathclyde
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal

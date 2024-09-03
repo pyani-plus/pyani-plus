@@ -182,7 +182,7 @@ def test_make_and_populate_comparisons(tmp_path: str) -> None:
 
 
 def test_make_and_populate_runs(tmp_path: str) -> None:
-    """Populate new DB with configs, and runs."""
+    """Populate new DB with config and runs."""
     tmp_db = Path(tmp_path) / "runs.sqlite"
     assert not tmp_db.is_file()
 
@@ -247,6 +247,11 @@ def test_make_and_populate_runs(tmp_path: str) -> None:
     assert run_two.run_id == 2  # noqa: PLR2004
 
     assert run_one.configuration is run_two.configuration
+    # Now check can access all the runs from a configuration object
+    runs = list(config.runs)
+    assert len(runs) == 2  # noqa: PLR2004
+    assert runs[0] is run_one
+    assert runs[1] is run_two
 
     del session
     assert tmp_db.is_file()

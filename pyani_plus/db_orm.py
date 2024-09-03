@@ -145,7 +145,15 @@ class Configuration(Base):
 
     configuration_id: Mapped[int] = mapped_column(primary_key=True)
     comparisons: Mapped[list["Comparison"]] = relationship(
-        "Comparison", back_populates="configuration"
+        "Comparison",
+        back_populates="configuration",
+        primaryjoin="Configuration.configuration_id == Comparison.configuration_id",
+    )
+    runs: Mapped[list["Run"]] = relationship(
+        "Run",
+        back_populates="configuration",
+        primaryjoin="Configuration.configuration_id == Run.configuration_id",
+        lazy="dynamic",
     )
 
     # These are system properties which may affect the results

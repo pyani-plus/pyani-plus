@@ -26,6 +26,7 @@ These tests are intended to be run from the repository root using:
 pytest -v
 """
 
+import datetime
 import hashlib
 import platform
 from pathlib import Path
@@ -45,8 +46,8 @@ def test_make_new_db(tmp_path: str) -> None:
     tmp_db.unlink()
 
 
-def test_make_and_populate_new_db(tmp_path: str) -> None:
-    """Confirm can create a new empty database, add genomes, close, and reopen."""
+def test_make_and_populate_comparisons(tmp_path: str) -> None:
+    """Populate new DB with config, genomes, and comparisons."""
     DUMMY_ALIGN_LEN = 400  # noqa: N806
     NAMES = ("Alpha", "Beta", "Gamma")  # noqa: N806
     tmp_db = Path(tmp_path) / "genomes.sqlite"
@@ -61,7 +62,7 @@ def test_make_and_populate_new_db(tmp_path: str) -> None:
         system=uname.system,  # Operating system
         program="guestimate",
         version="v0.1.2beta3",
-        fragsize=17,
+        fragsize=100,
         kmersize=17,
     )
     # Test the __repr__
@@ -69,7 +70,7 @@ def test_make_and_populate_new_db(tmp_path: str) -> None:
         "Configuration(configuration_id=None,"
         f" machine={uname.machine!r}, system={uname.system!r},"
         " program='guestimate', version='v0.1.2beta3',"
-        " fragsize=17, maxmatch=None, kmersize=17, minmatch=None)"
+        " fragsize=100, maxmatch=None, kmersize=17, minmatch=None)"
     )
     session.add(config)
     assert config.configuration_id is None
@@ -126,7 +127,7 @@ def test_make_and_populate_new_db(tmp_path: str) -> None:
         assert str(comparison) == (
             f"Query: {comparison.query_hash}, Subject: {comparison.subject_hash},"
             " %ID=0.96, (guestimate v0.1.2beta3), "
-            "FragSize: 17, MaxMatch: None, KmerSize: 17, MinMatch: None"
+            "FragSize: 100, MaxMatch: None, KmerSize: 17, MinMatch: None"
         )
 
         # Check the configuration object attribute:
@@ -160,5 +161,83 @@ def test_make_and_populate_new_db(tmp_path: str) -> None:
         assert new_session.query(db_orm.Configuration).count() == 1
         assert new_session.query(db_orm.Genome).count() == len(NAMES)
         assert new_session.query(db_orm.Comparison).count() == len(NAMES) ** 2
+        assert new_session.query(db_orm.Run).count() == 0
 
+    tmp_db.unlink()
+
+
+def test_make_and_populate_runs(tmp_path: str) -> None:
+    """Populate new DB with configs, and runs."""
+    tmp_db = Path(tmp_path) / "runs.sqlite"
+    assert not tmp_db.is_file()
+
+    session = db_orm.connect_to_db(tmp_db)
+
+    uname = platform.uname()
+    config = db_orm.Configuration(
+        method="guessing",
+        machine=uname.machine,  # CPU arch
+        system=uname.system,  # Operating system
+        program="guestimate",
+        version="v0.1.2beta3",
+        fragsize=1000,
+        kmersize=31,
+    )
+    # Test the __repr__
+    assert repr(config) == (
+        "Configuration(configuration_id=None,"
+        f" machine={uname.machine!r}, system={uname.system!r},"
+        " program='guestimate', version='v0.1.2beta3',"
+        " fragsize=1000, maxmatch=None, kmersize=31, minmatch=None)"
+    )
+    session.add(config)
+    assert config.configuration_id is None
+    session.commit()
+    assert config.configuration_id == 1
+
+    run_one = db_orm.Run(
+        configuration_id=config.configuration_id,
+        name="Test One",
+        cmdline="pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite",
+        date=datetime.date(2024, 9, 3),
+        status="Pending",
+    )
+    assert repr(run_one) == (
+        "Run(run_id=None, configuration_id=1,"
+        " cmdline='pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite',"
+        " date=datetime.date(2024, 9, 3), status='Pending',"
+        " name='Test One', ...)"
+    )
+    session.add(run_one)
+    assert run_one.run_id is None
+    session.commit()
+    assert run_one.run_id == 1
+
+    run_two = db_orm.Run(
+        configuration_id=config.configuration_id,
+        name="Test Two",
+        cmdline="pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite",
+        date=datetime.date(2024, 9, 4),
+        status="Pending",
+    )
+    assert repr(run_two) == (
+        "Run(run_id=None, configuration_id=1,"
+        " cmdline='pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite',"
+        " date=datetime.date(2024, 9, 4), status='Pending',"
+        " name='Test Two', ...)"
+    )
+    session.add(run_two)
+    assert run_two.run_id is None
+    session.commit()
+    assert run_two.run_id == 2  # noqa: PLR2004
+
+    assert run_one.configuration is run_two.configuration
+
+    del session
+    assert tmp_db.is_file()
+    with db_orm.connect_to_db(tmp_db) as new_session:
+        assert new_session.query(db_orm.Configuration).count() == 1
+        assert new_session.query(db_orm.Genome).count() == 0
+        assert new_session.query(db_orm.Comparison).count() == 0
+        assert new_session.query(db_orm.Run).count() == 2  # noqa: PLR2004
     tmp_db.unlink()

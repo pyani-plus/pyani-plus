@@ -147,6 +147,15 @@ class Configuration(Base):
         "Comparison", back_populates="configuration"
     )
 
+    # These are system properties which may affect the results
+    # (most likely in fine details of floating point computations)
+    machine: Mapped[str] = (
+        mapped_column()
+    )  # e.g. "arm64" from `uname -m` or platform.uname().machine
+    system: Mapped[str] = (
+        mapped_column()
+    )  # e.g. "Darwin" from `uname -s` or platform.uname().system
+
     # This was part of the Run table in pyANI v0.2
     method: Mapped[str] = mapped_column()
     # These were all part of the Comparison table in pyANI v0.2, which had
@@ -162,6 +171,7 @@ class Configuration(Base):
         """Return string representation of Genome table object."""
         return (
             f"Configuration(configuration_id={self.configuration_id},"
+            f" machine={self.machine!r}, system={self.system!r},"
             f" program={self.program!r}, version={self.version!r},"
             f" fragsize={self.fragsize}, maxmatch={self.maxmatch},"
             f" kmersize={self.kmersize}, minmatch={self.maxmatch})"

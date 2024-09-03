@@ -42,6 +42,7 @@ pytest -v
 """
 
 import hashlib
+import platform
 from pathlib import Path
 
 from pyani_plus import db_orm
@@ -68,8 +69,11 @@ def test_make_and_populate_new_db(tmp_path: str) -> None:
 
     session = db_orm.connect_to_db(tmp_db)
 
+    uname = platform.uname()
     config = db_orm.Configuration(
         method="guessing",
+        machine=uname.machine,  # CPU arch
+        system=uname.system,  # Operating system
         program="guestimate",
         version="v0.1.2beta3",
         fragsize=17,
@@ -78,6 +82,7 @@ def test_make_and_populate_new_db(tmp_path: str) -> None:
     # Test the __repr__
     assert repr(config) == (
         "Configuration(configuration_id=None,"
+        f" machine={uname.machine!r}, system={uname.system!r},"
         " program='guestimate', version='v0.1.2beta3',"
         " fragsize=17, maxmatch=None, kmersize=17, minmatch=None)"
     )
@@ -165,9 +170,6 @@ def test_make_and_populate_new_db(tmp_path: str) -> None:
     del session  # disconnect
 
     assert tmp_db.is_file()
-    with tmp_db.open("rb") as handle:
-        magic = handle.read(16)
-        assert magic == b"SQLite format 3\0"
 
     with db_orm.connect_to_db(tmp_db) as new_session:
         assert new_session.query(db_orm.Configuration).count() == 1

@@ -110,7 +110,7 @@ def test_make_and_populate_comparisons(tmp_path: str) -> None:
             f" length={len(seq)}, description='Example {name}')"
         )
         session.add(genome)
-    assert len(config.comparisons) == 0
+    assert len(list(config.comparisons)) == 0
     assert session.query(db_orm.Genome).count() == len(NAMES)
 
     assert config.configuration_id == 1
@@ -136,7 +136,7 @@ def test_make_and_populate_comparisons(tmp_path: str) -> None:
             session.add(comparison)
     session.commit()
     assert session.query(db_orm.Comparison).count() == len(NAMES) ** 2
-    assert len(config.comparisons) == len(NAMES) ** 2
+    assert len(list(config.comparisons)) == len(NAMES) ** 2
     for comparison in config.comparisons:
         assert comparison.aln_length == DUMMY_ALIGN_LEN
         assert str(comparison) == (

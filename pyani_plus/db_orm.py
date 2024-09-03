@@ -133,6 +133,7 @@ class Configuration(Base):
         "Comparison",
         back_populates="configuration",
         primaryjoin="Configuration.configuration_id == Comparison.configuration_id",
+        lazy="dynamic",
     )
     runs: Mapped[list["Run"]] = relationship(
         "Run",

@@ -41,6 +41,7 @@ database schema and the code to import/export the data as
 Python objects.
 """
 
+import datetime
 from pathlib import Path
 
 from sqlalchemy import (
@@ -242,6 +243,53 @@ class Comparison(Base):
             f"sim_errs={self.sim_errs}, "
             f"cov_query={self.cov_query}, "
             f"cov_subject={self.cov_subject})"
+        )
+
+
+class Run(Base):
+    """Describes a single pyANI-plus run.
+
+    Each run is a set of all-vs-all comparisons between a set of FASTA
+    files (genome table rows), for a specific ANI algorithm or method
+    (represented as a row in the configuration table),
+    recorded as a set of comparison table rows.
+
+    Thus one Run is linked to one Configuration row, many Genome rows,
+    and many Comparison rows, where each Comparison is linked to two
+    Genome rows (query and reference).
+
+    In order to generate reports and plots quickly, the Run entry also
+    caches dataframes of the information in the linked Comparison entries
+    (as JSON-encoded Pandas dataframes).
+    """
+
+    __tablename__ = "runs"
+
+    run_id: Mapped[int] = mapped_column(primary_key=True)
+
+    configuration_id: Mapped[int] = mapped_column(
+        ForeignKey("configuration.configuration_id"), nullable=False
+    )
+    configuration: Mapped[Configuration] = relationship(
+        Configuration, foreign_keys=[configuration_id]
+    )
+
+    cmdline: Mapped[str] = mapped_column()
+    date: Mapped[datetime.datetime] = mapped_column()
+    status: Mapped[str] = mapped_column()
+    name: Mapped[str] = mapped_column()
+    df_identity: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
+    df_coverage: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
+    df_alnlength: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
+    df_simerrors: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
+    df_hadamard: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
+
+    def __repr__(self) -> str:
+        """Return abridged string representation of Run table object."""
+        return (
+            f"Run(run_id={self.run_id}, configuration_id={self.configuration_id},"
+            f" cmdline={self.cmdline!r}, date={self.date!r},"
+            f" status={self.status!r}, name={self.name!r}, ...)"
         )
 
 

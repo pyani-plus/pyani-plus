@@ -30,7 +30,10 @@ import datetime
 from pathlib import Path
 
 from sqlalchemy import (
+    Column,
     ForeignKey,
+    Integer,
+    Table,
     UniqueConstraint,
     create_engine,
 )
@@ -50,6 +53,15 @@ class Base(DeclarativeBase):
     See the SQLAlchemy 2.0 documentation. This is expected to be
     compatible with type checkers like mypy.
     """
+
+
+# Linker table between genomes and runs tables
+rungenome = Table(
+    "runs_genomes",
+    Base.metadata,
+    Column("genome_hash", Integer, ForeignKey("genomes.genome_hash")),
+    Column("run_id", Integer, ForeignKey("runs.run_id")),
+)
 
 
 class Genome(Base):
@@ -86,6 +98,9 @@ class Genome(Base):
         "Comparison",
         back_populates="subject",
         primaryjoin="Genome.genome_hash == Comparison.subject_hash",
+    )
+    runs = relationship(
+        "Run", secondary=rungenome, back_populates="genomes", lazy="dynamic"
     )
 
     def __repr__(self) -> str:
@@ -277,6 +292,10 @@ class Run(Base):
     df_alnlength: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
     df_simerrors: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
     df_hadamard: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
+
+    genomes: Mapped[list[Genome]] = relationship(
+        Genome, secondary=rungenome, back_populates="runs", lazy="dynamic"
+    )
 
     def __repr__(self) -> str:
         """Return abridged string representation of Run table object."""

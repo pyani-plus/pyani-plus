@@ -307,21 +307,24 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
         genome.runs.append(run)  # setup the link to the runs table
         session.add(genome)
 
-    comparison = db_orm.Comparison(
-        configuration_id=config.configuration_id,
-        query_hash=hashes[0],
-        subject_hash=hashes[1],
-        identity=0.96,
-        aln_length=4975,
-    )
-    assert repr(comparison) == (
-        "Comparison(comparison_id=None,"
-        f" query_hash={hashes[0]!r}, subject_hash={hashes[1]!r},"
-        f" configuration_id={config.configuration_id},"
-        " identity=0.96, aln_length=4975, sim_errs=None,"
-        " cov_query=None, cov_subject=None)"
-    )
-    session.add(comparison)
+    for a in hashes:
+        for b in hashes:
+            comparison = db_orm.Comparison(
+                configuration_id=config.configuration_id,
+                query_hash=a,
+                subject_hash=b,
+                identity=0.99 if a == b else 0.96,
+                aln_length=4996 if a == b else 4975,
+            )
+            assert repr(comparison) == (
+                "Comparison(comparison_id=None,"
+                f" query_hash={a!r}, subject_hash={b!r},"
+                f" configuration_id={config.configuration_id},"
+                f" identity={0.99 if a==b else 0.96},"
+                f" aln_length={4996 if a==b else 4975},"
+                " sim_errs=None, cov_query=None, cov_subject=None)"
+            )
+            session.add(comparison)
     session.commit()
 
     del session, config, run, genome, comparison
@@ -331,15 +334,15 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
         config = new_session.query(db_orm.Configuration).one()
         assert new_session.query(db_orm.Genome).count() == 2  # noqa: PLR2004
         genomes = list(new_session.query(db_orm.Genome))
-        assert new_session.query(db_orm.Comparison).count() == 1
-        comparison = new_session.query(db_orm.Comparison).one()
+        assert new_session.query(db_orm.Comparison).count() == 2**2
         assert new_session.query(db_orm.Run).count() == 1
         run = new_session.query(db_orm.Run).one()
         assert run.configuration is config
-        assert comparison.configuration is config
         assert list(run.genomes) == genomes
         for genome in genomes:
             assert list(genome.runs) == [run]
-        assert comparison.query is genomes[0]
-        assert comparison.subject is genomes[1]
+        for comparison in new_session.query(db_orm.Comparison):
+            assert comparison.configuration is config
+            assert comparison.query in genomes
+            assert comparison.subject in genomes
     tmp_db.unlink()

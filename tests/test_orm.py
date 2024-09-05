@@ -251,7 +251,7 @@ def test_make_and_populate_runs(tmp_path: str) -> None:
 
 
 def test_make_and_populate_mock_example(tmp_path: str) -> None:
-    """Populate new DB with config, run, genomes and comparisons."""
+    """Populate new DB with config, runs, genomes and comparisons."""
     tmp_db = Path(tmp_path) / "mock.sqlite"
     assert not tmp_db.is_file()
 
@@ -276,6 +276,21 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
 
     run = db_orm.Run(
         configuration_id=config.configuration_id,
+        name="Empty",
+        cmdline="pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite",
+        date=datetime.date(2023, 12, 25),
+        status="Aborted",
+    )
+    assert repr(run) == (
+        "Run(run_id=None, configuration_id=1,"
+        " cmdline='pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite',"
+        " date=datetime.date(2023, 12, 25), status='Aborted',"
+        " name='Empty', ...)"
+    )
+    session.add(run)
+
+    run = db_orm.Run(
+        configuration_id=config.configuration_id,
         name="Test Run",
         cmdline="pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite",
         date=datetime.date(2023, 12, 25),
@@ -291,10 +306,11 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
     session.commit()
 
     hashes = []
-    for name in ("Genome A", "Genome C"):
+    # Going to record 4 genomes, and all 4x4=16 comparisons
+    # However, only going to link 2 genomes to the run (so 4 comparisons)
+    for name in ("Genome A", "Genome C", "Genome G", "Genome T"):
         seq = (name[-1] + "ACGT") * 1000
-        fasta = f">{name}\n{seq}\n"
-        md5 = hashlib.md5(fasta.encode("ascii")).hexdigest()  # noqa: S324
+        md5 = hashlib.md5(f">{name}\n{seq}\n".encode("ascii")).hexdigest()  # noqa: S324
         hashes.append(md5)
         genome = db_orm.Genome(
             genome_hash=md5,
@@ -306,7 +322,8 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
             f"Genome(genome_hash={md5!r}, path='../my-genomes/{name}.fasta',"
             f" length={len(seq)}, description='{name}')"
         )
-        genome.runs.append(run)  # setup the link to the runs table
+        if name[-1] in ("A", "T"):
+            genome.runs.append(run)  # setup the link to the runs table
         session.add(genome)
 
     for a in hashes:
@@ -336,15 +353,13 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
     with db_orm.connect_to_db(tmp_db) as new_session:
         assert new_session.query(db_orm.Configuration).count() == 1
         config = new_session.query(db_orm.Configuration).one()
-        assert new_session.query(db_orm.Genome).count() == 2  # noqa: PLR2004
+        assert new_session.query(db_orm.Genome).count() == 4  # noqa: PLR2004
         genomes = set(new_session.query(db_orm.Genome))
-        assert new_session.query(db_orm.Comparison).count() == 2**2
-        assert new_session.query(db_orm.Run).count() == 1
-        run = new_session.query(db_orm.Run).one()
+        assert new_session.query(db_orm.Comparison).count() == 4 * 4
+        assert new_session.query(db_orm.Run).count() == 2  # noqa: PLR2004
+        run = new_session.query(db_orm.Run).where(db_orm.Run.status == "Complete").one()
         assert run.configuration is config
-        assert set(run.genomes) == genomes  # order seemed to be stochastic
-        for genome in genomes:
-            assert list(genome.runs) == [run]
+        assert set(run.genomes).issubset(genomes)  # order seemed to be stochastic
         for comparison in new_session.query(db_orm.Comparison):
             assert comparison.configuration is config
             assert comparison.query in genomes
@@ -369,13 +384,13 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
             new_session.query(db_orm.Comparison)
             .join(run_query, db_orm.Comparison.query_hash == run_query.genome_hash)
             .join(run_subjt, db_orm.Comparison.subject_hash == run_subjt.genome_hash)
-            .where(run_query.run_id == 1)
-            .where(run_subjt.run_id == 1)
+            .where(run_query.run_id == run.run_id)
+            .where(run_subjt.run_id == run.run_id)
         )
         # Using session with echo=True could confirm the SQL matches my goal:
         # SELECT ... FROM comparisons
         # JOIN runs_genomes AS run_query ON comparisons.query_hash = run_query.genome_hash
         # JOIN runs_genomes AS run_subject ON comparisons.subject_hash = run_subject.genome_hash
         # WHERE run_query.run_id = ? AND run_subject.run_id = ?
-        assert len(run_comps) == 2 * 2
+        assert len(run_comps) == 2 * 2  # only 4, not all 16
     tmp_db.unlink()

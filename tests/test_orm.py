@@ -31,6 +31,8 @@ import hashlib
 import platform
 from pathlib import Path
 
+from sqlalchemy.orm import aliased
+
 from pyani_plus import db_orm
 
 
@@ -327,22 +329,53 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
             session.add(comparison)
     session.commit()
 
+    # For debug testing with sqlite3: import shutil; shutil.copy(tmp_db, "demo.sqlite")
+
     del session, config, run, genome, comparison
     assert tmp_db.is_file()
     with db_orm.connect_to_db(tmp_db) as new_session:
         assert new_session.query(db_orm.Configuration).count() == 1
         config = new_session.query(db_orm.Configuration).one()
         assert new_session.query(db_orm.Genome).count() == 2  # noqa: PLR2004
-        genomes = list(new_session.query(db_orm.Genome))
+        genomes = set(new_session.query(db_orm.Genome))
         assert new_session.query(db_orm.Comparison).count() == 2**2
         assert new_session.query(db_orm.Run).count() == 1
         run = new_session.query(db_orm.Run).one()
         assert run.configuration is config
-        assert list(run.genomes) == genomes
+        assert set(run.genomes) == genomes  # order seemed to be stochastic
         for genome in genomes:
             assert list(genome.runs) == [run]
         for comparison in new_session.query(db_orm.Comparison):
             assert comparison.configuration is config
             assert comparison.query in genomes
             assert comparison.subject in genomes
+        # explicitly get the comparisons from the run, want to run this query:
+        #
+        # $ sqlite3 demo.sqlite "SELECT * FROM comparisons
+        # JOIN runs_genomes AS runs_query ON comparisons.query_hash=runs_query.genome_hash
+        # JOIN runs_genomes as runs_subject ON comparisons.subject_hash=runs_subject.genome_hash
+        # WHERE runs_query.run_id=1 AND runs_subject.run_id=1;"
+        #
+        # This works using aliased(db_orm.RunGenomeAssociation) which
+        # is a class-based definition of the linker table, but failed
+        # when it was just aliased(rungenome) defined using
+        # Table("runs_genomes", Base.metadata, ...) giving:
+        # AttributeError: 'Alias' object has no attribute 'genome_hash'
+        run_query = aliased(db_orm.RunGenomeAssociation, name="run_query")
+        assert hasattr(run_query, "genome_hash")
+        run_subjt = aliased(db_orm.RunGenomeAssociation, name="run_subject")
+        assert hasattr(run_subjt, "genome_hash")
+        run_comps = list(
+            new_session.query(db_orm.Comparison)
+            .join(run_query, db_orm.Comparison.query_hash == run_query.genome_hash)
+            .join(run_subjt, db_orm.Comparison.subject_hash == run_subjt.genome_hash)
+            .where(run_query.run_id == 1)
+            .where(run_subjt.run_id == 1)
+        )
+        # Using session with echo=True could confirm the SQL matches my goal:
+        # SELECT ... FROM comparisons
+        # JOIN runs_genomes AS run_query ON comparisons.query_hash = run_query.genome_hash
+        # JOIN runs_genomes AS run_subject ON comparisons.subject_hash = run_subject.genome_hash
+        # WHERE run_query.run_id = ? AND run_subject.run_id = ?
+        assert len(run_comps) == 2 * 2
     tmp_db.unlink()

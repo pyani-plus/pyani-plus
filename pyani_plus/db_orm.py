@@ -30,10 +30,7 @@ import datetime
 from pathlib import Path
 
 from sqlalchemy import (
-    Column,
     ForeignKey,
-    Integer,
-    Table,
     UniqueConstraint,
     create_engine,
 )
@@ -55,13 +52,14 @@ class Base(DeclarativeBase):
     """
 
 
-# Linker table between genomes and runs tables
-rungenome = Table(
-    "runs_genomes",
-    Base.metadata,
-    Column("genome_hash", Integer, ForeignKey("genomes.genome_hash")),
-    Column("run_id", Integer, ForeignKey("runs.run_id")),
-)
+class RunGenomeAssociation(Base):
+    """Linker table between genomes and runs tables."""
+
+    __tablename__ = "runs_genomes"
+    genome_hash: Mapped[str] = mapped_column(
+        ForeignKey("genomes.genome_hash"), primary_key=True
+    )
+    run_id: Mapped[int] = mapped_column(ForeignKey("runs.run_id"), primary_key=True)
 
 
 class Genome(Base):
@@ -100,7 +98,7 @@ class Genome(Base):
         primaryjoin="Genome.genome_hash == Comparison.subject_hash",
     )
     runs = relationship(
-        "Run", secondary=rungenome, back_populates="genomes", lazy="dynamic"
+        "Run", secondary="runs_genomes", back_populates="genomes", lazy="dynamic"
     )
 
     def __repr__(self) -> str:
@@ -294,7 +292,7 @@ class Run(Base):
     df_hadamard: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
 
     genomes: Mapped[list[Genome]] = relationship(
-        Genome, secondary=rungenome, back_populates="runs", lazy="dynamic"
+        Genome, secondary="runs_genomes", back_populates="runs", lazy="dynamic"
     )
 
     def __repr__(self) -> str:

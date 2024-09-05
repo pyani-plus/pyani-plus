@@ -53,7 +53,9 @@ from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
     Session,
+    aliased,
     mapped_column,
+    object_session,
     relationship,
     sessionmaker,
 )
@@ -309,6 +311,45 @@ class Run(Base):
     genomes: Mapped[list[Genome]] = relationship(
         Genome, secondary="runs_genomes", back_populates="runs", lazy="dynamic"
     )
+
+    def comparisons(self) -> Mapped[list[Comparison]]:
+        """Find all the comparison rows for this run.
+
+        Runs a complex double join for the query and subject genomes
+        of a comparison via the runs_genomes association table (using
+        two aliases)::
+
+            SELECT ... FROM comparisons
+            JOIN runs_genomes AS run_query
+            ON comparisons.query_hash = run_query.genome_hash
+            JOIN runs_genomes AS run_subject
+            ON comparisons.subject_hash = run_subject.genome_hash
+            WHERE run_query.run_id = ? AND run_subject.run_id = ?
+
+        This method is used internally as part of populating the cached
+        identities, alignment lengths, etc for the run.
+        """
+        # See https://docs.sqlalchemy.org/en/20/orm/mapped_sql_expr.html
+        # I couldn't work out how to do this with column_property etc.
+        # It works as a simple property, but as an expensive search seems
+        # clearer to define this as a class method instead.
+
+        # This works using aliased(db_orm.RunGenomeAssociation) which
+        # is a class-based definition of the linker table, but failed
+        # when it was just aliased(rungenome) defined using
+        # Table("runs_genomes", Base.metadata, ...) giving:
+        # AttributeError: 'Alias' object has no attribute 'genome_hash'
+        run_query = aliased(RunGenomeAssociation, name="run_query")
+        run_subjt = aliased(RunGenomeAssociation, name="run_subject")
+
+        return (
+            object_session(self)
+            .query(Comparison)
+            .join(run_query, Comparison.query_hash == run_query.genome_hash)
+            .join(run_subjt, Comparison.subject_hash == run_subjt.genome_hash)
+            .where(run_query.run_id == self.run_id)
+            .where(run_subjt.run_id == self.run_id)
+        )
 
     def __repr__(self) -> str:
         """Return abridged string representation of Run table object."""

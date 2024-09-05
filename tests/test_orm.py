@@ -46,8 +46,6 @@ import hashlib
 import platform
 from pathlib import Path
 
-from sqlalchemy.orm import aliased
-
 from pyani_plus import db_orm
 
 
@@ -379,33 +377,15 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
             assert comparison.configuration is config
             assert comparison.query in genomes
             assert comparison.subject in genomes
-        # explicitly get the comparisons from the run, want to run this query:
+        # Confirm we can pull out only the comparisons belonging to a run:
+        run_comps = list(run.comparisons())
+        assert len(run_comps) == 2 * 2  # only 4, not all 16
         #
-        # $ sqlite3 demo.sqlite "SELECT * FROM comparisons
-        # JOIN runs_genomes AS runs_query ON comparisons.query_hash=runs_query.genome_hash
-        # JOIN runs_genomes as runs_subject ON comparisons.subject_hash=runs_subject.genome_hash
-        # WHERE runs_query.run_id=1 AND runs_subject.run_id=1;"
+        # Using session with echo=True (and making the test fail to see the output),
+        # could confirm the SQL matches my goal:
         #
-        # This works using aliased(db_orm.RunGenomeAssociation) which
-        # is a class-based definition of the linker table, but failed
-        # when it was just aliased(rungenome) defined using
-        # Table("runs_genomes", Base.metadata, ...) giving:
-        # AttributeError: 'Alias' object has no attribute 'genome_hash'
-        run_query = aliased(db_orm.RunGenomeAssociation, name="run_query")
-        assert hasattr(run_query, "genome_hash")
-        run_subjt = aliased(db_orm.RunGenomeAssociation, name="run_subject")
-        assert hasattr(run_subjt, "genome_hash")
-        run_comps = list(
-            new_session.query(db_orm.Comparison)
-            .join(run_query, db_orm.Comparison.query_hash == run_query.genome_hash)
-            .join(run_subjt, db_orm.Comparison.subject_hash == run_subjt.genome_hash)
-            .where(run_query.run_id == run.run_id)
-            .where(run_subjt.run_id == run.run_id)
-        )
-        # Using session with echo=True could confirm the SQL matches my goal:
         # SELECT ... FROM comparisons
         # JOIN runs_genomes AS run_query ON comparisons.query_hash = run_query.genome_hash
         # JOIN runs_genomes AS run_subject ON comparisons.subject_hash = run_subject.genome_hash
         # WHERE run_query.run_id = ? AND run_subject.run_id = ?
-        assert len(run_comps) == 2 * 2  # only 4, not all 16
     tmp_db.unlink()

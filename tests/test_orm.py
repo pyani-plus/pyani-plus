@@ -46,6 +46,9 @@ import hashlib
 import platform
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
+
 from pyani_plus import db_orm
 
 
@@ -129,7 +132,7 @@ def test_make_and_populate_comparisons(tmp_path: str) -> None:
                 "Comparison(comparison_id=None,"
                 f" query_hash={query!r}, subject_hash={subject!r},"
                 f" configuration_id={config.configuration_id},"
-                f" identity=0.96, aln_length={DUMMY_ALIGN_LEN}, sim_errs=None,"
+                f" identity=0.96, aln_length={DUMMY_ALIGN_LEN}, sim_errors=None,"
                 f" cov_query=None, cov_subject=None, uname_system={uname.system!r},"
                 f" uname_release={uname.release!r}, uname_machine={uname.machine!r})"
             )
@@ -311,7 +314,6 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
         " name='Test Run', ...)"
     )
     session.add(run)
-    session.commit()
 
     hashes = []
     # Going to record 4 genomes, and all 4x4=16 comparisons
@@ -352,23 +354,93 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
                 f" configuration_id={config.configuration_id},"
                 f" identity={0.99 if a==b else 0.96},"
                 f" aln_length={4996 if a==b else 4975},"
-                " sim_errs=None, cov_query=None, cov_subject=None,"
+                " sim_errors=None, cov_query=None, cov_subject=None,"
                 " uname_system='Darwin', uname_release='21.6.0', uname_machine='arm64')"
             )
             session.add(comparison)
+
+    assert run.identities is None  # has not been collated yet
+    run.cache_comparisons()
+    assert run.identities is not None
+
+    # The run has only 2 genomes in it by construction
+    assert run.identities.equals(
+        pd.DataFrame(
+            data=np.array([[0.99, 0.96], [0.96, 0.99]], float),
+            index=[
+                "0ac5f24c37ea8ef2d0e37fbfa61e2a43",
+                "4bce437e7bdd91e35d18bfe294dee207",
+            ],
+            columns=[
+                "0ac5f24c37ea8ef2d0e37fbfa61e2a43",
+                "4bce437e7bdd91e35d18bfe294dee207",
+            ],
+        )
+    )
+    assert run.cov_query.equals(
+        pd.DataFrame(
+            data=np.array([[np.nan, np.nan], [np.nan, np.nan]], float),
+            index=[
+                "0ac5f24c37ea8ef2d0e37fbfa61e2a43",
+                "4bce437e7bdd91e35d18bfe294dee207",
+            ],
+            columns=[
+                "0ac5f24c37ea8ef2d0e37fbfa61e2a43",
+                "4bce437e7bdd91e35d18bfe294dee207",
+            ],
+        )
+    )
+    assert run.aln_length.equals(
+        pd.DataFrame(
+            data=np.array([[4996, 4975], [4975, 4996]], int),
+            index=[
+                "0ac5f24c37ea8ef2d0e37fbfa61e2a43",
+                "4bce437e7bdd91e35d18bfe294dee207",
+            ],
+            columns=[
+                "0ac5f24c37ea8ef2d0e37fbfa61e2a43",
+                "4bce437e7bdd91e35d18bfe294dee207",
+            ],
+        )
+    )
+    assert run.sim_errors.equals(
+        pd.DataFrame(
+            data=np.array([[np.nan, np.nan], [np.nan, np.nan]], float),
+            index=[
+                "0ac5f24c37ea8ef2d0e37fbfa61e2a43",
+                "4bce437e7bdd91e35d18bfe294dee207",
+            ],
+            columns=[
+                "0ac5f24c37ea8ef2d0e37fbfa61e2a43",
+                "4bce437e7bdd91e35d18bfe294dee207",
+            ],
+        )
+    )
+    # float * nan = nan, so hadamard is all nan:
+    assert run.hadamard.equals(
+        pd.DataFrame(
+            data=np.array([[np.nan, np.nan], [np.nan, np.nan]], float),
+            index=[
+                "0ac5f24c37ea8ef2d0e37fbfa61e2a43",
+                "4bce437e7bdd91e35d18bfe294dee207",
+            ],
+            columns=[
+                "0ac5f24c37ea8ef2d0e37fbfa61e2a43",
+                "4bce437e7bdd91e35d18bfe294dee207",
+            ],
+        )
+    )
+
     session.commit()
 
     # For debug testing with sqlite3: import shutil; shutil.copy(tmp_db, "demo.sqlite")
-
     del session, config, run, genome, comparison
     assert tmp_db.is_file()
     with db_orm.connect_to_db(tmp_db) as new_session:
-        assert new_session.query(db_orm.Configuration).count() == 1
         config = new_session.query(db_orm.Configuration).one()
         assert new_session.query(db_orm.Genome).count() == 4  # noqa: PLR2004
         genomes = set(new_session.query(db_orm.Genome))
         assert new_session.query(db_orm.Comparison).count() == 4 * 4
-        assert new_session.query(db_orm.Run).count() == 2  # noqa: PLR2004
         run = new_session.query(db_orm.Run).where(db_orm.Run.status == "Complete").one()
         assert run.configuration is config
         assert set(run.genomes).issubset(genomes)  # order seemed to be stochastic
@@ -377,8 +449,7 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
             assert comparison.query in genomes
             assert comparison.subject in genomes
         # Confirm we can pull out only the comparisons belonging to a run:
-        run_comps = list(run.comparisons())
-        assert len(run_comps) == 2 * 2  # only 4, not all 16
+        assert len(list(run.comparisons())) == 2 * 2  # only 4, not all 16
         #
         # Using session with echo=True (and making the test fail to see the output),
         # could confirm the SQL matches my goal:

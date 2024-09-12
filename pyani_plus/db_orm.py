@@ -42,8 +42,11 @@ Python objects.
 """
 
 import datetime
+from io import StringIO
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
 from sqlalchemy import (
     ForeignKey,
     UniqueConstraint,
@@ -230,7 +233,7 @@ class Comparison(Base):
     # in fastANI this is matchedfrags * fragLength:
     aln_length: Mapped[int] = mapped_column()
     # in fastANI this is allfrags - matchedfrags
-    sim_errs: Mapped[int | None] = mapped_column()
+    sim_errors: Mapped[int | None] = mapped_column()
     # in fastANI this is matchedfrags/allfrags
     cov_query: Mapped[float | None] = mapped_column()
     # in fastANI this is Null
@@ -268,7 +271,7 @@ class Comparison(Base):
             f"configuration_id={self.configuration_id!r}, "
             f"identity={self.identity}, "
             f"aln_length={self.aln_length}, "
-            f"sim_errs={self.sim_errs}, "
+            f"sim_errors={self.sim_errors}, "
             f"cov_query={self.cov_query}, "
             f"cov_subject={self.cov_subject}, "
             f"uname_system={self.uname_system!r}, "
@@ -314,9 +317,9 @@ class Run(Base):
     status: Mapped[str] = mapped_column()
     name: Mapped[str] = mapped_column()
     df_identity: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
-    df_coverage: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
-    df_alnlength: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
-    df_simerrors: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
+    df_cov_query: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
+    df_aln_length: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
+    df_sim_errors: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
     df_hadamard: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
 
     genomes: Mapped[list[Genome]] = relationship(
@@ -361,6 +364,129 @@ class Run(Base):
             .where(run_query.run_id == self.run_id)
             .where(run_subjt.run_id == self.run_id)
         )
+
+    def cache_comparisons(self) -> pd.DataFrame:
+        """Collect and cache all-vs-all score matrices for the run.
+
+        If the run has N genomes, should have an N by N matrix of all the pairwise
+        comparisons, coming from N^2 entries in the comparisons table. These
+        will be fetched, converted into pandas dataframes, stored in the attributes
+        .df_identity, .df_coverage, .df_aln_length, .df_sim_errors, and .df_hadamard
+        as JSON string using the compact "split" orientation.
+
+        The caller must commit the updated Run object to the database explicitly!
+        """
+        hashes = sorted(genome.genome_hash for genome in self.genomes)
+        size = len(hashes)
+        identity = np.full([size, size], np.nan, float)
+        cov_query = np.full([size, size], np.nan, float)
+        aln_length = np.full([size, size], np.nan, float)
+        sim_errors = np.full([size, size], np.nan, float)
+        for comp in self.comparisons():
+            row = hashes.index(comp.query_hash)
+            col = hashes.index(comp.subject_hash)
+            identity[row, col] = comp.identity
+            cov_query[row, col] = comp.cov_query
+            aln_length[row, col] = comp.aln_length
+            sim_errors[row, col] = comp.sim_errors
+        self.df_identity = pd.DataFrame(
+            data=identity, index=hashes, columns=hashes, dtype=float
+        ).to_json(orient="split")
+        self.df_cov_query = pd.DataFrame(
+            data=cov_query, index=hashes, columns=hashes, dtype=float
+        ).to_json(orient="split")
+        self.df_aln_length = pd.DataFrame(
+            data=aln_length, index=hashes, columns=hashes, dtype=float
+        ).to_json(orient="split")
+        self.df_sim_errors = pd.DataFrame(
+            data=sim_errors, index=hashes, columns=hashes, dtype=float
+        ).to_json(orient="split")
+        # Hadamard matrix is (element wise) identity * coverage
+        self.df_hadamard = pd.DataFrame(
+            data=identity * cov_query, index=hashes, columns=hashes, dtype=float
+        ).to_json(orient="split")
+
+    @property
+    def identities(self) -> pd.DataFrame | None:
+        """All-vs-all percentage identity matrix for the run from the cached JSON.
+
+        If cached, returns an N by N float matrix of percentage identities for the N genomes
+        in the run as pandas dataframe, where the index (rows) and columns are the N genome
+        hashes (sorted alphabetically). If not cached, returns None.
+
+        This is normally available immediately from the Run entry in the database where
+        the dataframe is cached as a JSON string. This would be computed at the end of
+        the run once all N^2 comparisons have finished, see the cache_comparisons method.
+        """
+        if not self.df_identity:
+            return None
+        return pd.read_json(StringIO(self.df_identity), orient="split")
+
+    @property
+    def cov_query(self) -> pd.DataFrame | None:
+        """All-vs-all query-coverage matrix for the run from the cached JSON.
+
+        If cached, returns an N by N float matrix of percentage identities for the N genomes
+        in the run as pandas dataframe, where the index (rows) and columns are the N genome
+        hashes (sorted alphabetically). If not cached, returns None.
+
+        This is normally available immediately from the Run entry in the database where
+        the dataframe is cached as a JSON string. This would be computed at the end of
+        the run once all N^2 comparisons have finished, see the cache_comparisons method.
+        """
+        if not self.df_cov_query:
+            return None
+        return pd.read_json(StringIO(self.df_cov_query), orient="split")
+
+    @property
+    def aln_length(self) -> pd.DataFrame | None:
+        """All-vs-all alignment length matrix for the run from the cached JSON.
+
+        If cached, returns an N by N integer matrix of alignment lengths for the N genomes
+        in the run as pandas dataframe, where the index (rows) and columns are the N genome
+        hashes (sorted alphabetically). If not cached, returns None.
+
+        This is normally available immediately from the Run entry in the database where
+        the dataframe is cached as a JSON string. This would be computed at the end of
+        the run once all N^2 comparisons have finished, see the cache_comparisons method.
+        """
+        if not self.df_aln_length:
+            return None
+        return pd.read_json(StringIO(self.df_aln_length), orient="split")
+
+    @property
+    def sim_errors(self) -> pd.DataFrame | None:
+        """All-vs-all similarity errors matrix for the run from the cached JSON.
+
+        If cached, returns an N by N integer matrix of alignment lengths for the N genomes
+        in the run as pandas dataframe, where the index (rows) and columns are the N genome
+        hashes (sorted alphabetically). If not cached, returns None.
+
+        This is normally available immediately from the Run entry in the database where
+        the dataframe is cached as a JSON string. This would be computed at the end of
+        the run once all N^2 comparisons have finished, see the cache_comparisons method.
+        """
+        if not self.df_sim_errors:
+            return None
+        return pd.read_json(StringIO(self.df_sim_errors), orient="split")
+
+    @property
+    def hadamard(self) -> pd.DataFrame | None:
+        """All-vs-all Hadamard matrix (identity times coverage) for the run from the cached JSON.
+
+        If cached, returns an N by N integer matrix of alignment lengths for the N genomes
+        in the run as pandas dataframe, where the index (rows) and columns are the N genome
+        hashes (sorted alphabetically). If not cached, returns None.
+
+        This is normally available immediately from the Run entry in the database where
+        the dataframe is cached as a JSON string. This would be computed at the end of
+        the run once all N^2 comparisons have finished, see the cache_comparisons method.
+        """
+        # Might be worth profiling the performance of caching this, versus
+        # computing it from the cached identity and coverage data-frames?
+        if not self.df_hadamard:
+            return None
+        return pd.read_json(StringIO(self.df_hadamard), orient="split")
 
     def __repr__(self) -> str:
         """Return abridged string representation of Run table object."""

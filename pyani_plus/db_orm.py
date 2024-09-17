@@ -275,12 +275,16 @@ class Run(Base):
 
     Each run is a set of all-vs-all comparisons between a set of FASTA
     files (genome table rows), for a specific ANI algorithm or method
-    (represented as a row in the configuration table),
-    recorded as a set of comparison table rows.
+    (represented as a row in the configuration table), recorded as a set
+    of comparison table rows.
 
     Thus one Run is linked to one Configuration row, many Genome rows,
     and many Comparison rows, where each Comparison is linked to two
     Genome rows (query and reference).
+
+    If any of these these comparisons have been computed and recorded by
+    a previous run using the same configuration and an overlapping set
+    of genomes, the new run will point to those pre-existing comparisons.
 
     In order to generate reports and plots quickly, the Run entry also
     caches dataframes of the information in the linked Comparison entries

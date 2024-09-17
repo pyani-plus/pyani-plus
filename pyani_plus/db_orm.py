@@ -172,15 +172,6 @@ class Configuration(Base):
         lazy="dynamic",
     )
 
-    # These are system properties which may affect the results
-    # (most likely in fine details of floating point computations)
-    machine: Mapped[str] = (
-        mapped_column()
-    )  # e.g. "arm64" from `uname -m` or platform.uname().machine
-    system: Mapped[str] = (
-        mapped_column()
-    )  # e.g. "Darwin" from `uname -s` or platform.uname().system
-
     # This was part of the Run table in pyANI v0.2
     method: Mapped[str] = mapped_column()
     # These were all part of the Comparison table in pyANI v0.2, which had
@@ -193,10 +184,9 @@ class Configuration(Base):
     minmatch: Mapped[float | None] = mapped_column()
 
     def __repr__(self) -> str:
-        """Return string representation of Genome table object."""
+        """Return string representation of Configuration table object."""
         return (
             f"Configuration(configuration_id={self.configuration_id},"
-            f" machine={self.machine!r}, system={self.system!r},"
             f" program={self.program!r}, version={self.version!r},"
             f" fragsize={self.fragsize}, maxmatch={self.maxmatch},"
             f" kmersize={self.kmersize}, minmatch={self.maxmatch})"
@@ -246,6 +236,20 @@ class Comparison(Base):
     # in fastANI this is Null
     cov_subject: Mapped[float | None] = mapped_column()
 
+    # Logging about where the comparison was run (which is deliberately not
+    # part of the configuration class). Unlike underlying tool versions, we
+    # don't expect the OS and architecture to matter - but they could do,
+    # most likely though minor floating point differences. By logging this
+    # here, we can more easily compare the same run on different platforms
+    # (each run with its own local database):
+    #
+    # e.g. "Darwin" from `uname -s` or platform.uname().system
+    uname_system: Mapped[str] = mapped_column()
+    # e.g. "21.6.0" from `uname -r` or platform.uname().release
+    uname_release: Mapped[str] = mapped_column()
+    # e.g. "arm64" from `uname -m` or platform.uname().machine
+    uname_machine: Mapped[str] = mapped_column()
+
     def __str__(self) -> str:
         """Return string summarising the Comparison table row."""
         return (
@@ -266,7 +270,10 @@ class Comparison(Base):
             f"aln_length={self.aln_length}, "
             f"sim_errs={self.sim_errs}, "
             f"cov_query={self.cov_query}, "
-            f"cov_subject={self.cov_subject})"
+            f"cov_subject={self.cov_subject}, "
+            f"uname_system={self.uname_system!r}, "
+            f"uname_release={self.uname_release!r}, "
+            f"uname_machine={self.uname_machine!r})"
         )
 
 

@@ -58,8 +58,6 @@ def test_make_and_populate_comparisons(tmp_path: str) -> None:
     uname = platform.uname()
     config = db_orm.Configuration(
         method="guessing",
-        machine=uname.machine,  # CPU arch
-        system=uname.system,  # Operating system
         program="guestimate",
         version="v0.1.2beta3",
         fragsize=100,
@@ -68,7 +66,6 @@ def test_make_and_populate_comparisons(tmp_path: str) -> None:
     # Test the __repr__
     assert repr(config) == (
         "Configuration(configuration_id=None,"
-        f" machine={uname.machine!r}, system={uname.system!r},"
         " program='guestimate', version='v0.1.2beta3',"
         " fragsize=100, maxmatch=None, kmersize=17, minmatch=None)"
     )
@@ -108,6 +105,9 @@ def test_make_and_populate_comparisons(tmp_path: str) -> None:
                 subject_hash=subject,
                 identity=0.96,
                 aln_length=DUMMY_ALIGN_LEN,
+                uname_machine=uname.machine,  # CPU arch
+                uname_system=uname.system,  # Operating system
+                uname_release=uname.release,
             )
             assert comparison.configuration_id == config.configuration_id
             assert repr(comparison) == (
@@ -115,7 +115,8 @@ def test_make_and_populate_comparisons(tmp_path: str) -> None:
                 f" query_hash={query!r}, subject_hash={subject!r},"
                 f" configuration_id={config.configuration_id},"
                 f" identity=0.96, aln_length={DUMMY_ALIGN_LEN}, sim_errs=None,"
-                " cov_query=None, cov_subject=None)"
+                f" cov_query=None, cov_subject=None, uname_system={uname.system!r},"
+                f" uname_release={uname.release!r}, uname_machine={uname.machine!r})"
             )
             # Can't test __str__ yet as .configuration not yet live?
             session.add(comparison)
@@ -173,11 +174,8 @@ def test_make_and_populate_runs(tmp_path: str) -> None:
 
     session = db_orm.connect_to_db(tmp_db)
 
-    uname = platform.uname()
     config = db_orm.Configuration(
         method="guessing",
-        machine=uname.machine,  # CPU arch
-        system=uname.system,  # Operating system
         program="guestimate",
         version="v0.1.2beta3",
         fragsize=1000,
@@ -186,7 +184,6 @@ def test_make_and_populate_runs(tmp_path: str) -> None:
     # Test the __repr__
     assert repr(config) == (
         "Configuration(configuration_id=None,"
-        f" machine={uname.machine!r}, system={uname.system!r},"
         " program='guestimate', version='v0.1.2beta3',"
         " fragsize=1000, maxmatch=None, kmersize=31, minmatch=None)"
     )
@@ -257,15 +254,13 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
 
     config = db_orm.Configuration(
         method="guessing",
-        machine="arm64",
-        system="Darwin",
         program="guestimate",
         version="v0.1.2beta3",
         fragsize=1000,
         kmersize=31,
     )
     assert repr(config) == (
-        "Configuration(configuration_id=None, machine='arm64', system='Darwin',"
+        "Configuration(configuration_id=None,"
         " program='guestimate', version='v0.1.2beta3',"
         " fragsize=1000, maxmatch=None, kmersize=31, minmatch=None)"
     )
@@ -332,6 +327,9 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
                 subject_hash=b,
                 identity=0.99 if a == b else 0.96,
                 aln_length=4996 if a == b else 4975,
+                uname_system="Darwin",
+                uname_release="21.6.0",
+                uname_machine="arm64",
             )
             assert repr(comparison) == (
                 "Comparison(comparison_id=None,"
@@ -339,7 +337,8 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
                 f" configuration_id={config.configuration_id},"
                 f" identity={0.99 if a==b else 0.96},"
                 f" aln_length={4996 if a==b else 4975},"
-                " sim_errs=None, cov_query=None, cov_subject=None)"
+                " sim_errs=None, cov_query=None, cov_subject=None,"
+                " uname_system='Darwin', uname_release='21.6.0', uname_machine='arm64')"
             )
             session.add(comparison)
     session.commit()

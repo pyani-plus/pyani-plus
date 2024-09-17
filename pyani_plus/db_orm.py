@@ -389,22 +389,26 @@ class Run(Base):
             cov_query[row, col] = comp.cov_query
             aln_length[row, col] = comp.aln_length
             sim_errors[row, col] = comp.sim_errors
-        self.df_identity = pd.DataFrame(
-            data=identity, index=hashes, columns=hashes, dtype=float
-        ).to_json(orient="split")
-        self.df_cov_query = pd.DataFrame(
-            data=cov_query, index=hashes, columns=hashes, dtype=float
-        ).to_json(orient="split")
-        self.df_aln_length = pd.DataFrame(
-            data=aln_length, index=hashes, columns=hashes, dtype=float
-        ).to_json(orient="split")
-        self.df_sim_errors = pd.DataFrame(
-            data=sim_errors, index=hashes, columns=hashes, dtype=float
-        ).to_json(orient="split")
         # Hadamard matrix is (element wise) identity * coverage
         self.df_hadamard = pd.DataFrame(
             data=identity * cov_query, index=hashes, columns=hashes, dtype=float
         ).to_json(orient="split")
+        self.df_identity = pd.DataFrame(
+            data=identity, index=hashes, columns=hashes, dtype=float
+        ).to_json(orient="split")
+        del identity
+        self.df_cov_query = pd.DataFrame(
+            data=cov_query, index=hashes, columns=hashes, dtype=float
+        ).to_json(orient="split")
+        del cov_query
+        self.df_aln_length = pd.DataFrame(
+            data=aln_length, index=hashes, columns=hashes, dtype=float
+        ).to_json(orient="split")
+        del aln_length
+        self.df_sim_errors = pd.DataFrame(
+            data=sim_errors, index=hashes, columns=hashes, dtype=float
+        ).to_json(orient="split")
+        del sim_errors
 
     @property
     def identities(self) -> pd.DataFrame | None:

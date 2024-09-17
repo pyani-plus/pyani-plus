@@ -228,6 +228,17 @@ def test_make_and_populate_runs(tmp_path: str) -> None:
     session.commit()
     assert run_one.run_id == 1
 
+    # These have not been collated yet, and there are in fact no genomes yet either:
+    assert run_one.identities is None
+    assert run_one.cov_query is None
+    assert run_one.aln_length is None
+    assert run_one.sim_errors is None
+    assert run_one.hadamard is None
+    run_one.cache_comparisons()
+    # They now exist, but are empty:
+    assert run_one.identities is not None
+    assert run_one.identities.empty
+
     run_two = db_orm.Run(
         configuration_id=config.configuration_id,
         name="Test Two",
@@ -359,7 +370,8 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
             )
             session.add(comparison)
 
-    assert run.identities is None  # has not been collated yet
+    # These have not been collated yet:
+    assert run.identities is None
     run.cache_comparisons()
     assert run.identities is not None
 

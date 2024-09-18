@@ -394,3 +394,28 @@ def dnadiff_targets_showdiff_slurm(
 def input_genomes_small() -> Path:
     """Path to small set of input genomes."""
     return FIXTUREPATH / "sequences"
+
+
+@pytest.fixture
+def index_targets_outdir(tmp_path: str) -> Path:
+    """Output directory for md5sum index snakemake tests.
+
+    This path indicates the location to which md5sum should write
+    its output files during index testing
+    """
+    return Path(tmp_path).resolve() / "md5sum_output"
+
+
+@pytest.fixture
+def index_targets(index_targets_outdir: Path, input_genomes_small: Path) -> list[str]:
+    """Target files to be generated during md5sum index tests."""
+    reference_paths = input_genomes_small.glob(
+        "*.f*",
+    )
+    return [index_targets_outdir / (_.name + ".md5") for _ in reference_paths]
+
+
+@pytest.fixture
+def index_targets_indir() -> Path:
+    """Target files for md5sum tests (expected output)."""
+    return FIXTUREPATH / "index" / "targets"

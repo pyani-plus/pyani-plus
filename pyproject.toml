@@ -30,6 +30,9 @@ ignore = ["ANN101", "ANN102", "COM812", "D203", "D213", "S603"]
 [tool.setuptools.packages.find]
 include = ["pyani_plus"]
 
+[project.scripts]
+".pyani-plus-private-cli" = "pyani_plus.private_cli:app"
+
 [project.urls]
 Homepage = "https://github.com/pyani-plus/pyani-plus"
 Issues = "https://github.com/pyani-plus/pyani-plus/issues"

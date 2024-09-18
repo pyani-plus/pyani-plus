@@ -39,6 +39,9 @@ testpaths = [
 ]
 doctest_optionflags = ["ELLIPSIS"]
 
+[project.scripts]
+".pyani-plus-private-cli" = "pyani_plus.private_cli:app"
+
 [project.urls]
 Homepage = "https://github.com/pyani-plus/pyani-plus"
 Issues = "https://github.com/pyani-plus/pyani-plus/issues"

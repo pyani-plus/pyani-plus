@@ -25,6 +25,7 @@ The commands defined here are intended to be used from within pyANI-plus via
 snakemake, for example from worker nodes, to log results to the database.
 """
 
+import platform
 import sys
 from pathlib import Path
 from typing import Annotated
@@ -86,14 +87,80 @@ def log_genome(
 
 
 @app.command()
-def log_comparison(
-    query_fasta: Annotated[str, typer.Argument(help="Path to query FASTA file")],
-    subject_fasta: Annotated[str, typer.Argument(help="Path to subject FASTA file")],
+def log_comparison(  # noqa: PLR0913
     database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    # These are for the comparison table
+    query_fasta: Annotated[str, typer.Option(help="Path to query FASTA file")],
+    subject_fasta: Annotated[str, typer.Option(help="Path to subject FASTA file")],
+    identity: Annotated[
+        float, typer.Option(help="Percent identity (float from 0 to 1)")
+    ],
+    aln_length: Annotated[int, typer.Option(help="Alignment length")],
+    # These are all for the configuration table:
+    method: Annotated[str, typer.Option(help="Comparison method")],
+    program: Annotated[str, typer.Option(help="Comparison program name")],
+    version: Annotated[str, typer.Option(help="Comparison program version")],
+    fragsize: Annotated[
+        str | None, typer.Option(help="Comparison method fragment size")
+    ] = None,
+    maxmatch: Annotated[
+        str | None, typer.Option(help="Comparison method max-match")
+    ] = None,
+    kmersize: Annotated[
+        str | None, typer.Option(help="Comparison method k-mer size")
+    ] = None,
+    minmatch: Annotated[
+        str | None, typer.Option(help="Comparison method min-match")
+    ] = None,
 ) -> int:
     """Log a single pyANI-plus pairwise comparison to the database."""
     print(f"Logging to {database}")  # noqa: T201
-    print(f"{query_fasta} vs {subject_fasta}")  # noqa: T201
+    db = Path(database)
+    if not db.is_file():
+        sys.exit(f"ERROR - Database {db} does not exist")
+    session = db_orm.connect_to_db(db)
+
+    config = (
+        session.query(db_orm.Configuration)
+        .where(db_orm.Configuration.method == method)
+        .where(db_orm.Configuration.program == program)
+        .where(db_orm.Configuration.version == version)
+        .where(db_orm.Configuration.fragsize == fragsize)
+        .where(db_orm.Configuration.maxmatch == maxmatch)
+        .where(db_orm.Configuration.kmersize == kmersize)
+        .where(db_orm.Configuration.minmatch == minmatch)
+        .one_or_none()
+    )
+    if config is None:
+        print("Adding novel configuration to database")  # noqa: T201
+        config = db_orm.Configuration(
+            method=method,
+            program=program,
+            version=version,
+            fragsize=fragsize,
+            maxmatch=maxmatch,
+            kmersize=kmersize,
+            minmatch=minmatch,
+        )
+        session.add(config)
+        session.commit()
+
+    uname = platform.uname()
+
+    comp = db_orm.Comparison(
+        query_hash=file_md5sum(query_fasta),
+        subject_hash=file_md5sum(subject_fasta),
+        configuration_id=config.configuration_id,
+        identity=identity,
+        aln_length=aln_length,
+        uname_system=uname.system,
+        uname_release=uname.release,
+        uname_machine=uname.machine,
+    )
+    session.add(comp)
+    session.commit()
+
+    print(f"{query_fasta} vs {subject_fasta} {method} logged")  # noqa: T201
     return 0
 
 

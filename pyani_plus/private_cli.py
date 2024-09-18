@@ -31,6 +31,7 @@ from typing import Annotated
 
 import typer
 from Bio.SeqIO.FastaIO import SimpleFastaParser
+from rich.progress import track
 
 from pyani_plus import db_orm
 from pyani_plus.utils import file_md5sum
@@ -53,10 +54,13 @@ def log_genome(
         sys.exit(f"ERROR - Database {db} does not exist")
     session = db_orm.connect_to_db(db)
 
-    for filename in fasta:
+    file_total = 0
+    file_skip = 0
+    for filename in track(fasta, description="Processing..."):
+        file_total += 1
         md5 = file_md5sum(filename)
         if session.query(db_orm.Genome).where(db_orm.Genome.genome_hash == md5):
-            print(f"{md5} in DB, skipping {filename}")  # noqa: T201
+            file_skip += 1
             continue
         length = 0
         description = None
@@ -69,9 +73,11 @@ def log_genome(
             genome_hash=md5, path=filename, length=length, description=description
         )
         session.add(genome)
-        print(f"{md5} length {length} from {filename}")  # noqa: T201
     session.commit()
     session.close()
+    print(  # noqa: T201
+        f"Processed {file_total} FASTA files, skipped {file_skip}, recorded {file_total-file_skip}"
+    )
 
     return 0
 

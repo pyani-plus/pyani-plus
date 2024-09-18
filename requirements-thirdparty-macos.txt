@@ -1,2 +1,4 @@
 fastani
 mummer=3.23
+# For md5sum on macos (although could use md5 command):
+coreutils

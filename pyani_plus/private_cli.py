@@ -41,8 +41,10 @@ app = typer.Typer()
 
 @app.command()
 def log_genome(
-    fasta: Annotated[list[str], typer.Argument(help="Path to FASTA file(s)")],
     database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    fasta: Annotated[
+        list[str] | None, typer.Argument(help="Path to FASTA file(s)")
+    ] = None,
 ) -> int:
     """For given FASTA file(s), compute their MD5 checksum, and log them in the database.
 
@@ -56,23 +58,24 @@ def log_genome(
 
     file_total = 0
     file_skip = 0
-    for filename in track(fasta, description="Processing..."):
-        file_total += 1
-        md5 = file_md5sum(filename)
-        if session.query(db_orm.Genome).where(db_orm.Genome.genome_hash == md5):
-            file_skip += 1
-            continue
-        length = 0
-        description = None
-        with Path(filename).open() as handle:
-            for title, seq in SimpleFastaParser(handle):
-                length += len(seq)
-                if description is None:
-                    description = title  # Just use first entry
-        genome = db_orm.Genome(
-            genome_hash=md5, path=filename, length=length, description=description
-        )
-        session.add(genome)
+    if fasta:
+        for filename in track(fasta, description="Processing..."):
+            file_total += 1
+            md5 = file_md5sum(filename)
+            if session.query(db_orm.Genome).where(db_orm.Genome.genome_hash == md5):
+                file_skip += 1
+                continue
+            length = 0
+            description = None
+            with Path(filename).open() as handle:
+                for title, seq in SimpleFastaParser(handle):
+                    length += len(seq)
+                    if description is None:
+                        description = title  # Just use first entry
+            genome = db_orm.Genome(
+                genome_hash=md5, path=filename, length=length, description=description
+            )
+            session.add(genome)
     session.commit()
     session.close()
     print(  # noqa: T201

@@ -26,9 +26,14 @@ snakemake, for example from worker nodes, to log results to the database.
 """
 
 import sys
+from pathlib import Path
 from typing import Annotated
 
 import typer
+from Bio.SeqIO.FastaIO import SimpleFastaParser
+
+from pyani_plus import db_orm
+from pyani_plus.utils import file_md5sum
 
 app = typer.Typer()
 
@@ -43,8 +48,31 @@ def log_genome(
     Any pre-existing duplicate FASTA entries are left as is.
     """
     print(f"Logging to {database}")  # noqa: T201
-    for i, filename in enumerate(fasta):
-        print(i, filename)  # noqa: T201
+    db = Path(database)
+    if not db.is_file():
+        sys.exit(f"ERROR - Database {db} does not exist")
+    session = db_orm.connect_to_db(db)
+
+    for filename in fasta:
+        md5 = file_md5sum(filename)
+        if session.query(db_orm.Genome).where(db_orm.Genome.genome_hash == md5):
+            print(f"{md5} in DB, skipping {filename}")  # noqa: T201
+            continue
+        length = 0
+        description = None
+        with Path(filename).open() as handle:
+            for title, seq in SimpleFastaParser(handle):
+                length += len(seq)
+                if description is None:
+                    description = title  # Just use first entry
+        genome = db_orm.Genome(
+            genome_hash=md5, path=filename, length=length, description=description
+        )
+        session.add(genome)
+        print(f"{md5} length {length} from {filename}")  # noqa: T201
+    session.commit()
+    session.close()
+
     return 0
 
 

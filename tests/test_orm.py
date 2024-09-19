@@ -35,6 +35,7 @@ import numpy as np
 import pandas as pd
 
 from pyani_plus import db_orm
+from pyani_plus.utils import file_md5sum
 
 
 def test_make_new_db(tmp_path: str) -> None:
@@ -456,3 +457,45 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
         # JOIN runs_genomes AS run_subject ON comparisons.subject_hash = run_subject.genome_hash
         # WHERE run_query.run_id = ? AND run_subject.run_id = ?
     tmp_db.unlink()
+
+
+def test_helper_functions(tmp_path: str, input_genomes_small: Path) -> None:
+    """Populate new DB using helper functions."""
+    tmp_db = Path(tmp_path) / "mock.sqlite"
+    assert not tmp_db.is_file()
+
+    session = db_orm.connect_to_db(tmp_db)
+
+    config = db_orm.Configuration(
+        method="guessing",
+        program="guestimate",
+        version="v0.1.2beta3",
+        fragsize=1000,
+        kmersize=31,
+    )
+    assert repr(config) == (
+        "Configuration(configuration_id=None,"
+        " program='guestimate', version='v0.1.2beta3',"
+        " fragsize=1000, maxmatch=None, kmersize=31, minmatch=None)"
+    )
+    session.add(config)
+    session.commit()
+
+    hashes = {}
+    for fasta in input_genomes_small.glob("*.f*"):
+        md5 = file_md5sum(fasta)
+        assert db_orm.add_genome(session, fasta, md5)
+        # Can't add this twice:
+        assert not db_orm.add_genome(session, fasta, md5)
+        hashes[md5] = fasta
+
+    for a in hashes:
+        for b in hashes:
+            assert db_orm.add_comparison(
+                session, config.configuration_id, a, b, 1 if a == b else 0.99, 12345
+            )
+            # Can't add this twice:
+            assert not db_orm.add_comparison(
+                session, config.configuration_id, a, b, 1 if a == b else 0.99, 12345
+            )
+    session.commit()

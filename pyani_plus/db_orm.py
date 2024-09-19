@@ -27,11 +27,13 @@ Python objects.
 """
 
 import datetime
+import platform
 from io import StringIO
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from Bio.SeqIO.FastaIO import SimpleFastaParser
 from sqlalchemy import (
     ForeignKey,
     UniqueConstraint,
@@ -486,7 +488,7 @@ class Run(Base):
         )
 
 
-def connect_to_db(dbpath: Path, *, echo: bool = False) -> Session:
+def connect_to_db(dbpath: Path | str, *, echo: bool = False) -> Session:
     """Create/connect to existing DB, and return session bound to it.
 
     >>> session = connect_to_db("/tmp/pyani-plus-example.sqlite", echo=True)
@@ -498,3 +500,102 @@ def connect_to_db(dbpath: Path, *, echo: bool = False) -> Session:
     engine = create_engine(url=f"sqlite:///{dbpath}", echo=echo)
     Base.metadata.create_all(engine)
     return sessionmaker(bind=engine)()
+
+
+def add_genome(session: Session, fasta_filename: Path | str, md5: str) -> bool:
+    """Add a FASTA file to the genomes table if not already there.
+
+    Assumes and trusts the MD5 checksum given matches.
+
+    Returns true if the genome was added (but note session.commit() does not
+    get called here), false if already there:
+
+    >>> session = connect_to_db(":memory:")
+    >>> from pyani_plus.utils import file_md5sum
+    >>> fasta = "tests/fixtures/sequences/NC_002696.fasta"
+    >>> add_genome(session, fasta, file_md5sum(fasta))
+    True
+    >>> add_genome(session, fasta, file_md5sum(fasta))  # already there
+    False
+    """
+    if session.query(Genome).where(Genome.genome_hash == md5).count():
+        return False
+
+    length = 0
+    description = None
+    with Path(fasta_filename).open() as handle:
+        for title, seq in SimpleFastaParser(handle):
+            length += len(seq)
+            if description is None:
+                description = title  # Just use first entry
+    genome = Genome(
+        genome_hash=md5,
+        path=str(fasta_filename),
+        length=length,
+        description=description,
+    )
+    session.add(genome)
+    return True
+
+
+def add_comparison(  # noqa: PLR0913
+    session: Session,
+    configuration_id: int,
+    query_hash: str,
+    subject_hash: str,
+    identity: float,
+    aln_length: int,
+    sim_errors: int | None = None,
+    cov_query: float | None = None,
+    cov_subject: float | None = None,
+    uname: platform.uname_result | None = None,
+) -> bool:
+    """Add a comparison to the comparison table if not already there.
+
+    This assumes the configuration and both the query and subject are already in
+    the linked tables. If not, addition will fail with an integrity error:
+
+    >>> session = connect_to_db(":memory:")
+    >>> add_comparison(session, 1, "abcd", "cdef", 0.99, 12345)
+    True
+    >>> add_comparison(session, 1, "abcd", "cdef", 0.98, 12340)  # Already there
+    False
+
+    By default the uname values for the current platform are used (i.e. this assumes
+    the computed values were computed locally on the same machine).
+
+    Returns true if the comparison was added (but note session.commit() does not
+    get called here), false if already there. This will NOT alter a pre-existing
+    entry even if there are differences (e.g. expected like operating system, or
+    unexpected like percentage identity).
+    """
+    if (
+        session.query(Comparison)
+        .where(Comparison.configuration_id == configuration_id)
+        .where(Comparison.query_hash == query_hash)
+        .where(Comparison.subject_hash == subject_hash)
+        .count()
+    ):
+        # We could sanity check the entry there matches... that might reveal
+        # a cross-platform difference, or a change to historical behaviour?
+        return False
+
+    if uname is None:
+        # This function caches the return value, so repeat calls are fast:
+        uname = platform.uname()
+
+    comp = Comparison(
+        configuration_id=configuration_id,
+        query_hash=query_hash,
+        subject_hash=subject_hash,
+        identity=identity,
+        aln_length=aln_length,
+        sim_errors=sim_errors,
+        cov_query=cov_query,
+        cov_subject=cov_subject,
+        uname_system=uname.system,
+        uname_release=uname.release,
+        uname_machine=uname.machine,
+    )
+    session.add(comp)
+    return True

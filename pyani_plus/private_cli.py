@@ -25,13 +25,11 @@ The commands defined here are intended to be used from within pyANI-plus via
 snakemake, for example from worker nodes, to log results to the database.
 """
 
-import platform
 import sys
 from pathlib import Path
 from typing import Annotated
 
 import typer
-from Bio.SeqIO.FastaIO import SimpleFastaParser
 from rich.progress import track
 
 from pyani_plus import db_orm
@@ -63,20 +61,8 @@ def log_genome(
         for filename in track(fasta, description="Processing..."):
             file_total += 1
             md5 = file_md5sum(filename)
-            if session.query(db_orm.Genome).where(db_orm.Genome.genome_hash == md5):
+            if not db_orm.add_genome(session, filename, md5):
                 file_skip += 1
-                continue
-            length = 0
-            description = None
-            with Path(filename).open() as handle:
-                for title, seq in SimpleFastaParser(handle):
-                    length += len(seq)
-                    if description is None:
-                        description = title  # Just use first entry
-            genome = db_orm.Genome(
-                genome_hash=md5, path=filename, length=length, description=description
-            )
-            session.add(genome)
     session.commit()
     session.close()
     print(  # noqa: T201
@@ -132,7 +118,6 @@ def log_comparison(  # noqa: PLR0913
         .one_or_none()
     )
     if config is None:
-        print("Adding novel configuration to database")  # noqa: T201
         config = db_orm.Configuration(
             method=method,
             program=program,
@@ -144,23 +129,29 @@ def log_comparison(  # noqa: PLR0913
         )
         session.add(config)
         session.commit()
+        print(f"Adding novel configuration {config.configuration_id} to database")  # noqa: T201
+    else:
+        print(f"Using pre-existing configuration {config.configuration_id} in database")  # noqa: T201
 
-    uname = platform.uname()
+    query_md5 = file_md5sum(query_fasta)
+    subject_md5 = file_md5sum(subject_fasta)
 
-    comp = db_orm.Comparison(
-        query_hash=file_md5sum(query_fasta),
-        subject_hash=file_md5sum(subject_fasta),
+    # Could log if the FASTA entries were new?
+    db_orm.add_genome(session, query_fasta, query_md5)
+    db_orm.add_genome(session, subject_fasta, subject_md5)
+    new = db_orm.add_comparison(
+        session,
         configuration_id=config.configuration_id,
+        query_hash=query_md5,
+        subject_hash=subject_md5,
         identity=identity,
         aln_length=aln_length,
-        uname_system=uname.system,
-        uname_release=uname.release,
-        uname_machine=uname.machine,
     )
-    session.add(comp)
     session.commit()
-
-    print(f"{query_fasta} vs {subject_fasta} {method} logged")  # noqa: T201
+    if new:
+        print(f"{query_fasta} vs {subject_fasta} {method} logged")  # noqa: T201
+    else:
+        print(f"{query_fasta} vs {subject_fasta} {method} existed")  # noqa: T201
     return 0
 
 

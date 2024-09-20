@@ -54,59 +54,18 @@ def log_genome(
     session = db_orm.connect_to_db(db)
 
     file_total = 0
-    file_skip = 0
     if fasta:
         for filename in track(fasta, description="Processing..."):
             file_total += 1
             md5 = file_md5sum(filename)
-            if not db_orm.add_genome(session, filename, md5):
-                file_skip += 1
+            db_orm.add_genome(session, filename, md5)
     session.commit()
     session.close()
     print(  # noqa: T201
-        f"Processed {file_total} FASTA files, skipped {file_skip}, recorded {file_total-file_skip}"
+        f"Processed {file_total} FASTA files"
     )
 
     return 0
-
-
-def _log_comparison(  # noqa: PLR0913
-    session: db_orm.Session,
-    config: db_orm.Configuration,
-    query_fasta: Path,
-    subject_fasta: Path,
-    identity: float,
-    aln_length: int,
-    sim_errors: int | None = None,
-) -> bool:
-    """Record the two genomes and comparison itself.
-
-    Will first compute the MD5 checksum for each FASTA file, and add them to the
-    genomes table if required. Then using those and the given configuration ID,
-    will add the comparison if required.
-
-    This will call session.commit() unconditionally.
-
-    Returns True for a novel comparison, False if already present.
-    """
-    query_md5 = file_md5sum(query_fasta)
-    subject_md5 = file_md5sum(subject_fasta)
-
-    if db_orm.add_genome(session, query_fasta, query_md5):
-        print(f"Adding novel FASTA hash {query_md5} to database")  # noqa: T201
-    if db_orm.add_genome(session, subject_fasta, subject_md5):
-        print(f"Adding novel FASTA hash {subject_md5} to database")  # noqa: T201
-    new = db_orm.add_comparison(
-        session,
-        configuration_id=config.configuration_id,
-        query_hash=query_md5,
-        subject_hash=subject_md5,
-        identity=identity,
-        aln_length=aln_length,
-        sim_errors=sim_errors,
-    )
-    session.commit()
-    return new
 
 
 @app.command()
@@ -135,6 +94,10 @@ def log_comparison(  # noqa: PLR0913
     minmatch: Annotated[
         float | None, typer.Option(help="Comparison method min-match")
     ] = None,
+    # Optional comparison table entries
+    sim_errors: Annotated[int | None, typer.Option(help="Alignment length")] = None,
+    cov_query: Annotated[float | None, typer.Option(help="Alignment length")] = None,
+    cov_subject: Annotated[float | None, typer.Option(help="Alignment length")] = None,
 ) -> int:
     """Log a single pyANI-plus pairwise comparison to the database."""
     print(f"Logging to {database}")  # noqa: T201
@@ -146,19 +109,29 @@ def log_comparison(  # noqa: PLR0913
     config = db_orm.add_configuration(
         session, method, program, version, fragsize, maxmatch, kmersize, minmatch
     )
+    session.commit()
     if config.configuration_id is None:
-        session.commit()
-        print(f"Adding novel configuration {config.configuration_id} to database")  # noqa: T201
-    else:
-        print(f"Using pre-existing configuration {config.configuration_id} in database")  # noqa: T201
+        sys.exit("Error with configuration table?")
 
-    new = _log_comparison(
-        session, config, query_fasta, subject_fasta, identity, aln_length
+    query_md5 = file_md5sum(query_fasta)
+    db_orm.add_genome(session, query_fasta, query_md5)
+
+    subject_md5 = file_md5sum(subject_fasta)
+    db_orm.add_genome(session, subject_fasta, subject_md5)
+
+    db_orm.add_comparison(
+        session,
+        configuration_id=config.configuration_id,
+        query_hash=query_md5,
+        subject_hash=subject_md5,
+        identity=identity,
+        aln_length=aln_length,
+        sim_errors=sim_errors,
+        cov_query=cov_query,
+        cov_subject=cov_subject,
     )
-    if new:
-        print(f"{query_fasta} vs {subject_fasta} logged")  # noqa: T201
-    else:
-        print(f"{query_fasta} vs {subject_fasta} existed")  # noqa: T201
+
+    session.commit()
     return 0
 
 
@@ -248,28 +221,35 @@ def log_fastani(  # noqa: PLR0913
         kmersize=kmersize,
         minmatch=minmatch,
     )
+    session.commit()
     if config.configuration_id is None:
-        session.commit()
-        print(f"Adding novel configuration {config.configuration_id} to database")  # noqa: T201
-    else:
-        print(f"Using pre-existing configuration {config.configuration_id} in database")  # noqa: T201
+        sys.exit("Error with configuration table?")
 
-    sim_errors = fragments - aln_length  # here aln_length was fastANI's total length
-    # Need to lookup query length for: query_cover = float(tot_length) / org_lengths[qname]
+    # here aln_length was fastANI's total length
+    sim_errors = fragments - aln_length
 
-    new = _log_comparison(
+    # Need to lookup query length to compute query_cover:
+    query_md5 = file_md5sum(query_fasta)
+    query = db_orm.add_genome(session, query_fasta, query_md5)
+    cov_query = float(aln_length) / query.length
+
+    # Need to lookup subject length to compute subject_cover:
+    subject_md5 = file_md5sum(subject_fasta)
+    subject = db_orm.add_genome(session, subject_fasta, subject_md5)
+    cov_subject = float(aln_length) / subject.length
+
+    db_orm.add_comparison(
         session,
-        config,
-        query_fasta=query_fasta,
-        subject_fasta=subject_fasta,
+        configuration_id=config.configuration_id,
+        query_hash=query_md5,
+        subject_hash=subject_md5,
         identity=identity,
         aln_length=aln_length,
         sim_errors=sim_errors,
+        cov_query=cov_query,
+        cov_subject=cov_subject,
     )
-    if new:
-        print(f"{query_fasta} vs {subject_fasta} logged")  # noqa: T201
-    else:
-        print(f"{query_fasta} vs {subject_fasta} existed")  # noqa: T201
+    session.commit()
     return 0
 
 

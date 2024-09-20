@@ -493,11 +493,16 @@ def connect_to_db(dbpath: Path | str, *, echo: bool = False) -> Session:
 
     >>> session = connect_to_db("/tmp/pyani-plus-example.sqlite", echo=True)
     20...
+
+    Will accept the special SQLite3 value of ":memory:" for an in-memory
+    database:
+
+    >>> session = connect_to_db(":memory:")
     """
     # Note with echo=True, the output starts yyyy-mm-dd and sadly
     # using just ... is interpreted as a continuation of the >>>
     # prompt rather than saying any output is fine with ELLIPSIS mode.
-    engine = create_engine(url=f"sqlite:///{dbpath}", echo=echo)
+    engine = create_engine(url=f"sqlite:///{dbpath!s}", echo=echo)
     Base.metadata.create_all(engine)
     return sessionmaker(bind=engine)()
 

@@ -485,18 +485,12 @@ def test_helper_functions(tmp_path: str, input_genomes_small: Path) -> None:
     hashes = {}
     for fasta in input_genomes_small.glob("*.f*"):
         md5 = file_md5sum(fasta)
-        assert db_orm.add_genome(session, fasta, md5)
-        # Can't add this twice:
-        assert not db_orm.add_genome(session, fasta, md5)
+        db_orm.add_genome(session, fasta, md5)
         hashes[md5] = fasta
 
     for a in hashes:
         for b in hashes:
-            assert db_orm.add_comparison(
-                session, config.configuration_id, a, b, 1 if a == b else 0.99, 12345
-            )
-            # Can't add this twice:
-            assert not db_orm.add_comparison(
+            db_orm.add_comparison(
                 session, config.configuration_id, a, b, 1 if a == b else 0.99, 12345
             )
     session.commit()

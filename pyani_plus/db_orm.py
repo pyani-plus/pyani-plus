@@ -502,6 +502,58 @@ def connect_to_db(dbpath: Path | str, *, echo: bool = False) -> Session:
     return sessionmaker(bind=engine)()
 
 
+def add_configuration(  # noqa: PLR0913
+    session: Session,
+    method: str,
+    program: str,
+    version: str,
+    fragsize: int | None = None,
+    maxmatch: bool | None = None,
+    kmersize: int | None = None,
+    minmatch: float | None = None,
+) -> Configuration:
+    """Return a configuration table entry, or add and return it if not already there.
+
+    >>> session = connect_to_db(":memory:")
+    >>> conf = add_configuration(
+    ...     session,
+    ...     method="guessing",
+    ...     program="guestimate",
+    ...     version="v0.1.2beta3",
+    ...     fragsize=1000,
+    ...     kmersize=31,
+    ... )
+    >>> conf.configuration_id is None  # not set until committed
+    True
+    >>> session.commit()
+    >>> conf.configuration_id
+    1
+    """
+    config = (
+        session.query(Configuration)
+        .where(Configuration.method == method)
+        .where(Configuration.program == program)
+        .where(Configuration.version == version)
+        .where(Configuration.fragsize == fragsize)
+        .where(Configuration.maxmatch == maxmatch)
+        .where(Configuration.kmersize == kmersize)
+        .where(Configuration.minmatch == minmatch)
+        .one_or_none()
+    )
+    if config is None:
+        config = Configuration(
+            method=method,
+            program=program,
+            version=version,
+            fragsize=fragsize,
+            maxmatch=maxmatch,
+            kmersize=kmersize,
+            minmatch=minmatch,
+        )
+        session.add(config)
+    return config
+
+
 def add_genome(session: Session, fasta_filename: Path | str, md5: str) -> bool:
     """Add a FASTA file to the genomes table if not already there.
 

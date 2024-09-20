@@ -466,7 +466,8 @@ def test_helper_functions(tmp_path: str, input_genomes_small: Path) -> None:
 
     session = db_orm.connect_to_db(tmp_db)
 
-    config = db_orm.Configuration(
+    config = db_orm.add_configuration(
+        session,
         method="guessing",
         program="guestimate",
         version="v0.1.2beta3",

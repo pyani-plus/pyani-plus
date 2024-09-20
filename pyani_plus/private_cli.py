@@ -32,7 +32,7 @@ from typing import Annotated
 import typer
 from rich.progress import track
 
-from pyani_plus import db_orm
+from pyani_plus import db_orm, tools
 from pyani_plus.utils import file_md5sum
 
 app = typer.Typer()
@@ -70,71 +70,28 @@ def log_genome(
     return 0
 
 
-@app.command()
-def log_comparison(  # noqa: PLR0913
-    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
-    # These are for the comparison table
-    query_fasta: Annotated[str, typer.Option(help="Path to query FASTA file")],
-    subject_fasta: Annotated[str, typer.Option(help="Path to subject FASTA file")],
-    identity: Annotated[
-        float, typer.Option(help="Percent identity (float from 0 to 1)")
-    ],
-    aln_length: Annotated[int, typer.Option(help="Alignment length")],
-    # These are all for the configuration table:
-    method: Annotated[str, typer.Option(help="Comparison method")],
-    program: Annotated[str, typer.Option(help="Comparison program name")],
-    version: Annotated[str, typer.Option(help="Comparison program version")],
-    fragsize: Annotated[
-        str | None, typer.Option(help="Comparison method fragment size")
-    ] = None,
-    maxmatch: Annotated[
-        str | None, typer.Option(help="Comparison method max-match")
-    ] = None,
-    kmersize: Annotated[
-        str | None, typer.Option(help="Comparison method k-mer size")
-    ] = None,
-    minmatch: Annotated[
-        str | None, typer.Option(help="Comparison method min-match")
-    ] = None,
-) -> int:
-    """Log a single pyANI-plus pairwise comparison to the database."""
-    print(f"Logging to {database}")  # noqa: T201
-    db = Path(database)
-    if not db.is_file():
-        sys.exit(f"ERROR - Database {db} does not exist")
-    session = db_orm.connect_to_db(db)
+def _log_comparison(  # noqa: PLR0913
+    session: db_orm.Session,
+    config: db_orm.Configuration,
+    query_fasta: Path,
+    subject_fasta: Path,
+    identity: float,
+    aln_length: int,
+    sim_errors: int | None = None,
+) -> bool:
+    """Record the two genomes and comparison itself.
 
-    config = (
-        session.query(db_orm.Configuration)
-        .where(db_orm.Configuration.method == method)
-        .where(db_orm.Configuration.program == program)
-        .where(db_orm.Configuration.version == version)
-        .where(db_orm.Configuration.fragsize == fragsize)
-        .where(db_orm.Configuration.maxmatch == maxmatch)
-        .where(db_orm.Configuration.kmersize == kmersize)
-        .where(db_orm.Configuration.minmatch == minmatch)
-        .one_or_none()
-    )
-    if config is None:
-        config = db_orm.Configuration(
-            method=method,
-            program=program,
-            version=version,
-            fragsize=fragsize,
-            maxmatch=maxmatch,
-            kmersize=kmersize,
-            minmatch=minmatch,
-        )
-        session.add(config)
-        session.commit()
-        print(f"Adding novel configuration {config.configuration_id} to database")  # noqa: T201
-    else:
-        print(f"Using pre-existing configuration {config.configuration_id} in database")  # noqa: T201
+    Will first compute the MD5 checksum for each FASTA file, and add them to the
+    genomes table if required. Then using those and the given configuration ID,
+    will add the comparison if required.
 
+    This will call session.commit() unconditionally.
+
+    Returns True for a novel comparison, False if already present.
+    """
     query_md5 = file_md5sum(query_fasta)
     subject_md5 = file_md5sum(subject_fasta)
 
-    # Could log if the FASTA entries were new?
     if db_orm.add_genome(session, query_fasta, query_md5):
         print(f"Adding novel FASTA hash {query_md5} to database")  # noqa: T201
     if db_orm.add_genome(session, subject_fasta, subject_md5):
@@ -146,12 +103,173 @@ def log_comparison(  # noqa: PLR0913
         subject_hash=subject_md5,
         identity=identity,
         aln_length=aln_length,
+        sim_errors=sim_errors,
     )
     session.commit()
-    if new:
-        print(f"{query_fasta} vs {subject_fasta} {method} logged")  # noqa: T201
+    return new
+
+
+@app.command()
+def log_comparison(  # noqa: PLR0913
+    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    # These are for the comparison table
+    query_fasta: Annotated[Path, typer.Option(help="Path to query FASTA file")],
+    subject_fasta: Annotated[Path, typer.Option(help="Path to subject FASTA file")],
+    identity: Annotated[
+        float, typer.Option(help="Percent identity (float from 0 to 1)")
+    ],
+    aln_length: Annotated[int, typer.Option(help="Alignment length")],
+    # These are all for the configuration table:
+    method: Annotated[str, typer.Option(help="Comparison method")],
+    program: Annotated[str, typer.Option(help="Comparison program name")],
+    version: Annotated[str, typer.Option(help="Comparison program version")],
+    fragsize: Annotated[
+        int | None, typer.Option(help="Comparison method fragment size")
+    ] = None,
+    maxmatch: Annotated[
+        bool | None, typer.Option(help="Comparison method max-match")
+    ] = None,
+    kmersize: Annotated[
+        int | None, typer.Option(help="Comparison method k-mer size")
+    ] = None,
+    minmatch: Annotated[
+        float | None, typer.Option(help="Comparison method min-match")
+    ] = None,
+) -> int:
+    """Log a single pyANI-plus pairwise comparison to the database."""
+    print(f"Logging to {database}")  # noqa: T201
+    db = Path(database)
+    if not db.is_file():
+        sys.exit(f"ERROR - Database {db} does not exist")
+    session = db_orm.connect_to_db(db)
+
+    config = db_orm.add_configuration(
+        session, method, program, version, fragsize, maxmatch, kmersize, minmatch
+    )
+    if config.configuration_id is None:
+        session.commit()
+        print(f"Adding novel configuration {config.configuration_id} to database")  # noqa: T201
     else:
-        print(f"{query_fasta} vs {subject_fasta} {method} existed")  # noqa: T201
+        print(f"Using pre-existing configuration {config.configuration_id} in database")  # noqa: T201
+
+    new = _log_comparison(
+        session, config, query_fasta, subject_fasta, identity, aln_length
+    )
+    if new:
+        print(f"{query_fasta} vs {subject_fasta} logged")  # noqa: T201
+    else:
+        print(f"{query_fasta} vs {subject_fasta} existed")  # noqa: T201
+    return 0
+
+
+def parse_fastani_file(filename: Path) -> tuple[Path, Path, float, int, int]:
+    """Parse a single-line fastANI output file extracting key fields as a tuple.
+
+    Return (ref genome, query genome, ANI estimate, orthologous matches,
+    sequence fragments) tuple.
+
+    :param filename: Path, path to the input file
+
+    Extracts the ANI estimate, the number of orthologous matches, and the
+    number of sequence fragments considered from the fastANI output file.
+
+    We assume that all fastANI comparisons are pairwise: one query and
+    one reference file. The fastANI file should contain a single line.
+
+    fsatANI *can* produce multi-line output, if a list of query/reference
+    files is given to it.
+    """
+    with filename.open() as handle:
+        line = handle.readline().strip().split()
+    if not line:  # No file content; either run failed or no detectable similarity
+        msg = f"Input file {filename} is empty"
+        raise ValueError(msg)
+    return (
+        Path(line[0]),
+        Path(line[1]),
+        0.01 * float(line[2]),
+        int(line[3]),
+        int(line[4]),
+    )
+
+
+@app.command()
+def log_fastani(  # noqa: PLR0913
+    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    # These are for the comparison table
+    query_fasta: Annotated[Path, typer.Option(help="Path to query FASTA file")],
+    subject_fasta: Annotated[Path, typer.Option(help="Path to subject FASTA file")],
+    fastani: Annotated[Path, typer.Option(help="Path to fastANI output file")],
+    # These are all for the configuration table:
+    fragsize: Annotated[
+        int | None, typer.Option(help="Comparison method fragment size")
+    ] = None,
+    maxmatch: Annotated[
+        bool | None, typer.Option(help="Comparison method max-match")
+    ] = None,
+    kmersize: Annotated[
+        int | None, typer.Option(help="Comparison method k-mer size")
+    ] = None,
+    minmatch: Annotated[
+        float | None, typer.Option(help="Comparison method min-match")
+    ] = None,
+) -> int:
+    """Log a single pyANI-plus fastANI pairwise comparison to the database."""
+    # Assuming this will match as expect this script to be called right
+    # after the computation has finished (on the same machine)
+    fastani_tool = tools.get_fastani()
+
+    used_query, used_subject, identity, aln_length, fragments = parse_fastani_file(
+        fastani
+    )
+    # Allowing for some variation in the filename paths here... should we?
+    if used_query.stem != query_fasta.stem:
+        sys.exit(
+            f"ERROR: Given --query-fasta {query_fasta} but query in fastANI file was {used_query}"
+        )
+    if used_subject.stem != subject_fasta.stem:
+        sys.exit(
+            f"ERROR: Given --subject-fasta {subject_fasta} but query in fastANI file was {used_subject}"
+        )
+
+    print(f"Logging to {database}")  # noqa: T201
+    db = Path(database)
+    if not db.is_file():
+        sys.exit(f"ERROR - Database {db} does not exist")
+    session = db_orm.connect_to_db(db)
+
+    config = db_orm.add_configuration(
+        session,
+        method="fastANI",
+        program=fastani_tool.exe_path.stem,
+        version=fastani_tool.version,
+        fragsize=fragsize,
+        maxmatch=maxmatch,
+        kmersize=kmersize,
+        minmatch=minmatch,
+    )
+    if config.configuration_id is None:
+        session.commit()
+        print(f"Adding novel configuration {config.configuration_id} to database")  # noqa: T201
+    else:
+        print(f"Using pre-existing configuration {config.configuration_id} in database")  # noqa: T201
+
+    sim_errors = fragments - aln_length  # here aln_length was fastANI's total length
+    # Need to lookup query length for: query_cover = float(tot_length) / org_lengths[qname]
+
+    new = _log_comparison(
+        session,
+        config,
+        query_fasta=query_fasta,
+        subject_fasta=subject_fasta,
+        identity=identity,
+        aln_length=aln_length,
+        sim_errors=sim_errors,
+    )
+    if new:
+        print(f"{query_fasta} vs {subject_fasta} logged")  # noqa: T201
+    else:
+        print(f"{query_fasta} vs {subject_fasta} existed")  # noqa: T201
     return 0
 
 

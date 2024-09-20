@@ -28,6 +28,7 @@ Python objects.
 
 import datetime
 import platform
+import time
 from io import StringIO
 from pathlib import Path
 
@@ -39,6 +40,7 @@ from sqlalchemy import (
     UniqueConstraint,
     create_engine,
 )
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -488,7 +490,9 @@ class Run(Base):
         )
 
 
-def connect_to_db(dbpath: Path | str, *, echo: bool = False) -> Session:
+def connect_to_db(
+    dbpath: Path | str, *, echo: bool = False, attempts: int = 5
+) -> Session:
     """Create/connect to existing DB, and return session bound to it.
 
     >>> session = connect_to_db("/tmp/pyani-plus-example.sqlite", echo=True)
@@ -502,8 +506,20 @@ def connect_to_db(dbpath: Path | str, *, echo: bool = False) -> Session:
     # Note with echo=True, the output starts yyyy-mm-dd and sadly
     # using just ... is interpreted as a continuation of the >>>
     # prompt rather than saying any output is fine with ELLIPSIS mode.
-    engine = create_engine(url=f"sqlite:///{dbpath!s}", echo=echo)
-    Base.metadata.create_all(engine)
+
+    # Default timeout is 5s
+    engine = create_engine(
+        url=f"sqlite:///{dbpath!s}", echo=echo, connect_args={"timeout": 10}
+    )
+    for attempt in range(attempts):
+        try:
+            Base.metadata.create_all(engine)
+            break
+        except OperationalError as err:
+            if attempt + 1 < attempts:
+                time.sleep(2**attempt)
+            else:
+                raise err from None
     return sessionmaker(bind=engine)()
 
 
@@ -528,11 +544,10 @@ def add_configuration(  # noqa: PLR0913
     ...     fragsize=1000,
     ...     kmersize=31,
     ... )
-    >>> conf.configuration_id is None  # not set until committed
-    True
-    >>> session.commit()
     >>> conf.configuration_id
     1
+
+    Note this calls session.commit() explicitly to try to reduce locking contention.
     """
     config = (
         session.query(Configuration)
@@ -556,6 +571,7 @@ def add_configuration(  # noqa: PLR0913
             minmatch=minmatch,
         )
         session.add(config)
+        session.commit()
     return config
 
 
@@ -573,10 +589,14 @@ def add_genome(session: Session, fasta_filename: Path | str, md5: str) -> Genome
     >>> genome = add_genome(session, fasta, file_md5sum(fasta))
     >>> genome.genome_hash
     'f19cb07198a41a4406a22b2f57a6b5e7'
+
+    Note this calls session.commit() explicitly to try to reduce locking contention,
+    and makes some efforts to cope gracefully with competing processes also trying
+    to record the same genome at the same time.
     """
-    genome = session.query(Genome).where(Genome.genome_hash == md5).one_or_none()
-    if genome is not None:
-        return genome
+    old_genome = session.query(Genome).where(Genome.genome_hash == md5).one_or_none()
+    if old_genome is not None:
+        return old_genome
 
     length = 0
     description = None
@@ -591,8 +611,27 @@ def add_genome(session: Session, fasta_filename: Path | str, md5: str) -> Genome
         length=length,
         description=description,
     )
+
+    # Recheck database as all that file access is slow and another thread
+    # may have added it in the meantime
+    old_genome = session.query(Genome).where(Genome.genome_hash == md5).one_or_none()
+    if old_genome is not None:
+        return old_genome
+
     session.add(genome)
-    return genome
+    try:
+        session.commit()
+    except IntegrityError:
+        pass
+    else:
+        return genome
+    session.rollback()
+    # another thread added it in the meantime
+    old_genome = session.query(Genome).where(Genome.genome_hash == md5).one_or_none()
+    if old_genome is not None:
+        return old_genome
+    msg = f"Could not add genome {md5}"
+    raise IntegrityError(msg)
 
 
 def add_comparison(  # noqa: PLR0913
@@ -622,6 +661,8 @@ def add_comparison(  # noqa: PLR0913
 
     This will NOT alter a pre-existing entry even if there are differences (e.g.
     expected like operating system, or unexpected like percentage identity).
+
+    Note this calls session.commit() explicitly to try to reduce locking contention.
     """
     comp = (
         session.query(Comparison)
@@ -653,4 +694,5 @@ def add_comparison(  # noqa: PLR0913
         uname_machine=uname.machine,
     )
     session.add(comp)
+    session.commit()
     return comp

@@ -475,12 +475,10 @@ def test_helper_functions(tmp_path: str, input_genomes_small: Path) -> None:
         kmersize=31,
     )
     assert repr(config) == (
-        "Configuration(configuration_id=None,"
+        "Configuration(configuration_id=1,"
         " program='guestimate', version='v0.1.2beta3',"
         " fragsize=1000, maxmatch=None, kmersize=31, minmatch=None)"
     )
-    session.add(config)
-    session.commit()
 
     hashes = {}
     for fasta in input_genomes_small.glob("*.f*"):
@@ -493,4 +491,3 @@ def test_helper_functions(tmp_path: str, input_genomes_small: Path) -> None:
             db_orm.add_comparison(
                 session, config.configuration_id, a, b, 1 if a == b else 0.99, 12345
             )
-    session.commit()

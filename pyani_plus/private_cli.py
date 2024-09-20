@@ -160,6 +160,8 @@ def parse_fastani_file(filename: Path) -> tuple[Path, Path, float, int, int]:
     )
 
 
+# Ought we switch the command line arguments here to match fastANI naming?
+# Note this omits maxmatch
 @app.command()
 def log_fastani(  # noqa: PLR0913
     database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
@@ -170,9 +172,6 @@ def log_fastani(  # noqa: PLR0913
     # These are all for the configuration table:
     fragsize: Annotated[
         int | None, typer.Option(help="Comparison method fragment size")
-    ] = None,
-    maxmatch: Annotated[
-        bool | None, typer.Option(help="Comparison method max-match")
     ] = None,
     kmersize: Annotated[
         int | None, typer.Option(help="Comparison method k-mer size")
@@ -207,10 +206,10 @@ def log_fastani(  # noqa: PLR0913
         method="fastANI",
         program=fastani_tool.exe_path.stem,
         version=fastani_tool.version,
-        fragsize=fragsize,
-        maxmatch=maxmatch,
-        kmersize=kmersize,
-        minmatch=minmatch,
+        fragsize=fragsize,  # aka --fragLen
+        maxmatch=None,
+        kmersize=kmersize,  # aka --k
+        minmatch=minmatch,  # aka --minFraction
     )
     session.commit()
     if config.configuration_id is None:

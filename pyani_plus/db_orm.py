@@ -570,7 +570,9 @@ def add_genome(session: Session, fasta_filename: Path | str, md5: str) -> Genome
     >>> session = connect_to_db(":memory:")
     >>> from pyani_plus.utils import file_md5sum
     >>> fasta = "tests/fixtures/sequences/NC_002696.fasta"
-    >>> add_genome(session, fasta, file_md5sum(fasta))
+    >>> genome = add_genome(session, fasta, file_md5sum(fasta))
+    >>> genome.genome_hash
+    'f19cb07198a41a4406a22b2f57a6b5e7'
     """
     genome = session.query(Genome).where(Genome.genome_hash == md5).one_or_none()
     if genome is not None:
@@ -611,7 +613,9 @@ def add_comparison(  # noqa: PLR0913
     the linked tables. If not, addition will fail with an integrity error:
 
     >>> session = connect_to_db(":memory:")
-    >>> add_comparison(session, 1, "abcd", "cdef", 0.99, 12345)
+    >>> comp = add_comparison(session, 1, "abcd", "cdef", 0.99, 12345)
+    >>> comp.identity
+    0.99
 
     By default the uname values for the current platform are used (i.e. this assumes
     the computed values were computed locally on the same machine).

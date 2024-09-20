@@ -46,5 +46,12 @@ rule fastani:
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.fastani",
     shell:
-        "{params.fastani} -q {input.genomeA} -r {input.genomeB} -o {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.fastani --fragLen {params.fragLen} -k {params.kmerSize} --minFraction {params.minFrac}"
-        ".pyani-plus-private-cli log-fastani --database :memory: --query-fasta {input.genomeA} --subject-fasta {input.genomeB} --fastani {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.fastani --fragsize {params.fragLen} --kmersize {params.kmerSize} --minmatch {params.minFrac}"
+        """
+        {params.fastani} -q {input.genomeA} -r {input.genomeB} \
+            -o {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.fastani \
+            --fragLen {params.fragLen} -k {params.kmerSize} --minFraction {params.minFrac} &&
+        .pyani-plus-private-cli log-fastani --database workflow-test.sqlite \
+            --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
+            --fastani {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.fastani \
+            --fragsize {params.fragLen} --kmersize {params.kmerSize} --minmatch {params.minFrac}
+        """

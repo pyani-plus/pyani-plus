@@ -103,7 +103,6 @@ def log_comparison(  # noqa: PLR0913
     config = db_orm.add_configuration(
         session, method, program, version, fragsize, maxmatch, kmersize, minmatch
     )
-    session.commit()
     if config.configuration_id is None:
         sys.exit("Error with configuration table?")
 
@@ -211,7 +210,6 @@ def log_fastani(  # noqa: PLR0913
         kmersize=kmersize,  # aka --k
         minmatch=minmatch,  # aka --minFraction
     )
-    session.commit()
     if config.configuration_id is None:
         sys.exit("Error with configuration table?")
 
@@ -239,6 +237,7 @@ def log_fastani(  # noqa: PLR0913
         cov_query=cov_query,
         cov_subject=cov_subject,
     )
+
     session.commit()
     return 0
 

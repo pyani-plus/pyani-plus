@@ -48,10 +48,7 @@ def log_genome(
     Any pre-existing duplicate FASTA entries are left as is.
     """
     print(f"Logging to {database}")  # noqa: T201
-    db = Path(database)
-    if not db.is_file():
-        sys.exit(f"ERROR - Database {db} does not exist")
-    session = db_orm.connect_to_db(db)
+    session = db_orm.connect_to_db(database)
 
     file_total = 0
     if fasta:
@@ -101,10 +98,7 @@ def log_comparison(  # noqa: PLR0913
 ) -> int:
     """Log a single pyANI-plus pairwise comparison to the database."""
     print(f"Logging to {database}")  # noqa: T201
-    db = Path(database)
-    if not db.is_file():
-        sys.exit(f"ERROR - Database {db} does not exist")
-    session = db_orm.connect_to_db(db)
+    session = db_orm.connect_to_db(database)
 
     config = db_orm.add_configuration(
         session, method, program, version, fragsize, maxmatch, kmersize, minmatch
@@ -206,10 +200,7 @@ def log_fastani(  # noqa: PLR0913
         )
 
     print(f"Logging to {database}")  # noqa: T201
-    db = Path(database)
-    if not db.is_file():
-        sys.exit(f"ERROR - Database {db} does not exist")
-    session = db_orm.connect_to_db(db)
+    session = db_orm.connect_to_db(database)
 
     config = db_orm.add_configuration(
         session,

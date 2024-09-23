@@ -33,7 +33,7 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus.private_cli import log_configuration
+from pyani_plus.private_cli import log_configuration, log_genome
 from pyani_plus.snakemake import snakemake_scheduler
 from pyani_plus.tools import get_fastani
 
@@ -105,6 +105,13 @@ def test_snakemake_rule_fastani(
         fragsize=config_fastani_args["fragLen"],
         kmersize=config_fastani_args["kmerSize"],
         minmatch=config_fastani_args["minFrac"],
+    )
+    # Record the FASTA files in the genomes table _before_ call snakemake
+    log_genome(
+        database="workflow-test.sqlite",  # currently hard coded in workflow
+        fasta=list(
+            snakemake_scheduler.check_input_stems(config_fastani_args["indir"]).values()
+        ),
     )
 
     # Run snakemake wrapper

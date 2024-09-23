@@ -33,6 +33,7 @@ from pathlib import Path
 
 import pytest
 
+from pyani_plus.private_cli import log_configuration
 from pyani_plus.snakemake import snakemake_scheduler
 from pyani_plus.tools import get_fastani
 
@@ -91,6 +92,20 @@ def test_snakemake_rule_fastani(
     """
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(fastani_targets_outdir, ignore_errors=True)
+
+    # Assuming this will match but worker nodes might have a different version
+    fastani_tool = get_fastani()
+
+    # Setup minimal test DB
+    log_configuration(
+        database="workflow-test.sqlite",  # currently hard coded in workflow
+        method="fastANI",
+        program=fastani_tool.exe_path.stem,
+        version=fastani_tool.version,
+        fragsize=config_fastani_args["fragLen"],
+        kmersize=config_fastani_args["kmerSize"],
+        minmatch=config_fastani_args["minFrac"],
+    )
 
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_fastani.smk")

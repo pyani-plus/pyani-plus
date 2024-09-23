@@ -39,6 +39,45 @@ app = typer.Typer()
 
 
 @app.command()
+def log_configuration(  # noqa: PLR0913
+    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    method: Annotated[str, typer.Option(help="Method, e.g. ANIm")],
+    program: Annotated[str, typer.Option(help="Program, e.g. nucmer")],
+    version: Annotated[str, typer.Option(help="Program version, e.g. 3.1")],
+    fragsize: Annotated[
+        int | None, typer.Option(help="Optional method fragment size")
+    ] = None,
+    maxmatch: Annotated[
+        bool | None, typer.Option(help="Comparison method max-match")
+    ] = None,
+    kmersize: Annotated[
+        int | None, typer.Option(help="Comparison method k-mer size")
+    ] = None,
+    minmatch: Annotated[
+        float | None, typer.Option(help="Comparison method min-match")
+    ] = None,
+) -> int:
+    """Log this as a known configuration in the database.
+
+    Any pre-existing configuration entry is left as is.
+    """
+    print(f"Logging to {database}")  # noqa: T201
+    session = db_orm.connect_to_db(database)
+    config = db_orm.add_configuration(
+        session, method, program, version, fragsize, maxmatch, kmersize, minmatch
+    )
+    if config.configuration_id is None:
+        sys.exit("Error with configuration table?")
+    session.commit()  # should be redundant
+    print(  # noqa: T201
+        f"Configuration identifier {config.configuration_id}"
+    )
+    session.close()
+
+    return 0
+
+
+@app.command()
 def log_genome(
     fasta: Annotated[list[str], typer.Argument(help="Path to FASTA file(s)")],
     database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],

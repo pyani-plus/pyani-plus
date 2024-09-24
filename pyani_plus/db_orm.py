@@ -132,7 +132,7 @@ class Configuration(Base):
     AND the run configuration.
     """
 
-    __tablename__ = "configuration"
+    __tablename__ = "configurations"
 
     __table_args__ = (
         UniqueConstraint(
@@ -207,7 +207,7 @@ class Comparison(Base):
     subject: Mapped[Genome] = relationship(Genome, foreign_keys=[subject_hash])
 
     configuration_id: Mapped[int] = mapped_column(
-        ForeignKey("configuration.configuration_id"), nullable=False
+        ForeignKey("configurations.configuration_id"), nullable=False
     )
     configuration: Mapped[Configuration] = relationship(
         Configuration, foreign_keys=[configuration_id]
@@ -291,7 +291,7 @@ class Run(Base):
     run_id: Mapped[int] = mapped_column(primary_key=True)
 
     configuration_id: Mapped[int] = mapped_column(
-        ForeignKey("configuration.configuration_id"), nullable=False
+        ForeignKey("configurations.configuration_id"), nullable=False
     )
     configuration: Mapped[Configuration] = relationship(
         Configuration, foreign_keys=[configuration_id]

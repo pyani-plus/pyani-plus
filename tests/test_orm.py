@@ -481,13 +481,46 @@ def test_helper_functions(tmp_path: str, input_genomes_small: Path) -> None:
     )
 
     hashes = {}
+    genomes = []
     for fasta in input_genomes_small.glob("*.f*"):
         md5 = file_md5sum(fasta)
-        db_orm.add_genome(session, fasta, md5)
+        genome = db_orm.add_genome(session, fasta, md5)
         hashes[md5] = fasta
+        genomes.append(genome)
 
     for a in hashes:
         for b in hashes:
             db_orm.add_comparison(
-                session, config.configuration_id, a, b, 1 if a == b else 0.99, 12345
+                session,
+                config.configuration_id,
+                a,
+                b,
+                1 if a == b else 0.99,
+                12345,
+                cov_query=0.99,
+                cov_subject=0.99,
             )
+
+    run = db_orm.add_run(
+        session,
+        configuration=config,
+        genomes=genomes,
+        status="Started",
+        name="Guess Run",
+        date=None,
+        cmdline="guestimate --fasta blah blah",
+    )
+    now = run.date
+    assert repr(run) == (
+        "Run(run_id=1, configuration_id=1, cmdline='guestimate --fasta blah blah', "
+        f"date={now!r}, status='Started', name='Guess Run', ...)"
+    )
+    assert run.genomes.count() == len(hashes)
+    assert run.comparisons().count() == len(hashes) ** 2
+    run.cache_comparisons()
+    run.status = "Complete"
+    session.commit()
+    assert run.df_hadamard == (
+        '{"columns":["073194224aa8c13bebc1d14a3e74a3e7","9a9e23bfc5a184b8149e07e267d133b0","9d72a8fb513cf9cc8cc6605a0ad4e837","f19cb07198a41a4406a22b2f57a6b5e7"],"index":["073194224aa8c13bebc1d14a3e74a3e7","9a9e23bfc5a184b8149e07e267d133b0","9d72a8fb513cf9cc8cc6605a0ad4e837","f19cb07198a41a4406a22b2f57a6b5e7"],"data":[[0.99,0.9801,0.9801,0.9801],[0.9801,0.99,0.9801,0.9801],[0.9801,0.9801,0.99,0.9801],[0.9801,0.9801,0.9801,0.99]]}'
+    )
+    tmp_db.unlink()

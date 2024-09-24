@@ -634,6 +634,32 @@ def add_genome(session: Session, fasta_filename: Path | str, md5: str) -> Genome
     raise IntegrityError(msg)
 
 
+def add_run(  # noqa: PLR0913
+    session: Session,
+    configuration: Configuration,
+    cmdline: str,
+    status: str,
+    name: str,
+    date: datetime.datetime | None = None,
+    genomes: list[Genome] | None = None,
+) -> Run:
+    """Add and return a new run table entry.
+
+    Will make a near-duplicate if there is a match there already!
+    """
+    run = Run(
+        configuration_id=configuration.configuration_id,
+        cmdline=cmdline,
+        status=status,
+        name=name,
+        date=date if date else datetime.datetime.now(tz=datetime.UTC),
+        genomes=genomes if genomes else [],
+    )
+    session.add(run)
+    session.commit()
+    return run
+
+
 def add_comparison(  # noqa: PLR0913
     session: Session,
     configuration_id: int,

@@ -43,9 +43,11 @@ def config_fastani_args(
     fastani_targets_outdir: Path,
     input_genomes_small: Path,
     snakemake_cores: int,
+    tmp_path: str,
 ) -> dict:
     """Return configuration settings for testing snakemake fastANI rule."""
     return {
+        "db": Path(tmp_path) / "db.slqite",
         "fastani": get_fastani().exe_path,
         "outdir": fastani_targets_outdir,
         "indir": str(input_genomes_small),
@@ -97,22 +99,26 @@ def test_snakemake_rule_fastani(
     fastani_tool = get_fastani()
 
     # Setup minimal test DB
+    db = config_fastani_args["db"]
+    assert not db.is_file()
     log_configuration(
-        database="workflow-test.sqlite",  # currently hard coded in workflow
+        database=db,
         method="fastANI",
         program=fastani_tool.exe_path.stem,
         version=fastani_tool.version,
         fragsize=config_fastani_args["fragLen"],
         kmersize=config_fastani_args["kmerSize"],
         minmatch=config_fastani_args["minFrac"],
+        create_db=True,
     )
     # Record the FASTA files in the genomes table _before_ call snakemake
     log_genome(
-        database="workflow-test.sqlite",  # currently hard coded in workflow
+        database=db,
         fasta=list(
             snakemake_scheduler.check_input_stems(config_fastani_args["indir"]).values()
         ),
     )
+    assert db.is_file()
 
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_fastani.smk")

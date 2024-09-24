@@ -56,11 +56,18 @@ def log_configuration(  # noqa: PLR0913
     minmatch: Annotated[
         float | None, typer.Option(help="Comparison method min-match")
     ] = None,
+    create_db: Annotated[  # noqa: FBT002
+        bool, typer.Option(help="Create database if does not exist")
+    ] = False,
 ) -> int:
     """Log this as a known configuration in the database.
 
     Any pre-existing configuration entry is left as is.
     """
+    if database != ":memory:" and not create_db and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist, but not using --create-db"
+        sys.exit(msg)
+
     print(f"Logging to {database}")  # noqa: T201
     session = db_orm.connect_to_db(database)
     config = db_orm.add_configuration(
@@ -81,11 +88,18 @@ def log_configuration(  # noqa: PLR0913
 def log_genome(
     fasta: Annotated[list[str], typer.Argument(help="Path to FASTA file(s)")],
     database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    create_db: Annotated[  # noqa: FBT002
+        bool, typer.Option(help="Create database if does not exist")
+    ] = False,
 ) -> int:
     """For given FASTA file(s), compute their MD5 checksum, and log them in the database.
 
     Any pre-existing duplicate FASTA entries are left as is.
     """
+    if database != ":memory:" and not create_db and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist, but not using --create-db"
+        sys.exit(msg)
+
     print(f"Logging to {database}")  # noqa: T201
     session = db_orm.connect_to_db(database)
 
@@ -134,8 +148,15 @@ def log_comparison(  # noqa: PLR0913
     sim_errors: Annotated[int | None, typer.Option(help="Alignment length")] = None,
     cov_query: Annotated[float | None, typer.Option(help="Alignment length")] = None,
     cov_subject: Annotated[float | None, typer.Option(help="Alignment length")] = None,
+    create_db: Annotated[  # noqa: FBT002
+        bool, typer.Option(help="Create database if does not exist")
+    ] = False,
 ) -> int:
     """Log a single pyANI-plus pairwise comparison to the database."""
+    if database != ":memory:" and not create_db and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist, but not using --create-db"
+        sys.exit(msg)
+
     print(f"Logging to {database}")  # noqa: T201
     session = db_orm.connect_to_db(database)
 
@@ -217,6 +238,9 @@ def log_fastani(  # noqa: PLR0913
     minmatch: Annotated[
         float | None, typer.Option(help="Comparison method min-match")
     ] = None,
+    create_db: Annotated[  # noqa: FBT002
+        bool, typer.Option(help="Create database if does not exist")
+    ] = False,
 ) -> int:
     """Log a single pyANI-plus fastANI pairwise comparison to the database."""
     # Assuming this will match as expect this script to be called right
@@ -235,6 +259,10 @@ def log_fastani(  # noqa: PLR0913
         sys.exit(
             f"ERROR: Given --subject-fasta {subject_fasta} but query in fastANI file was {used_subject}"
         )
+
+    if database != ":memory:" and not create_db and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist, but not using --create-db"
+        sys.exit(msg)
 
     print(f"Logging to {database}")  # noqa: T201
     session = db_orm.connect_to_db(database)

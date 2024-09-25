@@ -488,6 +488,26 @@ def test_helper_functions(tmp_path: str, input_genomes_small: Path) -> None:
         hashes[md5] = fasta
         genomes.append(genome)
 
+    run = db_orm.add_run(
+        session,
+        configuration=config,
+        genomes=genomes,
+        status="Started",
+        name="Guess Run",
+        date=None,
+        cmdline="pyani_plus run --method guestimate --fasta blah blah",
+    )
+    now = run.date
+    assert repr(run) == (
+        "Run(run_id=1, configuration_id=1, "
+        "cmdline='pyani_plus run --method guestimate --fasta blah blah', "
+        f"date={now!r}, status='Started', name='Guess Run', ...)"
+    )
+    assert run.genomes.count() == len(hashes)
+    assert run.comparisons().count() == 0  # not logged yet
+
+    # At this point in a real run we would start parallel worker jobs
+    # to compute the comparisons (possible spread over a cluster):
     for a in hashes:
         for b in hashes:
             db_orm.add_comparison(
@@ -501,21 +521,7 @@ def test_helper_functions(tmp_path: str, input_genomes_small: Path) -> None:
                 cov_subject=0.99,
             )
 
-    run = db_orm.add_run(
-        session,
-        configuration=config,
-        genomes=genomes,
-        status="Started",
-        name="Guess Run",
-        date=None,
-        cmdline="guestimate --fasta blah blah",
-    )
-    now = run.date
-    assert repr(run) == (
-        "Run(run_id=1, configuration_id=1, cmdline='guestimate --fasta blah blah', "
-        f"date={now!r}, status='Started', name='Guess Run', ...)"
-    )
-    assert run.genomes.count() == len(hashes)
+    # Now that all the comparisons are in the DB, can collate and cache matrices
     assert run.comparisons().count() == len(hashes) ** 2
     run.cache_comparisons()
     run.status = "Complete"

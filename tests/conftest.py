@@ -50,16 +50,6 @@ def anim_nucmer_targets_filter_outdir(tmp_path: str) -> Path:
 
 
 @pytest.fixture
-def anim_nucmer_targets_filter_slurm_outdir(tmp_path: str) -> Path:
-    """Output directory for MUMmer filter snakemake tests.
-
-    This path indicates the location to which MUMmer should write
-    its output files during ANIm testing
-    """
-    return Path(tmp_path).resolve() / "nucmer_filter_slurm_output"
-
-
-@pytest.fixture
 def anim_nucmer_targets_delta_indir() -> Path:
     """Directory containing MUMmer delta snakemake reference files."""
     return FIXTUREPATH / "anim" / "targets" / "delta"
@@ -76,16 +66,6 @@ def anim_nucmer_targets_delta_outdir(tmp_path: str) -> Path:
 
 
 @pytest.fixture
-def anim_nucmer_targets_delta_slurm_outdir(tmp_path: str) -> Path:
-    """Output directory for MUMmer delta snakemake tests.
-
-    This path indicates the location to which MUMmer should write
-    its output files during ANIm testing
-    """
-    return Path(tmp_path).resolve() / "nucmer_delta_slurm_output"
-
-
-@pytest.fixture
 def anim_nucmer_targets_filter(anim_nucmer_targets_filter_outdir: Path) -> list[str]:
     """Target files for ANIm tests.
 
@@ -95,20 +75,6 @@ def anim_nucmer_targets_filter(anim_nucmer_targets_filter_outdir: Path) -> list[
     """
     reference_paths = (FIXTUREPATH / "anim" / "targets" / "filter").glob("*.filter")
     return [anim_nucmer_targets_filter_outdir / _.name for _ in reference_paths]
-
-
-@pytest.fixture
-def anim_nucmer_targets_filter_slurm(
-    anim_nucmer_targets_filter_slurm_outdir: Path,
-) -> list[str]:
-    """Target files for ANIm tests.
-
-    These are paths to the output files we want to generate using
-    nucmer for ANIm. We aim to ask MUMmer to generate a set of
-    .filter files that could later be processed to obtain ANI values
-    """
-    reference_paths = (FIXTUREPATH / "anim" / "targets" / "filter").glob("*.filter")
-    return [anim_nucmer_targets_filter_slurm_outdir / _.name for _ in reference_paths]
 
 
 @pytest.fixture
@@ -124,20 +90,6 @@ def anim_nucmer_targets_delta(anim_nucmer_targets_delta_outdir: Path) -> list[st
 
 
 @pytest.fixture
-def anim_nucmer_targets_delta_slurm(
-    anim_nucmer_targets_delta_slurm_outdir: Path,
-) -> list[str]:
-    """Target files for ANIm tests.
-
-    These are paths to the output files we want to generate using
-    nucmer for ANIm. We aim to generate a set of .delta files that
-    could later be processed to obtain ANI values
-    """
-    reference_paths = (FIXTUREPATH / "anim" / "targets" / "delta").glob("*.delta")
-    return [anim_nucmer_targets_delta_slurm_outdir / _.name for _ in reference_paths]
-
-
-@pytest.fixture
 def fastani_targets_outdir(tmp_path: str) -> Path:
     """Output directory for fastani snakemake tests.
 
@@ -145,16 +97,6 @@ def fastani_targets_outdir(tmp_path: str) -> Path:
     its output files during fastani testing
     """
     return Path(tmp_path).resolve() / "fastani_output"
-
-
-@pytest.fixture
-def fastani_targets_slurm_outdir(tmp_path: str) -> Path:
-    """Output directory for fastani snakemake tests.
-
-    This path indicates the location to which fastANI should write
-    its output files during fastani testing
-    """
-    return Path(tmp_path).resolve() / "fastani_slurm_output"
 
 
 @pytest.fixture
@@ -167,18 +109,6 @@ def fastani_targets(fastani_targets_outdir: Path) -> list[str]:
     """
     reference_paths = (FIXTUREPATH / "fastani" / "targets").glob("*.fastani")
     return [fastani_targets_outdir / _.name for _ in reference_paths]
-
-
-@pytest.fixture
-def fastani_targets_slurm(fastani_targets_slurm_outdir: Path) -> list[str]:
-    """Target files for ANIm tests.
-
-    These are paths to the output files we want to generate using
-    nucmer for ANIm. We aim to ask MUMmer to generate a set of
-    .filter files that could later be processed to obtain ANI values
-    """
-    reference_paths = (FIXTUREPATH / "fastani" / "targets").glob("*.fastani")
-    return [fastani_targets_slurm_outdir / _.name for _ in reference_paths]
 
 
 @pytest.fixture
@@ -209,16 +139,6 @@ def dnadiff_nucmer_targets_filter_outdir(tmp_path: str) -> Path:
 
 
 @pytest.fixture
-def dnadiff_nucmer_targets_filter_slurm_outdir(tmp_path: str) -> Path:
-    """Output directory for MUMmer filter snakemake tests.
-
-    This path indicates the location to which MUMmer should write
-    its output files during dnadiff testing
-    """
-    return Path(tmp_path).resolve() / "dnadiff_nucmer_filter_slurm_output"
-
-
-@pytest.fixture
 def dnadiff_nucmer_targets_delta_indir() -> Path:
     """Directory containing MUMmer delta snakemake reference files."""
     return FIXTUREPATH / "dnadiff" / "targets" / "delta"
@@ -232,16 +152,6 @@ def dnadiff_nucmer_targets_delta_outdir(tmp_path: str) -> Path:
     its output files during dnadiff testing
     """
     return Path(tmp_path).resolve() / "dnadiff_nucmer_delta_output"
-
-
-@pytest.fixture
-def dnadiff_nucmer_targets_delta_slurm_outdir(tmp_path: str) -> Path:
-    """Output directory for MUMmer filter snakemake tests.
-
-    This path indicates the location to which MUMmer should write
-    its output files during dnadiff testing
-    """
-    return Path(tmp_path).resolve() / "dnadiff_nucmer_delta_slurm_output"
 
 
 @pytest.fixture
@@ -277,16 +187,6 @@ def dnadiff_targets_showcoords_outdir(tmp_path: str) -> Path:
 
 
 @pytest.fixture
-def dnadiff_targets_showdiff_slurm_outdir(tmp_path: str) -> Path:
-    """Output directory for MUMmer filter snakemake tests.
-
-    This path indicates the location to which dnadiff should write
-    its output files during dnadiff testing
-    """
-    return Path(tmp_path).resolve() / "dnadiff_showdiff_slurm_output"
-
-
-@pytest.fixture
 def dnadiff_nucmer_targets_filter(
     dnadiff_nucmer_targets_filter_outdir: Path,
 ) -> list[str]:
@@ -302,23 +202,6 @@ def dnadiff_nucmer_targets_filter(
 
 
 @pytest.fixture
-def dnadiff_nucmer_targets_filter_slurm(
-    dnadiff_nucmer_targets_filter_slurm_outdir: Path,
-) -> list[str]:
-    """Target files for dnadiff tests.
-
-    These are paths to the output files we want to generate using
-    nucmer for dnadiff. We aim to ask MUMmer to generate a set of
-    .filter files that could later be processed to obtain AlignedBases
-    values
-    """
-    reference_paths = (FIXTUREPATH / "dnadiff" / "targets" / "filter").glob("*.filter")
-    return [
-        dnadiff_nucmer_targets_filter_slurm_outdir / _.name for _ in reference_paths
-    ]
-
-
-@pytest.fixture
 def dnadiff_nucmer_targets_delta(
     dnadiff_nucmer_targets_delta_outdir: Path,
 ) -> list[str]:
@@ -330,20 +213,6 @@ def dnadiff_nucmer_targets_delta(
     """
     reference_paths = (FIXTUREPATH / "dnadiff" / "targets" / "delta").glob("*.delta")
     return [dnadiff_nucmer_targets_delta_outdir / _.name for _ in reference_paths]
-
-
-@pytest.fixture
-def dnadiff_nucmer_targets_delta_slurm(
-    dnadiff_nucmer_targets_delta_slurm_outdir: Path,
-) -> list[str]:
-    """Target files for dnadiff tests.
-
-    These are paths to the output files we want to generate using
-    nucmer for dnadiff. We aim to generate a set of .delta files that
-    could later be processed to obtain AlignedBases values
-    """
-    reference_paths = (FIXTUREPATH / "dnadiff" / "targets" / "delta").glob("*.delta")
-    return [dnadiff_nucmer_targets_delta_slurm_outdir / _.name for _ in reference_paths]
 
 
 @pytest.fixture
@@ -372,22 +241,6 @@ def dnadiff_targets_showcoords(dnadiff_targets_showcoords_outdir: Path) -> list[
         "*.mcoords",
     )
     return [dnadiff_targets_showcoords_outdir / _.name for _ in reference_paths]
-
-
-@pytest.fixture
-def dnadiff_targets_showdiff_slurm(
-    dnadiff_targets_showdiff_slurm_outdir: Path,
-) -> list[str]:
-    """Target files for ANIm tests.
-
-    These are paths to the output files we want to generate using
-    nucmer for ANIm. We aim to generate a set of .delta files that
-    could later be processed to obtain ANI values
-    """
-    reference_paths = (FIXTUREPATH / "dnadiff" / "targets" / "show_diff").glob(
-        "*.rdiff",
-    )
-    return [dnadiff_targets_showdiff_slurm_outdir / _.name for _ in reference_paths]
 
 
 @pytest.fixture

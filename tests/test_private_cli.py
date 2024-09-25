@@ -114,14 +114,16 @@ def test_log_comparison(tmp_path: str, input_genomes_small: Path) -> None:
         create_db=True,
     )
 
-    fasta = list(input_genomes_small.glob("*.fasta"))  # subset of folder
+    fasta = list(input_genomes_small.glob("*.fna"))  # subset of folder (2)
     private_cli.log_genome(
         database=tmp_db,
         fasta=fasta,
         create_db=False,
     )
 
-    # Should at this point log the run
+    # Could at this point log the run with status=started (or similar),
+    # but will need a mechanism to return the run ID and use it to update
+    # the table row at the end...
 
     for query in fasta:
         for subject in fasta:
@@ -142,4 +144,22 @@ def test_log_comparison(tmp_path: str, input_genomes_small: Path) -> None:
                 create_db=False,
             )
 
-    # Would next test updating the run matrices
+    # Can now log the run with status=completed
+    # Or, if we already logged it with status=started, would need to update
+    # the existing run table entry with the cached matrices and completed status
+    private_cli.log_run(
+        database=tmp_db,
+        # Run
+        cmdline="pyani_plus run ...",
+        name="Guess Run",
+        status="Completed",
+        fasta=fasta,  # list
+        # Config
+        method="guessing",
+        program="guestimate",
+        version="0.1.2beta3",
+        fragsize=100,
+        kmersize=51,
+        # Misc
+        create_db=False,
+    )

@@ -86,7 +86,7 @@ def log_configuration(  # noqa: PLR0913
 
 @app.command()
 def log_genome(
-    fasta: Annotated[list[str], typer.Argument(help="Path to FASTA file(s)")],
+    fasta: Annotated[list[str], typer.Argument(help="Path(s) to FASTA file(s)")],
     database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
     create_db: Annotated[  # noqa: FBT002
         bool, typer.Option(help="Create database if does not exist")
@@ -113,6 +113,72 @@ def log_genome(
     session.close()
     print(  # noqa: T201
         f"Processed {file_total} FASTA files"
+    )
+
+    return 0
+
+
+@app.command()
+def log_run(  # noqa: PLR0913
+    fasta: Annotated[list[str], typer.Argument(help="Path(s) to FASTA file(s)")],
+    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    # These are for the run table:
+    cmdline: Annotated[str, typer.Option(help="Run command line")],
+    status: Annotated[str, typer.Option(help="Run status")],
+    name: Annotated[str, typer.Option(help="Run name")],
+    # These are all for the configuration table:
+    method: Annotated[str, typer.Option(help="Comparison method")],
+    program: Annotated[str, typer.Option(help="Comparison program name")],
+    version: Annotated[str, typer.Option(help="Comparison program version")],
+    fragsize: Annotated[
+        int | None, typer.Option(help="Comparison method fragment size")
+    ] = None,
+    maxmatch: Annotated[
+        bool | None, typer.Option(help="Comparison method max-match")
+    ] = None,
+    kmersize: Annotated[
+        int | None, typer.Option(help="Comparison method k-mer size")
+    ] = None,
+    minmatch: Annotated[
+        float | None, typer.Option(help="Comparison method min-match")
+    ] = None,
+    create_db: Annotated[  # noqa: FBT002
+        bool, typer.Option(help="Create database if does not exist")
+    ] = False,
+) -> int:
+    """Log a run (and if need be, associated configuration, genome and comparison rows).
+
+    There is currently no easy way to update an existing run (e.g. once more
+    comparisons have been completed and you want to refresh the cached matrices
+    and update the run status).
+    """
+    if database != ":memory:" and not create_db and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist, but not using --create-db"
+        sys.exit(msg)
+
+    print(f"Logging to {database}")  # noqa: T201
+    session = db_orm.connect_to_db(database)
+
+    # Reuse existing config, or log a new one
+    config = db_orm.add_configuration(
+        session, method, program, version, fragsize, maxmatch, kmersize, minmatch
+    )
+
+    genomes = []
+    if fasta:
+        # Reuse existing genome entries and/or log new ones
+        for filename in track(fasta, description="Processing..."):
+            md5 = file_md5sum(filename)
+            genomes.append(db_orm.add_genome(session, filename, md5))
+
+    run_id = db_orm.add_run(
+        session, config, cmdline, status, name, date=None, genomes=genomes
+    ).run_id
+
+    session.commit()
+    session.close()
+    print(  # noqa: T201
+        f"Run identifier {run_id}"
     )
 
     return 0

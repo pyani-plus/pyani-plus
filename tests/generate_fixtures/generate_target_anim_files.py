@@ -51,6 +51,12 @@ FILTER_DIR = Path("../fixtures/anim/targets/filter")
 comparisons = permutations([_.stem for _ in Path(INPUT_DIR).glob("*.f*")], 2)
 inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*.f*")}
 
+# Cleanup
+for file in DELTA_DIR.glob("*.delta"):
+    file.unlink()
+for file in FILTER_DIR.glob("*.filter"):
+    file.unlink()
+
 nucmer = get_nucmer()
 delta_filter = get_delta_filter()
 print(f"Using nucmer {nucmer.version} at {nucmer.exe_path}")  # noqa: T201

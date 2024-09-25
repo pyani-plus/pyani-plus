@@ -62,6 +62,16 @@ SHOW_COORDS_DIR = Path("../fixtures/dnadiff/targets/show_coords")
 comparisons = permutations([_.stem for _ in Path(INPUT_DIR).glob("*.f*")], 2)
 inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*.f*")}
 
+# Cleanup
+for file in DELTA_DIR.glob("*.delta"):
+    file.unlink()
+for file in FILTER_DIR.glob("*.filter"):
+    file.unlink()
+for file in SHOW_DIFF_DIR.glob("*.rdiff"):
+    file.unlink()
+for file in SHOW_COORDS_DIR.glob("*.mcoords"):
+    file.unlink()
+
 nucmer = get_nucmer()
 delta_filter = get_delta_filter()
 show_coords = get_show_coords()

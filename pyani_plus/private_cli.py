@@ -268,7 +268,7 @@ def parse_fastani_file(filename: Path) -> tuple[Path, Path, float, int, int]:
     We assume that all fastANI comparisons are pairwise: one query and
     one reference file. The fastANI file should contain a single line.
 
-    fsatANI *can* produce multi-line output, if a list of query/reference
+    fastANI *can* produce multi-line output, if a list of query/reference
     files is given to it.
     """
     with filename.open() as handle:

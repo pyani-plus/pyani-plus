@@ -52,7 +52,7 @@ from pyani_plus.tools import (
 )
 
 # Paths to directories (eg. input sequences, outputs for delta, filter...)
-INPUT_DIR = Path("../fixtures/sequences")
+INPUT_DIR = Path("../fixtures/viral_example")
 DELTA_DIR = Path("../fixtures/dnadiff/targets/delta")
 FILTER_DIR = Path("../fixtures/dnadiff/targets/filter")
 SHOW_DIFF_DIR = Path("../fixtures/dnadiff/targets/show_diff")

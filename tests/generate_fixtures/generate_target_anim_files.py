@@ -43,7 +43,7 @@ from pathlib import Path
 from pyani_plus.tools import get_delta_filter, get_nucmer
 
 # Paths to directories (eg, input sequences, delta and filter)
-INPUT_DIR = Path("../fixtures/sequences")
+INPUT_DIR = Path("../fixtures/viral_example")
 DELTA_DIR = Path("../fixtures/anim/targets/delta")
 FILTER_DIR = Path("../fixtures/anim/targets/filter")
 

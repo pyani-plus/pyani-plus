@@ -40,7 +40,7 @@ from pyani_plus.tools import get_delta_filter, get_nucmer
 
 @pytest.fixture
 def config_anim_args(
-    input_genomes_small: Path,
+    input_genomes_tiny: Path,
     snakemake_cores: int,
 ) -> dict:
     """Return configuration settings for testing snakemake filter rule.
@@ -52,7 +52,7 @@ def config_anim_args(
         "nucmer": get_nucmer().exe_path,
         "delta_filter": get_delta_filter().exe_path,
         # "outdir": ... is dynamic
-        "indir": str(input_genomes_small),
+        "indir": str(input_genomes_tiny),
         "cores": snakemake_cores,
         "mode": "mum",
     }

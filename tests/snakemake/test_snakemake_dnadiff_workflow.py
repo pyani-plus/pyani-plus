@@ -42,7 +42,7 @@ from pyani_plus.tools import (
 
 @pytest.fixture
 def config_dnadiff_args(
-    input_genomes_small: Path,
+    input_genomes_tiny: Path,
     snakemake_cores: int,
 ) -> dict:
     """Return configuration settings for testing snakemake dnadiff file.
@@ -56,7 +56,7 @@ def config_dnadiff_args(
         "show_coords": get_show_coords().exe_path,
         "show_diff": get_show_diff().exe_path,
         # "outdir": ... is dynamic
-        "indir": str(input_genomes_small),
+        "indir": str(input_genomes_tiny),
         "cores": snakemake_cores,
         "mode": "mum",
     }

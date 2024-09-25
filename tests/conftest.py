@@ -245,5 +245,11 @@ def dnadiff_targets_showcoords(dnadiff_targets_showcoords_outdir: Path) -> list[
 
 @pytest.fixture
 def input_genomes_small() -> Path:
-    """Path to small set of input genomes."""
+    """Path to small set of four bacterial input genomes."""
     return FIXTUREPATH / "sequences"
+
+
+@pytest.fixture
+def input_genomes_tiny() -> Path:
+    """Path to small set of two viral input genomes."""
+    return FIXTUREPATH / "viral_example"

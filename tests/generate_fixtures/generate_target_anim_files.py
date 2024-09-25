@@ -48,8 +48,8 @@ DELTA_DIR = Path("../fixtures/anim/targets/delta")
 FILTER_DIR = Path("../fixtures/anim/targets/filter")
 
 # Running ANIm comparisons
-comparisons = permutations([_.stem for _ in Path(INPUT_DIR).glob("*")], 2)
-inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*")}
+comparisons = permutations([_.stem for _ in Path(INPUT_DIR).glob("*.f*")], 2)
+inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*.f*")}
 
 nucmer = get_nucmer()
 delta_filter = get_delta_filter()

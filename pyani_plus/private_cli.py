@@ -33,6 +33,7 @@ import typer
 from rich.progress import track
 
 from pyani_plus import db_orm, tools
+from pyani_plus.methods import method_anib
 from pyani_plus.utils import file_md5sum
 
 app = typer.Typer()
@@ -372,6 +373,27 @@ def log_fastani(  # noqa: PLR0913
     )
 
     session.commit()
+    return 0
+
+
+@app.command()
+def fragment_fasta(
+    fasta: Annotated[list[Path], typer.Argument(help="Path to input FASTA file(s)")],
+    outdir: Annotated[Path, typer.Option(help="Output directory")],
+    fragsize: Annotated[
+        int, typer.Option(help="Fragment size (bp)")
+    ] = method_anib.FRAGSIZE,
+) -> int:
+    """Fragment FASTA files into subsequences of up to the given size.
+
+    The output files are named ``<stem>-fragmented.fna`` regardless of the
+    input file extension (typically ``.fna``, ``.fa`` or ``.fasta``). If
+    they already exist, they will be overwritten.
+    """
+    if not outdir.is_dir():
+        sys.exit(f"ERROR: outdir {outdir} should be a directory")
+    fragmented_files = method_anib.fragment_fasta_files(fasta, outdir, fragsize)
+    print(f"Fragmented {len(fragmented_files)} files")  # noqa: T201
     return 0
 
 

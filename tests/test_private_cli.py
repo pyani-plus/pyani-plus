@@ -26,6 +26,7 @@ These tests are intended to be run from the repository root using:
 pytest -v
 """
 
+import filecmp
 from pathlib import Path
 
 import pytest
@@ -163,3 +164,33 @@ def test_log_comparison(tmp_path: str, input_genomes_tiny: Path) -> None:
         # Misc
         create_db=False,
     )
+
+
+def test_fragment_fasta(
+    tmp_path: str, input_genomes_tiny: Path, anib_fragments: Path
+) -> None:
+    """Confirm fragmenting FASTA files (for ANIb) works."""
+    fasta = input_genomes_tiny.glob("*.f*")
+    out_dir = Path(tmp_path)
+    private_cli.fragment_fasta(fasta, out_dir)
+
+    old_frags = [anib_fragments / (f.stem + "-fragments.fna") for f in fasta]
+    new_frags = [out_dir / (f.stem + "-fragments.fna") for f in fasta]
+    for old_file, new_file in zip(old_frags, new_frags, strict=True):
+        assert filecmp.cmp(old_file, new_file), f"Wrong output in {new_file}"
+
+
+def test_fragment_fasta_bad_args(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Check error handling for fragmenting FASTA files (for ANIb)."""
+    fasta = input_genomes_tiny.glob("*.f*")
+    out_dir = Path(tmp_path)
+
+    with pytest.raises(
+        SystemExit, match="ERROR: outdir /does/not/exist should be a directory"
+    ):
+        private_cli.fragment_fasta(fasta, outdir=Path("/does/not/exist"))
+
+    with pytest.raises(
+        ValueError, match="Cannot fragment /does/not/exist.fasta, file not found"
+    ):
+        private_cli.fragment_fasta([Path("/does/not/exist.fasta")], out_dir)

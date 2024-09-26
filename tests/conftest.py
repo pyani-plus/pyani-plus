@@ -34,6 +34,12 @@ FIXTUREPATH = TESTSPATH / "fixtures"
 
 
 @pytest.fixture
+def anib_fragments() -> Path:
+    """Directory containing fragmented FASTA files for ANIb test case."""
+    return FIXTUREPATH / "anib" / "fragments"
+
+
+@pytest.fixture
 def anim_nucmer_targets_filter_indir() -> Path:
     """Directory containing MUMmer filter snakemake reference files."""
     return FIXTUREPATH / "anim" / "targets" / "filter"

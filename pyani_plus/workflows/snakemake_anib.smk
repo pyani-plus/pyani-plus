@@ -46,3 +46,20 @@ rule fragment:
         "{outdir}/{genomeA}-fragments.fna",
     shell:
         ".pyani-plus-private-cli fragment-fasta --outdir {wildcards.outdir} --fragsize {params.fragLen} {input.genomeA}"
+
+
+# The nucleotide database of the FASTA file is used for the ANIb reference.
+# A nucleotide BLAST database is a set of files <stem>.n*
+# Picking <stem>.njs as the one we'll track for snakemake
+# as this is plain text, specifically a JSON summary
+rule blastdb:
+    params:
+        makeblastdb=config["makeblastdb"],
+        indir=config["indir"],
+        outdir=config["outdir"],
+    input:
+        genomeB=get_genomeB,
+    output:
+        "{outdir}/{genomeB}.njs",
+    shell:
+        "{params.makeblastdb} -in {input.genomeB} -input_type fasta -dbtype nucl -title {wildcards.genomeB} -out {wildcards.outdir}/{wildcards.genomeB}"

@@ -36,6 +36,7 @@ import pytest
 # We're testing the workflow, as called through the pyani_plus
 # wrapper code, so import only that module
 from pyani_plus.snakemake import snakemake_scheduler
+from pyani_plus.tools import get_blastn, get_makeblastdb
 
 
 @pytest.fixture
@@ -50,8 +51,8 @@ def config_anib_args(
     small set of input genomes as arguments.
     """
     return {
-        # Pending - "blastn": get_blastn().exe_path,
-        # Pending - "makeblastdb": get_makeblastdb().exe_path,
+        "blastn": get_blastn().exe_path,
+        "makeblastdb": get_makeblastdb().exe_path,
         "outdir": anib_targets_outdir,
         "indir": input_genomes_tiny,
         "cores": snakemake_cores,
@@ -81,3 +82,35 @@ def test_snakemake_rule_fragments(
         assert fname.name.endswith("-fragments.fna"), fname
         assert Path(fname).is_file()
         assert filecmp.cmp(fname, anib_fragments / fname.name)
+
+
+def compare_blast_json(file_a: Path, file_b: Path) -> bool:
+    """Compare two BLAST+ .njs JSON files, ignoring the date-stamp."""
+    with file_a.open() as handle_a, file_b.open() as handle_b:
+        for a, b in zip(handle_a, handle_b, strict=True):
+            assert a == b or (
+                "last-updated" in a and "last-updated" in b
+            ), f"{a!r} != {b!r}"
+    return True
+
+
+def test_snakemake_rule_blastdb(
+    anib_targets_blastdb: list[Path],
+    anib_targets_outdir: Path,
+    config_anib_args: dict,
+    anib_blastdb: Path,
+    tmp_path: str,
+) -> None:
+    """Test overall ANIb snakemake wrapper."""
+    # Remove the output directory to force re-running the snakemake rule
+    shutil.rmtree(anib_targets_outdir, ignore_errors=True)
+
+    # Run snakemake wrapper
+    runner = snakemake_scheduler.SnakemakeRunner("snakemake_anib.smk")
+    runner.run_workflow(anib_targets_blastdb, config_anib_args, workdir=Path(tmp_path))
+
+    # Check output against target fixtures
+    for fname in anib_targets_blastdb:
+        assert fname.suffix == ".njs", fname
+        assert Path(fname).is_file()
+        compare_blast_json(fname, anib_blastdb / fname.name)

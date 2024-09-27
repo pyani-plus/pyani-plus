@@ -55,6 +55,8 @@ for fasta in INPUT_DIR.glob("*.f*"):
                 makeblastdb.exe_path,
                 "-in",
                 fasta,
+                "-title",
+                fasta.stem,
                 "-dbtype",
                 "nucl",
                 "-out",

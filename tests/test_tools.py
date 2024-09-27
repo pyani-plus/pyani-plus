@@ -71,9 +71,21 @@ def test_non_exec() -> None:
         tools.get_fastani("tests/fixtures/tools/non_executable_script")
 
 
+def test_fake_makeblastdb() -> None:
+    """Confirm simple makeblastdb version parsing works."""
+    info = tools.get_makeblastdb("tests/fixtures/tools/mock_makeblastdb")
+    assert info.exe_path == Path("tests/fixtures/tools/mock_makeblastdb").resolve()
+    assert info.version == "2.16.0+"
+
+    cmd = Path("tests/fixtures/tools/version_one")  # outputs "version 1.0.0"
+    msg = f"Executable exists at {cmd.resolve()} but could not retrieve version"
+    with pytest.raises(RuntimeError, match=msg):
+        tools.get_makeblastdb(cmd)
+
+
 def test_fake_blastn() -> None:
     """Confirm simple blastn version parsing works."""
-    info = tools.get_blastn("tests/fixtures/tools/mock_blastn")  # parsed like mummer v4
+    info = tools.get_blastn("tests/fixtures/tools/mock_blastn")
     assert info.exe_path == Path("tests/fixtures/tools/mock_blastn").resolve()
     assert info.version == "2.16.0+"
 
@@ -140,6 +152,18 @@ def test_fake_show_diff() -> None:
     msg = f"Executable exists at {cmd.resolve()} but does not seem to be from mummer"
     with pytest.raises(RuntimeError, match=msg):
         tools.get_show_diff(cmd)
+
+
+def test_find_makeblastdb() -> None:
+    """Confirm can find NCBI makeblastdb if on $PATH and determine its version."""
+    # At the time of writing this dependency is NOT installed for CI testing
+    try:
+        info = tools.get_makeblastdb()
+    except RuntimeError as err:
+        assert str(err) == "makeblastdb not found on $PATH"  # noqa: PT017
+    else:
+        assert info.exe_path.parts[-1] == "makeblastdb"
+        assert info.version.startswith("2.")
 
 
 def test_find_blastn() -> None:

@@ -81,6 +81,34 @@ def _get_path_and_version_output(
     return exe_path, result.stdout
 
 
+def get_makeblastdb(cmd: str | Path = "makeblastdb") -> ExternalToolData:
+    """Return NCBI BLAST+ makeblastdb path and version as a named tuple.
+
+    We expect the tool to behave as follows:
+
+    .. code-block:: bash
+
+        $ makeblastdb -version
+        makeblastdb: 2.16.0+
+         Package: blast 2.16.0, build Aug  6 2024 15:58:44
+
+    Here the function would return the binary path and "2.16.0+" as the version.
+
+    Raises a RuntimeError if the command cannot be found, run, or if the
+    version cannot be inferred - this likely indicates a dramatically
+    different version of the tool with different behaviour.
+    """
+    exe_path, output = _get_path_and_version_output(cmd, ["-version"])
+
+    match = re.search(r"(?<=makeblastdb:\s)[0-9\.]*\+", output)
+    version = match.group().strip() if match else None
+    if not version:
+        msg = f"Executable exists at {exe_path} but could not retrieve version"
+        raise RuntimeError(msg)
+
+    return ExternalToolData(exe_path, version)
+
+
 def get_blastn(cmd: str | Path = "blastn") -> ExternalToolData:
     """Return NCBI BLAST+ blastn path and version as a named tuple.
 

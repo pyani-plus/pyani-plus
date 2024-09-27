@@ -63,3 +63,25 @@ rule blastdb:
         "{outdir}/{genomeB}.njs",
     shell:
         "{params.makeblastdb} -in {input.genomeB} -input_type fasta -dbtype nucl -title {wildcards.genomeB} -out {wildcards.outdir}/{wildcards.genomeB}"
+
+
+# For ANIb query the fragments FASTA from genomeA against a BLAST DB of genomeB.
+rule blastn:
+    params:
+        blastn=config["blastn"],
+        indir=config["indir"],
+        outdir=config["outdir"],
+    input:
+        "{outdir}/{genomeA}-fragments.fna",
+        "{outdir}/{genomeB}.njs",
+        genomeA=get_genomeA,
+        genomeB=get_genomeB,
+    output:
+        "{outdir}/{genomeA}_vs_{genomeB}.tsv",
+    shell:
+        """
+        {params.blastn} -query {wildcards.outdir}/{wildcards.genomeA}-fragments.fna \
+            -db {wildcards.outdir}/{wildcards.genomeB} -outfmt '6 qseqid sseqid length \
+            mismatch pident nident qlen slen qstart qend sstart send positive ppos gaps' \
+            -out {output}
+        """

@@ -46,6 +46,12 @@ def anib_blastdb() -> Path:
 
 
 @pytest.fixture
+def anib_blastn() -> Path:
+    """Directory containing fragmented FASTA files for ANIb test case."""
+    return FIXTUREPATH / "anib" / "blastn"
+
+
+@pytest.fixture
 def anib_targets_outdir(tmp_path: str) -> Path:
     """Output directory for ANIb snakemake tests."""
     return Path(tmp_path).resolve() / "anib_output"
@@ -71,6 +77,21 @@ def anib_targets_blastdb(
     # which in turn should mean *-fragments.fna and the databases *.n*
     genomes = list(input_genomes_tiny.glob("*.f*"))
     return [anib_targets_outdir / (_.stem + ".njs") for _ in genomes]
+
+
+@pytest.fixture
+def anib_targets_blastn(
+    anib_targets_outdir: Path, input_genomes_tiny: Path
+) -> list[Path]:
+    """Target files for ANIb tests."""
+    # Want it to build all the *.tsv outputs from blastn,
+    # which in turn should mean *-fragments.fna and the databases *.n*
+    genomes = list(input_genomes_tiny.glob("*.f*"))
+    return [
+        anib_targets_outdir / f"{a.stem}_vs_{b.stem}.tsv"
+        for a in genomes
+        for b in genomes
+    ]
 
 
 @pytest.fixture

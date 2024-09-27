@@ -117,3 +117,26 @@ def test_snakemake_rule_blastdb(
         assert fname.suffix == ".njs", fname
         assert Path(fname).is_file()
         compare_blast_json(fname, anib_blastdb / fname.name)
+
+
+def test_snakemake_rule_blastn(
+    anib_targets_blastn: list[Path],
+    anib_targets_outdir: Path,
+    config_anib_args: dict,
+    anib_blastn: Path,
+    tmp_path: str,
+) -> None:
+    """Test blastn (overall) ANIb snakemake wrapper."""
+    # Remove the output directory to force re-running the snakemake rule
+    shutil.rmtree(anib_targets_outdir, ignore_errors=True)
+
+    # Run snakemake wrapper
+    runner = snakemake_scheduler.SnakemakeRunner("snakemake_anib.smk")
+    runner.run_workflow(anib_targets_blastn, config_anib_args, workdir=Path(tmp_path))
+
+    # Check output against target fixtures
+    for fname in anib_targets_blastn:
+        assert fname.suffix == ".tsv", fname
+        assert Path(fname).is_file()
+        assert (anib_blastn / fname.name).is_file()
+        assert filecmp.cmp(fname, anib_blastn / fname.name)

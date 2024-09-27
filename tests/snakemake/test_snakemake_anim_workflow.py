@@ -39,8 +39,7 @@ from pyani_plus.tools import get_delta_filter, get_nucmer
 
 
 @pytest.fixture
-def config_filter_args(
-    anim_nucmer_targets_filter_outdir: Path,
+def config_anim_args(
     input_genomes_small: Path,
     snakemake_cores: int,
 ) -> dict:
@@ -52,28 +51,7 @@ def config_filter_args(
     return {
         "nucmer": get_nucmer().exe_path,
         "delta_filter": get_delta_filter().exe_path,
-        "outdir": anim_nucmer_targets_filter_outdir,
-        "indir": str(input_genomes_small),
-        "cores": snakemake_cores,
-        "mode": "mum",
-    }
-
-
-@pytest.fixture
-def config_delta_args(
-    anim_nucmer_targets_delta_outdir: Path,
-    input_genomes_small: Path,
-    snakemake_cores: int,
-) -> dict:
-    """Return configuration settings for testing snakemake delta rule.
-
-    We take the output directories for the MUMmer delta output and the
-    small set of input genomes as arguments.
-    """
-    return {
-        "nucmer": get_nucmer().exe_path,
-        "delta_filter": get_delta_filter().exe_path,
-        "outdir": anim_nucmer_targets_delta_outdir,
+        # "outdir": ... is dynamic
         "indir": str(input_genomes_small),
         "cores": snakemake_cores,
         "mode": "mum",
@@ -104,7 +82,7 @@ def test_snakemake_rule_filter(
     anim_nucmer_targets_filter: list[str],
     anim_nucmer_targets_filter_indir: Path,
     anim_nucmer_targets_filter_outdir: Path,
-    config_filter_args: dict,
+    config_anim_args: dict,
     tmp_path: str,
 ) -> None:
     """Test nucmer filter snakemake wrapper.
@@ -121,12 +99,12 @@ def test_snakemake_rule_filter(
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(anim_nucmer_targets_filter_outdir, ignore_errors=True)
 
+    config = config_anim_args.copy()
+    config["outdir"] = anim_nucmer_targets_filter_outdir
+
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_anim.smk")
-
-    runner.run_workflow(
-        anim_nucmer_targets_filter, config_filter_args, workdir=Path(tmp_path)
-    )
+    runner.run_workflow(anim_nucmer_targets_filter, config, workdir=Path(tmp_path))
 
     # Check output against target fixtures
     for fname in anim_nucmer_targets_filter:
@@ -140,7 +118,7 @@ def test_snakemake_rule_delta(
     anim_nucmer_targets_delta: list[str],
     anim_nucmer_targets_delta_indir: Path,
     anim_nucmer_targets_delta_outdir: Path,
-    config_delta_args: dict,
+    config_anim_args: dict,
     tmp_path: str,
 ) -> None:
     """Test nucmer delta snakemake wrapper.
@@ -157,12 +135,12 @@ def test_snakemake_rule_delta(
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(anim_nucmer_targets_delta_outdir, ignore_errors=True)
 
+    config = config_anim_args.copy()
+    config["outdir"] = anim_nucmer_targets_delta_outdir
+
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_anim.smk")
-
-    runner.run_workflow(
-        anim_nucmer_targets_delta, config_delta_args, workdir=Path(tmp_path)
-    )
+    runner.run_workflow(anim_nucmer_targets_delta, config, workdir=Path(tmp_path))
 
     # Check output against target fixtures
     for fname in anim_nucmer_targets_delta:

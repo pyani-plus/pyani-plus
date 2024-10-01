@@ -28,7 +28,6 @@ Python objects.
 
 import datetime
 import platform
-import time
 from io import StringIO
 from pathlib import Path
 
@@ -40,7 +39,7 @@ from sqlalchemy import (
     UniqueConstraint,
     create_engine,
 )
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -490,9 +489,7 @@ class Run(Base):
         )
 
 
-def connect_to_db(
-    dbpath: Path | str, *, echo: bool = False, attempts: int = 5
-) -> Session:
+def connect_to_db(dbpath: Path | str, *, echo: bool = False) -> Session:
     """Create/connect to existing DB, and return session bound to it.
 
     >>> session = connect_to_db("/tmp/pyani-plus-example.sqlite", echo=True)
@@ -511,15 +508,7 @@ def connect_to_db(
     engine = create_engine(
         url=f"sqlite:///{dbpath!s}", echo=echo, connect_args={"timeout": 10}
     )
-    for attempt in range(attempts):
-        try:
-            Base.metadata.create_all(engine)
-            break
-        except OperationalError as err:
-            if attempt + 1 < attempts:
-                time.sleep(2**attempt)
-            else:
-                raise err from None
+    Base.metadata.create_all(engine)
     return sessionmaker(bind=engine)()
 
 

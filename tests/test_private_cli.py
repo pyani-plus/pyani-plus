@@ -39,7 +39,7 @@ def test_log_configuration(tmp_path: str) -> None:
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
 
-    with pytest.raises(SystemExit) as err:
+    with pytest.raises(SystemExit, match="does not exist, but not using --create-db"):
         private_cli.log_configuration(
             tmp_db,
             method="guessing",
@@ -49,7 +49,6 @@ def test_log_configuration(tmp_path: str) -> None:
             kmersize=51,
             create_db=False,
         )
-    assert "does not exist, but not using --create-db" in str(err)
 
     # This time create it
     private_cli.log_configuration(
@@ -81,14 +80,13 @@ def test_log_genome(tmp_path: str, input_genomes_tiny: Path) -> None:
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
 
-    with pytest.raises(SystemExit) as err:
+    with pytest.raises(SystemExit, match="does not exist, but not using --create-db"):
         private_cli.log_genome(
             database=tmp_db,
             fasta=list(
                 input_genomes_tiny.glob("*.fasta")  # subset of folder
             ),
         )
-    assert "does not exist, but not using --create-db" in str(err)
 
     # This time create it
     private_cli.log_genome(
@@ -100,11 +98,67 @@ def test_log_genome(tmp_path: str, input_genomes_tiny: Path) -> None:
     )
 
 
+def test_log_run(tmp_path: str) -> None:
+    """Confirm can create a new empty DB via log-run."""
+    tmp_db = Path(tmp_path) / "new.sqlite"
+    assert not tmp_db.is_file()
+
+    with pytest.raises(SystemExit, match="does not exist, but not using --create-db"):
+        private_cli.log_run(
+            database=tmp_db,
+            # Run
+            cmdline="pyani_plus run ...",
+            name="Guess Run",
+            status="Completed",
+            fasta=[],  # list
+            # Config
+            method="guessing",
+            program="guestimate",
+            version="0.1.2beta3",
+            fragsize=100,
+            kmersize=51,
+            # Misc
+            create_db=False,
+        )
+
+    # This time create it
+    private_cli.log_run(
+        database=tmp_db,
+        # Run
+        cmdline="pyani_plus run ...",
+        name="Guess Run",
+        status="Completed",
+        fasta=[],  # list
+        # Config
+        method="guessing",
+        program="guestimate",
+        version="0.1.2beta3",
+        fragsize=100,
+        kmersize=51,
+        # Misc
+        create_db=True,
+    )
+
+    tmp_db.unlink()
+
+
 def test_log_comparison(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Confirm can create a mock DB using log-comparison etc."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
 
+    with pytest.raises(SystemExit, match="does not exist, but not using --create-db"):
+        private_cli.log_configuration(
+            tmp_db,
+            method="guessing",
+            program="guestimate",
+            version="0.1.2beta3",
+            fragsize=100,
+            kmersize=51,
+            create_db=False,
+        )
+
+    # Now actually create the DB
     private_cli.log_configuration(
         tmp_db,
         method="guessing",

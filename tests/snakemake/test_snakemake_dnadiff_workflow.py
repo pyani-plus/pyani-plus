@@ -41,84 +41,24 @@ from pyani_plus.tools import (
 
 
 @pytest.fixture
-def config_delta_args(
-    dnadiff_nucmer_targets_delta_outdir: Path,
+def config_dnadiff_args(
     input_genomes_small: Path,
     snakemake_cores: int,
 ) -> dict:
-    """Return configuration settings for testing snakemake delta rule.
+    """Return configuration settings for testing snakemake dnadiff file.
 
-    We take the output directories for the MUMmer delta output and the
-    small set of input genomes as arguments.
+    We take the output directories for the MUMmer delta/filter output and
+    the small set of input genomes as arguments.
     """
     return {
         "nucmer": get_nucmer().exe_path,
         "delta_filter": get_delta_filter().exe_path,
         "show_coords": get_show_coords().exe_path,
         "show_diff": get_show_diff().exe_path,
-        "outdir": dnadiff_nucmer_targets_delta_outdir,
+        # "outdir": ... is dynamic
         "indir": str(input_genomes_small),
         "cores": snakemake_cores,
         "mode": "mum",
-    }
-
-
-@pytest.fixture
-def config_filter_args(
-    dnadiff_nucmer_targets_filter_outdir: Path,
-    input_genomes_small: Path,
-    snakemake_cores: int,
-) -> dict:
-    """Return configuration settings for testing snakemake dnadiff filter rule.
-
-    We take the output directories for the MUMmer filter output and the
-    small set of input genomes as arguments.
-    """
-    return {
-        "nucmer": get_nucmer().exe_path,
-        "delta_filter": get_delta_filter().exe_path,
-        "show_coords": get_show_coords().exe_path,
-        "show_diff": get_show_diff().exe_path,
-        "outdir": dnadiff_nucmer_targets_filter_outdir,
-        "indir": str(input_genomes_small),
-        "cores": snakemake_cores,
-        "mode": "mum",
-    }
-
-
-@pytest.fixture
-def config_dnadiff_showdiff_args(
-    dnadiff_targets_showdiff_outdir: Path,
-    input_genomes_small: Path,
-    snakemake_cores: int,
-) -> dict:
-    """Return configuration settings for testing snakemake show_diff rule."""
-    return {
-        "nucmer": get_nucmer().exe_path,
-        "delta_filter": get_delta_filter().exe_path,
-        "show_coords": get_show_coords().exe_path,
-        "show_diff": get_show_diff().exe_path,
-        "outdir": dnadiff_targets_showdiff_outdir,
-        "indir": str(input_genomes_small),
-        "cores": snakemake_cores,
-    }
-
-
-@pytest.fixture
-def config_dnadiff_showcoords_args(
-    dnadiff_targets_showcoords_outdir: Path,
-    input_genomes_small: Path,
-    snakemake_cores: int,
-) -> dict:
-    """Return configuration settings for snakemake show_coords rule."""
-    return {
-        "nucmer": get_nucmer().exe_path,
-        "delta_filter": get_delta_filter().exe_path,
-        "show_coords": get_show_coords().exe_path,
-        "show_diff": get_show_diff().exe_path,
-        "outdir": dnadiff_targets_showcoords_outdir,
-        "indir": str(input_genomes_small),
-        "cores": snakemake_cores,
     }
 
 
@@ -158,7 +98,7 @@ def test_snakemake_rule_delta(
     dnadiff_nucmer_targets_delta: list[str],
     dnadiff_nucmer_targets_delta_indir: Path,
     dnadiff_nucmer_targets_delta_outdir: Path,
-    config_delta_args: dict,
+    config_dnadiff_args: dict,
     tmp_path: str,
 ) -> None:
     """Test nucmer delta snakemake wrapper.
@@ -175,12 +115,12 @@ def test_snakemake_rule_delta(
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(dnadiff_nucmer_targets_delta_outdir, ignore_errors=True)
 
+    config = config_dnadiff_args.copy()
+    config["outdir"] = dnadiff_nucmer_targets_delta_outdir
+
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_dnadiff.smk")
-
-    runner.run_workflow(
-        dnadiff_nucmer_targets_delta, config_delta_args, workdir=Path(tmp_path)
-    )
+    runner.run_workflow(dnadiff_nucmer_targets_delta, config, workdir=Path(tmp_path))
 
     # Check output against target fixtures
     for fname in dnadiff_nucmer_targets_delta:
@@ -194,7 +134,7 @@ def test_snakemake_rule_filter(
     dnadiff_nucmer_targets_filter: list[str],
     dnadiff_nucmer_targets_filter_indir: Path,
     dnadiff_nucmer_targets_filter_outdir: Path,
-    config_filter_args: dict,
+    config_dnadiff_args: dict,
     tmp_path: str,
 ) -> None:
     """Test nucmer filter snakemake wrapper.
@@ -211,11 +151,12 @@ def test_snakemake_rule_filter(
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(dnadiff_nucmer_targets_filter_outdir, ignore_errors=True)
 
+    config = config_dnadiff_args.copy()
+    config["outdir"] = dnadiff_nucmer_targets_filter_outdir
+
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_dnadiff.smk")
-    runner.run_workflow(
-        dnadiff_nucmer_targets_filter, config_filter_args, workdir=Path(tmp_path)
-    )
+    runner.run_workflow(dnadiff_nucmer_targets_filter, config, workdir=Path(tmp_path))
 
     # Check output against target fixtures
     for fname in dnadiff_nucmer_targets_filter:
@@ -229,7 +170,7 @@ def test_snakemake_rule_show_diff(
     dnadiff_targets_showdiff: list[str],
     dnadiff_targets_showdiff_indir: Path,
     dnadiff_targets_showdiff_outdir: Path,
-    config_dnadiff_showdiff_args: dict,
+    config_dnadiff_args: dict,
     tmp_path: str,
 ) -> None:
     """Test dnadiff show-diff snakemake wrapper.
@@ -246,12 +187,12 @@ def test_snakemake_rule_show_diff(
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(dnadiff_targets_showdiff_outdir, ignore_errors=True)
 
+    config = config_dnadiff_args.copy()
+    config["outdir"] = dnadiff_targets_showdiff_outdir
+
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_dnadiff.smk")
-
-    runner.run_workflow(
-        dnadiff_targets_showdiff, config_dnadiff_showdiff_args, workdir=Path(tmp_path)
-    )
+    runner.run_workflow(dnadiff_targets_showdiff, config, workdir=Path(tmp_path))
 
     # Check output against target fixtures
     for fname in dnadiff_targets_showdiff:
@@ -266,7 +207,7 @@ def test_snakemake_rule_show_coords(
     dnadiff_targets_showcoords: list[str],
     dnadiff_targets_showcoords_indir: Path,
     dnadiff_targets_showcoords_outdir: Path,
-    config_dnadiff_showcoords_args: dict,
+    config_dnadiff_args: dict,
     tmp_path: str,
 ) -> None:
     """Test dnadiff show-coords snakemake wrapper.
@@ -283,14 +224,12 @@ def test_snakemake_rule_show_coords(
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(dnadiff_targets_showcoords_outdir, ignore_errors=True)
 
+    config = config_dnadiff_args.copy()
+    config["outdir"] = dnadiff_targets_showcoords_outdir
+
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_dnadiff.smk")
-
-    runner.run_workflow(
-        dnadiff_targets_showcoords,
-        config_dnadiff_showcoords_args,
-        workdir=Path(tmp_path),
-    )
+    runner.run_workflow(dnadiff_targets_showcoords, config, workdir=Path(tmp_path))
 
     # Check output against target fixtures
     for fname in dnadiff_targets_showcoords:

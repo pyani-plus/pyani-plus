@@ -1,17 +1,3 @@
-# (c) University of Strathclyde 2019-
-# Author: Leighton Pritchard
-#
-# Contact:
-# leighton.pritchard@strath.ac.uk
-#
-# Leighton Pritchard,
-# Strathclyde Institute for Pharmacy and Biomedical Sciences,
-# Cathedral Street,
-# Glasgow,
-# G1 1XQ
-# Scotland,
-# UK
-#
 # The MIT License
 #
 # Copyright (c) 2024-present University of Strathclyde
@@ -33,4 +19,4 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-"""Module code providing ani calculations."""
+"""Module code providing ANI calculations."""

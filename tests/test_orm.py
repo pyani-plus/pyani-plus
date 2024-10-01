@@ -35,6 +35,7 @@ import numpy as np
 import pandas as pd
 
 from pyani_plus import db_orm
+from pyani_plus.utils import file_md5sum
 
 
 def test_make_new_db(tmp_path: str) -> None:
@@ -455,4 +456,77 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
         # JOIN runs_genomes AS run_query ON comparisons.query_hash = run_query.genome_hash
         # JOIN runs_genomes AS run_subject ON comparisons.subject_hash = run_subject.genome_hash
         # WHERE run_query.run_id = ? AND run_subject.run_id = ?
+    tmp_db.unlink()
+
+
+def test_helper_functions(tmp_path: str, input_genomes_small: Path) -> None:
+    """Populate new DB using helper functions."""
+    tmp_db = Path(tmp_path) / "mock.sqlite"
+    assert not tmp_db.is_file()
+
+    session = db_orm.connect_to_db(tmp_db)
+
+    config = db_orm.add_configuration(
+        session,
+        method="guessing",
+        program="guestimate",
+        version="v0.1.2beta3",
+        fragsize=1000,
+        kmersize=31,
+    )
+    assert repr(config) == (
+        "Configuration(configuration_id=1,"
+        " program='guestimate', version='v0.1.2beta3',"
+        " fragsize=1000, maxmatch=None, kmersize=31, minmatch=None)"
+    )
+
+    hashes = {}
+    genomes = []
+    for fasta in input_genomes_small.glob("*.f*"):
+        md5 = file_md5sum(fasta)
+        genome = db_orm.add_genome(session, fasta, md5)
+        hashes[md5] = fasta
+        genomes.append(genome)
+
+    run = db_orm.add_run(
+        session,
+        configuration=config,
+        genomes=genomes,
+        status="Started",
+        name="Guess Run",
+        date=None,
+        cmdline="pyani_plus run --method guestimate --fasta blah blah",
+    )
+    now = run.date
+    assert repr(run) == (
+        "Run(run_id=1, configuration_id=1, "
+        "cmdline='pyani_plus run --method guestimate --fasta blah blah', "
+        f"date={now!r}, status='Started', name='Guess Run', ...)"
+    )
+    assert run.genomes.count() == len(hashes)
+    assert run.comparisons().count() == 0  # not logged yet
+
+    # At this point in a real run we would start parallel worker jobs
+    # to compute the comparisons (possible spread over a cluster):
+    for a in hashes:
+        for b in hashes:
+            db_orm.add_comparison(
+                session,
+                config.configuration_id,
+                a,
+                b,
+                1 if a == b else 0.99,
+                12345,
+                cov_query=0.99,
+                cov_subject=0.99,
+            )
+
+    # Now that all the comparisons are in the DB, can collate and cache matrices
+    assert run.comparisons().count() == len(hashes) ** 2
+    run.cache_comparisons()
+    run.status = "Complete"
+    session.commit()
+    assert run.df_hadamard == (
+        '{"columns":["073194224aa8c13bebc1d14a3e74a3e7","9a9e23bfc5a184b8149e07e267d133b0","9d72a8fb513cf9cc8cc6605a0ad4e837","f19cb07198a41a4406a22b2f57a6b5e7"],"index":["073194224aa8c13bebc1d14a3e74a3e7","9a9e23bfc5a184b8149e07e267d133b0","9d72a8fb513cf9cc8cc6605a0ad4e837","f19cb07198a41a4406a22b2f57a6b5e7"],"data":[[0.99,0.9801,0.9801,0.9801],[0.9801,0.99,0.9801,0.9801],[0.9801,0.9801,0.99,0.9801],[0.9801,0.9801,0.9801,0.99]]}'
+    )
     tmp_db.unlink()

@@ -27,16 +27,20 @@ Python objects.
 """
 
 import datetime
+import platform
+import time
 from io import StringIO
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from Bio.SeqIO.FastaIO import SimpleFastaParser
 from sqlalchemy import (
     ForeignKey,
     UniqueConstraint,
     create_engine,
 )
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -486,15 +490,235 @@ class Run(Base):
         )
 
 
-def connect_to_db(dbpath: Path, *, echo: bool = False) -> Session:
+def connect_to_db(
+    dbpath: Path | str, *, echo: bool = False, attempts: int = 5
+) -> Session:
     """Create/connect to existing DB, and return session bound to it.
 
     >>> session = connect_to_db("/tmp/pyani-plus-example.sqlite", echo=True)
     20...
+
+    Will accept the special SQLite3 value of ":memory:" for an in-memory
+    database:
+
+    >>> session = connect_to_db(":memory:")
     """
     # Note with echo=True, the output starts yyyy-mm-dd and sadly
     # using just ... is interpreted as a continuation of the >>>
     # prompt rather than saying any output is fine with ELLIPSIS mode.
-    engine = create_engine(url=f"sqlite:///{dbpath}", echo=echo)
-    Base.metadata.create_all(engine)
+
+    # Default timeout is 5s
+    engine = create_engine(
+        url=f"sqlite:///{dbpath!s}", echo=echo, connect_args={"timeout": 10}
+    )
+    for attempt in range(attempts):
+        try:
+            Base.metadata.create_all(engine)
+            break
+        except OperationalError as err:
+            if attempt + 1 < attempts:
+                time.sleep(2**attempt)
+            else:
+                raise err from None
     return sessionmaker(bind=engine)()
+
+
+def add_configuration(  # noqa: PLR0913
+    session: Session,
+    method: str,
+    program: str,
+    version: str,
+    fragsize: int | None = None,
+    maxmatch: bool | None = None,
+    kmersize: int | None = None,
+    minmatch: float | None = None,
+) -> Configuration:
+    """Return a configuration table entry, or add and return it if not already there.
+
+    >>> session = connect_to_db(":memory:")
+    >>> conf = add_configuration(
+    ...     session,
+    ...     method="guessing",
+    ...     program="guestimate",
+    ...     version="v0.1.2beta3",
+    ...     fragsize=1000,
+    ...     kmersize=31,
+    ... )
+    >>> conf.configuration_id
+    1
+
+    Note this calls session.commit() explicitly to try to reduce locking contention.
+    """
+    config = (
+        session.query(Configuration)
+        .where(Configuration.method == method)
+        .where(Configuration.program == program)
+        .where(Configuration.version == version)
+        .where(Configuration.fragsize == fragsize)
+        .where(Configuration.maxmatch == maxmatch)
+        .where(Configuration.kmersize == kmersize)
+        .where(Configuration.minmatch == minmatch)
+        .one_or_none()
+    )
+    if config is None:
+        config = Configuration(
+            method=method,
+            program=program,
+            version=version,
+            fragsize=fragsize,
+            maxmatch=maxmatch,
+            kmersize=kmersize,
+            minmatch=minmatch,
+        )
+        session.add(config)
+        session.commit()
+    return config
+
+
+def add_genome(session: Session, fasta_filename: Path | str, md5: str) -> Genome:
+    """Return a genome table entry, or add and return it if not already there.
+
+    Assumes and trusts the MD5 checksum given matches.
+
+    Returns true if the genome was added (but note session.commit() does not
+    get called here), false if already there:
+
+    >>> session = connect_to_db(":memory:")
+    >>> from pyani_plus.utils import file_md5sum
+    >>> fasta = "tests/fixtures/sequences/NC_002696.fasta"
+    >>> genome = add_genome(session, fasta, file_md5sum(fasta))
+    >>> genome.genome_hash
+    'f19cb07198a41a4406a22b2f57a6b5e7'
+
+    Note this calls session.commit() explicitly to try to reduce locking contention,
+    and makes some efforts to cope gracefully with competing processes also trying
+    to record the same genome at the same time.
+    """
+    old_genome = session.query(Genome).where(Genome.genome_hash == md5).one_or_none()
+    if old_genome is not None:
+        return old_genome
+
+    length = 0
+    description = None
+    with Path(fasta_filename).open() as handle:
+        for title, seq in SimpleFastaParser(handle):
+            length += len(seq)
+            if description is None:
+                description = title  # Just use first entry
+    genome = Genome(
+        genome_hash=md5,
+        path=str(fasta_filename),
+        length=length,
+        description=description,
+    )
+
+    # Recheck database as all that file access is slow and another thread
+    # may have added it in the meantime
+    old_genome = session.query(Genome).where(Genome.genome_hash == md5).one_or_none()
+    if old_genome is not None:
+        return old_genome
+
+    session.add(genome)
+    try:
+        session.commit()
+    except IntegrityError:
+        pass
+    else:
+        return genome
+    session.rollback()
+    # another thread added it in the meantime
+    old_genome = session.query(Genome).where(Genome.genome_hash == md5).one_or_none()
+    if old_genome is not None:
+        return old_genome
+    msg = f"Could not add genome {md5}"
+    raise IntegrityError(msg)
+
+
+def add_run(  # noqa: PLR0913
+    session: Session,
+    configuration: Configuration,
+    cmdline: str,
+    status: str,
+    name: str,
+    date: datetime.datetime | None = None,
+    genomes: list[Genome] | None = None,
+) -> Run:
+    """Add and return a new run table entry.
+
+    Will make a near-duplicate if there is a match there already!
+    """
+    run = Run(
+        configuration_id=configuration.configuration_id,
+        cmdline=cmdline,
+        status=status,
+        name=name,
+        date=date if date else datetime.datetime.now(tz=datetime.UTC),
+        genomes=genomes if genomes else [],
+    )
+    session.add(run)
+    session.commit()
+    return run
+
+
+def add_comparison(  # noqa: PLR0913
+    session: Session,
+    configuration_id: int,
+    query_hash: str,
+    subject_hash: str,
+    identity: float,
+    aln_length: int,
+    sim_errors: int | None = None,
+    cov_query: float | None = None,
+    cov_subject: float | None = None,
+    uname: platform.uname_result | None = None,
+) -> Comparison:
+    """Return a comparison table entry, or add and return it if not already there.
+
+    This assumes the configuration and both the query and subject are already in
+    the linked tables. If not, addition will fail with an integrity error:
+
+    >>> session = connect_to_db(":memory:")
+    >>> comp = add_comparison(session, 1, "abcd", "cdef", 0.99, 12345)
+    >>> comp.identity
+    0.99
+
+    By default the uname values for the current platform are used (i.e. this assumes
+    the computed values were computed locally on the same machine).
+
+    This will NOT alter a pre-existing entry even if there are differences (e.g.
+    expected like operating system, or unexpected like percentage identity).
+
+    Note this calls session.commit() explicitly to try to reduce locking contention.
+    """
+    comp = (
+        session.query(Comparison)
+        .where(Comparison.configuration_id == configuration_id)
+        .where(Comparison.query_hash == query_hash)
+        .where(Comparison.subject_hash == subject_hash)
+        .one_or_none()
+    )
+    if comp is not None:
+        # We could sanity check the entry there matches... that might reveal
+        # a cross-platform difference, or a change to historical behaviour?
+        return comp
+
+    if uname is None:
+        # This function caches the return value, so repeat calls are fast:
+        uname = platform.uname()
+
+    comp = Comparison(
+        configuration_id=configuration_id,
+        query_hash=query_hash,
+        subject_hash=subject_hash,
+        identity=identity,
+        aln_length=aln_length,
+        sim_errors=sim_errors,
+        cov_query=cov_query,
+        cov_subject=cov_subject,
+        uname_system=uname.system,
+        uname_release=uname.release,
+        uname_machine=uname.machine,
+    )
+    session.add(comp)
+    session.commit()
+    return comp

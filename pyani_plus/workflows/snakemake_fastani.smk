@@ -35,6 +35,7 @@ def get_genomeB(wildcards):
 # The fastani rule runs fastANI
 rule fastani:
     params:
+        db=config["db"],
         fastani=config["fastani"],
         indir=config["indir"],
         fragLen=config["fragLen"],
@@ -46,4 +47,12 @@ rule fastani:
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.fastani",
     shell:
-        "{params.fastani} -q {input.genomeA} -r {input.genomeB} -o {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.fastani --fragLen {params.fragLen} -k {params.kmerSize} --minFraction {params.minFrac}"
+        """
+        {params.fastani} -q {input.genomeA} -r {input.genomeB} \
+            -o {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.fastani \
+            --fragLen {params.fragLen} -k {params.kmerSize} --minFraction {params.minFrac} &&
+        .pyani-plus-private-cli log-fastani --database {params.db} \
+            --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
+            --fastani {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.fastani \
+            --fragsize {params.fragLen} --kmersize {params.kmerSize} --minmatch {params.minFrac}
+        """

@@ -459,6 +459,39 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
     tmp_db.unlink()
 
 
+def test_add_config(tmp_path: str) -> None:
+    """Confirm repeating adding a configuration has no effect."""
+    tmp_db = Path(tmp_path) / "config.sqlite"
+    assert not tmp_db.is_file()
+
+    session = db_orm.connect_to_db(tmp_db)
+
+    config = db_orm.add_configuration(
+        session,
+        method="guessing",
+        program="guestimate",
+        version="v0.1.2beta3",
+        fragsize=100,
+        kmersize=17,
+    )
+    assert repr(config) == (
+        "Configuration(configuration_id=1,"
+        " program='guestimate', version='v0.1.2beta3',"
+        " fragsize=100, maxmatch=None, kmersize=17, minmatch=None)"
+    )
+    session.commit()
+
+    # Trying to add the exact same values should return the existing entry:
+    assert config is db_orm.add_configuration(
+        session,
+        method="guessing",
+        program="guestimate",
+        version="v0.1.2beta3",
+        fragsize=100,
+        kmersize=17,
+    )
+
+
 def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Populate new DB using helper functions."""
     tmp_db = Path(tmp_path) / "mock.sqlite"

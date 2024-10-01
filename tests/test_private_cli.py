@@ -27,11 +27,12 @@ pytest -v
 """
 
 import filecmp
+from multiprocessing import Pool
 from pathlib import Path
 
 import pytest
 
-from pyani_plus import private_cli
+from pyani_plus import db_orm, private_cli
 
 
 def test_log_configuration(tmp_path: str) -> None:
@@ -142,9 +143,9 @@ def test_log_run(tmp_path: str) -> None:
     tmp_db.unlink()
 
 
-def test_log_comparison(tmp_path: str, input_genomes_tiny: Path) -> None:
-    """Confirm can create a mock DB using log-comparison etc."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
+def test_log_comparison_serial(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Confirm can create a mock DB using log-comparison etc. sequentially."""
+    tmp_db = Path(tmp_path) / "serial.sqlite"
     assert not tmp_db.is_file()
 
     with pytest.raises(SystemExit, match="does not exist, but not using --create-db"):
@@ -218,6 +219,115 @@ def test_log_comparison(tmp_path: str, input_genomes_tiny: Path) -> None:
         # Misc
         create_db=False,
     )
+
+    session = db_orm.connect_to_db(tmp_db)
+    assert session.query(db_orm.Comparison).count() == len(fasta) ** 2
+
+
+def test_log_comparison_parallel(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Confirm can create a mock DB using log-comparison etc. in parallel."""
+    tmp_db = Path(tmp_path) / "parallel.sqlite"
+    assert not tmp_db.is_file()
+
+    with pytest.raises(SystemExit, match="does not exist, but not using --create-db"):
+        private_cli.log_configuration(
+            tmp_db,
+            method="guessing",
+            program="guestimate",
+            version="0.1.2beta3",
+            fragsize=100,
+            kmersize=51,
+            create_db=False,
+        )
+
+    # Now actually create the DB
+    private_cli.log_configuration(
+        tmp_db,
+        method="guessing",
+        program="guestimate",
+        version="0.1.2beta3",
+        fragsize=100,
+        kmersize=51,
+        create_db=True,
+    )
+
+    fasta = list(input_genomes_tiny.glob("*.f*"))
+    pool = Pool(3)
+    for filename in fasta:
+        # Deliberately add each file multiple times to try to clash
+        for _ in range(3):
+            pool.apply_async(
+                private_cli.log_genome,
+                [],
+                {
+                    "database": tmp_db,
+                    "fasta": [filename],
+                    "create_db": False,
+                },
+            )
+    pool.close()
+    pool.join()
+
+    private_cli.log_genome(
+        database=tmp_db,
+        fasta=fasta,
+        create_db=False,
+    )
+
+    # Could at this point log the run with status=started (or similar),
+    # but will need a mechanism to return the run ID and use it to update
+    # the table row at the end...
+
+    assert tmp_db.is_file()
+    tasks = [
+        {
+            "database": tmp_db,
+            "query_fasta": query,
+            "subject_fasta": subject,
+            "identity": 1.0 if query == subject else 0.96,
+            "aln_length": 12345,
+            "method": "guessing",
+            "program": "guestimate",
+            "version": "0.1.2beta3",
+            "fragsize": 100,
+            "kmersize": 51,
+            "sim_errors": 1,
+            "cov_query": 0.98,
+            "cov_subject": 0.98,
+            "create_db": False,
+        }
+        for query in fasta
+        for subject in fasta
+    ]
+
+    pool = Pool(len(fasta) ** 2)
+    for kwargs in tasks:
+        pool.apply_async(private_cli.log_comparison, [], kwargs)
+    pool.close()
+    pool.join()
+
+    # Can now log the run with status=completed
+    # Or, if we already logged it with status=started, would need to update
+    # the existing run table entry with the cached matrices and completed status
+    private_cli.log_run(
+        database=tmp_db,
+        # Run
+        cmdline="pyani_plus run ...",
+        name="Guess Run",
+        status="Completed",
+        fasta=fasta,  # list
+        # Config
+        method="guessing",
+        program="guestimate",
+        version="0.1.2beta3",
+        fragsize=100,
+        kmersize=51,
+        # Misc
+        create_db=False,
+    )
+
+    session = db_orm.connect_to_db(tmp_db)
+    assert session.query(db_orm.Comparison).count() == len(fasta) ** 2
 
 
 def test_fragment_fasta(

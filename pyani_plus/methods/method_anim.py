@@ -1,5 +1,26 @@
 # The MIT License
 #
+# Copyright (c) 2024 University of Strathclyde
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+# The MIT License
+#
 # Copyright (c) 2016-2019 The James Hutton Institute
 # Copyright (c) 2019-present University of Strathclyde
 #
@@ -53,9 +74,6 @@ class ComparisonResult(NamedTuple):
     default values.
     """
 
-    # TODO @kiepczi: We need to add a coverage value for the comparison
-    # https://github.com/pyani-plus/pyani-plus/issues/4
-
     qname: str  # query sequence name
     rname: str  # reference sequence name
     q_aligned_bases: int  # aligned base count of query sequence
@@ -71,9 +89,8 @@ class ComparisonResult(NamedTuple):
     q_hadamard: float  # query hadamard (percentage identity * percentage coverage)
 
 
-# NOTE It might be worth having a separate script to get genome lengths
-# as well as other sequence information (eg. lengths of all regions in a genome)
-# as this will be useful for other methods like dnadiff
+# NOTE This might not be needed as this information can now
+# be stored in one of the dataframeas in the database.
 def get_genome_length(filename: Path) -> int:
     """Return total length of all sequences in a FASTA file.
 
@@ -236,16 +253,6 @@ def collect_results_directory(
             )
             rlen = genome_lengths[rname]
             qlen = genome_lengths[qname]
-        # TODO @kiepczi: add coverage value to the ComparisonResult
-        # https://github.com/pyani-plus/pyani-plus/issues/4
-        #       We need to obtain the query and reference sequence lengths
-        #       at this point to calculate the coverage value(s) for the
-        #       comparison. This will require a corresponding change to the
-        #       ComparisonResult NamedTuple.
-        # NOTE: In the pyani implementation, the query and reference sequence
-        #       lengths were obtained from a Job object, which we do not have
-        #       implemented yet. It may be that we obtain these values in a
-        #       different way in pyani-plus
 
         run_results.append(
             ComparisonResult(

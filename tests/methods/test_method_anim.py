@@ -1,5 +1,26 @@
 # The MIT License
 #
+# Copyright (c) 2024 University of Strathclyde
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+# The MIT License
+#
 # Copyright (c) 2024-present University of Strathclyde
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -38,7 +59,9 @@ from pyani_plus.methods import method_anim
 @pytest.fixture
 def anim_results(dir_anim_results: Path) -> pd.DataFrame:
     """Return expected results for anim."""
-    return pd.read_csv(dir_anim_results / "deltadir_result.csv", index_col=0)
+    return pd.read_csv(
+        dir_anim_results / "matrix_identity_1.tab", index_col=0, sep="\t"
+    )
 
 
 def compare_anim_results(filterfile: Path, datadir: pd.DataFrame) -> bool:
@@ -67,15 +90,16 @@ def test_anim_average_identity(
         assert compare_anim_results(fname, anim_results)
 
 
-def test_anim_parsing(anim_nucmer_targets_delta_indir: Path) -> None:
+def test_anim_parsing(anim_nucmer_targets_filter_indir: Path) -> None:
     """Check parsing of test NUCmer .delta/.filter file."""
     assert method_anim.parse_delta(
-        anim_nucmer_targets_delta_indir / "NC_002696_vs_NC_011916.delta",
+        anim_nucmer_targets_filter_indir
+        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
     ) == (
-        4016947,
-        4017751,
-        0.9994621994447228,
-        2191,
+        39169,
+        39176,
+        0.9962487643734,
+        222,
     )
 
 

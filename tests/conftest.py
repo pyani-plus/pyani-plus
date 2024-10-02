@@ -36,7 +36,7 @@ FIXTUREPATH = TESTSPATH / "fixtures"
 @pytest.fixture()
 def dir_anim_results() -> Path:
     """Input result datafrmes for ANIm tests."""
-    return FIXTUREPATH / "anim" / "dataframes"
+    return FIXTUREPATH / "anim" / "dataframes" / "matrices"
 
 
 @pytest.fixture
@@ -252,7 +252,7 @@ def dnadiff_targets_showcoords(dnadiff_targets_showcoords_outdir: Path) -> list[
 @pytest.fixture
 def input_genomes_small() -> Path:
     """Path to small set of four bacterial input genomes."""
-    return FIXTUREPATH / "sequences"
+    return FIXTUREPATH / "bacterial_example"
 
 
 @pytest.fixture

@@ -38,7 +38,7 @@ def file_md5sum(filename: Path | str) -> str:
 
     In Python:
 
-        >>> file_md5sum("tests/fixtures/sequences/NC_002696.fasta")
+        >>> file_md5sum("tests/fixtures/bacterial_example/NC_002696.fasta")
         'f19cb07198a41a4406a22b2f57a6b5e7'
 
     This is used in pyANI-plus on input FASTA format sequence files, to give a

@@ -1,0 +1,7 @@
+/Users/akiepas/Desktop/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/genome_3.fasta /Users/akiepas/Desktop/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/genome_4.fasta
+NUCMER
+>OP073605.1:18226-57793 OP075722.1:1-32939 39568 32939
+1 32937 32939 1 36 36 0
+-11972
+-1
+0

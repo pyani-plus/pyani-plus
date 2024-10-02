@@ -40,7 +40,7 @@ from pathlib import Path
 from pyani_plus.tools import get_fastani
 
 # Parameters (eg, input sequences, fastANI outputs, k-mer sizes...)
-INPUT_DIR = Path("../fixtures/sequences")
+INPUT_DIR = Path("../fixtures/bacterial_example")
 FASTANI_DIR = Path("../fixtures/fastani/targets")
 FRAG_LEN = 3000
 KMER_SIZE = 16

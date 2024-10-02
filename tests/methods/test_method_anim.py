@@ -57,6 +57,14 @@ from pyani_plus.methods import method_anim
 
 
 @pytest.fixture
+def aligned_regions() -> dict:
+    """Example of aligned regions with overlaps."""  # noqa: D401
+    return {
+        "MGV_MGV-GENOME-0266457": [(1, 37636), (17626, 39176)],
+    }
+
+
+@pytest.fixture
 def anim_results(dir_anim_results: Path) -> pd.DataFrame:
     """Return expected results for anim."""
     return pd.read_csv(
@@ -103,7 +111,18 @@ def test_anim_parsing(anim_nucmer_targets_filter_indir: Path) -> None:
     )
 
 
-# TODO @kiepczi: Add a test for method_anim.py::get_aligned_bases_count()
-# https://github.com/pyani-plus/pyani-plus/issues/4
+def test_aligned_bases_count(aligned_regions: dict) -> None:
+    """Check aligned bases for aniM method."""
+    assert method_anim.get_aligned_bases_count(aligned_regions) == 39176  # noqa: PLR2004
+
+
+def test_get_genome_length(input_genomes_tiny: Path) -> None:
+    """Check if genome lengths are correct."""
+    assert (
+        method_anim.get_genome_length(input_genomes_tiny / "MGV-GENOME-0264574.fna")
+        == 39253  # noqa: PLR2004
+    )
+
+
 # TODO @kiepczi: Add a test for method_anim.py::collect_results_directory()
 # https://github.com/pyani-plus/pyani-plus/issues/4

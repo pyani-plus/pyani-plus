@@ -40,7 +40,7 @@ from pathlib import Path
 from pyani_plus.tools import get_fastani
 
 # Parameters (eg, input sequences, fastANI outputs, k-mer sizes...)
-INPUT_DIR = Path("../fixtures/sequences")
+INPUT_DIR = Path("../fixtures/viral_example")
 FASTANI_DIR = Path("../fixtures/fastani/targets")
 FRAG_LEN = 3000
 KMER_SIZE = 16
@@ -48,7 +48,7 @@ MIN_FRAC = 0.2
 
 # Running comparisons
 comparisons = permutations([_.stem for _ in Path(INPUT_DIR).glob("*")], 2)
-inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*")}
+inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*.f*")}
 
 fastani = get_fastani()
 print(f"Using fastANI {fastani.version} at {fastani.exe_path}")  # noqa: T201

@@ -194,3 +194,9 @@ def test_fragment_fasta_bad_args(tmp_path: str, input_genomes_tiny: Path) -> Non
         ValueError, match="Cannot fragment /does/not/exist.fasta, file not found"
     ):
         private_cli.fragment_fasta([Path("/does/not/exist.fasta")], out_dir)
+
+    with pytest.raises(
+        TypeError,
+        match="Expected a Path object in list of FASTA files, got 'some/example.fasta'",
+    ):
+        private_cli.fragment_fasta(["some/example.fasta"], out_dir)

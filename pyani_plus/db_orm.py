@@ -585,7 +585,7 @@ def add_genome(session: Session, fasta_filename: Path | str, md5: str) -> Genome
 
     >>> session = connect_to_db(":memory:")
     >>> from pyani_plus.utils import file_md5sum
-    >>> fasta = "tests/fixtures/bacterial_example/NC_002696.fasta"
+    >>> fasta = "tests/fixtures/sequences/NC_002696.fasta"
     >>> genome = add_genome(session, fasta, file_md5sum(fasta))
     >>> genome.genome_hash
     'f19cb07198a41a4406a22b2f57a6b5e7'

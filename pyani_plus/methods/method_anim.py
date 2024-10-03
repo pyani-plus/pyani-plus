@@ -237,9 +237,6 @@ def collect_results_directory(
     :param completed_jobs: Path to the filter files directory
     :param indir: Path to input directory (FASTA files)
     """
-    # TODO @kiepczi: This function requires a test
-    # https://github.com/pyani-plus/pyani-plus/issues/4
-
     genome_lengths = {
         record.stem: get_genome_length(record) for record in Path(indir).iterdir()
     }
@@ -268,7 +265,7 @@ def collect_results_directory(
                 r_cov=r_aligned_bases / rlen,
                 q_cov=q_aligned_bases / qlen,
                 r_hadamard=(r_aligned_bases / rlen) * avrg_identity,
-                q_hadamard=(q_aligned_bases / rlen) * avrg_identity,
+                q_hadamard=(q_aligned_bases / qlen) * avrg_identity,
             ),
         )
 

@@ -1,6 +1,0 @@
-/Users/akiepas/Desktop/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/MGV-GENOME-0264574.fna /Users/akiepas/Desktop/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/genome_3.fasta
-NUCMER
-
-    [S1]     [E1]  |     [S2]     [E2]  |  [LEN 1]  [LEN 2]  |  [% IDY]  | [TAGS]
-=====================================================================================
-     107    39253  |    39568      419  |    39147    39150  |    99.93  | MGV_MGV-GENOME-0264574	OP073605.1:18226-57793

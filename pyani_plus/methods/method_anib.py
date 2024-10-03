@@ -38,6 +38,13 @@ from Bio.SeqIO.FastaIO import SimpleFastaParser
 
 FRAGSIZE = 1020  # Default ANIb fragment size
 
+# We do NOT use the standard 12 columns, but a custom 15 cols as per old pyANI
+# std = qaccver saccver pident length mismatch gapopen qstart qend sstart send evalue bitscore
+BLAST_COLUMNS = (
+    "qseqid sseqid length mismatch pident nident"
+    " qlen slen qstart qend sstart send positive ppos gaps"
+).split()
+
 
 def fragment_fasta_files(
     fasta: list[Path], outdir: Path, fragsize: int = FRAGSIZE

@@ -36,7 +36,7 @@ fixtures:
 	@echo "This will take several minutes..."
 	@echo ""
 	cd tests/generate_fixtures/; ./generate_anib_fragment_files.py
-	cd tests/generate_fixtures/; ./generate_anib_blastdb_njs_files.py
+	cd tests/generate_fixtures/; ./generate_anib_blast_files.py
 	cd tests/generate_fixtures/; ./generate_target_anim_files.py
 	cd tests/generate_fixtures/; ./generate_target_dnadiff_files.py
 	cd tests/generate_fixtures/; ./generate_target_fastani_files.py

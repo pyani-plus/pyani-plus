@@ -23,48 +23,78 @@
 # THE SOFTWARE.
 """Generate target files for pyani-plus ANIb (blast) tests.
 
-This script can be run with ``./generate_anib_blastdb_njs_files.py`` in the script's
+This script can be run with ``./generate_anib_blast_files.py`` in the script's
 directory, or from the project root directory via ``make fixtures``. It will
 regenerate and potentially modify test input files under the fixtures directory.
 
-This script generates fragmented FASTA files which are used as the query files
-with NCBI BLAST+ command blastn against database of the unfragmented FASTA files.
+This script generates BLAST databases (from which we take the *.njs files for
+test output checking) and then runs blastn using the previously generated
+fragmented FASTA files as queries.
 """
 
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
-from pyani_plus.tools import get_makeblastdb
+from pyani_plus.methods.method_anib import BLAST_COLUMNS
+from pyani_plus.tools import get_blastn, get_makeblastdb
 
 # Paths to directories (eg, input sequences, delta and filter)
-INPUT_DIR = Path("../fixtures/viral_example")
+SUBJECT_DIR = Path("../fixtures/viral_example")
+QUERY_DIR = Path("../fixtures/anib/fragments")
 NJS_DIR = Path("../fixtures/anib/blastdb")
+BLASTN_DIR = Path("../fixtures/anib/blastn")
 
+blastn = get_blastn()
 makeblastdb = get_makeblastdb()
-print(f"Using NCBI BLAST+ {makeblastdb.version} at {makeblastdb.exe_path}")  # noqa: T201
+if blastn.version != makeblastdb.version:
+    sys.exit(
+        "ERROR - Inconsistent versions, blastn {blastn.version} vs makeblastn {makeblastdb.version}"
+    )
+print(  # noqa: T201
+    f"Using NCBI BLAST+ {makeblastdb.version} at {blastn.exe_path} and {makeblastdb.exe_path}"
+)
 
 count = 0
 # Note flexible on input *.fna vs *.fa vs *.fasta, but fixed on output
-for fasta in INPUT_DIR.glob("*.f*"):
-    output = NJS_DIR / (fasta.stem + ".njs")
+for subject in SUBJECT_DIR.glob("*.f*"):
+    output = NJS_DIR / (subject.stem + ".njs")
     with tempfile.TemporaryDirectory() as tmp:
         subprocess.run(
             [
                 makeblastdb.exe_path,
                 "-in",
-                fasta,
+                subject,
                 "-title",
-                fasta.stem,
+                subject.stem,
                 "-dbtype",
                 "nucl",
                 "-out",
-                tmp + "/" + fasta.stem,
+                tmp + "/" + subject.stem,
             ],
             check=True,
         )
-        shutil.move(tmp + "/" + fasta.stem + ".njs", NJS_DIR / (fasta.stem + ".njs"))
+        shutil.move(
+            tmp + "/" + subject.stem + ".njs", NJS_DIR / (subject.stem + ".njs")
+        )
+        print(f"Collected {subject.stem} BLAST nucleotide database JSON file")  # noqa: T201
+        for query in QUERY_DIR.glob("*-fragments.fna"):
+            subprocess.run(
+                [
+                    blastn.exe_path,
+                    "-query",
+                    query,
+                    "-db",
+                    tmp + "/" + subject.stem,
+                    "-outfmt",
+                    # We do NOT use the standard 12 columns
+                    "6 " + " ".join(BLAST_COLUMNS),
+                    "-out",
+                    BLASTN_DIR / f"{query.stem[:-10]}_vs_{subject.stem}.tsv",
+                ],
+                check=True,
+            )
         count += 1
-    print(f"Collected {fasta.stem} BLAST nucleotide database JSON file")  # noqa: T201
 print(f"Collected {count} BLAST nucleotide database JSON files")  # noqa: T201

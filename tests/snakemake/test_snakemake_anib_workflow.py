@@ -92,6 +92,7 @@ def compare_blast_json(file_a: Path, file_b: Path) -> bool:
                 a == b
                 or ("last-updated" in a and "last-updated" in b)
                 or ("bytes-total" in a and "bytes-total" in b)
+                or ("bytes-to-cache" in a and "bytes-to-cache" in b)
             ), f"{a!r} != {b!r}"
     return True
 

@@ -195,9 +195,10 @@ def test_collect_results(
     input_genomes_tiny: Path,
 ) -> None:
     """Check that ComparisionResult class is populated with correct values."""
-    assert (
-        expected_anim_results
-        == method_anim.collect_results_directory(
+    assert expected_anim_results == next(
+        result
+        for result in method_anim.collect_results_directory(
             anim_nucmer_targets_filter_indir, input_genomes_tiny
-        )[2]
+        )
+        if result.qname == "MGV-GENOME-0264574" and result.rname == "MGV-GENOME-0266457"
     )

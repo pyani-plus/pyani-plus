@@ -75,7 +75,7 @@ def test_log_configuration(tmp_path: str) -> None:
     tmp_db.unlink()
 
 
-def test_log_genome(tmp_path: str, input_genomes_small: Path) -> None:
+def test_log_genome(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Confirm can create a new empty database via log-genome."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
@@ -84,7 +84,7 @@ def test_log_genome(tmp_path: str, input_genomes_small: Path) -> None:
         private_cli.log_genome(
             database=tmp_db,
             fasta=list(
-                input_genomes_small.glob("*.fasta")  # subset of folder
+                input_genomes_tiny.glob("*.fasta")  # subset of folder
             ),
         )
     assert "does not exist, but not using --create-db" in str(err)
@@ -93,13 +93,13 @@ def test_log_genome(tmp_path: str, input_genomes_small: Path) -> None:
     private_cli.log_genome(
         database=tmp_db,
         fasta=list(
-            input_genomes_small.glob("*.fasta")  # subset of folder
+            input_genomes_tiny.glob("*.fasta")  # subset of folder
         ),
         create_db=True,
     )
 
 
-def test_log_comparison(tmp_path: str, input_genomes_small: Path) -> None:
+def test_log_comparison(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Confirm can create a mock DB using log-comparison etc."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
@@ -114,7 +114,7 @@ def test_log_comparison(tmp_path: str, input_genomes_small: Path) -> None:
         create_db=True,
     )
 
-    fasta = list(input_genomes_small.glob("*.fna"))  # subset of folder (2)
+    fasta = list(input_genomes_tiny.glob("*.fna"))  # subset of folder (2)
     private_cli.log_genome(
         database=tmp_db,
         fasta=fasta,

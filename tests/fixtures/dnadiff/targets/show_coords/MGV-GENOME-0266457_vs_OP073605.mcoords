@@ -1,0 +1,6 @@
+/Users/pc40583/repositories/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/MGV-GENOME-0266457.fna /Users/pc40583/repositories/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/OP073605.fasta
+NUCMER
+
+    [S1]     [E1]  |     [S2]     [E2]  |  [LEN 1]  [LEN 2]  |  [% IDY]  | [TAGS]
+=====================================================================================
+      23    39594  |    57793    18226  |    39572    39568  |    99.46  | MGV_MGV-GENOME-0266457	OP073605.1

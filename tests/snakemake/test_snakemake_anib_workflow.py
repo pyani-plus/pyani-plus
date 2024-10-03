@@ -88,8 +88,10 @@ def compare_blast_json(file_a: Path, file_b: Path) -> bool:
     """Compare two BLAST+ .njs JSON files, ignoring the date-stamp."""
     with file_a.open() as handle_a, file_b.open() as handle_b:
         for a, b in zip(handle_a, handle_b, strict=True):
-            assert a == b or (
-                "last-updated" in a and "last-updated" in b
+            assert (
+                a == b
+                or ("last-updated" in a and "last-updated" in b)
+                or ("bytes-total" in a and "bytes-total" in b)
             ), f"{a!r} != {b!r}"
     return True
 

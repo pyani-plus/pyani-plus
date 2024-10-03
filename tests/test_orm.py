@@ -459,7 +459,7 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
     tmp_db.unlink()
 
 
-def test_helper_functions(tmp_path: str, input_genomes_small: Path) -> None:
+def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Populate new DB using helper functions."""
     tmp_db = Path(tmp_path) / "mock.sqlite"
     assert not tmp_db.is_file()
@@ -482,7 +482,7 @@ def test_helper_functions(tmp_path: str, input_genomes_small: Path) -> None:
 
     hashes = {}
     genomes = []
-    for fasta in input_genomes_small.glob("*.f*"):
+    for fasta in input_genomes_tiny.glob("*.f*"):
         md5 = file_md5sum(fasta)
         genome = db_orm.add_genome(session, fasta, md5)
         hashes[md5] = fasta
@@ -527,6 +527,6 @@ def test_helper_functions(tmp_path: str, input_genomes_small: Path) -> None:
     run.status = "Complete"
     session.commit()
     assert run.df_hadamard == (
-        '{"columns":["073194224aa8c13bebc1d14a3e74a3e7","9a9e23bfc5a184b8149e07e267d133b0","9d72a8fb513cf9cc8cc6605a0ad4e837","f19cb07198a41a4406a22b2f57a6b5e7"],"index":["073194224aa8c13bebc1d14a3e74a3e7","9a9e23bfc5a184b8149e07e267d133b0","9d72a8fb513cf9cc8cc6605a0ad4e837","f19cb07198a41a4406a22b2f57a6b5e7"],"data":[[0.99,0.9801,0.9801,0.9801],[0.9801,0.99,0.9801,0.9801],[0.9801,0.9801,0.99,0.9801],[0.9801,0.9801,0.9801,0.99]]}'
+        '{"columns":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],"index":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],"data":[[0.99,0.9801,0.9801],[0.9801,0.99,0.9801],[0.9801,0.9801,0.99]]}'
     )
     tmp_db.unlink()

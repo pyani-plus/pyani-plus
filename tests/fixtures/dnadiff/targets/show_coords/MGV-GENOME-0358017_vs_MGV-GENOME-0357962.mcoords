@@ -1,8 +1,0 @@
-/Users/pc40583/repositories/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/MGV-GENOME-0358017.fna /Users/pc40583/repositories/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/MGV-GENOME-0357962.fna
-NUCMER
-
-    [S1]     [E1]  |     [S2]     [E2]  |  [LEN 1]  [LEN 2]  |  [% IDY]  | [TAGS]
-=====================================================================================
-       1      293  |    23884    24176  |      293      293  |   100.00  | MGV_MGV-GENOME-0358017	MGV_MGV-GENOME-0357962
-     176    63368  |    24107    87285  |    63193    63179  |    99.92  | MGV_MGV-GENOME-0358017	MGV_MGV-GENOME-0357962
-   63330    87353  |        1    24024  |    24024    24024  |    99.98  | MGV_MGV-GENOME-0358017	MGV_MGV-GENOME-0357962

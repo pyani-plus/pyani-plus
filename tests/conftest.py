@@ -33,12 +33,6 @@ TESTSPATH = Path(__file__).parents[0].resolve()
 FIXTUREPATH = TESTSPATH / "fixtures"
 
 
-@pytest.fixture()
-def dir_anim_results() -> Path:
-    """Input result datafrmes for ANIm tests."""
-    return FIXTUREPATH / "anim" / "dataframes" / "matrices"
-
-
 @pytest.fixture
 def anim_nucmer_targets_filter_indir() -> Path:
     """Directory containing MUMmer filter snakemake reference files."""
@@ -252,7 +246,7 @@ def dnadiff_targets_showcoords(dnadiff_targets_showcoords_outdir: Path) -> list[
 @pytest.fixture
 def input_genomes_small() -> Path:
     """Path to small set of four bacterial input genomes."""
-    return FIXTUREPATH / "bacterial_example"
+    return FIXTUREPATH / "sequences"
 
 
 @pytest.fixture

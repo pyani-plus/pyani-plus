@@ -119,7 +119,7 @@ def test_aligned_bases_count(aligned_regions: dict) -> None:
 def test_get_genome_length(input_genomes_tiny: Path) -> None:
     """Check if genome lengths are correct."""
     assert (
-        method_anim.get_genome_length(input_genomes_tiny / "MGV-GENOME-0264574.fna")
+        method_anim.get_genome_length(input_genomes_tiny / "MGV-GENOME-0264574.fas")
         == 39253  # noqa: PLR2004
     )
 

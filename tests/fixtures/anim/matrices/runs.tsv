@@ -1,0 +1,2 @@
+	run ID	name	method	date run	command-line
+0	1	genearte fixtures	ANIm	2024-10-03 16:50:46.651247	/opt/anaconda3/envs/pyani_issue_421/bin/pyani anim -i ../../tests/fixtures/viral_example/ -o ../../tests/fixtures/viral_example/output -v -l ../../tests/fixtures/viral_example/log.log --name genearte fixtures --labels ../../tests/fixtures/viral_example/labels.txt --classes ../../tests/fixtures/viral_example/classes.txt

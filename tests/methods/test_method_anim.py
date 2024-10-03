@@ -127,7 +127,7 @@ def test_average_identity(
         assert compare_results_decimal(
             fname,
             pd.read_csv(
-                dir_anim_results / "matrix_identity_1.tab", index_col=0, sep="\t"
+                dir_anim_results / "matrix_identity_1.tsv", index_col=0, sep="\t"
             ),
             2,
         )
@@ -142,7 +142,7 @@ def test_aln_lengths(
         assert compare_results_no_decimal(
             fname,
             pd.read_csv(
-                dir_anim_results / "matrix_aln_lengths_1.tab", index_col=0, sep="\t"
+                dir_anim_results / "matrix_aln_lengths_1.tsv", index_col=0, sep="\t"
             ),
             0,
         )
@@ -157,7 +157,7 @@ def test_sim_errors(
         assert compare_results_no_decimal(
             fname,
             pd.read_csv(
-                dir_anim_results / "matrix_sim_errors_1.tab", index_col=0, sep="\t"
+                dir_anim_results / "matrix_sim_errors_1.tsv", index_col=0, sep="\t"
             ),
             3,
         )

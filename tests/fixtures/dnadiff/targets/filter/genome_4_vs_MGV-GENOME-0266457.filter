@@ -1,0 +1,7 @@
+/Users/akiepas/Desktop/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/genome_4.fasta /Users/akiepas/Desktop/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/MGV-GENOME-0266457.fna
+NUCMER
+>OP075722.1:1-32939 MGV_MGV-GENOME-0266457 32939 39594
+1 32939 6654 39594 201 201 0
+-20988
+-1
+0

@@ -24,27 +24,35 @@ set -euo pipefail
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-#create db
-pyani createdb --force
+# Make a temp subdir
+mkdir tmp_pyani
+cd tmp_pyani
+
+# Create pyanidb
+pyani createdb
+
+# Copy genomes to tmp_pyani subdir (macOS)
+for FASTA in ../../../tests/fixtures/viral_example/*.f*; do
+    ln -s $FASTA ${FASTA##*/};
+done
 
 #index with pyANI v0.3
-pyani index -i ../../tests/fixtures/viral_example/
+pyani index -i .
 
-#Update the label file so that the columns in the matrices correspond to the genome stem files
-awk -F'\t' 'OFS="\t" {$3 = $2; print}' ../../tests/fixtures/viral_example/labels.txt > ../../tests/fixtures/viral_example/labels_tmp.txt && mv ../../tests/fixtures/viral_example/labels_tmp.txt ../../tests/fixtures/viral_example/labels.txt
+#Update the label file so that the columns in the matrices correspond to the genome md5 hash
+awk -F'\t' 'OFS="\t" {$3 = $1; print}' labels.txt > labels_tmp.txt && mv labels_tmp.txt labels.txt
 
 #Run comparisions
-pyani anim -i ../../tests/fixtures/viral_example/ -o ../../tests/fixtures/viral_example/output -v -l ../../tests/fixtures/viral_example/output/log.log --name "genearte fixtures" --labels ../../tests/fixtures/viral_example/labels.txt --classes ../../tests/fixtures/viral_example/classes.txt
+pyani anim -i . -o output -v -l output/log.log --name "genearte fixtures" --labels labels.txt --classes classes.txt
 
 #Generate matrices
-pyani report -v --runs -o ../../tests/fixtures/anim/matrices/ --formats=stdout --run_matrices 1
+pyani report -v -o ../../../tests/fixtures/anim/matrices/ --formats=stdout --run_matrices 1
 
 #Change extensions files
-for file in ../../tests/fixtures/anim/matrices/*; do
+for file in ../../../tests/fixtures/anim/matrices/*; do
     mv "$file" "${file%.tab}.tsv"
 done
 
-#Remove unwanted files (eg. pyANI output)
-rm -r ../../tests/fixtures/viral_example/output
-rm -r ../../tests/fixtures/viral_example/*.md5
-rm -r ../../tests/fixtures/viral_example/*.txt
+#Remove temp subdir
+cd ..
+rm -rf tmp_pyani

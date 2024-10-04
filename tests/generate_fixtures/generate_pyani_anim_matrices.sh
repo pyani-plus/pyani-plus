@@ -1,7 +1,5 @@
 #!/bin/bash
-
 set -euo pipefail
-
 # The MIT License
 #
 # Copyright (c) 2024 University of Strathclyde
@@ -24,35 +22,41 @@ set -euo pipefail
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+echo "This is intended to be used with pyANI v0.3, we have:"
+pyani --version
+
 # Make a temp subdir
 mkdir tmp_pyani
 cd tmp_pyani
 
-# Create pyanidb
+echo "Creating pyANI database"
 pyani createdb
 
-# Copy genomes to tmp_pyani subdir (macOS)
+echo "Setting up input genomes"
 for FASTA in ../../../tests/fixtures/viral_example/*.f*; do
-    ln -s $FASTA ${FASTA##*/};
+    ln -s "$FASTA" "${FASTA##*/}"
 done
 
+echo "Indexing with pyani..."
 #index with pyANI v0.3
 pyani index -i .
 
 #Update the label file so that the columns in the matrices correspond to the genome md5 hash
 awk -F'\t' 'OFS="\t" {$3 = $1; print}' labels.txt > labels_tmp.txt && mv labels_tmp.txt labels.txt
 
-#Run comparisions
+echo "Run comparisions..."
 pyani anim -i . -o output -v -l output/log.log --name "genearte fixtures" --labels labels.txt --classes classes.txt
 
-#Generate matrices
-pyani report -v -o ../../../tests/fixtures/anim/matrices/ --formats=stdout --run_matrices 1
+echo "Generate matrices..."
+pyani report -v -o . --formats=stdout --run_matrices 1
 
-#Change extensions files
-for file in ../../../tests/fixtures/anim/matrices/*; do
-    mv "$file" "${file%.tab}.tsv"
+echo "Collecting output for test fixtures..."
+for file in *_1.tab; do
+    # Renaming XXX_1.tab to XXX.tsv
+    cp "$file" "../../fixtures/anim/matrices/${file%_1.tab}.tsv"
 done
 
 #Remove temp subdir
 cd ..
 rm -rf tmp_pyani
+echo "Generated ANIm matrices"

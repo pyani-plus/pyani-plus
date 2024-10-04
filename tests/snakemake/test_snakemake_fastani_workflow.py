@@ -41,7 +41,7 @@ from pyani_plus.tools import get_fastani
 @pytest.fixture
 def config_fastani_args(
     fastani_targets_outdir: Path,
-    input_genomes_small: Path,
+    input_genomes_tiny: Path,
     snakemake_cores: int,
     tmp_path: str,
 ) -> dict:
@@ -50,7 +50,7 @@ def config_fastani_args(
         "db": Path(tmp_path) / "db.slqite",
         "fastani": get_fastani().exe_path,
         "outdir": fastani_targets_outdir,
-        "indir": str(input_genomes_small),
+        "indir": str(input_genomes_tiny),
         "cores": snakemake_cores,
         "fragLen": 3000,
         "kmerSize": 16,

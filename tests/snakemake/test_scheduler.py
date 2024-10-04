@@ -36,27 +36,26 @@ from pyani_plus.snakemake import snakemake_scheduler
 
 
 def test_input_stems(
-    input_genomes_small: Path,
+    input_genomes_tiny: Path,
 ) -> None:
     """Verify expected stem:filename mapping from FASTA directory."""
-    mapping = snakemake_scheduler.check_input_stems(str(input_genomes_small))
+    mapping = snakemake_scheduler.check_input_stems(str(input_genomes_tiny))
     assert mapping == {
-        "NC_002696": input_genomes_small / "NC_002696.fasta",
-        "NC_010338": input_genomes_small / "NC_010338.fna",
-        "NC_011916": input_genomes_small / "NC_011916.fas",
-        "NC_014100": input_genomes_small / "NC_014100.fna",
+        "MGV-GENOME-0264574": input_genomes_tiny / "MGV-GENOME-0264574.fas",
+        "MGV-GENOME-0266457": input_genomes_tiny / "MGV-GENOME-0266457.fna",
+        "OP073605": input_genomes_tiny / "OP073605.fasta",
     }
 
 
 def test_duplicate_stems(
-    input_genomes_small: Path,
+    input_genomes_tiny: Path,
     tmp_path: str,
 ) -> None:
     """Verify expected error message with duplicated FASTA stems."""
     dup_input_dir = Path(tmp_path) / "duplicated_stems"
     dup_input_dir.mkdir()
     stems = set()
-    for sequence in input_genomes_small.glob("*.f*"):
+    for sequence in input_genomes_tiny.glob("*.f*"):
         # For every input FASTA file, make two versions - XXX.fasta and XXX.fna
         os.symlink(sequence, dup_input_dir / (sequence.stem + ".fasta"))
         os.symlink(sequence, dup_input_dir / (sequence.stem + ".fna"))

@@ -25,6 +25,38 @@ import hashlib
 from pathlib import Path
 
 
+def str_md5sum(text: str, encoding: str = "ascii") -> str:
+    """Return the MD5 checksum hash digest of the passed string.
+
+    :param text:  String for hashing
+
+    Behaves like the command line tool ``md5sum``, giving a 32 character
+    hexadecimal representation of the MD5 checksum of the file contents::
+
+        $ md5sum tests/fixtures/sequences/NC_002696.fasta
+        f19cb07198a41a4406a22b2f57a6b5e7  tests/fixtures/sequences/NC_002696.fasta
+
+    In Python:
+
+        >>> with open("tests/fixtures/sequences/NC_002696.fasta") as handle:
+        ...     text = handle.read()
+        >>> str_md5sum(text)
+        'f19cb07198a41a4406a22b2f57a6b5e7'
+
+    This particular example would be more consise using the sister function:
+
+        >>> file_md5sum("tests/fixtures/sequences/NC_002696.fasta")
+        'f19cb07198a41a4406a22b2f57a6b5e7'
+
+    The MD5 checksum is used in pyANI-plus on input FASTA format sequence files.
+    This helper function is to avoid repetitive code and associated warnings
+    from code checking tools, and is used in our test suite.
+    """
+    # We're ignoring the linter warning as not using MD5 for security:
+    # S324 Probable use of insecure hash functions in `hashlib`: `md5`
+    return hashlib.md5(text.encode(encoding)).hexdigest()  # noqa: S324
+
+
 def file_md5sum(filename: Path | str) -> str:
     """Return the MD5 checksum hash digest of the passed file contents.
 

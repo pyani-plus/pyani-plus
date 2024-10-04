@@ -45,7 +45,7 @@ pyani index -i .
 awk -F'\t' 'OFS="\t" {$3 = $1; print}' labels.txt > labels_tmp.txt && mv labels_tmp.txt labels.txt
 
 echo "Run comparisions..."
-pyani anim -i . -o output -v -l output/log.log --name "genearte fixtures" --labels labels.txt --classes classes.txt
+pyani anim -i . -o output -v -l output/log.log --name "generate fixtures" --labels labels.txt --classes classes.txt
 
 echo "Generate matrices..."
 pyani report -v -o . --formats=stdout --run_matrices 1

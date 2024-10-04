@@ -34,7 +34,7 @@ using fastANI.
 
 # Imports
 import subprocess
-from itertools import permutations
+from itertools import product
 from pathlib import Path
 
 from pyani_plus.tools import get_fastani
@@ -47,8 +47,8 @@ KMER_SIZE = 16
 MIN_FRAC = 0.2
 
 # Running comparisons
-comparisons = permutations([_.stem for _ in Path(INPUT_DIR).glob("*")], 2)
 inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*.f*")}
+comparisons = product(inputs, inputs)
 
 fastani = get_fastani()
 print(f"Using fastANI {fastani.version} at {fastani.exe_path}")  # noqa: T201

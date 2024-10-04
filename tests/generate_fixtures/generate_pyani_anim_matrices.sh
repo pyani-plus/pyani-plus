@@ -34,13 +34,13 @@ awk -F'\t' 'OFS="\t" {$3 = $2; print}' ../../tests/fixtures/viral_example/labels
 #Run comparisions
 pyani anim -i ../../tests/fixtures/viral_example/ -o ../../tests/fixtures/viral_example/output -v -l ../../tests/fixtures/viral_example/output/log.log --name "genearte fixtures" --labels ../../tests/fixtures/viral_example/labels.txt --classes ../../tests/fixtures/viral_example/classes.txt
 
-# #Generate matrices
-# pyani report -v --runs -o ../../tests/fixtures/anim/matrices/ --formats=stdout --run_matrices 1
+#Generate matrices
+pyani report -v --runs -o ../../tests/fixtures/anim/matrices/ --formats=stdout --run_matrices 1
 
-# #Change extensions files
-# for file in ../../tests/fixtures/anim/matrices/*; do
-#     mv "$file" "${file%.tab}.tsv"
-# done
+#Change extensions files
+for file in ../../tests/fixtures/anim/matrices/*; do
+    mv "$file" "${file%.tab}.tsv"
+done
 
 #Remove unwanted files (eg. pyANI output)
 rm -r ../../tests/fixtures/viral_example/output

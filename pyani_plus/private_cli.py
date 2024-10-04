@@ -262,8 +262,9 @@ def parse_fastani_file(filename: Path) -> tuple[Path, Path, float, int, int]:
 
     :param filename: Path, path to the input file
 
-    Extracts the ANI estimate, the number of orthologous matches, and the
-    number of sequence fragments considered from the fastANI output file.
+    Extracts the ANI estimate (which we return in the range 0 to 1), the
+    number of orthologous matches (int), and the number of sequence
+    fragments considered from the fastANI output file (int).
 
     We assume that all fastANI comparisons are pairwise: one query and
     one reference file. The fastANI file should contain a single line.
@@ -313,8 +314,8 @@ def log_fastani(  # noqa: PLR0913
     # after the computation has finished (on the same machine)
     fastani_tool = tools.get_fastani()
 
-    used_query, used_subject, identity, aln_length, fragments = parse_fastani_file(
-        fastani
+    used_query, used_subject, identity, orthologous_matches, fragments = (
+        parse_fastani_file(fastani)
     )
     # Allowing for some variation in the filename paths here... should we?
     if used_query.stem != query_fasta.stem:
@@ -346,18 +347,17 @@ def log_fastani(  # noqa: PLR0913
     if config.configuration_id is None:
         sys.exit("Error with configuration table?")
 
-    # here aln_length was fastANI's total length
-    sim_errors = fragments - aln_length
+    sim_errors = fragments - orthologous_matches
 
     # Need to lookup query length to compute query_cover:
     query_md5 = file_md5sum(query_fasta)
     query = db_orm.add_genome(session, query_fasta, query_md5)
-    cov_query = float(aln_length) / query.length
+    cov_query = float(orthologous_matches) / query.length
 
     # Need to lookup subject length to compute subject_cover:
     subject_md5 = file_md5sum(subject_fasta)
     subject = db_orm.add_genome(session, subject_fasta, subject_md5)
-    cov_subject = float(aln_length) / subject.length
+    cov_subject = float(orthologous_matches) / subject.length
 
     db_orm.add_comparison(
         session,
@@ -365,7 +365,7 @@ def log_fastani(  # noqa: PLR0913
         query_hash=query_md5,
         subject_hash=subject_md5,
         identity=identity,
-        aln_length=aln_length,
+        aln_length=orthologous_matches,
         sim_errors=sim_errors,
         cov_query=cov_query,
         cov_subject=cov_subject,

@@ -26,8 +26,8 @@ echo "This is intended to be used with pyANI v0.3, we have:"
 pyani --version
 
 # Make a temp subdir
-mkdir tmp_pyani
-cd tmp_pyani
+mkdir tmp_pyani_anim
+cd tmp_pyani_anim
 
 echo "Creating pyANI database"
 pyani createdb
@@ -44,7 +44,7 @@ pyani index -i .
 #Update the label file so that the columns in the matrices correspond to the genome md5 hash
 awk -F'\t' 'OFS="\t" {$3 = $1; print}' labels.txt > labels_tmp.txt && mv labels_tmp.txt labels.txt
 
-echo "Run comparisions..."
+echo "Run ANIm comparisions..."
 pyani anim -i . -o output -v -l output/log.log --name "generate fixtures" --labels labels.txt --classes classes.txt
 
 echo "Generate matrices..."
@@ -58,5 +58,5 @@ done
 
 #Remove temp subdir
 cd ..
-rm -rf tmp_pyani
+rm -rf tmp_pyani_anim
 echo "Generated ANIm matrices"

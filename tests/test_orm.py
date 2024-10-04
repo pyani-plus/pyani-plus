@@ -27,7 +27,6 @@ pytest -v
 """
 
 import datetime
-import hashlib
 import platform
 from pathlib import Path
 
@@ -35,7 +34,7 @@ import numpy as np
 import pandas as pd
 
 from pyani_plus import db_orm
-from pyani_plus.utils import file_md5sum
+from pyani_plus.utils import file_md5sum, str_md5sum
 
 
 def test_make_new_db(tmp_path: str) -> None:
@@ -82,7 +81,7 @@ def test_make_and_populate_comparisons(tmp_path: str) -> None:
     for name in NAMES:
         seq = "ACGT" * int(DUMMY_ALIGN_LEN / 4) * len(name)
         fasta = f">{name}\n{seq}\n"
-        md5 = hashlib.md5(fasta.encode("ascii")).hexdigest()  # noqa: S324
+        md5 = str_md5sum(fasta)
         hashes[md5] = name
         genome = db_orm.Genome(
             genome_hash=md5,
@@ -317,7 +316,7 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
     # However, only going to link 2 genomes to the run (so 4 comparisons)
     for name in ("Genome A", "Genome C", "Genome G", "Genome T"):
         seq = (name[-1] + "ACGT") * 1000
-        md5 = hashlib.md5(f">{name}\n{seq}\n".encode("ascii")).hexdigest()  # noqa: S324
+        md5 = str_md5sum(f">{name}\n{seq}\n")
         hashes.append(md5)
         genome = db_orm.Genome(
             genome_hash=md5,

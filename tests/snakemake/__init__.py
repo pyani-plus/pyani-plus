@@ -68,6 +68,7 @@ def compare_matrices(database_path: Path, matrices_path: Path) -> None:
     * ``matrix_identity.tsv``
     * ``matrix_sim_errors.tsv``
 
+    If any of the files are missing, the comparison is skipped.
     """
     session = db_orm.connect_to_db(database_path)
     run = session.query(db_orm.Run).one()
@@ -75,10 +76,15 @@ def compare_matrices(database_path: Path, matrices_path: Path) -> None:
     if run.identities is None:
         run.cache_comparisons()
 
-    compare_matrix(run.identities, matrices_path / "matrix_identity.tsv")
-    if False:
-        # These don't yet work for fastANI
+    assert matrices_path.is_dir()
+
+    if (matrices_path / "matrix_identity.tsv").is_file():
+        compare_matrix(run.identities, matrices_path / "matrix_identity.tsv")
+    if (matrices_path / "matrix_aln_lengths.tsv").is_file():
         compare_matrix(run.aln_length, matrices_path / "matrix_aln_lengths.tsv")
-        compare_matrix(run.sim_errors, matrices_path / "matrix_sim_errors.tsv")
+    if (matrices_path / "matrix_coverage.tsv").is_file():
         compare_matrix(run.cov_query, matrices_path / "matrix_coverage.tsv")
+    if (matrices_path / "matrix_hadamard.tsv").is_file():
         compare_matrix(run.hadamard, matrices_path / "matrix_hadamard.tsv")
+    if (matrices_path / "matrix_sim_errors.tsv").is_file():
+        compare_matrix(run.sim_errors, matrices_path / "matrix_sim_errors.tsv")

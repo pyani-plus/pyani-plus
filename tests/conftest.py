@@ -40,6 +40,12 @@ def anim_nucmer_targets_filter_indir() -> Path:
 
 
 @pytest.fixture
+def dir_anim_results() -> Path:
+    """Directory containing pyani v0.3 aniM matrices."""
+    return FIXTUREPATH / "anim" / "matrices"
+
+
+@pytest.fixture
 def anim_nucmer_targets_filter_outdir(tmp_path: str) -> Path:
     """Output directory for MUMmer filter snakemake tests.
 

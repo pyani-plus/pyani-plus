@@ -35,6 +35,8 @@ fixtures:
 	@echo "Running scripts to recreate the input files to the test suite."
 	@echo "This will take several minutes..."
 	@echo ""
+	cd tests/generate_fixtures/; ./generate_anib_fragment_files.py
+	cd tests/generate_fixtures/; ./generate_anib_blast_files.py
 	cd tests/generate_fixtures/; ./generate_target_anim_files.py
 	cd tests/generate_fixtures/; ./generate_pyani_anim_matrices.sh
 	cd tests/generate_fixtures/; ./generate_target_dnadiff_files.py

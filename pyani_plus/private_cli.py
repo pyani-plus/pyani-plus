@@ -350,17 +350,19 @@ def log_fastani(  # noqa: PLR0913
     if config.configuration_id is None:
         sys.exit("Error with configuration table?")
 
-    sim_errors = fragments - orthologous_matches
-
-    # Need to lookup query length to compute query_cover:
     query_md5 = file_md5sum(query_fasta)
-    query = db_orm.add_genome(session, query_fasta, query_md5)
-    cov_query = float(orthologous_matches) / query.length
-
-    # Need to lookup subject length to compute subject_cover:
     subject_md5 = file_md5sum(subject_fasta)
+
+    # Need to lookup query/subject length to estimate alignment length.
+    # Should not be needed in standard workflow, but also ensures FASTA are in DB:
+    query = db_orm.add_genome(session, query_fasta, query_md5)
     subject = db_orm.add_genome(session, subject_fasta, subject_md5)
-    cov_subject = float(orthologous_matches) / subject.length
+
+    estimated_cov_query = float(orthologous_matches) / fragments  # an approximation
+    sim_errors = fragments - orthologous_matches  # proxy value, not bp
+    estimated_aln_length = int(
+        estimated_cov_query * min(query.length, subject.length)
+    )  # proxy value
 
     db_orm.add_comparison(
         session,
@@ -368,10 +370,10 @@ def log_fastani(  # noqa: PLR0913
         query_hash=query_md5,
         subject_hash=subject_md5,
         identity=identity,
-        aln_length=orthologous_matches,
+        aln_length=estimated_aln_length,
         sim_errors=sim_errors,
-        cov_query=cov_query,
-        cov_subject=cov_subject,
+        cov_query=estimated_cov_query,
+        cov_subject=None,
     )
 
     session.commit()

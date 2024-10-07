@@ -64,7 +64,7 @@ for subject in SUBJECT_DIR.glob("*.f*"):
     with tempfile.TemporaryDirectory() as tmp:
         subprocess.run(
             [
-                makeblastdb.exe_path,
+                str(makeblastdb.exe_path),
                 "-in",
                 subject,
                 "-title",
@@ -83,7 +83,7 @@ for subject in SUBJECT_DIR.glob("*.f*"):
         for query in QUERY_DIR.glob("*-fragments.fna"):
             subprocess.run(
                 [
-                    blastn.exe_path,
+                    str(blastn.exe_path),
                     "-query",
                     query,
                     "-db",

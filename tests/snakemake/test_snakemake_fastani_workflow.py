@@ -33,9 +33,11 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus.private_cli import log_configuration, log_genome
+from pyani_plus.private_cli import log_configuration, log_genome, log_run
 from pyani_plus.snakemake import snakemake_scheduler
 from pyani_plus.tools import get_fastani
+
+from . import compare_matrices
 
 
 @pytest.fixture
@@ -80,11 +82,12 @@ def compare_fastani_files(file1: Path, file2: Path) -> bool:
     return True
 
 
-def test_snakemake_rule_fastani(
+def test_snakemake_rule_fastani(  # noqa: PLR0913
     fastani_targets: list[str],
     fastani_targets_outdir: Path,
     config_fastani_args: dict,
     fastani_targets_indir: Path,
+    fastani_matrices: Path,
     tmp_path: str,
 ) -> None:
     """Test fastANI snakemake wrapper.
@@ -94,6 +97,10 @@ def test_snakemake_rule_fastani(
     """
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(fastani_targets_outdir, ignore_errors=True)
+
+    input_fasta = list(
+        snakemake_scheduler.check_input_stems(config_fastani_args["indir"]).values()
+    )
 
     # Assuming this will match but worker nodes might have a different version
     fastani_tool = get_fastani()
@@ -114,9 +121,7 @@ def test_snakemake_rule_fastani(
     # Record the FASTA files in the genomes table _before_ call snakemake
     log_genome(
         database=db,
-        fasta=list(
-            snakemake_scheduler.check_input_stems(config_fastani_args["indir"]).values()
-        ),
+        fasta=input_fasta,
     )
     assert db.is_file()
 
@@ -131,6 +136,22 @@ def test_snakemake_rule_fastani(
             fastani_targets_indir / fname,
             fastani_targets_outdir / fname,
         )
+
+    log_run(
+        fasta=input_fasta,
+        database=db,
+        status="Complete",
+        name="Test case",
+        cmdline="blah blah blah",
+        method="fastANI",
+        program=fastani_tool.exe_path.stem,
+        version=fastani_tool.version,
+        fragsize=config_fastani_args["fragLen"],
+        kmersize=config_fastani_args["kmerSize"],
+        minmatch=config_fastani_args["minFrac"],
+        create_db=False,
+    )
+    compare_matrices(db, fastani_matrices)
 
 
 def test_snakemake_duplicate_stems(

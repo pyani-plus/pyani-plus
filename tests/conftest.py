@@ -106,13 +106,14 @@ def fastani_targets_outdir(tmp_path: str) -> Path:
 
 
 @pytest.fixture
-def fastani_targets(fastani_targets_outdir: Path) -> list[str]:
-    """Target files for ANIm tests.
+def fastani_matrices() -> Path:
+    """Directory containing pyani v0.3 fastANI matrices."""
+    return FIXTUREPATH / "fastani" / "matrices"
 
-    These are paths to the output files we want to generate using
-    nucmer for ANIm. We aim to ask MUMmer to generate a set of
-    .filter files that could later be processed to obtain ANI values
-    """
+
+@pytest.fixture
+def fastani_targets(fastani_targets_outdir: Path) -> list[str]:
+    """Target files for ANIm tests (inferred from target fixtures)."""
     reference_paths = (FIXTUREPATH / "fastani" / "targets").glob("*.fastani")
     return [fastani_targets_outdir / _.name for _ in reference_paths]
 

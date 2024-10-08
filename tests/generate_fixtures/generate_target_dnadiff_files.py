@@ -40,12 +40,14 @@ sequences in the query too.
 """
 
 # Imports
+import shutil
 import subprocess
 from itertools import permutations
 from pathlib import Path
 
 from pyani_plus.tools import (
     get_delta_filter,
+    get_dnadiff,
     get_nucmer,
     get_show_coords,
     get_show_diff,
@@ -57,6 +59,14 @@ DELTA_DIR = Path("../fixtures/dnadiff/targets/delta")
 FILTER_DIR = Path("../fixtures/dnadiff/targets/filter")
 SHOW_DIFF_DIR = Path("../fixtures/dnadiff/targets/show_diff")
 SHOW_COORDS_DIR = Path("../fixtures/dnadiff/targets/show_coords")
+
+# dnadiff generates many files; since we only need `.report` files,
+# we will save all files to a temporary location, move the report files
+# to a specific directory, and remove the rest.
+Path("./temp_dnadiff").mkdir(parents=True, exist_ok=True)
+
+DNADIFF_DIR = Path("../fixtures/dnadiff/targets/dnadiff_reports")
+DNADIFF_TEMP_DIR = Path("./temp_dnadiff")
 
 # Running comparisons
 comparisons = permutations([_.stem for _ in Path(INPUT_DIR).glob("*.f*")], 2)
@@ -71,11 +81,14 @@ for file in SHOW_DIFF_DIR.glob("*.rdiff"):
     file.unlink()
 for file in SHOW_COORDS_DIR.glob("*.mcoords"):
     file.unlink()
+for file in DNADIFF_DIR.glob("*.report"):
+    file.unlink()
 
 nucmer = get_nucmer()
 delta_filter = get_delta_filter()
 show_coords = get_show_coords()
 show_diff = get_show_diff()
+dnadiff = get_dnadiff()
 print(f"Using nucmer {nucmer.version} at {nucmer.exe_path}")  # noqa: T201
 
 for genomes in comparisons:
@@ -114,3 +127,21 @@ for genomes in comparisons:
             check=True,
             stdout=ofh,
         )
+
+    subprocess.run(
+        [
+            dnadiff.exe_path,
+            "-p",
+            DNADIFF_TEMP_DIR / stem,
+            inputs[genomes[0]],
+            inputs[genomes[1]],
+        ],
+        check=True,
+    )
+
+# Move `.report` files
+for file in DNADIFF_TEMP_DIR.glob("*.report"):
+    file.rename(DNADIFF_DIR / file.name)
+
+# remove dnadiff temporary directory
+shutil.rmtree(DNADIFF_TEMP_DIR)

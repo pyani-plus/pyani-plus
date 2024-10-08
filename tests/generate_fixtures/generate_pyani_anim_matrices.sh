@@ -22,44 +22,42 @@ set -euo pipefail
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-echo "This is intended to be used with pyANI v0.3, we have:"
-pyani --version
+echo "This is intended to be used with pyANI version 0.2.13.1, we have:"
+average_nucleotide_identity.py --version
 # Abort if not matched (via set -e above)
-pyani --version 2>&1 | grep "pyani version: 0\.3\." > /dev/null
+average_nucleotide_identity.py --version | grep "pyani 0\.2\." > /dev/null
 
 # Make a temp subdir
-mkdir tmp_pyani_anim
-cd tmp_pyani_anim
-
-echo "Creating pyANI database"
-pyani createdb
+mkdir tmp_pyani_ANIm
+cd tmp_pyani_ANIm
 
 echo "Setting up input genomes"
 for FASTA in ../../../tests/fixtures/viral_example/*.f*; do
     ln -s "$FASTA" "${FASTA##*/}"
 done
 
-echo "Indexing with pyani..."
-#index with pyANI v0.3
-pyani index -i .
-
-#Update the label file so that the columns in the matrices correspond to the genome md5 hash
-awk -F'\t' 'OFS="\t" {$3 = $1; print}' labels.txt > labels_tmp.txt && mv labels_tmp.txt labels.txt
+# This gives use MD5 spaces filename with extension:
+#     md5sum -- *.f*
+# This drops the extension (assuming only one dot present):
+#     cut -f 1 -d "."
+# This swaps the field order and turns it into a sed search-and-replace command:
+#     awk '{print "s/" $2 "/" $1 "/g"}'
+md5sum -- *.f* | cut -f 1 -d "." | awk '{print "s/" $2 "/" $1 "/g"}' > rename.txt
 
 echo "Run ANIm comparisions..."
-pyani anim -i . -o output -v -l output/log.log --name "generate fixtures" --labels labels.txt --classes classes.txt
-
-echo "Generate matrices..."
-pyani report -v -o . --formats=stdout --run_matrices 1
+mkdir output
+average_nucleotide_identity.py -m ANIm -i . -o output -v -l ANIm.log --force # --labels labels.txt --classes classes.txt
 
 echo "Collecting output for test fixtures..."
-for file in *_1.tab; do
-    # Renaming XXX_1.tab to XXX.tsv
-    # Sorting rows and cols via pandas
-    cat "$file" | python -c "import sys; import pandas as pd; pd.read_csv(sys.stdin, sep='\t', index_col=0).sort_index(axis=0).sort_index(axis=1).to_csv(sys.stdout, sep='\t')" > "../../fixtures/anim/matrices/${file%_1.tab}.tsv"
-done
+# The output names here are based on pyANI v0.3 conventions
+SORTING="import sys; import pandas as pd; pd.read_csv(sys.stdin, sep='\t', index_col=0).sort_index(axis=0).sort_index(axis=1).to_csv(sys.stdout, sep='\t')"
+sed -f rename.txt output/ANIm_percentage_identity.tab | python -c "$SORTING" > ../../fixtures/ANIm/matrices/matrix_identity.tsv
+sed -f rename.txt output/ANIm_alignment_coverage.tab | python -c "$SORTING" > ../../fixtures/ANIm/matrices/matrix_coverage.tsv
+sed -f rename.txt output/ANIm_alignment_lengths.tab | python -c "$SORTING" > ../../fixtures/ANIm/matrices/matrix_aln_lengths.tsv
+sed -f rename.txt output/ANIm_hadamard.tab | python -c "$SORTING" > ../../fixtures/ANIm/matrices/matrix_hadamard.tsv
+sed -f rename.txt output/ANIm_similarity_errors.tab | python -c "$SORTING" > ../../fixtures/ANIm/matrices/matrix_sim_errors.tsv
 
 #Remove temp subdir
 cd ..
-rm -rf tmp_pyani_anim
+rm -rf tmp_pyani_ANIm
 echo "Generated ANIm matrices"

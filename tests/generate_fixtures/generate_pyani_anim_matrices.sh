@@ -24,6 +24,8 @@ set -euo pipefail
 
 echo "This is intended to be used with pyANI v0.3, we have:"
 pyani --version
+# Abort if not matched (via set -e above)
+pyani --version 2>&1 | grep "pyani version: 0\.3\." > /dev/null
 
 # Make a temp subdir
 mkdir tmp_pyani_anim

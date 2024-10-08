@@ -40,7 +40,6 @@ fixtures:
 	cd tests/generate_fixtures/; ./generate_target_anim_files.py
 	cd tests/generate_fixtures/; ./generate_pyani_anim_matrices.sh
 	cd tests/generate_fixtures/; ./generate_target_dnadiff_files.py
-	cd tests/generate_fixtures/; ./generate_target_fastani_files.py
 	@echo ""
 	@echo "WARNING: If the tool version has changed, the test input files"
 	@echo "under fixtures/ may have changed (check using 'git diff'), and"

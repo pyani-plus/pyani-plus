@@ -1,4 +1,3 @@
-
 # Based on MIT licensed code from pyANI,
 # Copyright (c) 2016-2019 The James Hutton Institute
 # Copyright (c) 2019-2024 University of Strathclyde

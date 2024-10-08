@@ -55,7 +55,8 @@ pyani report -v -o . --formats=stdout --run_matrices 1
 echo "Collecting output for test fixtures..."
 for file in *_1.tab; do
     # Renaming XXX_1.tab to XXX.tsv
-    cp "$file" "../../fixtures/anim/matrices/${file%_1.tab}.tsv"
+    # Sorting rows and cols via pandas
+    cat "$file" | python -c "import sys; import pandas as pd; pd.read_csv(sys.stdin, sep='\t', index_col=0).sort_index(axis=0).sort_index(axis=1).to_csv(sys.stdout, sep='\t')" > "../../fixtures/anim/matrices/${file%_1.tab}.tsv"
 done
 
 #Remove temp subdir

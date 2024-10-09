@@ -67,6 +67,8 @@ comparisons = permutations([_.stem for _ in Path(INPUT_DIR).glob("*.f*")], 2)
 inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*.f*")}
 
 # Cleanup
+# This is to help with if and when we change the
+# example sequences being used.
 for file in DELTA_DIR.glob("*.delta"):
     file.unlink()
 for file in FILTER_DIR.glob("*.filter"):

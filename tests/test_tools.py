@@ -154,6 +154,24 @@ def test_fake_show_diff() -> None:
         tools.get_show_diff(cmd)
 
 
+def test_fake_dnadiff() -> None:
+    """Confirm simple dnadiff version parsing works."""
+    info = tools.get_nucmer(
+        "tests/fixtures/tools/version_one"
+    )  # outputs "version 1.0.0"
+    assert info.exe_path == Path("tests/fixtures/tools/version_one").resolve()
+    assert info.version == "1.0.0"
+
+    info = tools.get_nucmer("tests/fixtures/tools/just_one")  # outputs "1.0.0"
+    assert info.exe_path == Path("tests/fixtures/tools/just_one").resolve()
+    assert info.version == "1.0.0"
+
+    cmd = Path("tests/fixtures/tools/cutting_edge")  # no numerical output
+    msg = f"Executable exists at {cmd.resolve()} but could not retrieve version"
+    with pytest.raises(RuntimeError, match=msg):
+        tools.get_dnadiff(cmd)
+
+
 def test_find_makeblastdb() -> None:
     """Confirm can find NCBI makeblastdb if on $PATH and determine its version."""
     # At the time of writing this dependency is NOT installed for CI testing
@@ -216,3 +234,11 @@ def test_find_show_diff() -> None:
     info = tools.get_show_diff()
     assert info.exe_path.parts[-1] == "show-diff"
     assert info.version == ""
+
+
+def test_find_dnadiff() -> None:
+    """Confirm can find dnadiff on $PATH."""
+    # At the time of writing this dependency is installed for CI testing
+    info = tools.get_dnadiff()
+    assert info.exe_path.parts[-1] == "dnadiff"
+    assert info.version.startswith("1.")

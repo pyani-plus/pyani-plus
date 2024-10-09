@@ -35,7 +35,7 @@ ignore = ["ANN101", "ANN102", "COM812", "D203", "D213", "S603"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = ["--doctest-modules"]
+addopts = ["--doctest-modules", "--ignore=tests/generate_fixtures/"]
 testpaths = [
     "tests",
     "pyani_plus",

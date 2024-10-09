@@ -63,9 +63,6 @@ def fragment_fasta_files(
         if not isinstance(filename, Path):
             msg = f"Expected a Path object in list of FASTA files, got {filename!r}"
             raise TypeError(msg)
-        if not filename.is_file():
-            msg = f"Cannot fragment {filename!s}, file not found"
-            raise ValueError(msg)
         frag_filename = outdir / (filename.stem + "-fragments.fna")
         with filename.open() as in_handle, frag_filename.open("w") as out_handle:
             count = 0
@@ -79,5 +76,8 @@ def fragment_fasta_files(
                     for i in range(0, len(fragment), 60):
                         out_handle.write(fragment[i : i + 60] + "\n")
                     index += fragsize
+        if not count:
+            msg = f"No sequences found in {filename}"
+            raise ValueError(msg)
         fragmented_files.append(frag_filename)
     return fragmented_files

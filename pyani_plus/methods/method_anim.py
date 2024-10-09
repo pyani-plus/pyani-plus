@@ -110,8 +110,9 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
 
     :param filename: Path to the input .delta file
 
-    Calculates the aligned lengths for reference and query and average nucleotide
-    identity, and returns the cumulative total for each as a tuple.
+    Calculates similarity errors and the aligned lengths for reference
+    and query and average nucleotide identity, and returns the cumulative
+    total for each as a tuple.
 
     The delta file format contains seven numbers in the lines of interest:
     see http://mummer.sourceforge.net/manual/ for specification

@@ -115,7 +115,7 @@ def test_fake_fastani() -> None:
 
 
 def test_fake_nucmer() -> None:
-    """Confirm simple fastani version parsing works."""
+    """Confirm simple nucmer version parsing works."""
     info = tools.get_nucmer("tests/fixtures/tools/just_one")  # parsed like mummer v4
     assert info.exe_path == Path("tests/fixtures/tools/just_one").resolve()
     assert info.version == "1.0.0"

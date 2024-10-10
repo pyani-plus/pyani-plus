@@ -59,7 +59,7 @@ for file in FILTER_DIR.glob("*.filter"):
 
 nucmer = get_nucmer()
 delta_filter = get_delta_filter()
-print(f"Using nucmer {nucmer.version} at {nucmer.exe_path}")  # noqa: T201
+print(f"Using nucmer {nucmer.version} at {nucmer.exe_path}")
 
 for genomes in comparisons:
     stem = "_vs_".join(genomes)

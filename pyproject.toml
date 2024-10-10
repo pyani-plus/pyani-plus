@@ -28,11 +28,14 @@ pycodestyle.max-line-length = 120
 ignore = ["ANN101", "ANN102", "COM812", "D203", "D213", "S603"]
 
 [tool.ruff.lint.per-file-ignores]
+# Ignore assert statements here:
 "tests/*" = ["S101"]
+# Ignore print and assert statements here:
+"tests/generate_fixtures/*" = ["T201", "S101"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = ["--doctest-modules"]
+addopts = ["--doctest-modules", "--ignore=tests/generate_fixtures/"]
 testpaths = [
     "tests",
     "pyani_plus",

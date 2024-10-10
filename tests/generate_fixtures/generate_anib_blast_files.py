@@ -53,7 +53,7 @@ if blastn.version != makeblastdb.version:
     sys.exit(
         "ERROR - Inconsistent versions, blastn {blastn.version} vs makeblastn {makeblastdb.version}"
     )
-print(  # noqa: T201
+print(
     f"Using NCBI BLAST+ {makeblastdb.version} at {blastn.exe_path} and {makeblastdb.exe_path}"
 )
 
@@ -79,7 +79,7 @@ for subject in SUBJECT_DIR.glob("*.f*"):
         shutil.move(
             tmp + "/" + subject.stem + ".njs", NJS_DIR / (subject.stem + ".njs")
         )
-        print(f"Collected {subject.stem} BLAST nucleotide database JSON file")  # noqa: T201
+        print(f"Collected {subject.stem} BLAST nucleotide database JSON file")
         for query in QUERY_DIR.glob("*-fragments.fna"):
             subprocess.run(
                 [
@@ -107,4 +107,4 @@ for subject in SUBJECT_DIR.glob("*.f*"):
                 check=True,
             )
         count += 1
-print(f"Collected {count} BLAST nucleotide database JSON files")  # noqa: T201
+print(f"Collected {count} BLAST nucleotide database JSON files")

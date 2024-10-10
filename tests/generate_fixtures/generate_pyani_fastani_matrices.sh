@@ -25,12 +25,20 @@ set -euo pipefail
 echo "This is intended to be used with pyANI v0.3, we have:"
 pyani --version
 
+# Remove pre-existing fixtures before regenerating new ones.
+# This is to help with if and when we change the
+# example sequences being used.
+echo "Removing pre-existing fixtures..."
+for file in ../fixtures/fastani/matrices/*.tsv; do
+    rm "$file"
+done
+
 # Make a temp subdir
 mkdir tmp_pyani_fastani
 cd tmp_pyani_fastani
 
 echo "Creating pyANI database"
-pyani createdb
+pyani createdb --force
 
 echo "Setting up input genomes"
 for FASTA in ../../../tests/fixtures/viral_example/*.f*; do

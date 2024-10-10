@@ -40,6 +40,12 @@ INPUT_DIR = Path("../fixtures/viral_example")
 FRAG_DIR = Path("../fixtures/anib/fragments")
 FRAGSIZE = 1020  # Default ANIb fragment size
 
+# Remove pre-existing fixtures before regenerating new ones.
+# This is to help with if and when we change the
+# example sequences being used.
+for file in FRAG_DIR.glob("*.fna"):
+    file.unlink()
+
 # Note flexible on input *.fna vs *.fa vs *.fasta, but fixed on output
 for fasta in INPUT_DIR.glob("*.f*"):
     output = FRAG_DIR / (fasta.stem + "-fragments.fna")

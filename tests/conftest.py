@@ -298,7 +298,7 @@ def dnadiff_targets_showdiff(dnadiff_targets_showdiff_outdir: Path) -> list[str]
     could later be processed to obtain ANI values
     """
     reference_paths = (FIXTUREPATH / "dnadiff" / "targets" / "show_diff").glob(
-        "*.rdiff",
+        "*.qdiff",
     )
     return [dnadiff_targets_showdiff_outdir / _.name for _ in reference_paths]
 

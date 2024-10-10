@@ -73,9 +73,9 @@ rule show_diff:
     input:
         "{outdir}/{genomeA}_vs_{genomeB}.filter",
     output:
-        "{outdir}/{genomeA}_vs_{genomeB}.rdiff",
+        "{outdir}/{genomeA}_vs_{genomeB}.qdiff",
     shell:
-        "{params.show_diff} -rH {input} > {output}"
+        "{params.show_diff} -qH {input} > {output}"
 
 
 # The filter rule runs show-coords wrapper for nucmer
@@ -89,4 +89,4 @@ rule show_coords:
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.mcoords",
     shell:
-        "{params.show_coords} {input} > {output}"
+        "{params.show_coords} -rclTH {input} > {output}"

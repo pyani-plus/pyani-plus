@@ -33,12 +33,11 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus import db_orm
 from pyani_plus.private_cli import log_configuration, log_genome, log_run
 from pyani_plus.snakemake import snakemake_scheduler
 from pyani_plus.tools import get_fastani
 
-from . import compare_matrix
+from . import compare_matrices
 
 
 @pytest.fixture
@@ -152,10 +151,7 @@ def test_snakemake_rule_fastani(  # noqa: PLR0913
         minmatch=config_fastani_args["minFrac"],
         create_db=False,
     )
-    # Will want to do this, compare_matrices(db, fastani_matrices), but for now:
-    session = db_orm.connect_to_db(db)
-    run = session.query(db_orm.Run).one()
-    compare_matrix(run.identities, fastani_matrices / "matrix_identity.tsv")
+    compare_matrices(db, fastani_matrices)
 
 
 def test_snakemake_duplicate_stems(

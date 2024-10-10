@@ -51,7 +51,7 @@ inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*.f*")}
 comparisons = product(inputs, inputs)
 
 fastani = get_fastani()
-print(f"Using fastANI {fastani.version} at {fastani.exe_path}")  # noqa: T201
+print(f"Using fastANI {fastani.version} at {fastani.exe_path}")
 
 for genomes in comparisons:
     stem = "_vs_".join(genomes)

@@ -55,4 +55,4 @@ for fasta in INPUT_DIR.glob("*.f*"):
                 for i in range(0, len(fragment), 60):
                     out_handle.write(fragment[i : i + 60] + "\n")
                 index += FRAGSIZE
-    print(f"Wrote {count} fragments from {fasta.stem}")  # noqa: T201
+    print(f"Wrote {count} fragments from {fasta.stem}")

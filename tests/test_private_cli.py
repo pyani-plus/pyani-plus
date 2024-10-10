@@ -143,23 +143,82 @@ def test_log_run(tmp_path: str) -> None:
     tmp_db.unlink()
 
 
-def test_log_comparison_serial(tmp_path: str, input_genomes_tiny: Path) -> None:
-    """Confirm can create a mock DB using log-comparison etc. sequentially."""
-    tmp_db = Path(tmp_path) / "serial.sqlite"
+def test_log_comparison_no_db(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Confirm can create a mock DB using log-comparison alone."""
+    tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
 
     with pytest.raises(SystemExit, match="does not exist, but not using --create-db"):
-        private_cli.log_configuration(
-            tmp_db,
+        private_cli.log_comparison(
+            database=tmp_db,
+            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+            identity=0.96,
+            aln_length=12345,
             method="guessing",
             program="guestimate",
             version="0.1.2beta3",
             fragsize=100,
             kmersize=51,
+            sim_errors=1,
+            cov_query=0.98,
+            cov_subject=0.98,
             create_db=False,
         )
 
-    # Now actually create the DB
+
+def test_log_comparison_duplicate(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Confirm no error logging comparison twice."""
+    tmp_db = Path(tmp_path) / "new.sqlite"
+    assert not tmp_db.is_file()
+
+    private_cli.log_comparison(
+        database=tmp_db,
+        query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+        subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+        identity=0.96,
+        aln_length=12345,
+        method="guessing",
+        program="guestimate",
+        version="0.1.2beta3",
+        fragsize=100,
+        kmersize=51,
+        sim_errors=1,
+        cov_query=0.98,
+        cov_subject=0.98,
+        create_db=True,
+    )
+
+    private_cli.log_comparison(
+        database=tmp_db,
+        query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+        subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+        identity=0.955,  # different!
+        aln_length=12345,
+        method="guessing",
+        program="guestimate",
+        version="0.1.2beta3",
+        fragsize=100,
+        kmersize=51,
+        sim_errors=1,
+        cov_query=0.98,
+        cov_subject=0.98,
+    )
+
+    session = db_orm.connect_to_db(tmp_db)
+    assert session.query(db_orm.Comparison).count() == 1
+    comp = session.query(db_orm.Comparison).one()
+    # first value should not be replaced:
+    assert comp.identity == 0.96  # noqa: PLR2004
+    session.close()
+    tmp_db.unlink()
+
+
+def test_log_comparison_serial(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Confirm can create a mock DB using log-comparison etc. sequentially."""
+    tmp_db = Path(tmp_path) / "serial.sqlite"
+    assert not tmp_db.is_file()
+
     private_cli.log_configuration(
         tmp_db,
         method="guessing",
@@ -229,18 +288,6 @@ def test_log_comparison_parallel(tmp_path: str, input_genomes_tiny: Path) -> Non
     tmp_db = Path(tmp_path) / "parallel.sqlite"
     assert not tmp_db.is_file()
 
-    with pytest.raises(SystemExit, match="does not exist, but not using --create-db"):
-        private_cli.log_configuration(
-            tmp_db,
-            method="guessing",
-            program="guestimate",
-            version="0.1.2beta3",
-            fragsize=100,
-            kmersize=51,
-            create_db=False,
-        )
-
-    # Now actually create the DB
     private_cli.log_configuration(
         tmp_db,
         method="guessing",

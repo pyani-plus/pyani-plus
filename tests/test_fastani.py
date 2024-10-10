@@ -30,10 +30,8 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus.private_cli import (
-    log_fastani,
-    parse_fastani_file,  # may move to methods?
-)
+from pyani_plus.methods.method_fastani import parse_fastani_file
+from pyani_plus.private_cli import log_fastani
 
 
 def test_bad_path() -> None:

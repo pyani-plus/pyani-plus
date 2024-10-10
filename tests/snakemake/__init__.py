@@ -78,9 +78,7 @@ def compare_matrices(database_path: Path, matrices_path: Path) -> None:
     session = db_orm.connect_to_db(database_path)
     run = session.query(db_orm.Run).one()
 
-    if run.identities is None:
-        run.cache_comparisons()
-
+    assert run.identities is not None
     assert matrices_path.is_dir()
 
     if (matrices_path / "matrix_identity.tsv").is_file():

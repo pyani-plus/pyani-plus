@@ -172,9 +172,11 @@ def log_run(  # noqa: PLR0913
             md5 = file_md5sum(filename)
             genomes.append(db_orm.add_genome(session, filename, md5))
 
-    run_id = db_orm.add_run(
+    run = db_orm.add_run(
         session, config, cmdline, status, name, date=None, genomes=genomes
-    ).run_id
+    )
+    run.cache_comparisons()
+    run_id = run.run_id
 
     session.commit()
     session.close()

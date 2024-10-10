@@ -51,6 +51,11 @@ def compare_matrix(matrix_df: pd.DataFrame, matrix_path: Path) -> None:
         .sort_index(axis=1)
     )
     assert list(matrix_df.columns) == list(expected_df.columns)
+    if not expected_df.dtypes.equals(matrix_df.dtypes):
+        # This happens with some old pyANI output using floats for ints
+        # Cast both to float
+        expected_df = expected_df.astype(float)
+        matrix_df = matrix_df.astype(float)
     pd.testing.assert_frame_equal(matrix_df, expected_df, obj=matrix_path.stem)
 
 
@@ -68,17 +73,21 @@ def compare_matrices(database_path: Path, matrices_path: Path) -> None:
     * ``matrix_identity.tsv``
     * ``matrix_sim_errors.tsv``
 
+    If any of the files are missing, the comparison is skipped.
     """
     session = db_orm.connect_to_db(database_path)
     run = session.query(db_orm.Run).one()
 
-    if run.identities is None:
-        run.cache_comparisons()
+    assert run.identities is not None
+    assert matrices_path.is_dir()
 
-    compare_matrix(run.identities, matrices_path / "matrix_identity.tsv")
-    if False:
-        # These don't yet work for fastANI
+    if (matrices_path / "matrix_identity.tsv").is_file():
+        compare_matrix(run.identities, matrices_path / "matrix_identity.tsv")
+    if (matrices_path / "matrix_aln_lengths.tsv").is_file():
         compare_matrix(run.aln_length, matrices_path / "matrix_aln_lengths.tsv")
-        compare_matrix(run.sim_errors, matrices_path / "matrix_sim_errors.tsv")
+    if (matrices_path / "matrix_coverage.tsv").is_file():
         compare_matrix(run.cov_query, matrices_path / "matrix_coverage.tsv")
+    if (matrices_path / "matrix_hadamard.tsv").is_file():
         compare_matrix(run.hadamard, matrices_path / "matrix_hadamard.tsv")
+    if (matrices_path / "matrix_sim_errors.tsv").is_file():
+        compare_matrix(run.sim_errors, matrices_path / "matrix_sim_errors.tsv")

@@ -47,6 +47,12 @@ QUERY_DIR = Path("../fixtures/anib/fragments")
 NJS_DIR = Path("../fixtures/anib/blastdb")
 BLASTN_DIR = Path("../fixtures/anib/blastn")
 
+# Remove pre-existing fixtures before regenerating new ones.
+# This is to help with if and when we change the
+# example sequences being used.
+for file in NJS_DIR.glob("*.njs"):
+    file.unlink()
+
 blastn = get_blastn()
 makeblastdb = get_makeblastdb()
 if blastn.version != makeblastdb.version:

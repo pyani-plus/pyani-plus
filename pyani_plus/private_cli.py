@@ -74,8 +74,6 @@ def log_configuration(  # noqa: PLR0913
     config = db_orm.add_configuration(
         session, method, program, version, fragsize, maxmatch, kmersize, minmatch
     )
-    if config.configuration_id is None:
-        sys.exit("Error with configuration table?")
     session.commit()  # should be redundant
     print(  # noqa: T201
         f"Configuration identifier {config.configuration_id}"
@@ -232,8 +230,6 @@ def log_comparison(  # noqa: PLR0913
     config = db_orm.add_configuration(
         session, method, program, version, fragsize, maxmatch, kmersize, minmatch
     )
-    if config.configuration_id is None:
-        sys.exit("Error with configuration table?")
 
     query_md5 = file_md5sum(query_fasta)
     db_orm.add_genome(session, query_fasta, query_md5)
@@ -347,8 +343,6 @@ def log_fastani(  # noqa: PLR0913
         kmersize=kmersize,  # aka --k
         minmatch=minmatch,  # aka --minFraction
     )
-    if config.configuration_id is None:
-        sys.exit("Error with configuration table?")
 
     sim_errors = fragments - orthologous_matches
 

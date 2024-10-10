@@ -46,6 +46,12 @@ FRAG_LEN = 3000
 KMER_SIZE = 16
 MIN_FRAC = 0.2
 
+# Remove pre-existing fixtures before regenerating new ones.
+# This is to help with if and when we change the
+# example sequences being used.
+for file in FASTANI_DIR.glob("*.fastani"):
+    file.unlink()
+
 # Running comparisons
 inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*.f*")}
 comparisons = product(inputs, inputs)

@@ -81,7 +81,8 @@ rule blastn:
     shell:
         """
         {params.blastn} -query {wildcards.outdir}/{wildcards.genomeA}-fragments.fna \
-            -db {wildcards.outdir}/{wildcards.genomeB} -outfmt '6 qseqid sseqid length \
-            mismatch pident nident qlen slen qstart qend sstart send positive ppos gaps' \
-            -out {output}
+            -db {wildcards.outdir}/{wildcards.genomeB} -out {output} -task blastn \
+            -outfmt '6 qseqid sseqid length mismatch pident nident qlen slen \
+                     qstart qend sstart send positive ppos gaps' \
+            -xdrop_gap_final 150 -dust no -evalue 1e-15 -max_target_seqs 1
         """

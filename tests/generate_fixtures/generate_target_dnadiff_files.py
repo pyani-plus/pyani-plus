@@ -86,6 +86,7 @@ show_coords = get_show_coords()
 show_diff = get_show_diff()
 dnadiff = get_dnadiff()
 print(f"Using nucmer {nucmer.version} at {nucmer.exe_path}")  # noqa: T201
+print(f"Using dnadiff {dnadiff.version} at {dnadiff.exe_path}")  # noqa: T201
 
 for genomes in comparisons:
     stem = "_vs_".join(genomes)

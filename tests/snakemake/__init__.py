@@ -51,6 +51,11 @@ def compare_matrix(matrix_df: pd.DataFrame, matrix_path: Path) -> None:
         .sort_index(axis=1)
     )
     assert list(matrix_df.columns) == list(expected_df.columns)
+    if not expected_df.dtypes.equals(matrix_df.dtypes):
+        # This happens with some old pyANI output using floats for ints
+        # Cast both to float
+        expected_df = expected_df.astype(float)
+        matrix_df = matrix_df.astype(float)
     pd.testing.assert_frame_equal(matrix_df, expected_df, obj=matrix_path.stem)
 
 

@@ -31,6 +31,7 @@ from pathlib import Path
 import pytest
 
 from pyani_plus.methods import method_anib
+from pyani_plus.private_cli import log_anib
 
 
 def test_bad_path(tmp_path: str) -> None:
@@ -93,3 +94,70 @@ def test_parse_blastn(anib_blastn: Path) -> None:
     #
     # Expected matrices from pyani v0.2 give us expected values of:
     # identity 0.9945938461538463, aln_length 39169, sim_errors 215
+
+
+def test_missing_db(tmp_path: str, input_genomes_tiny: Path, anib_blastn: Path) -> None:
+    """Check expected error when DB does not exist."""
+    tmp_db = Path(tmp_path) / "new.sqlite"
+    assert not tmp_db.is_file()
+
+    with pytest.raises(SystemExit, match="does not exist, but not using --create-db"):
+        log_anib(
+            database=tmp_db,
+            # These are for the comparison table
+            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+            blastn=anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
+            create_db=False,
+        )
+
+    # This should work:
+    log_anib(
+        database=tmp_db,
+        # These are for the comparison table
+        query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+        subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+        blastn=anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
+        create_db=True,
+    )
+    tmp_db.unlink()
+
+
+def test_bad_query_or_subject(
+    tmp_path: str, input_genomes_tiny: Path, anib_blastn: Path
+) -> None:
+    """Mismatch between query or subject FASTA in fastANI output and commandline."""
+    tmp_db = Path(tmp_path) / "new.sqlite"
+    assert not tmp_db.is_file()
+
+    with pytest.raises(
+        SystemExit,
+        match=(
+            "ERROR: Given --query-fasta .*/MGV-GENOME-0266457.fna"
+            " but query in blastn filename was MGV-GENOME-0264574"
+        ),
+    ):
+        log_anib(
+            database=tmp_db,
+            # These are for the comparison table
+            query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+            blastn=anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
+            create_db=True,
+        )
+
+    with pytest.raises(
+        SystemExit,
+        match=(
+            "ERROR: Given --subject-fasta .*/MGV-GENOME-0264574.fas"
+            " but query in blastn filename was MGV-GENOME-0266457"
+        ),
+    ):
+        log_anib(
+            database=tmp_db,
+            # These are for the comparison table
+            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+            subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+            blastn=anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
+            create_db=True,
+        )

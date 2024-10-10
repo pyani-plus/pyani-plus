@@ -68,7 +68,9 @@ rule blastdb:
 # For ANIb query the fragments FASTA from genomeA against a BLAST DB of genomeB.
 rule blastn:
     params:
+        db=config["db"],
         blastn=config["blastn"],
+        fragLen=config["fragLen"],
         indir=config["indir"],
         outdir=config["outdir"],
     input:
@@ -84,5 +86,9 @@ rule blastn:
             -db {wildcards.outdir}/{wildcards.genomeB} -out {output} -task blastn \
             -outfmt '6 qseqid sseqid length mismatch pident nident qlen slen \
                      qstart qend sstart send positive ppos gaps' \
-            -xdrop_gap_final 150 -dust no -evalue 1e-15 -max_target_seqs 1
+            -xdrop_gap_final 150 -dust no -evalue 1e-15 -max_target_seqs 1 &&
+        .pyani-plus-private-cli log-anib --database {params.db} \
+            --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
+            --blastn {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.tsv \
+            --fragsize {params.fragLen}
         """

@@ -33,10 +33,11 @@ from pathlib import Path
 # Required to support pytest automated testing
 import pytest
 
-# We're testing the workflow, as called through the pyani_plus
-# wrapper code, so import only that module
+from pyani_plus.private_cli import log_configuration, log_genome, log_run
 from pyani_plus.snakemake import snakemake_scheduler
 from pyani_plus.tools import get_blastn, get_makeblastdb
+
+from . import compare_matrices
 
 
 @pytest.fixture
@@ -44,6 +45,7 @@ def config_anib_args(
     anib_targets_outdir: Path,
     input_genomes_tiny: Path,
     snakemake_cores: int,
+    tmp_path: str,
 ) -> dict:
     """Return configuration settings for testing snakemake filter rule.
 
@@ -51,6 +53,7 @@ def config_anib_args(
     small set of input genomes as arguments.
     """
     return {
+        "db": Path(tmp_path) / "db.slqite",
         "blastn": get_blastn().exe_path,
         "makeblastdb": get_makeblastdb().exe_path,
         "outdir": anib_targets_outdir,
@@ -119,16 +122,40 @@ def test_snakemake_rule_blastdb(
         compare_blast_json(fname, anib_blastdb / fname.name)
 
 
-def test_snakemake_rule_blastn(
+def test_snakemake_rule_blastn(  # noqa: PLR0913
     anib_targets_blastn: list[Path],
     anib_targets_outdir: Path,
     config_anib_args: dict,
     anib_blastn: Path,
+    dir_anib_results: Path,
     tmp_path: str,
 ) -> None:
     """Test blastn (overall) ANIb snakemake wrapper."""
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(anib_targets_outdir, ignore_errors=True)
+
+    # Assuming this will match but worker nodes might have a different version
+    blastn_tool = get_blastn()
+
+    # Setup minimal test DB
+    db = config_anib_args["db"]
+    assert not db.is_file()
+    log_configuration(
+        database=db,
+        method="ANIb",
+        program=blastn_tool.exe_path.stem,
+        version=blastn_tool.version,
+        fragsize=config_anib_args["fragLen"],
+        create_db=True,
+    )
+    # Record the FASTA files in the genomes table _before_ call snakemake
+    log_genome(
+        database=db,
+        fasta=list(
+            snakemake_scheduler.check_input_stems(config_anib_args["indir"]).values()
+        ),
+    )
+    assert db.is_file()
 
     # Run snakemake wrapper
     runner = snakemake_scheduler.SnakemakeRunner("snakemake_anib.smk")
@@ -140,3 +167,19 @@ def test_snakemake_rule_blastn(
         assert Path(fname).is_file()
         assert (anib_blastn / fname.name).is_file()
         assert filecmp.cmp(fname, anib_blastn / fname.name)
+
+    log_run(
+        fasta=config_anib_args["indir"].glob("*.f*"),
+        database=db,
+        status="Complete",
+        name="Test case",
+        cmdline="blah blah blah",
+        method="ANIb",
+        program=blastn_tool.exe_path.stem,
+        version=blastn_tool.version,
+        fragsize=config_anib_args["fragLen"],
+        kmersize=None,
+        minmatch=None,
+        create_db=False,
+    )
+    compare_matrices(db, dir_anib_results)

@@ -73,7 +73,7 @@ for file in DELTA_DIR.glob("*.delta"):
     file.unlink()
 for file in FILTER_DIR.glob("*.filter"):
     file.unlink()
-for file in SHOW_DIFF_DIR.glob("*.rdiff"):
+for file in SHOW_DIFF_DIR.glob("*.qdiff"):
     file.unlink()
 for file in SHOW_COORDS_DIR.glob("*.mcoords"):
     file.unlink()
@@ -111,16 +111,16 @@ for genomes in comparisons:
             stdout=ofh,
         )
 
-    with (SHOW_DIFF_DIR / (stem + ".rdiff")).open("w") as ofh:
+    with (SHOW_DIFF_DIR / (stem + ".qdiff")).open("w") as ofh:
         subprocess.run(
-            [show_diff.exe_path, "-rH", FILTER_DIR / (stem + ".filter")],
+            [show_diff.exe_path, "-qH", FILTER_DIR / (stem + ".filter")],
             check=True,
             stdout=ofh,
         )
 
     with (SHOW_COORDS_DIR / (stem + ".mcoords")).open("w") as ofh:
         subprocess.run(
-            [show_coords.exe_path, FILTER_DIR / (stem + ".filter")],
+            [show_coords.exe_path, "-rclTH", FILTER_DIR / (stem + ".filter")],
             check=True,
             stdout=ofh,
         )

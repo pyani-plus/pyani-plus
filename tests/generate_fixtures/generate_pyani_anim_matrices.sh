@@ -27,6 +27,14 @@ pyani --version
 # Abort if not matched (via set -e above)
 pyani --version 2>&1 | grep "pyani version: 0\.3\." > /dev/null
 
+# Remove pre-existing fixtures before regenerating new ones.
+# This is to help with if and when we change the
+# example sequences being used.
+echo "Removing pre-existing fixtures..."
+for file in ../fixtures/anim/matrices/*.tsv; do
+    rm "$file"
+done
+
 # Make a temp subdir
 mkdir tmp_pyani_anim
 cd tmp_pyani_anim

@@ -37,6 +37,8 @@ from pathlib import Path
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 
 FRAGSIZE = 1020  # Default ANIb fragment size
+MIN_COVERAGE = 0.7
+MIN_IDENTITY = 0.3
 
 # We do NOT use the standard 12 columns, but a custom 15 cols as per old pyANI
 # std = qaccver saccver pident length mismatch gapopen qstart qend sstart send evalue bitscore
@@ -81,3 +83,87 @@ def fragment_fasta_files(
             raise ValueError(msg)
         fragmented_files.append(frag_filename)
     return fragmented_files
+
+
+def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
+    """Extract the ANI etc from a blastn output file using the ANIb method.
+
+    Parses the BLAST tabular output file, taking only rows with a query coverage
+    over 70% and percentage identity over 30%, and deduplicating.
+
+    Returns mean percentage identity of all BLAST alignments passing thresholds
+    (treated as zero rather than NaN if there are no accepted alignments), the
+    total alignment length, and total similarity errors (mismatches and gaps).
+
+    >>> fname = (
+    ...     "tests/fixtures/anib/blastn/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv"
+    ... )
+    >>> identity, length, sim_errors = parse_blastn_file(Path(fname))
+    >>> print(
+    ...     f"Identity {100*identity:0.1f}% over length {length} with {sim_errors} errors"
+    ... )
+    Identity 99.5% over length 39169 with 215 errors
+
+    We expect 100% identity for a self comparison (but this is not always true):
+
+    >>> fname = (
+    ...     "tests/fixtures/anib/blastn/MGV-GENOME-0264574_vs_MGV-GENOME-0264574.tsv"
+    ... )
+    >>> identity, length, sim_errors = parse_blastn_file(Path(fname))
+    >>> print(
+    ...     f"Identity {100*identity:0.1f}% over length {length} with {sim_errors} errors"
+    ... )
+    Identity 100.0% over length 39253 with 0 errors
+    """
+    total_aln_length = 0
+    total_sim_errors = 0
+    all_pid: list[float] = []
+
+    prev_query = ""
+    with blastn.open() as handle:
+        for line in handle:
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) != len(BLAST_COLUMNS):
+                msg = (
+                    f"Found {len(fields)} columns in {blastn}, not {len(BLAST_COLUMNS)}"
+                )
+                raise ValueError(msg)
+            if not fields[0].startswith("frag"):
+                msg = (
+                    f"BLAST output should be using fragmented queries, not {fields[0]}"
+                )
+                raise ValueError(msg)
+            values = dict(zip(BLAST_COLUMNS, fields, strict=False))
+            blast_alnlen = int(values["length"])
+            blast_gaps = int(values["gaps"])
+            ani_alnlen = blast_alnlen - blast_gaps
+            blast_mismatch = int(values["mismatch"])
+            ani_alnids = ani_alnlen - blast_mismatch
+            ani_query_coverage = ani_alnlen / int(values["qlen"])
+            # Can't use float(values["pident"])/100, this is relative to alignment length
+            ani_pid = ani_alnids / int(values["qlen"])
+
+            # Now apply filters - should these be parameters?
+            # And if there are multiple hits for this query, take first (best) one
+            if (
+                ani_query_coverage > MIN_COVERAGE
+                and ani_pid > MIN_IDENTITY
+                and prev_query != fields[0]
+            ):
+                total_aln_length += ani_alnlen
+                total_sim_errors += blast_mismatch + blast_gaps
+                # Not using ani_pid but BLAST's pident - see note below:
+                all_pid.append(float(values["pident"]) / 100)
+                prev_query = fields[0]  # to detect multiple hits for a query
+    # NOTE: Could warn about empty BLAST file using if prev_query is None:
+
+    # NOTE: We report the mean of blastn's pident for concordance with JSpecies
+    # Despite this, the concordance is not exact. Manual inspection during
+    # the original pyANI development indicated that a handful of fragments
+    # are differentially filtered out in JSpecies and here. This is often
+    # on the basis of rounding differences (e.g. coverage being close to 70%).
+    return (
+        sum(all_pid) / len(all_pid) if all_pid else 0,
+        total_aln_length,
+        total_sim_errors,
+    )

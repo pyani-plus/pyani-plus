@@ -39,6 +39,10 @@ def test_bad_path(tmp_path: str) -> None:
         FileNotFoundError, match="No such file or directory: '/does/not/exist'"
     ):
         method_anib.fragment_fasta_files([Path("/does/not/exist")], Path(tmp_path))
+    with pytest.raises(
+        FileNotFoundError, match="No such file or directory: '/does/not/exist'"
+    ):
+        method_anib.parse_blastn_file(Path("/does/not/exist"))
 
 
 def test_empty_path(tmp_path: str) -> None:
@@ -46,3 +50,46 @@ def test_empty_path(tmp_path: str) -> None:
     with pytest.raises(ValueError, match="No sequences found in /dev/null"):
         method_anib.fragment_fasta_files([Path("/dev/null")], Path(tmp_path))
     # Note it is valid to have an empty BLASTN TSV file (there are no headers)
+
+
+def test_parse_blastn_empty() -> None:
+    """Check parsing of empty BLASTN tabular file."""
+    assert method_anib.parse_blastn_file(Path("/dev/null")) == (0, 0, 0)
+
+
+def test_parse_blastn_bad(input_genomes_tiny: Path) -> None:
+    """Check parsing something which isn't a BLAST TSV files fails."""
+    with pytest.raises(
+        ValueError, match="Found 1 columns in .*/MGV-GENOME-0264574.fas, not 15"
+    ):
+        method_anib.parse_blastn_file(input_genomes_tiny / "MGV-GENOME-0264574.fas")
+
+
+def test_parse_blastn_bad_query(tmp_path: str) -> None:
+    """Check parsing TSV not using frag#### fails."""
+    fake = Path(tmp_path) / "fake.tsv"
+    with fake.open("w") as handle:
+        handle.write("\t".join(["bad-query", "subject"] + ["0"] * 13))
+    with pytest.raises(
+        ValueError,
+        match="BLAST output should be using fragmented queries, not bad-query",
+    ):
+        method_anib.parse_blastn_file(fake)
+
+
+def test_parse_blastn(anib_blastn: Path) -> None:
+    """Check parsing of BLASTN tabular file."""
+    # Function returns tuple of mean percentage identity, total alignment length, and
+    # total mismatches/gaps:
+    assert method_anib.parse_blastn_file(
+        anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv"
+    ) == (0.9945938461538463, 39169, 215)
+    # $ md5sum tests/fixtures/viral_example/*.f*
+    # 689d3fd6881db36b5e08329cf23cecdd tests/fixtures/viral_example/MGV-GENOME-0264574.fas
+    # 78975d5144a1cd12e98898d573cf6536 tests/fixtures/viral_example/MGV-GENOME-0266457.fna
+    # 5584c7029328dc48d33f95f0a78f7e57 tests/fixtures/viral_example/OP073605.fasta
+    #
+    # Example is query 689d3fd6881db36b5e08329cf23cecdd vs subject 78975d5144a1cd12e98898d573cf6536
+    #
+    # Expected matrices from pyani v0.2 give us expected values of:
+    # identity 0.9945938461538463, aln_length 39169, sim_errors 215

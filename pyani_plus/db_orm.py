@@ -615,12 +615,8 @@ def add_genome(session: Session, fasta_filename: Path | str, md5: str) -> Genome
     else:
         return genome
     session.rollback()
-    # another thread added it in the meantime
-    old_genome = session.query(Genome).where(Genome.genome_hash == md5).one_or_none()
-    if old_genome is not None:
-        return old_genome
-    msg = f"Could not add genome {md5}"
-    raise IntegrityError(msg)
+    # presumably another thread added it in the meantime, return that:
+    return session.query(Genome).where(Genome.genome_hash == md5).one()
 
 
 def add_run(  # noqa: PLR0913

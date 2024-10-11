@@ -150,7 +150,7 @@ def parse_mcoords(mcoords_file: Path) -> tuple[float, int]:
 
     # Get number of aligned bases with gaps
         if row["col_12"] not in seen_ref_seq:
-            aligned_bases_with_gaps += row["col_7"]
+            aligned_bases_with_gaps += row["col_8"]
             seen_ref_seq.append(row["col_12"])
 
     return (avg_identity, aligned_bases_with_gaps)
@@ -176,7 +176,7 @@ def parse_qdiff(qdiff_file: Path) -> int:
     return gap_lengths
 
 
-def collect_dnadiff_results_directory(
+def collect_dnadiff_results(
     mcoords_file: Path,
     qdiff_file: Path,
     indir: Path,

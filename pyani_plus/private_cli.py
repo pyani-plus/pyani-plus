@@ -41,10 +41,17 @@ app = typer.Typer()
 
 @app.command()
 def log_configuration(  # noqa: PLR0913
-    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
-    method: Annotated[str, typer.Option(help="Method, e.g. ANIm")],
-    program: Annotated[str, typer.Option(help="Program, e.g. nucmer")],
-    version: Annotated[str, typer.Option(help="Program version, e.g. 3.1")],
+    database: Annotated[
+        str,
+        typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False),
+    ],
+    method: Annotated[str, typer.Option(help="Method, e.g. ANIm", show_default=False)],
+    program: Annotated[
+        str, typer.Option(help="Program, e.g. nucmer", show_default=False)
+    ],
+    version: Annotated[
+        str, typer.Option(help="Program version, e.g. 3.1", show_default=False)
+    ],
     fragsize: Annotated[
         int | None, typer.Option(help="Optional method fragment size")
     ] = None,
@@ -85,8 +92,13 @@ def log_configuration(  # noqa: PLR0913
 
 @app.command()
 def log_genome(
-    fasta: Annotated[list[str], typer.Argument(help="Path(s) to FASTA file(s)")],
-    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    fasta: Annotated[
+        list[str], typer.Argument(help="Path(s) to FASTA file(s)", show_default=False)
+    ],
+    database: Annotated[
+        str,
+        typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False),
+    ],
     create_db: Annotated[  # noqa: FBT002
         bool, typer.Option(help="Create database if does not exist")
     ] = False,
@@ -119,16 +131,25 @@ def log_genome(
 
 @app.command()
 def log_run(  # noqa: PLR0913
-    fasta: Annotated[list[str], typer.Argument(help="Path(s) to FASTA file(s)")],
-    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    fasta: Annotated[
+        list[str], typer.Argument(help="Path(s) to FASTA file(s)", show_default=False)
+    ],
+    database: Annotated[
+        str,
+        typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False),
+    ],
     # These are for the run table:
-    cmdline: Annotated[str, typer.Option(help="Run command line")],
-    status: Annotated[str, typer.Option(help="Run status")],
-    name: Annotated[str, typer.Option(help="Run name")],
+    cmdline: Annotated[str, typer.Option(help="Run command line", show_default=False)],
+    status: Annotated[str, typer.Option(help="Run status", show_default=False)],
+    name: Annotated[str, typer.Option(help="Run name", show_default=False)],
     # These are all for the configuration table:
-    method: Annotated[str, typer.Option(help="Comparison method")],
-    program: Annotated[str, typer.Option(help="Comparison program name")],
-    version: Annotated[str, typer.Option(help="Comparison program version")],
+    method: Annotated[str, typer.Option(help="Comparison method", show_default=False)],
+    program: Annotated[
+        str, typer.Option(help="Comparison program name", show_default=False)
+    ],
+    version: Annotated[
+        str, typer.Option(help="Comparison program version", show_default=False)
+    ],
     fragsize: Annotated[
         int | None, typer.Option(help="Comparison method fragment size")
     ] = None,
@@ -187,18 +208,32 @@ def log_run(  # noqa: PLR0913
 
 @app.command()
 def log_comparison(  # noqa: PLR0913
-    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
-    # These are for the comparison table
-    query_fasta: Annotated[Path, typer.Option(help="Path to query FASTA file")],
-    subject_fasta: Annotated[Path, typer.Option(help="Path to subject FASTA file")],
-    identity: Annotated[
-        float, typer.Option(help="Percent identity (float from 0 to 1)")
+    database: Annotated[
+        str,
+        typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False),
     ],
-    aln_length: Annotated[int, typer.Option(help="Alignment length")],
+    # These are for the comparison table
+    query_fasta: Annotated[
+        Path, typer.Option(help="Path to query FASTA file", show_default=False)
+    ],
+    subject_fasta: Annotated[
+        Path, typer.Option(help="Path to subject FASTA file", show_default=False)
+    ],
+    identity: Annotated[
+        float,
+        typer.Option(help="Percent identity (float from 0 to 1)", show_default=False),
+    ],
+    aln_length: Annotated[
+        int, typer.Option(help="Alignment length", show_default=False)
+    ],
     # These are all for the configuration table:
-    method: Annotated[str, typer.Option(help="Comparison method")],
-    program: Annotated[str, typer.Option(help="Comparison program name")],
-    version: Annotated[str, typer.Option(help="Comparison program version")],
+    method: Annotated[str, typer.Option(help="Comparison method", show_default=False)],
+    program: Annotated[
+        str, typer.Option(help="Comparison program name", show_default=False)
+    ],
+    version: Annotated[
+        str, typer.Option(help="Comparison program version", show_default=False)
+    ],
     fragsize: Annotated[
         int | None, typer.Option(help="Comparison method fragment size")
     ] = None,
@@ -289,11 +324,20 @@ def parse_fastani_file(filename: Path) -> tuple[Path, Path, float, int, int]:
 # Note this omits maxmatch
 @app.command()
 def log_fastani(  # noqa: PLR0913
-    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    database: Annotated[
+        str,
+        typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False),
+    ],
     # These are for the comparison table
-    query_fasta: Annotated[Path, typer.Option(help="Path to query FASTA file")],
-    subject_fasta: Annotated[Path, typer.Option(help="Path to subject FASTA file")],
-    fastani: Annotated[Path, typer.Option(help="Path to fastANI output file")],
+    query_fasta: Annotated[
+        Path, typer.Option(help="Path to query FASTA file", show_default=False)
+    ],
+    subject_fasta: Annotated[
+        Path, typer.Option(help="Path to subject FASTA file", show_default=False)
+    ],
+    fastani: Annotated[
+        Path, typer.Option(help="Path to fastANI output file", show_default=False)
+    ],
     # These are all for the configuration table:
     fragsize: Annotated[
         int | None, typer.Option(help="Comparison method fragment size")
@@ -374,8 +418,11 @@ def log_fastani(  # noqa: PLR0913
 
 @app.command()
 def fragment_fasta(
-    fasta: Annotated[list[Path], typer.Argument(help="Path to input FASTA file(s)")],
-    outdir: Annotated[Path, typer.Option(help="Output directory")],
+    fasta: Annotated[
+        list[Path],
+        typer.Argument(help="Path to input FASTA file(s)", show_default=False),
+    ],
+    outdir: Annotated[Path, typer.Option(help="Output directory", show_default=False)],
     fragsize: Annotated[
         int, typer.Option(help="Fragment size (bp)")
     ] = method_anib.FRAGSIZE,

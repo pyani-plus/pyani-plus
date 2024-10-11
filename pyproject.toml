@@ -44,6 +44,7 @@ doctest_optionflags = ["ELLIPSIS"]
 
 [project.scripts]
 ".pyani-plus-private-cli" = "pyani_plus.private_cli:app"
+"pyani-plus" = "pyani_plus.public_cli:app"
 
 [project.urls]
 Homepage = "https://github.com/pyani-plus/pyani-plus"

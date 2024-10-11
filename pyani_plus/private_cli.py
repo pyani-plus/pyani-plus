@@ -394,4 +394,4 @@ def fragment_fasta(
 
 
 if __name__ == "__main__":
-    sys.exit(app())
+    sys.exit(app())  # pragma: no cover

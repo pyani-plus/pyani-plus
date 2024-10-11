@@ -78,8 +78,16 @@ def log_configuration(  # noqa: PLR0913
 
     print(f"Logging to {database}")  # noqa: T201
     session = db_orm.connect_to_db(database)
-    config = db_orm.add_configuration(
-        session, method, program, version, fragsize, maxmatch, kmersize, minmatch
+    config = db_orm.db_configuration(
+        session=session,
+        method=method,
+        program=program,
+        version=version,
+        fragsize=fragsize,
+        maxmatch=maxmatch,
+        kmersize=kmersize,
+        minmatch=minmatch,
+        create=True,
     )
     session.commit()  # should be redundant
     print(  # noqa: T201
@@ -119,7 +127,7 @@ def log_genome(
         for filename in track(fasta, description="Processing..."):
             file_total += 1
             md5 = file_md5sum(filename)
-            db_orm.add_genome(session, filename, md5)
+            db_orm.db_genome(session, filename, md5, create=True)
     session.commit()
     session.close()
     print(  # noqa: T201
@@ -166,7 +174,7 @@ def log_run(  # noqa: PLR0913
         bool, typer.Option(help="Create database if does not exist")
     ] = False,
 ) -> int:
-    """Log a run (and if need be, associated configuration, genome and comparison rows).
+    """Log a run (and if need be, associated configuration and genome rows).
 
     There is currently no easy way to update an existing run (e.g. once more
     comparisons have been completed and you want to refresh the cached matrices
@@ -180,8 +188,16 @@ def log_run(  # noqa: PLR0913
     session = db_orm.connect_to_db(database)
 
     # Reuse existing config, or log a new one
-    config = db_orm.add_configuration(
-        session, method, program, version, fragsize, maxmatch, kmersize, minmatch
+    config = db_orm.db_configuration(
+        session=session,
+        method=method,
+        program=program,
+        version=version,
+        fragsize=fragsize,
+        maxmatch=maxmatch,
+        kmersize=kmersize,
+        minmatch=minmatch,
+        create=True,
     )
 
     genomes = []
@@ -189,7 +205,7 @@ def log_run(  # noqa: PLR0913
         # Reuse existing genome entries and/or log new ones
         for filename in track(fasta, description="Processing..."):
             md5 = file_md5sum(filename)
-            genomes.append(db_orm.add_genome(session, filename, md5))
+            genomes.append(db_orm.db_genome(session, filename, md5, create=True))
 
     run = db_orm.add_run(
         session, config, cmdline, status, name, date=None, genomes=genomes
@@ -250,29 +266,34 @@ def log_comparison(  # noqa: PLR0913
     sim_errors: Annotated[int | None, typer.Option(help="Alignment length")] = None,
     cov_query: Annotated[float | None, typer.Option(help="Alignment length")] = None,
     cov_subject: Annotated[float | None, typer.Option(help="Alignment length")] = None,
-    create_db: Annotated[  # noqa: FBT002
-        bool, typer.Option(help="Create database if does not exist")
-    ] = False,
 ) -> int:
     """Log a single pyANI-plus pairwise comparison to the database."""
-    if database != ":memory:" and not create_db and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist, but not using --create-db"
+    if database != ":memory:" and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
     print(f"Logging to {database}")  # noqa: T201
     session = db_orm.connect_to_db(database)
 
-    config = db_orm.add_configuration(
-        session, method, program, version, fragsize, maxmatch, kmersize, minmatch
+    config = db_orm.db_configuration(
+        session=session,
+        method=method,
+        program=program,
+        version=version,
+        fragsize=fragsize,
+        maxmatch=maxmatch,
+        kmersize=kmersize,
+        minmatch=minmatch,
+        create=False,
     )
 
     query_md5 = file_md5sum(query_fasta)
-    db_orm.add_genome(session, query_fasta, query_md5)
+    db_orm.db_genome(session, query_fasta, query_md5)
 
     subject_md5 = file_md5sum(subject_fasta)
-    db_orm.add_genome(session, subject_fasta, subject_md5)
+    db_orm.db_genome(session, subject_fasta, subject_md5)
 
-    db_orm.add_comparison(
+    db_orm.db_comparison(
         session,
         configuration_id=config.configuration_id,
         query_hash=query_md5,
@@ -316,11 +337,11 @@ def log_fastani(  # noqa: PLR0913
     minmatch: Annotated[
         float | None, typer.Option(help="Comparison method min-match")
     ] = None,
-    create_db: Annotated[  # noqa: FBT002
-        bool, typer.Option(help="Create database if does not exist")
-    ] = False,
 ) -> int:
-    """Log a single pyANI-plus fastANI pairwise comparison to the database."""
+    """Log a single pyANI-plus fastANI pairwise comparison to the database.
+
+    The associated configuration and genome entries must already exist.
+    """
     # Assuming this will match as expect this script to be called right
     # after the computation has finished (on the same machine)
     fastani_tool = tools.get_fastani()
@@ -338,14 +359,14 @@ def log_fastani(  # noqa: PLR0913
             f"ERROR: Given --subject-fasta {subject_fasta} but query in fastANI file was {used_subject}"
         )
 
-    if database != ":memory:" and not create_db and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist, but not using --create-db"
+    if database != ":memory:" and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
     print(f"Logging to {database}")  # noqa: T201
     session = db_orm.connect_to_db(database)
 
-    config = db_orm.add_configuration(
+    config = db_orm.db_configuration(
         session,
         method="fastANI",
         program=fastani_tool.exe_path.stem,
@@ -354,20 +375,18 @@ def log_fastani(  # noqa: PLR0913
         maxmatch=None,
         kmersize=kmersize,  # aka --k
         minmatch=minmatch,  # aka --minFraction
+        create=False,
     )
 
     query_md5 = file_md5sum(query_fasta)
     subject_md5 = file_md5sum(subject_fasta)
 
-    # Should not be needed in standard workflow, but also ensures FASTA are in DB:
-    db_orm.add_genome(session, query_fasta, query_md5)
-    db_orm.add_genome(session, subject_fasta, subject_md5)
-
     estimated_cov_query = float(orthologous_matches) / fragments  # an approximation
     sim_errors = fragments - orthologous_matches  # proxy value, not bp
     estimated_aln_length = fragsize * orthologous_matches  # proxy value
 
-    db_orm.add_comparison(
+    # We assume both genomes have been recorded, if not this will fail:
+    db_orm.db_comparison(
         session,
         configuration_id=config.configuration_id,
         query_hash=query_md5,
@@ -447,7 +466,7 @@ def log_anib(  # noqa: PLR0913
     print(f"Logging to {database}")  # noqa: T201
     session = db_orm.connect_to_db(database)
 
-    config = db_orm.add_configuration(
+    config = db_orm.db_configuration(
         session,
         method="ANIb",
         program=blastn_tool.exe_path.stem,
@@ -456,19 +475,20 @@ def log_anib(  # noqa: PLR0913
         maxmatch=None,
         kmersize=None,
         minmatch=None,  # does a blastn filtering thresholds fit here?
+        create=False,
     )
 
     # Need to lookup query length to compute query_cover (fragmented FASTA irrelevant:
     query_md5 = file_md5sum(query_fasta)
-    query = db_orm.add_genome(session, query_fasta, query_md5)
+    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
     cov_query = float(aln_length) / query.length
 
     # Need to lookup subject length to compute subject_cover:
     subject_md5 = file_md5sum(subject_fasta)
-    subject = db_orm.add_genome(session, subject_fasta, subject_md5)
+    subject = db_orm.db_genome(session, subject_fasta, subject_md5, create=False)
     cov_subject = float(aln_length) / subject.length
 
-    db_orm.add_comparison(
+    db_orm.db_comparison(
         session,
         configuration_id=config.configuration_id,
         query_hash=query_md5,

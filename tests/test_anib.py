@@ -101,26 +101,14 @@ def test_missing_db(tmp_path: str, input_genomes_tiny: Path, anib_blastn: Path) 
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
 
-    with pytest.raises(SystemExit, match="does not exist, but not using --create-db"):
+    with pytest.raises(SystemExit, match="does not exist"):
         log_anib(
             database=tmp_db,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             blastn=anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
-            create_db=False,
         )
-
-    # This should work:
-    log_anib(
-        database=tmp_db,
-        # These are for the comparison table
-        query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-        subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-        blastn=anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
-        create_db=True,
-    )
-    tmp_db.unlink()
 
 
 def test_bad_query_or_subject(

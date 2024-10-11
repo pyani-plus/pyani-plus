@@ -69,7 +69,6 @@ def test_bad_query_or_subject(
             fragsize=1000,
             kmersize=51,
             minmatch=0.9,
-            create_db=False,
         )
 
     with pytest.raises(
@@ -91,7 +90,6 @@ def test_bad_query_or_subject(
             fragsize=1000,
             kmersize=51,
             minmatch=0.9,
-            create_db=False,
         )
 
 
@@ -102,7 +100,7 @@ def test_missing_db(
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
 
-    with pytest.raises(SystemExit, match="does not exist, but not using --create-db"):
+    with pytest.raises(SystemExit, match="does not exist"):
         log_fastani(
             database=tmp_db,
             # These are for the comparison table
@@ -114,21 +112,4 @@ def test_missing_db(
             fragsize=1000,
             kmersize=51,
             minmatch=0.9,
-            create_db=False,
         )
-
-    # This should work:
-    log_fastani(
-        database=tmp_db,
-        # These are for the comparison table
-        query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-        subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-        fastani=fastani_targets_indir
-        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.fastani",
-        # These are all for the configuration table:
-        fragsize=1000,
-        kmersize=51,
-        minmatch=0.9,
-        create_db=True,
-    )
-    tmp_db.unlink()

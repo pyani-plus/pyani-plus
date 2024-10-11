@@ -347,6 +347,7 @@ class Run(Base):
         return (
             object_session(self)
             .query(Comparison)
+            .where(Comparison.configuration_id == self.configuration_id)
             .join(run_query, Comparison.query_hash == run_query.genome_hash)
             .join(run_subjt, Comparison.subject_hash == run_subjt.genome_hash)
             .where(run_query.run_id == self.run_id)

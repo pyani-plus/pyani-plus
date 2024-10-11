@@ -209,11 +209,3 @@ def collect_dnadiff_results_directory(
         aligned_bases=aligned_bases_with_gaps - gaps,
         r_cov=(aligned_bases_with_gaps - gaps) / q_genome_length * 100,
     )
-
-
-mcoords = Path("../../tests/fixtures/dnadiff/targets/show_coords/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords")
-qdiff = Path("../../tests/fixtures/dnadiff/targets/show_diff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff")
-seq = Path("../../tests/fixtures/viral_example")
-
-
-print(collect_dnadiff_results_directory(mcoords, qdiff, seq))

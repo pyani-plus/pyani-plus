@@ -144,11 +144,11 @@ def test_log_run(tmp_path: str) -> None:
 
 
 def test_log_comparison_no_db(tmp_path: str, input_genomes_tiny: Path) -> None:
-    """Confirm can create a mock DB using log-comparison alone."""
+    """Confirm log-comparison fails if DB is missing."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
 
-    with pytest.raises(SystemExit, match="does not exist, but not using --create-db"):
+    with pytest.raises(SystemExit, match="does not exist"):
         private_cli.log_comparison(
             database=tmp_db,
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
@@ -163,7 +163,6 @@ def test_log_comparison_no_db(tmp_path: str, input_genomes_tiny: Path) -> None:
             sim_errors=1,
             cov_query=0.98,
             cov_subject=0.98,
-            create_db=False,
         )
 
 
@@ -171,6 +170,24 @@ def test_log_comparison_duplicate(tmp_path: str, input_genomes_tiny: Path) -> No
     """Confirm no error logging comparison twice."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
+
+    private_cli.log_configuration(
+        database=tmp_db,
+        method="guessing",
+        program="guestimate",
+        version="0.1.2beta3",
+        fragsize=100,
+        kmersize=51,
+        create_db=True,
+    )
+
+    private_cli.log_genome(
+        database=tmp_db,
+        fasta=[
+            input_genomes_tiny / "MGV-GENOME-0264574.fas",
+            input_genomes_tiny / "MGV-GENOME-0266457.fna",
+        ],
+    )
 
     private_cli.log_comparison(
         database=tmp_db,
@@ -186,7 +203,6 @@ def test_log_comparison_duplicate(tmp_path: str, input_genomes_tiny: Path) -> No
         sim_errors=1,
         cov_query=0.98,
         cov_subject=0.98,
-        create_db=True,
     )
 
     private_cli.log_comparison(
@@ -229,11 +245,10 @@ def test_log_comparison_serial(tmp_path: str, input_genomes_tiny: Path) -> None:
         create_db=True,
     )
 
-    fasta = list(input_genomes_tiny.glob("*.fna"))  # subset of folder (2)
+    fasta = list(input_genomes_tiny.glob("*.fna"))  # subset of folder
     private_cli.log_genome(
         database=tmp_db,
         fasta=fasta,
-        create_db=False,
     )
 
     # Could at this point log the run with status=started (or similar),
@@ -256,7 +271,6 @@ def test_log_comparison_serial(tmp_path: str, input_genomes_tiny: Path) -> None:
                 sim_errors=1,
                 cov_query=0.98,
                 cov_subject=0.98,
-                create_db=False,
             )
 
     # Can now log the run with status=completed
@@ -309,17 +323,10 @@ def test_log_comparison_parallel(tmp_path: str, input_genomes_tiny: Path) -> Non
                 {
                     "database": tmp_db,
                     "fasta": [filename],
-                    "create_db": False,
                 },
             )
     pool.close()
     pool.join()
-
-    private_cli.log_genome(
-        database=tmp_db,
-        fasta=fasta,
-        create_db=False,
-    )
 
     # Could at this point log the run with status=started (or similar),
     # but will need a mechanism to return the run ID and use it to update
@@ -341,7 +348,6 @@ def test_log_comparison_parallel(tmp_path: str, input_genomes_tiny: Path) -> Non
             "sim_errors": 1,
             "cov_query": 0.98,
             "cov_subject": 0.98,
-            "create_db": False,
         }
         for query in fasta
         for subject in fasta

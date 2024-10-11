@@ -32,6 +32,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytest
+from sqlalchemy.exc import NoResultFound
 
 from pyani_plus import db_orm
 from pyani_plus.utils import file_md5sum, str_md5sum
@@ -465,30 +467,66 @@ def test_add_config(tmp_path: str) -> None:
 
     session = db_orm.connect_to_db(tmp_db)
 
-    config = db_orm.add_configuration(
+    with pytest.raises(
+        NoResultFound,
+        match="Requested configuration not already in DB",
+    ):
+        db_orm.db_configuration(
+            session,
+            method="guessing",
+            program="guestimate",
+            version="v0.1.2beta3",
+            fragsize=100,
+            kmersize=17,
+            create=False,
+        )
+
+    config = db_orm.db_configuration(
         session,
         method="guessing",
         program="guestimate",
         version="v0.1.2beta3",
         fragsize=100,
         kmersize=17,
+        create=True,
     )
     assert repr(config) == (
         "Configuration(configuration_id=1,"
         " program='guestimate', version='v0.1.2beta3',"
         " fragsize=100, maxmatch=None, kmersize=17, minmatch=None)"
     )
-    session.commit()
 
     # Trying to add the exact same values should return the existing entry:
-    assert config is db_orm.add_configuration(
+    assert config is db_orm.db_configuration(
         session,
         method="guessing",
         program="guestimate",
         version="v0.1.2beta3",
         fragsize=100,
         kmersize=17,
+        create=True,
     )
+
+
+def test_add_genome(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Confirm repeating adding a genome has no effect."""
+    tmp_db = Path(tmp_path) / "config.sqlite"
+    assert not tmp_db.is_file()
+
+    fasta = next(input_genomes_tiny.glob("*.f*"))
+
+    session = db_orm.connect_to_db(tmp_db)
+    md5 = file_md5sum(fasta)
+
+    with pytest.raises(
+        NoResultFound,
+        match="Requested genome not already in DB",
+    ):
+        db_orm.db_genome(session, fasta, md5, create=False)
+
+    genome = db_orm.db_genome(session, fasta, md5, create=True)
+    # Adding again should return the original row again
+    assert genome is db_orm.db_genome(session, fasta, md5, create=True)
 
 
 def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
@@ -498,13 +536,14 @@ def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
 
     session = db_orm.connect_to_db(tmp_db)
 
-    config = db_orm.add_configuration(
+    config = db_orm.db_configuration(
         session,
         method="guessing",
         program="guestimate",
         version="v0.1.2beta3",
         fragsize=1000,
         kmersize=31,
+        create=True,
     )
     assert repr(config) == (
         "Configuration(configuration_id=1,"
@@ -516,7 +555,7 @@ def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
     genomes = []
     for fasta in input_genomes_tiny.glob("*.f*"):
         md5 = file_md5sum(fasta)
-        genome = db_orm.add_genome(session, fasta, md5)
+        genome = db_orm.db_genome(session, fasta, md5, create=True)
         hashes[md5] = fasta
         genomes.append(genome)
 
@@ -542,7 +581,7 @@ def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
     # to compute the comparisons (possible spread over a cluster):
     for a in hashes:
         for b in hashes:
-            db_orm.add_comparison(
+            db_orm.db_comparison(
                 session,
                 config.configuration_id,
                 a,

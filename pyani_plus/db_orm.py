@@ -39,6 +39,7 @@ from sqlalchemy import (
     UniqueConstraint,
     create_engine,
 )
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -512,7 +513,7 @@ def connect_to_db(dbpath: Path | str, *, echo: bool = False) -> Session:
     return sessionmaker(bind=engine)()
 
 
-def add_configuration(  # noqa: PLR0913
+def db_configuration(  # noqa: PLR0913
     session: Session,
     method: str,
     program: str,
@@ -521,17 +522,37 @@ def add_configuration(  # noqa: PLR0913
     maxmatch: bool | None = None,
     kmersize: int | None = None,
     minmatch: float | None = None,
+    *,
+    create: bool = False,
 ) -> Configuration:
     """Return a configuration table entry, or add and return it if not already there.
 
+    By default if the entry is not there already, you get a NoResultFound exception:
+
     >>> session = connect_to_db(":memory:")
-    >>> conf = add_configuration(
+    >>> conf = db_configuration(
     ...     session,
     ...     method="guessing",
     ...     program="guestimate",
     ...     version="v0.1.2beta3",
     ...     fragsize=1000,
     ...     kmersize=31,
+    ... )
+    Traceback (most recent call last):
+    ...
+    sqlalchemy.exc.NoResultFound: Requested configuration not already in DB
+
+    If the entry is not there already, and you want to add it, you must use create=True:
+
+    >>> session = connect_to_db(":memory:")
+    >>> conf = db_configuration(
+    ...     session,
+    ...     method="guessing",
+    ...     program="guestimate",
+    ...     version="v0.1.2beta3",
+    ...     fragsize=1000,
+    ...     kmersize=31,
+    ...     create=True,
     ... )
     >>> conf.configuration_id
     1
@@ -550,6 +571,9 @@ def add_configuration(  # noqa: PLR0913
         .one_or_none()
     )
     if config is None:
+        if not create:
+            msg = "Requested configuration not already in DB"
+            raise NoResultFound(msg)
         config = Configuration(
             method=method,
             program=program,
@@ -564,28 +588,41 @@ def add_configuration(  # noqa: PLR0913
     return config
 
 
-def add_genome(session: Session, fasta_filename: Path | str, md5: str) -> Genome:
+def db_genome(
+    session: Session, fasta_filename: Path | str, md5: str, *, create: bool = False
+) -> Genome:
     """Return a genome table entry, or add and return it if not already there.
 
     Assumes and trusts the MD5 checksum given matches.
 
-    Returns true if the genome was added (but note session.commit() does not
-    get called here), false if already there:
+    Returns the matching genome object, or the new one added if create=True:
 
     >>> session = connect_to_db(":memory:")
     >>> from pyani_plus.utils import file_md5sum
     >>> fasta = "tests/fixtures/viral_example/OP073605.fasta"
-    >>> genome = add_genome(session, fasta, file_md5sum(fasta))
+    >>> genome = db_genome(session, fasta, file_md5sum(fasta), create=True)
     >>> genome.genome_hash
     '5584c7029328dc48d33f95f0a78f7e57'
 
     Note this calls session.commit() explicitly to try to reduce locking contention,
     and makes some efforts to cope gracefully with competing processes also trying
     to record the same genome at the same time.
+
+    If the genome is not already there, then by default this raises an exception:
+
+    >>> session = connect_to_db(":memory:")
+    >>> genome = db_genome(session, fasta, file_md5sum(fasta))
+    Traceback (most recent call last):
+    ...
+    sqlalchemy.exc.NoResultFound: Requested genome not already in DB
     """
     old_genome = session.query(Genome).where(Genome.genome_hash == md5).one_or_none()
     if old_genome is not None:
         return old_genome
+
+    if not create:
+        msg = "Requested genome not already in DB"
+        raise NoResultFound(msg)
 
     length = 0
     description = None
@@ -624,6 +661,7 @@ def add_run(  # noqa: PLR0913
     """Add and return a new run table entry.
 
     Will make a near-duplicate if there is a match there already!
+
     """
     run = Run(
         configuration_id=configuration.configuration_id,
@@ -638,7 +676,7 @@ def add_run(  # noqa: PLR0913
     return run
 
 
-def add_comparison(  # noqa: PLR0913
+def db_comparison(  # noqa: PLR0913
     session: Session,
     configuration_id: int,
     query_hash: str,
@@ -656,7 +694,7 @@ def add_comparison(  # noqa: PLR0913
     the linked tables. If not, addition will fail with an integrity error:
 
     >>> session = connect_to_db(":memory:")
-    >>> comp = add_comparison(session, 1, "abcd", "cdef", 0.99, 12345)
+    >>> comp = db_comparison(session, 1, "abcd", "cdef", 0.99, 12345)
     >>> comp.identity
     0.99
 

@@ -125,21 +125,10 @@ class ComparisonResultDnadiff(NamedTuple):
     r_cov: float
 
 
-def get_record_lengths(genome_seq: Path) -> dict:
-    """Return the lengths of records from the given FASTA files,
-    keyed by the sequence ID.
-
-    :param genome_seq: Path to the input FASTA file.
-    """  # noqa: D205
-    records = list(SeqIO.parse(genome_seq, "fasta"))
-    return {record.id: len(record.seq) for record in records}
-
-
-def parse_mcoords(mcoords_file: Path, record_lengths: dict) -> tuple[float, int]:
+def parse_mcoords(mcoords_file: Path) -> tuple[float, int]:
     """Parse mcoords file and return avg ID% and number of aligned bases with gaps (QRY).
 
     :parama mcoords_file: Path to the mcoords_file
-    :param record_lengths: Path to the input FASTA file.
     """
     mcoords = pd.read_csv(
         Path(mcoords_file),
@@ -161,7 +150,7 @@ def parse_mcoords(mcoords_file: Path, record_lengths: dict) -> tuple[float, int]
 
     # Get number of aligned bases with gaps
         if row["col_12"] not in seen_ref_seq:
-            aligned_bases_with_gaps += record_lengths[row["col_12"]]
+            aligned_bases_with_gaps += row["col_7"]
             seen_ref_seq.append(row["col_12"])
 
     return (avg_identity, aligned_bases_with_gaps)
@@ -205,8 +194,7 @@ def collect_dnadiff_results_directory(
     rname, qname = mcoords_file.stem.split("_vs_")
     r_genome_length = get_genome_length(files[rname])
     q_genome_length = get_genome_length(files[qname])
-    q_record_lengths = get_record_lengths(files[qname])
-    avg_identity, aligned_bases_with_gaps = parse_mcoords(mcoords_file, q_record_lengths)
+    avg_identity, aligned_bases_with_gaps = parse_mcoords(mcoords_file)
     gaps = parse_qdiff(qdiff_file)
 
 
@@ -221,3 +209,11 @@ def collect_dnadiff_results_directory(
         aligned_bases=aligned_bases_with_gaps - gaps,
         r_cov=(aligned_bases_with_gaps - gaps) / q_genome_length * 100,
     )
+
+
+mcoords = Path("../../tests/fixtures/dnadiff/targets/show_coords/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords")
+qdiff = Path("../../tests/fixtures/dnadiff/targets/show_diff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff")
+seq = Path("../../tests/fixtures/viral_example")
+
+
+print(collect_dnadiff_results_directory(mcoords, qdiff, seq))

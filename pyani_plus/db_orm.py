@@ -39,7 +39,6 @@ from sqlalchemy import (
     UniqueConstraint,
     create_engine,
 )
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -608,15 +607,8 @@ def add_genome(session: Session, fasta_filename: Path | str, md5: str) -> Genome
         return old_genome
 
     session.add(genome)
-    try:
-        session.commit()
-    except IntegrityError:
-        pass
-    else:
-        return genome
-    session.rollback()
-    # presumably another thread added it in the meantime, return that:
-    return session.query(Genome).where(Genome.genome_hash == md5).one()
+    session.commit()
+    return genome
 
 
 def add_run(  # noqa: PLR0913

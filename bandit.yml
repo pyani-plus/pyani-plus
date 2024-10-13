@@ -1,0 +1,7 @@
+# B324:hashlib - used for MD5 checksum
+# B404:import_subprocess - unavoidable
+skips: ['B324', 'B404']
+
+# Skip B101 aka assert_used in our test files
+assert_used:
+  skips: ['*tests/*.py']

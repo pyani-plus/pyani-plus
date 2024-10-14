@@ -268,8 +268,8 @@ def log_fastani(  # noqa: PLR0913
     fastani: Annotated[Path, typer.Option(help="Path to fastANI output file")],
     # These are all for the configuration table:
     fragsize: Annotated[
-        int | None, typer.Option(help="Comparison method fragment size")
-    ] = None,
+        int, typer.Option(help="Comparison method fragment size")
+    ] = 3000,
     kmersize: Annotated[
         int | None, typer.Option(help="Comparison method k-mer size")
     ] = None,
@@ -321,16 +321,13 @@ def log_fastani(  # noqa: PLR0913
     query_md5 = file_md5sum(query_fasta)
     subject_md5 = file_md5sum(subject_fasta)
 
-    # Need to lookup query/subject length to estimate alignment length.
     # Should not be needed in standard workflow, but also ensures FASTA are in DB:
-    query = db_orm.add_genome(session, query_fasta, query_md5)
-    subject = db_orm.add_genome(session, subject_fasta, subject_md5)
+    db_orm.add_genome(session, query_fasta, query_md5)
+    db_orm.add_genome(session, subject_fasta, subject_md5)
 
     estimated_cov_query = float(orthologous_matches) / fragments  # an approximation
     sim_errors = fragments - orthologous_matches  # proxy value, not bp
-    estimated_aln_length = int(
-        estimated_cov_query * min(query.length, subject.length)
-    )  # proxy value
+    estimated_aln_length = fragsize * orthologous_matches  # proxy value
 
     db_orm.add_comparison(
         session,

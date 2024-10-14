@@ -145,13 +145,8 @@ matrix_sim_errors = matrix_fragments - matrix_orthologous_matches
 # Element-wise multiplication, must cast string ANI to float (range 0 to 1)
 matrix_hadamard = matrix_coverage * matrix_ani_string.astype(float)
 
-# Can't give a very good estimate here:
-matrix_aln_lengths = np.full((n, n), 0, int)
-for row, query in enumerate(hashes):
-    for col, subject in enumerate(hashes):
-        matrix_aln_lengths[row, col] = int(
-            matrix_coverage[row, col] * min(lengths[query], lengths[subject])
-        )
+# Another estimate:
+matrix_aln_lengths = FRAG_LEN * matrix_orthologous_matches
 
 write_matrix(MATRIX_DIR / "matrix_identity.tsv", hashes, matrix_ani_string)
 write_matrix(MATRIX_DIR / "matrix_coverage.tsv", hashes, matrix_coverage)

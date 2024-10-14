@@ -54,7 +54,6 @@ def config_anim_args(
         # "outdir": ... is dynamic
         "indir": str(input_genomes_tiny),
         "cores": snakemake_cores,
-        "mode": "mum",
     }
 
 

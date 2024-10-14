@@ -393,5 +393,82 @@ def fragment_fasta(
     return 0
 
 
+# Note this omits kmersize, minmatch, maxmatch
+@app.command()
+def log_anib(  # noqa: PLR0913
+    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    # These are for the comparison table
+    query_fasta: Annotated[Path, typer.Option(help="Path to query FASTA file")],
+    subject_fasta: Annotated[Path, typer.Option(help="Path to subject FASTA file")],
+    blastn: Annotated[Path, typer.Option(help="Path to blastn TSV output file")],
+    # These are all for the configuration table:
+    fragsize: Annotated[
+        int | None, typer.Option(help="Comparison method fragment size")
+    ] = None,
+    create_db: Annotated[  # noqa: FBT002
+        bool, typer.Option(help="Create database if does not exist")
+    ] = False,
+) -> int:
+    """Log a single pyANI-plus ANIb pairwise comparison (with blastn) to the database."""
+    # Assuming this will match as expect this script to be called right
+    # after the computation has finished (on the same machine)
+    blastn_tool = tools.get_blastn()
+
+    identity, aln_length, sim_errors = method_anib.parse_blastn_file(blastn)
+    # Allowing for some variation in the filename paths here... should we?
+    used_query, used_subject = blastn.stem.split("_vs_")
+    if used_query != query_fasta.stem:
+        sys.exit(
+            f"ERROR: Given --query-fasta {query_fasta} but query in blastn filename was {used_query}"
+        )
+    if used_subject != subject_fasta.stem:
+        sys.exit(
+            f"ERROR: Given --subject-fasta {subject_fasta} but query in blastn filename was {used_subject}"
+        )
+
+    if database != ":memory:" and not create_db and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist, but not using --create-db"
+        sys.exit(msg)
+
+    print(f"Logging to {database}")  # noqa: T201
+    session = db_orm.connect_to_db(database)
+
+    config = db_orm.add_configuration(
+        session,
+        method="ANIb",
+        program=blastn_tool.exe_path.stem,
+        version=blastn_tool.version,
+        fragsize=fragsize,
+        maxmatch=None,
+        kmersize=None,
+        minmatch=None,  # does a blastn filtering thresholds fit here?
+    )
+
+    # Need to lookup query length to compute query_cover (fragmented FASTA irrelevant:
+    query_md5 = file_md5sum(query_fasta)
+    query = db_orm.add_genome(session, query_fasta, query_md5)
+    cov_query = float(aln_length) / query.length
+
+    # Need to lookup subject length to compute subject_cover:
+    subject_md5 = file_md5sum(subject_fasta)
+    subject = db_orm.add_genome(session, subject_fasta, subject_md5)
+    cov_subject = float(aln_length) / subject.length
+
+    db_orm.add_comparison(
+        session,
+        configuration_id=config.configuration_id,
+        query_hash=query_md5,
+        subject_hash=subject_md5,
+        identity=identity,
+        aln_length=aln_length,
+        sim_errors=sim_errors,
+        cov_query=cov_query,
+        cov_subject=cov_subject,
+    )
+
+    session.commit()
+    return 0
+
+
 if __name__ == "__main__":
     sys.exit(app())

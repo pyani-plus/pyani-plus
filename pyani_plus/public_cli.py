@@ -46,50 +46,15 @@ FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}  # define more centrally?
 app = typer.Typer()
 
 
-@app.command()
-def run(  # noqa: C901, PLR0913, PLR0915, PLR0912
-    fasta: Annotated[
-        Path,
-        typer.Argument(
-            help=f"Directory of FASTA files (extensions {', '.join(sorted(FASTA_EXTENSIONS))})",
-            show_default=False,
-        ),
-    ],
-    database: Annotated[
-        str,
-        typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False),
-    ],
-    # These are for the run table:
-    name: Annotated[str, typer.Option(help="Run name", show_default=False)],
-    # These are all for the configuration table:
-    method: Annotated[
-        str,
-        typer.Option(
-            help="Comparison method (e.g. ANIm, dnadiff, ANIb, fastANI)",
-            show_default=False,
-        ),
-    ],
-    fragsize: Annotated[
-        int | None, typer.Option(help="Comparison method fragment size")
-    ] = None,
-    maxmatch: Annotated[
-        bool | None, typer.Option(help="Comparison method max-match")
-    ] = None,
-    kmersize: Annotated[
-        int | None, typer.Option(help="Comparison method k-mer size")
-    ] = None,
-    minmatch: Annotated[
-        float | None, typer.Option(help="Comparison method min-match")
-    ] = None,
-    create_db: Annotated[  # noqa: FBT002
-        bool, typer.Option(help="Create database if does not exist")
-    ] = False,
-) -> int:
-    """Execute a set of ANI calculations, logged to a pyANI-plus SQLite3 database."""
+def check_db(database: Path, create_db: bool) -> None:  # noqa: FBT001
+    """Check DB exists, or using create_db=True."""
     if database != ":memory:" and not create_db and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist, but not using --create-db"
         sys.exit(msg)
 
+
+def check_fasta(fasta: Path) -> list[Path]:
+    """Check fasta is a directory and return list of FASTA files in it."""
     if not fasta.is_dir():
         msg = f"ERROR: FASTA input {fasta} is not a directory"
         sys.exit(msg)
@@ -101,78 +66,25 @@ def run(  # noqa: C901, PLR0913, PLR0915, PLR0912
         msg = f"ERROR: No FASTA input genomes under {fasta} with extensions {', '.join(FASTA_EXTENSIONS)}"
         sys.exit(msg)
 
-    # This should be under pyani_plus.methods, perhaps a registry?
-    # Should each method make it easy to check canonical name and command line dependencies?
-    # Will wrap this in a try/except to catch missing command line dependencies
-    target_extension = "." + method.lower()
-    params = {}
-    snakemake_cores = 1  # make this dynamic later
-    match method.lower():
-        case "anim":
-            method = "ANIm"
-            target_extension = ".filter"
-            tool = tools.get_nucmer()
-            params = {
-                "nucmer": tool.exe_path,
-                "delta_filter": tools.get_delta_filter().exe_path,
-                "mode": "mum",
-            }
-        case "dnadiff":
-            method = "dnadiff"
-            target_extension = ".mcoords"
-            tool = tools.get_nucmer()
-            params = {
-                "nucmer": tool.exe_path,
-                "delta_filter": tools.get_delta_filter().exe_path,
-                "show_diff": tools.get_show_diff().exe_path,
-                "show_coords": tools.get_show_coords().exe_path,
-            }
-        case "anib":
-            method = "ANIb"
-            target_extension = ".tsv"
-            tool = tools.get_blastn()
-            alt = tools.get_makeblastdb()
-            if tool.version != alt.version:
-                msg = f"ERROR: blastn {tool.version} vs makeblastdb {alt.version}"
-                sys.exit(msg)
-            if fragsize is None:
-                fragsize = 1020
-            if maxmatch is not None or kmersize is not None or minmatch is not None:
-                msg = f"Method {method} does not support maxmatch, kmersizer, minmatch"
-                sys.exit(msg)
-            params = {
-                "blastn": tool.exe_path,
-                "makeblastdb": alt.exe_path,
-                "fragLen": fragsize,
-            }
-            del alt
-        case "fastani":
-            method = "fastANI"
-            target_extension = ".fastani"
-            tool = tools.get_fastani()
-            if fragsize is None:
-                fragsize = 3000
-            if kmersize is None:
-                kmersize = 16
-            if minmatch is None:
-                minmatch = 0.2
-            if maxmatch is not None:
-                msg = f"Method {method} does not support maxmatch"
-                sys.exit(msg)
-            params = {
-                "fastani": tool.exe_path,
-                "fragLen": fragsize,
-                "kmerSize": kmersize,
-                "minFrac": minmatch,
-            }
-        case "guessing":
-            method = "guessing"
-            target_extension = ".guess"
-            # Mock method used in testing
-            tool = tools.ExternalToolData(Path("guestimator"), "v1.2.3beta4")
-        case _:
-            msg = f"ERROR: Method {method!r} not recognised, try ANIm, ANIb, fastANI etc (case insensitive)"
-            sys.exit(msg)
+    return fasta_names
+
+
+def run_method(  # noqa: PLR0913
+    database: Path,
+    name: str,
+    method: str,
+    fasta: Path,
+    target_extension: str,
+    tool: tools.ExternalToolData,
+    fragsize: int | None,
+    maxmatch: bool | None,
+    kmersize: int | None,
+    minmatch: float | None,
+    params: dict[str, object],
+) -> int:
+    """Run the snakemake workflow for given method and log run to database."""
+    fasta_names = check_fasta(fasta)
+
     workflow_name = f"snakemake_{method.lower()}.smk"
 
     # We should have caught all the obvious failures above,
@@ -240,7 +152,7 @@ def run(  # noqa: C901, PLR0913, PLR0915, PLR0912
             params["indir"] = fasta.resolve()  # must be absolute
             params["outdir"] = out_path.resolve()
             params["db"] = Path(database).resolve()  # must be absolute
-            params["cores"] = snakemake_cores
+            params["cores"] = 1  # should make dynamic
             runner = snakemake_scheduler.SnakemakeRunner(workflow_name)
             runner.run_workflow(targets, params, workdir=tmp_path)
 
@@ -261,6 +173,159 @@ def run(  # noqa: C901, PLR0913, PLR0915, PLR0912
         f"Logged new run-id {run_id} for method {method} with {n} genomes to database {database}"
     )
     return 0
+
+
+@app.command()
+def anim(
+    fasta: Annotated[
+        Path,
+        typer.Argument(
+            help=f"Directory of FASTA files (extensions {', '.join(sorted(FASTA_EXTENSIONS))})",
+            show_default=False,
+        ),
+    ],
+    database: Annotated[
+        Path,
+        typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False),
+    ],
+    # These are for the run table:
+    name: Annotated[str, typer.Option(help="Run name", show_default=False)],
+    # Does not use fragsize, maxmatch, kmersize, or minmatch
+    create_db: Annotated[  # noqa: FBT002
+        bool, typer.Option(help="Create database if does not exist")
+    ] = False,
+) -> int:
+    """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
+    check_db(database, create_db)
+
+    target_extension = ".filter"
+    tool = tools.get_nucmer()
+    params = {
+        "nucmer": tool.exe_path,
+        "delta_filter": tools.get_delta_filter().exe_path,
+        "mode": "mum",
+    }
+    fragsize = maxmatch = kmersize = minmatch = None
+    return run_method(
+        database,
+        name,
+        "ANIm",
+        fasta,
+        target_extension,
+        tool,
+        fragsize,
+        maxmatch,
+        kmersize,
+        minmatch,
+        params,
+    )
+
+
+@app.command()
+def anib(
+    fasta: Annotated[
+        Path,
+        typer.Argument(
+            help=f"Directory of FASTA files (extensions {', '.join(sorted(FASTA_EXTENSIONS))})",
+            show_default=False,
+        ),
+    ],
+    database: Annotated[
+        Path,
+        typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False),
+    ],
+    # These are for the run table:
+    name: Annotated[str, typer.Option(help="Run name", show_default=False)],
+    # These are all for the configuration table:
+    fragsize: Annotated[
+        int, typer.Option(help="Comparison method fragment size")
+    ] = 1020,
+    # Does not use maxmatch, kmersize, or minmatch
+    create_db: Annotated[  # noqa: FBT002
+        bool, typer.Option(help="Create database if does not exist")
+    ] = False,
+) -> int:
+    """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
+    check_db(database, create_db)
+
+    target_extension = ".tsv"
+    tool = tools.get_blastn()
+    alt = tools.get_makeblastdb()
+    if tool.version != alt.version:
+        msg = f"ERROR: blastn {tool.version} vs makeblastdb {alt.version}"
+        sys.exit(msg)
+    params = {
+        "blastn": tool.exe_path,
+        "makeblastdb": alt.exe_path,
+        "fragLen": fragsize,
+    }
+    maxmatch = kmersize = minmatch = None
+    return run_method(
+        database,
+        name,
+        "ANIb",
+        fasta,
+        target_extension,
+        tool,
+        fragsize,
+        maxmatch,
+        kmersize,
+        minmatch,
+        params,
+    )
+
+
+@app.command()
+def fastani(  # noqa: PLR0913
+    fasta: Annotated[
+        Path,
+        typer.Argument(
+            help=f"Directory of FASTA files (extensions {', '.join(sorted(FASTA_EXTENSIONS))})",
+            show_default=False,
+        ),
+    ],
+    database: Annotated[
+        Path,
+        typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False),
+    ],
+    # These are for the run table:
+    name: Annotated[str, typer.Option(help="Run name", show_default=False)],
+    # These are all for the configuration table:
+    fragsize: Annotated[
+        int, typer.Option(help="Comparison method fragment size")
+    ] = 3000,
+    # Does not use maxmatch
+    kmersize: Annotated[int, typer.Option(help="Comparison method k-mer size")] = 16,
+    minmatch: Annotated[float, typer.Option(help="Comparison method min-match")] = 0.2,
+    create_db: Annotated[  # noqa: FBT002
+        bool, typer.Option(help="Create database if does not exist")
+    ] = False,
+) -> int:
+    """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
+    check_db(database, create_db)
+
+    target_extension = ".fastani"
+    tool = tools.get_fastani()
+    params = {
+        "fastani": tool.exe_path,
+        "fragLen": fragsize,
+        "kmerSize": kmersize,
+        "minFrac": minmatch,
+    }
+    maxmatch = None
+    return run_method(
+        database,
+        name,
+        "fastANI",
+        fasta,
+        target_extension,
+        tool,
+        fragsize,
+        maxmatch,
+        kmersize,
+        minmatch,
+        params,
+    )
 
 
 @app.command()

@@ -1,5 +1,26 @@
 # The MIT License
 #
+# Copyright (c) 2024 University of Strathclyde
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+# The MIT License
+#
 # Copyright (c) 2024-present University of Strathclyde
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -106,7 +127,6 @@ from pathlib import Path
 from typing import Any, NamedTuple
 
 import pandas as pd
-from Bio import SeqIO
 
 from pyani_plus.methods.method_anim import get_genome_length
 
@@ -120,16 +140,18 @@ class ComparisonResultDnadiff(NamedTuple):
     avg_id: float  # average nucleotide identity (as a percentage)
     q_length: int  # total base count of query sequence
     r_length: int  # total base count of reference sequence
-    alignment_gaps: int # length of the gaps in the query alignment
+    alignment_gaps: int  # length of the gaps in the query alignment
     aligned_bases: int  # tota base count in an alignment
-    q_cov: float # query coverage
+    q_cov: float  # query coverage
 
     def item(self, attribute: str) -> Any:
         """Return the value of the specified attribute."""
         try:
             return getattr(self, attribute)
         except AttributeError:
-            msg = f"Invalid attribute '{attribute}'. Valid attributes are: {self._fields}"
+            msg = (
+                f"Invalid attribute '{attribute}'. Valid attributes are: {self._fields}"
+            )
             raise ValueError(msg)  # noqa: B904
 
 
@@ -156,7 +178,7 @@ def parse_mcoords(mcoords_file: Path) -> tuple[float, int]:
         sum_aligment_lengths += row["col_4"] + row["col_5"]
         avg_identity = round(sum_identity / sum_aligment_lengths * 100, 2)
 
-    # Get number of aligned bases with gaps
+        # Get number of aligned bases with gaps
         if row["col_12"] not in seen_ref_seq:
             aligned_bases_with_gaps += row["col_8"]
             seen_ref_seq.append(row["col_12"])
@@ -205,7 +227,6 @@ def collect_dnadiff_results(
     avg_identity, aligned_bases_with_gaps = parse_mcoords(mcoords_file)
     gaps = parse_qdiff(qdiff_file)
 
-
     return ComparisonResultDnadiff(
         rname=rname,
         qname=qname,
@@ -215,5 +236,5 @@ def collect_dnadiff_results(
         q_length=q_genome_length,
         alignment_gaps=gaps,
         aligned_bases=aligned_bases_with_gaps - gaps,
-        q_cov=(aligned_bases_with_gaps - gaps) / q_genome_length * 100
+        q_cov=(aligned_bases_with_gaps - gaps) / q_genome_length * 100,
     )

@@ -60,11 +60,11 @@ AvgIdentity                    99.63                99.63
 Here, we focus on extracting AlignedBases and genome coverage
 from line[11], and AvgIdentity from line[23].
 """
+
 import re
 from pathlib import Path
 
 import pandas as pd
-from Bio import SeqIO
 
 from pyani_plus import utils
 from pyani_plus.methods import method_anim
@@ -78,22 +78,39 @@ def parse_dnadiff_report(dnadiff_report: Path) -> tuple[int, float, float]:
     lines_to_retain = [11, 23]
     lines_of_interest = [lines[i].strip() for i in lines_to_retain]
 
-    aligned_bases = int(re.search(r"(\d+)\s*\(\d+\.\d+%\)\s*$", lines_of_interest[0]).group(1))
-    query_coverage = float(re.search(r"(\d+\.\d+)%\s*\)$", lines_of_interest[0]).group(1))
+    aligned_bases = int(
+        re.search(r"(\d+)\s*\(\d+\.\d+%\)\s*$", lines_of_interest[0]).group(1)
+    )
+    query_coverage = float(
+        re.search(r"(\d+\.\d+)%\s*\)$", lines_of_interest[0]).group(1)
+    )
     avg_identity = float(re.search(r"(\d+\.\d+)\s*$", lines_of_interest[1]).group(1))
 
     return (aligned_bases, query_coverage, avg_identity)
 
-# Constructing a matrix where the MD5 hashes of test genomes are used as both column names and index.
-genome_hashes = {file.stem:utils.file_md5sum(file) for file in Path("../fixtures/viral_example/").glob("*.f*")}
 
-aligned_bases_matrix = pd.DataFrame(index=genome_hashes.values(), columns=genome_hashes.values())
-coverage_matrix = pd.DataFrame(index=genome_hashes.values(), columns=genome_hashes.values())
-avg_identity_matrix = pd.DataFrame(index=genome_hashes.values(), columns=genome_hashes.values())
+# Constructing a matrix where the MD5 hashes of test genomes are used as both column names and index.
+genome_hashes = {
+    file.stem: utils.file_md5sum(file)
+    for file in Path("../fixtures/viral_example/").glob("*.f*")
+}
+
+aligned_bases_matrix = pd.DataFrame(
+    index=genome_hashes.values(), columns=genome_hashes.values()
+)
+coverage_matrix = pd.DataFrame(
+    index=genome_hashes.values(), columns=genome_hashes.values()
+)
+avg_identity_matrix = pd.DataFrame(
+    index=genome_hashes.values(), columns=genome_hashes.values()
+)
 
 # Obtain input sets lengths
-records =  Path("../fixtures/viral_example/").glob("*.f*")
-genome_lengths = {utils.file_md5sum(record):method_anim.get_genome_length(record) for record in records}
+records = Path("../fixtures/viral_example/").glob("*.f*")
+genome_lengths = {
+    utils.file_md5sum(record): method_anim.get_genome_length(record)
+    for record in records
+}
 
 # Appending information to matrices
 report_files = Path("../fixtures/dnadiff/targets/dnadiff_reports/").glob("*.report")
@@ -101,16 +118,20 @@ report_files = Path("../fixtures/dnadiff/targets/dnadiff_reports/").glob("*.repo
 for file in report_files:
     reference, query = file.stem.split("_vs_")
     aligned_bases, query_coverage, avg_identity = parse_dnadiff_report(file)
-    aligned_bases_matrix.loc[genome_hashes[reference], genome_hashes[query]] = aligned_bases
+    aligned_bases_matrix.loc[genome_hashes[reference], genome_hashes[query]] = (
+        aligned_bases
+    )
     coverage_matrix.loc[genome_hashes[reference], genome_hashes[query]] = query_coverage
-    avg_identity_matrix.loc[genome_hashes[reference], genome_hashes[query]] = avg_identity
+    avg_identity_matrix.loc[genome_hashes[reference], genome_hashes[query]] = (
+        avg_identity
+    )
     # for self-to-self assign 100% for average identity and coverage for now
     avg_identity_matrix.loc[genome_hashes[reference], genome_hashes[reference]] = 100
     coverage_matrix.loc[genome_hashes[reference], genome_hashes[reference]] = 100
     # for self-to-self assign length of the whole genome for number of aligned bases for now
-    aligned_bases_matrix.loc[genome_hashes[reference],
-                             genome_hashes[reference]
-                             ] = genome_lengths[genome_hashes[reference]]
+    aligned_bases_matrix.loc[genome_hashes[reference], genome_hashes[reference]] = (
+        genome_lengths[genome_hashes[reference]]
+    )
 
 matrices_directory = "../fixtures/dnadiff/matrices/"
 Path(matrices_directory).mkdir(parents=True, exist_ok=True)

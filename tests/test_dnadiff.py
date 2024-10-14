@@ -27,7 +27,6 @@ make test
 """
 
 # Required to support pytest automated testing
-import itertools
 from pathlib import Path
 
 import pandas as pd
@@ -45,10 +44,12 @@ def expected_mcoords_output() -> tuple[float, int]:
     """  # noqa: D401
     return (99.63, 39594)
 
+
 @pytest.fixture
 def expected_gap_lengths_qry() -> int:
     """Expected gap length in the QRY alignment."""  # noqa: D401
     return 418
+
 
 @pytest.fixture
 def expected_dnadiff_results() -> method_dnadiff.ComparisonResultDnadiff:
@@ -65,9 +66,10 @@ def expected_dnadiff_results() -> method_dnadiff.ComparisonResultDnadiff:
         q_cov=(39176 / 39594) * 100,
     )
 
+
 def compare_results(
     dataframe: pd.DataFrame,
-    mcoords : Path,
+    mcoords: Path,
     dnadiff_targets_showdiff_indir: Path,
     input_genomes_tiny: Path,
     item: str,
@@ -78,17 +80,20 @@ def compare_results(
     which are rounded to 2 decimal places.
     """
     genomes = list(input_genomes_tiny.glob("*.f*"))
-    genome_hashes = {record.stem:utils.file_md5sum(record) for record in genomes}
+    genome_hashes = {record.stem: utils.file_md5sum(record) for record in genomes}
     reference, query = mcoords.stem.split("_vs_")
 
     result = method_dnadiff.collect_dnadiff_results(
-            mcoords,
-            dnadiff_targets_showdiff_indir / f"{reference}_vs_{query}.qdiff", input_genomes_tiny
-        )
+        mcoords,
+        dnadiff_targets_showdiff_indir / f"{reference}_vs_{query}.qdiff",
+        input_genomes_tiny,
+    )
 
     if item == "q_cov":
         result_value = round(result.item(item), 2)
-        dataframe_value = round(dataframe.loc[genome_hashes[reference], genome_hashes[query]], 2)
+        dataframe_value = round(
+            dataframe.loc[genome_hashes[reference], genome_hashes[query]], 2
+        )
     else:
         result_value = result.item(item)
         dataframe_value = dataframe.loc[genome_hashes[reference], genome_hashes[query]]
@@ -97,20 +102,24 @@ def compare_results(
 
 
 def test_parse_mcoords(
-        dnadiff_targets_showcoords_indir: Path, expected_mcoords_output: tuple[float, int]
+    dnadiff_targets_showcoords_indir: Path, expected_mcoords_output: tuple[float, int]
 ) -> None:
     """Check parsing of test mcoords file."""
     assert expected_mcoords_output == method_dnadiff.parse_mcoords(
-        dnadiff_targets_showcoords_indir / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords"
-        )
+        dnadiff_targets_showcoords_indir
+        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords"
+    )
 
 
-def test_parse_qdiff(dnadiff_targets_showdiff_indir: Path, expected_gap_lengths_qry: int
+def test_parse_qdiff(
+    dnadiff_targets_showdiff_indir: Path, expected_gap_lengths_qry: int
 ) -> None:
     """Check parsing of test qdiff file."""
     assert expected_gap_lengths_qry == method_dnadiff.parse_qdiff(
-        dnadiff_targets_showdiff_indir / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff"
+        dnadiff_targets_showdiff_indir
+        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff"
     )
+
 
 def test_collect_results(
     expected_dnadiff_results: method_dnadiff.ComparisonResultDnadiff,
@@ -120,49 +129,66 @@ def test_collect_results(
 ) -> None:
     """Check that ComparisionResultDnadiff class is populated with correct values."""
     assert expected_dnadiff_results == method_dnadiff.collect_dnadiff_results(
-        dnadiff_targets_showcoords_indir / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
-        dnadiff_targets_showdiff_indir / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff",
+        dnadiff_targets_showcoords_indir
+        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
+        dnadiff_targets_showdiff_indir
+        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff",
         input_genomes_tiny,
     )
 
+
 def test_aligned_bases(
-        dir_dnadiff_matrices: Path,
-        dnadiff_targets_showcoords_indir: Path,
-        input_genomes_tiny: Path,
-        dnadiff_targets_showdiff_indir: Path) -> None:
+    dir_dnadiff_matrices: Path,
+    dnadiff_targets_showcoords_indir: Path,
+    input_genomes_tiny: Path,
+    dnadiff_targets_showdiff_indir: Path,
+) -> None:
     """Test dnadiff AlignedBases values."""
     for fname in (dnadiff_targets_showcoords_indir).glob("*.mcoords"):
-        assert compare_results(pd.read_csv(dir_dnadiff_matrices / "aligned_bases_matrix.tsv", sep="\t", index_col=0),
-                               fname,
-                               dnadiff_targets_showdiff_indir,
-                               input_genomes_tiny,
-                               "aligned_bases"
-                                  )
+        assert compare_results(
+            pd.read_csv(
+                dir_dnadiff_matrices / "aligned_bases_matrix.tsv", sep="\t", index_col=0
+            ),
+            fname,
+            dnadiff_targets_showdiff_indir,
+            input_genomes_tiny,
+            "aligned_bases",
+        )
+
 
 def test_avg_identity(
-        dir_dnadiff_matrices: Path,
-        dnadiff_targets_showcoords_indir: Path,
-        input_genomes_tiny: Path,
-        dnadiff_targets_showdiff_indir: Path) -> None:
+    dir_dnadiff_matrices: Path,
+    dnadiff_targets_showcoords_indir: Path,
+    input_genomes_tiny: Path,
+    dnadiff_targets_showdiff_indir: Path,
+) -> None:
     """Test dnadiff average identity values."""
     for fname in (dnadiff_targets_showcoords_indir).glob("*.mcoords"):
-        assert compare_results(pd.read_csv(dir_dnadiff_matrices / "avg_identity_matrix.tsv", sep="\t", index_col=0),
-                               fname,
-                               dnadiff_targets_showdiff_indir,
-                               input_genomes_tiny,
-                               "avg_id"
-                                  )
+        assert compare_results(
+            pd.read_csv(
+                dir_dnadiff_matrices / "avg_identity_matrix.tsv", sep="\t", index_col=0
+            ),
+            fname,
+            dnadiff_targets_showdiff_indir,
+            input_genomes_tiny,
+            "avg_id",
+        )
+
 
 def test_coverage(
-        dir_dnadiff_matrices: Path,
-        dnadiff_targets_showcoords_indir: Path,
-        input_genomes_tiny: Path,
-        dnadiff_targets_showdiff_indir: Path) -> None:
+    dir_dnadiff_matrices: Path,
+    dnadiff_targets_showcoords_indir: Path,
+    input_genomes_tiny: Path,
+    dnadiff_targets_showdiff_indir: Path,
+) -> None:
     """Test dnadiff average identity values."""
     for fname in (dnadiff_targets_showcoords_indir).glob("*.mcoords"):
-        assert compare_results(pd.read_csv(dir_dnadiff_matrices / "coverage_matrix.tsv", sep="\t", index_col=0),
-                               fname,
-                               dnadiff_targets_showdiff_indir,
-                               input_genomes_tiny,
-                               "q_cov"
-                                  )
+        assert compare_results(
+            pd.read_csv(
+                dir_dnadiff_matrices / "coverage_matrix.tsv", sep="\t", index_col=0
+            ),
+            fname,
+            dnadiff_targets_showdiff_indir,
+            input_genomes_tiny,
+            "q_cov",
+        )

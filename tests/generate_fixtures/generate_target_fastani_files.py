@@ -34,14 +34,20 @@ using fastANI.
 
 # Imports
 import subprocess
+from decimal import Decimal
 from itertools import product
 from pathlib import Path
 
+import numpy as np
+from Bio.SeqIO.FastaIO import SimpleFastaParser
+
 from pyani_plus.tools import get_fastani
+from pyani_plus.utils import file_md5sum
 
 # Parameters (eg, input sequences, fastANI outputs, k-mer sizes...)
 INPUT_DIR = Path("../fixtures/viral_example")
 FASTANI_DIR = Path("../fixtures/fastani/targets")
+MATRIX_DIR = Path("../fixtures/fastani/matrices")
 FRAG_LEN = 3000
 KMER_SIZE = 16
 MIN_FRAC = 0.2
@@ -79,3 +85,73 @@ for genomes in comparisons:
         ],
         check=True,
     )
+
+md5dict = {str(file): file_md5sum(file) for file in inputs.values()}
+hashes = sorted(set(md5dict.values()))
+n = len(hashes)
+assert len(inputs) == n, "Duplicate files!"
+
+
+def fasta_seq_len(fasta_filename: Path) -> int:
+    """Get total number of bases/letters in a FASTA file."""
+    length = 0
+    with Path(fasta_filename).open() as handle:
+        for _title, seq in SimpleFastaParser(handle):
+            length += len(seq)
+    return length
+
+
+lengths = {file_md5sum(file): fasta_seq_len(file) for file in inputs.values()}
+
+
+def write_matrix(filename: Path, hashes: list[str], values: np.array) -> None:
+    """Write an NxN TSV matrix of values labelled by MD5 hashes."""
+    n = len(hashes)
+    assert values.shape == (n, n)
+    with filename.open("w") as handle:
+        handle.write("\t" + "\t".join(hashes) + "\n")
+        for row, md5 in enumerate(hashes):
+            handle.write(
+                md5 + "\t" + "\t".join(str(values[row, col]) for col in range(n)) + "\n"
+            )
+
+
+matrix_ani_string = np.full((n, n), "?", np.dtypes.StringDType)
+matrix_orthologous_matches = np.full((n, n), -1, int)
+matrix_fragments = np.full((n, n), -1, int)
+
+print("Now parsing the fastANI output to generate expected matrices")
+for file in FASTANI_DIR.glob("*.fastani"):
+    with file.open() as handle:
+        fields = handle.readline().rstrip("\n").split("\t")
+        assert len(fields) == 5, f"Bad input {file}"  # noqa: PLR2004
+        row = hashes.index(md5dict[fields[0]])  # query
+        col = hashes.index(md5dict[fields[1]])  # subject
+        # This is to avoid 99.8332 becoming 0.9983329999999999 and so on:
+        matrix_ani_string[row, col] = str(Decimal(fields[2]) / 100)
+        matrix_orthologous_matches[row, col] = float(fields[3])
+        matrix_fragments[row, col] = float(fields[4])
+
+assert matrix_orthologous_matches.min() >= 0
+assert matrix_fragments.min() >= 0
+print("Now calculating derived values and writing matrices")
+
+# This is an approximation to ANIm style coverage calculated using bp:
+matrix_coverage = matrix_orthologous_matches / matrix_fragments
+
+# This is a proxy value, unmatched matrix_fragments rather than bp:
+matrix_sim_errors = matrix_fragments - matrix_orthologous_matches
+
+# Element-wise multiplication, must cast string ANI to float (range 0 to 1)
+matrix_hadamard = matrix_coverage * matrix_ani_string.astype(float)
+
+# Another estimate:
+matrix_aln_lengths = FRAG_LEN * matrix_orthologous_matches
+
+write_matrix(MATRIX_DIR / "matrix_identity.tsv", hashes, matrix_ani_string)
+write_matrix(MATRIX_DIR / "matrix_coverage.tsv", hashes, matrix_coverage)
+write_matrix(MATRIX_DIR / "matrix_aln_lengths.tsv", hashes, matrix_aln_lengths)
+write_matrix(MATRIX_DIR / "matrix_hadamard.tsv", hashes, matrix_hadamard)
+write_matrix(MATRIX_DIR / "matrix_sim_errors.tsv", hashes, matrix_sim_errors)
+
+print("Done")

@@ -33,7 +33,7 @@ import typer
 from rich.progress import track
 
 from pyani_plus import db_orm, tools
-from pyani_plus.methods import method_anib
+from pyani_plus.methods import method_anib, method_fastani
 from pyani_plus.utils import file_md5sum
 
 app = typer.Typer()
@@ -288,38 +288,6 @@ def log_comparison(  # noqa: PLR0913
     return 0
 
 
-def parse_fastani_file(filename: Path) -> tuple[Path, Path, float, int, int]:
-    """Parse a single-line fastANI output file extracting key fields as a tuple.
-
-    Return (ref genome, query genome, ANI estimate, orthologous matches,
-    sequence fragments) tuple.
-
-    :param filename: Path, path to the input file
-
-    Extracts the ANI estimate (which we return in the range 0 to 1), the
-    number of orthologous matches (int), and the number of sequence
-    fragments considered from the fastANI output file (int).
-
-    We assume that all fastANI comparisons are pairwise: one query and
-    one reference file. The fastANI file should contain a single line.
-
-    fastANI *can* produce multi-line output, if a list of query/reference
-    files is given to it.
-    """
-    with filename.open() as handle:
-        line = handle.readline().strip().split()
-    if not line:  # No file content; either run failed or no detectable similarity
-        msg = f"Input file {filename} is empty"
-        raise ValueError(msg)
-    return (
-        Path(line[0]),
-        Path(line[1]),
-        0.01 * float(line[2]),
-        int(line[3]),
-        int(line[4]),
-    )
-
-
 # Ought we switch the command line arguments here to match fastANI naming?
 # Note this omits maxmatch
 @app.command()
@@ -340,8 +308,8 @@ def log_fastani(  # noqa: PLR0913
     ],
     # These are all for the configuration table:
     fragsize: Annotated[
-        int | None, typer.Option(help="Comparison method fragment size")
-    ] = None,
+        int, typer.Option(help="Comparison method fragment size")
+    ] = 3000,
     kmersize: Annotated[
         int | None, typer.Option(help="Comparison method k-mer size")
     ] = None,
@@ -358,7 +326,7 @@ def log_fastani(  # noqa: PLR0913
     fastani_tool = tools.get_fastani()
 
     used_query, used_subject, identity, orthologous_matches, fragments = (
-        parse_fastani_file(fastani)
+        method_fastani.parse_fastani_file(fastani)
     )
     # Allowing for some variation in the filename paths here... should we?
     if used_query.stem != query_fasta.stem:
@@ -388,17 +356,16 @@ def log_fastani(  # noqa: PLR0913
         minmatch=minmatch,  # aka --minFraction
     )
 
-    sim_errors = fragments - orthologous_matches
-
-    # Need to lookup query length to compute query_cover:
     query_md5 = file_md5sum(query_fasta)
-    query = db_orm.add_genome(session, query_fasta, query_md5)
-    cov_query = float(orthologous_matches) / query.length
-
-    # Need to lookup subject length to compute subject_cover:
     subject_md5 = file_md5sum(subject_fasta)
-    subject = db_orm.add_genome(session, subject_fasta, subject_md5)
-    cov_subject = float(orthologous_matches) / subject.length
+
+    # Should not be needed in standard workflow, but also ensures FASTA are in DB:
+    db_orm.add_genome(session, query_fasta, query_md5)
+    db_orm.add_genome(session, subject_fasta, subject_md5)
+
+    estimated_cov_query = float(orthologous_matches) / fragments  # an approximation
+    sim_errors = fragments - orthologous_matches  # proxy value, not bp
+    estimated_aln_length = fragsize * orthologous_matches  # proxy value
 
     db_orm.add_comparison(
         session,
@@ -406,10 +373,10 @@ def log_fastani(  # noqa: PLR0913
         query_hash=query_md5,
         subject_hash=subject_md5,
         identity=identity,
-        aln_length=orthologous_matches,
+        aln_length=estimated_aln_length,
         sim_errors=sim_errors,
-        cov_query=cov_query,
-        cov_subject=cov_subject,
+        cov_query=estimated_cov_query,
+        cov_subject=None,
     )
 
     session.commit()

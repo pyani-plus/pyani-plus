@@ -412,15 +412,15 @@ class Run(Base):
         """
         if not self.df_identity:
             return None
-        return pd.read_json(StringIO(self.df_identity), orient="split")
+        return pd.read_json(StringIO(self.df_identity), orient="split", dtype=float)
 
     @property
     def cov_query(self) -> pd.DataFrame | None:
         """All-vs-all query-coverage matrix for the run from the cached JSON.
 
         If cached, returns an N by N float matrix of percentage identities for the N genomes
-        in the run as pandas dataframe, where the index (rows) and columns are the N genome
-        hashes (sorted alphabetically). If not cached, returns None.
+        in the run as a pandas dataframe, where the index (rows) and columns are the N
+        genome hashes (sorted alphabetically). If not cached, returns None.
 
         This is normally available immediately from the Run entry in the database where
         the dataframe is cached as a JSON string. This would be computed at the end of
@@ -428,15 +428,15 @@ class Run(Base):
         """
         if not self.df_cov_query:
             return None
-        return pd.read_json(StringIO(self.df_cov_query), orient="split")
+        return pd.read_json(StringIO(self.df_cov_query), orient="split", dtype=float)
 
     @property
     def aln_length(self) -> pd.DataFrame | None:
         """All-vs-all alignment length matrix for the run from the cached JSON.
 
         If cached, returns an N by N integer matrix of alignment lengths for the N genomes
-        in the run as pandas dataframe, where the index (rows) and columns are the N genome
-        hashes (sorted alphabetically). If not cached, returns None.
+        in the run as a pandas dataframe, where the index (rows) and columns are the N
+        genome hashes (sorted alphabetically). If not cached, returns None.
 
         This is normally available immediately from the Run entry in the database where
         the dataframe is cached as a JSON string. This would be computed at the end of
@@ -450,9 +450,9 @@ class Run(Base):
     def sim_errors(self) -> pd.DataFrame | None:
         """All-vs-all similarity errors matrix for the run from the cached JSON.
 
-        If cached, returns an N by N integer matrix of alignment lengths for the N genomes
-        in the run as pandas dataframe, where the index (rows) and columns are the N genome
-        hashes (sorted alphabetically). If not cached, returns None.
+        If cached, returns an N by N integer matrix of similarity errors for the N genomes
+        in the run as a pandas dataframe, where the index (rows) and columns are the N
+        genome hashes (sorted alphabetically). If not cached, returns None.
 
         This is normally available immediately from the Run entry in the database where
         the dataframe is cached as a JSON string. This would be computed at the end of
@@ -466,9 +466,9 @@ class Run(Base):
     def hadamard(self) -> pd.DataFrame | None:
         """All-vs-all Hadamard matrix (identity times coverage) for the run from the cached JSON.
 
-        If cached, returns an N by N integer matrix of alignment lengths for the N genomes
-        in the run as pandas dataframe, where the index (rows) and columns are the N genome
-        hashes (sorted alphabetically). If not cached, returns None.
+        If cached, returns an N by N Hadamard matrix for the N genomes in the run as a
+        pandas dataframe, where the index (rows) and columns are the N genome hashes
+        (sorted alphabetically). If not cached, returns None.
 
         This is normally available immediately from the Run entry in the database where
         the dataframe is cached as a JSON string. This would be computed at the end of
@@ -478,7 +478,7 @@ class Run(Base):
         # computing it from the cached identity and coverage data-frames?
         if not self.df_hadamard:
             return None
-        return pd.read_json(StringIO(self.df_hadamard), orient="split")
+        return pd.read_json(StringIO(self.df_hadamard), orient="split", dtype=float)
 
     def __repr__(self) -> str:
         """Return abridged string representation of Run table object."""

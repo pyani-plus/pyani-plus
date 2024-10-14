@@ -474,7 +474,7 @@ def log_anib(  # noqa: PLR0913
         fragsize=fragsize,
         maxmatch=None,
         kmersize=None,
-        minmatch=None,  # does a blastn filtering thresholds fit here?
+        minmatch=None,
         create=False,
     )
 

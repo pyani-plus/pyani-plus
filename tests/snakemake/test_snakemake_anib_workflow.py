@@ -53,7 +53,7 @@ def config_anib_args(
     small set of input genomes as arguments.
     """
     return {
-        "db": Path(tmp_path) / "db.slqite",
+        "db": Path(tmp_path) / "db.sqlite",
         "blastn": get_blastn().exe_path,
         "makeblastdb": get_makeblastdb().exe_path,
         "outdir": anib_targets_outdir,

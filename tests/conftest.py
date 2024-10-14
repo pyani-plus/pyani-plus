@@ -201,6 +201,16 @@ def dnadiff_reports_dir() -> Path:
     """Directory containing dnadiff report files."""
     return FIXTUREPATH / "dnadiff" / "targets" / "dnadiff_reports"
 
+@pytest.fixture
+def dir_dnadiff_matrices() -> Path:
+    """Directory containing dnadiff matrices."""
+    return FIXTUREPATH / "dnadiff" / "matrices"
+
+@pytest.fixture
+def dnadiff_matrices(dir_dnadiff_matrices: Path) -> list[str]:
+    """Target dnadiff matrices."""
+    reference_paths = (FIXTUREPATH / "dnadiff" / "matrices").glob("*.tsv")
+    return [dir_dnadiff_matrices / _.name for _ in reference_paths]
 
 @pytest.fixture
 def dnadiff_nucmer_targets_filter_indir() -> Path:

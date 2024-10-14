@@ -103,7 +103,7 @@ QRY + REF alignment length (col_4 + col_5).
 
 # Set Up
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import pandas as pd
 from Bio import SeqIO
@@ -122,7 +122,15 @@ class ComparisonResultDnadiff(NamedTuple):
     r_length: int  # total base count of reference sequence
     alignment_gaps: int # length of the gaps in the query alignment
     aligned_bases: int  # tota base count in an alignment
-    r_cov: float
+    q_cov: float # query coverage
+
+    def item(self, attribute: str) -> Any:
+        """Return the value of the specified attribute."""
+        try:
+            return getattr(self, attribute)
+        except AttributeError:
+            msg = f"Invalid attribute '{attribute}'. Valid attributes are: {self._fields}"
+            raise ValueError(msg)  # noqa: B904
 
 
 def parse_mcoords(mcoords_file: Path) -> tuple[float, int]:
@@ -207,5 +215,5 @@ def collect_dnadiff_results(
         q_length=q_genome_length,
         alignment_gaps=gaps,
         aligned_bases=aligned_bases_with_gaps - gaps,
-        r_cov=(aligned_bases_with_gaps - gaps) / q_genome_length * 100,
+        q_cov=(aligned_bases_with_gaps - gaps) / q_genome_length * 100
     )

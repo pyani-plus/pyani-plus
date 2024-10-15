@@ -29,7 +29,6 @@ make test
 # Required to support pytest automated testing
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -121,13 +120,12 @@ def test_average_identity(
     anim_nucmer_targets_filter_indir: Path, dir_anim_results: Path, genome_hashes: dict
 ) -> None:
     """Check aniM average identity."""
-    expected = pd.read_csv(
-        dir_anim_results / "matrix_identity.tsv", index_col=0, sep="\t"
-    )
     for fname in (anim_nucmer_targets_filter_indir).glob("*.filter"):
         assert compare_results_decimal(
             fname,
-            expected,
+            pd.read_csv(
+                dir_anim_results / "matrix_identity.tsv", index_col=0, sep="\t"
+            ),
             2,
             genome_hashes,
         )
@@ -137,13 +135,12 @@ def test_aln_lengths(
     anim_nucmer_targets_filter_indir: Path, dir_anim_results: Path, genome_hashes: dict
 ) -> None:
     """Check aniM alignment lengths."""
-    expected = pd.read_csv(
-        dir_anim_results / "matrix_aln_lengths.tsv", index_col=0, sep="\t"
-    )
     for fname in (anim_nucmer_targets_filter_indir).glob("*.filter"):
         assert compare_results_no_decimal(
             fname,
-            expected,
+            pd.read_csv(
+                dir_anim_results / "matrix_aln_lengths.tsv", index_col=0, sep="\t"
+            ),
             0,
             genome_hashes,
         )
@@ -153,16 +150,12 @@ def test_sim_errors(
     anim_nucmer_targets_filter_indir: Path, dir_anim_results: Path, genome_hashes: dict
 ) -> None:
     """Check aniM sim errors."""
-    expected = pd.read_csv(
-        dir_anim_results / "matrix_sim_errors.tsv", index_col=0, sep="\t"
-    )
-    np.fill_diagonal(
-        expected.values, 0
-    )  # fix for legacy pyANI putting 1 on the diagonal
     for fname in (anim_nucmer_targets_filter_indir).glob("*.filter"):
         assert compare_results_no_decimal(
             fname,
-            expected,
+            pd.read_csv(
+                dir_anim_results / "matrix_sim_errors.tsv", index_col=0, sep="\t"
+            ),
             3,
             genome_hashes,
         )

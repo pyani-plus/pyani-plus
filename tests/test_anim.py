@@ -32,8 +32,10 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from pyani_plus import utils
+from pyani_plus import db_orm, private_cli, tools, utils
 from pyani_plus.methods import method_anim
+
+from . import get_matrix_entry
 
 
 @pytest.fixture
@@ -196,3 +198,120 @@ def test_collect_results(
         / "MGV-GENOME-0266457_vs_MGV-GENOME-0264574.filter",
         input_genomes_tiny,
     )
+
+
+def test_missing_db(
+    tmp_path: str, input_genomes_tiny: Path, anim_nucmer_targets_filter_indir: Path
+) -> None:
+    """Check expected error when DB does not exist."""
+    tmp_db = Path(tmp_path) / "new.sqlite"
+    assert not tmp_db.is_file()
+
+    with pytest.raises(SystemExit, match="does not exist"):
+        private_cli.log_anim(
+            database=tmp_db,
+            # These are for the comparison table
+            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+            deltafilter=anim_nucmer_targets_filter_indir
+            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
+        )
+
+
+def test_bad_query_or_subject(
+    tmp_path: str, input_genomes_tiny: Path, anim_nucmer_targets_filter_indir: Path
+) -> None:
+    """Mismatch between query or subject FASTA in fastANI output and commandline."""
+    tmp_db = Path(tmp_path) / "new.sqlite"
+    assert not tmp_db.is_file()
+
+    with pytest.raises(
+        SystemExit,
+        match=(
+            "ERROR: Given --query-fasta .*/MGV-GENOME-0266457.fna"
+            " but query in deltafilter filename was MGV-GENOME-0264574"
+        ),
+    ):
+        private_cli.log_anim(
+            database=tmp_db,
+            query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+            deltafilter=anim_nucmer_targets_filter_indir
+            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
+        )
+
+    with pytest.raises(
+        SystemExit,
+        match=(
+            "ERROR: Given --subject-fasta .*/MGV-GENOME-0264574.fas"
+            " but query in deltafilter filename was MGV-GENOME-0266457"
+        ),
+    ):
+        private_cli.log_anim(
+            database=tmp_db,
+            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+            subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+            deltafilter=anim_nucmer_targets_filter_indir
+            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
+        )
+
+
+def test_logging_anim(
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    anim_nucmer_targets_filter_indir: Path,
+    dir_anim_results: Path,
+) -> None:
+    """Check can log a fastANI comparison to DB."""
+    tmp_db = Path(tmp_path) / "new.sqlite"
+    assert not tmp_db.is_file()
+
+    tool = tools.get_nucmer()
+
+    private_cli.log_configuration(
+        database=tmp_db,
+        method="ANIm",
+        program=tool.exe_path.stem,
+        version=tool.version,
+        create_db=True,
+    )
+    private_cli.log_genome(
+        database=tmp_db,
+        fasta=[
+            input_genomes_tiny / "MGV-GENOME-0264574.fas",
+            input_genomes_tiny / "MGV-GENOME-0266457.fna",
+        ],
+    )
+
+    private_cli.log_anim(
+        database=tmp_db,
+        query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+        subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+        deltafilter=anim_nucmer_targets_filter_indir
+        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
+    )
+
+    # Check the recorded comparison values
+    session = db_orm.connect_to_db(tmp_db)
+    assert session.query(db_orm.Comparison).count() == 1
+    comp = session.query(db_orm.Comparison).one()
+    query = "689d3fd6881db36b5e08329cf23cecdd"  # MGV-GENOME-0264574.fas
+    subject = "78975d5144a1cd12e98898d573cf6536"  # MGV-GENOME-0266457.fna
+    pytest.approx(
+        comp.identity,
+        get_matrix_entry(dir_anim_results / "matrix_identity.tsv", query, subject),
+    )
+    pytest.approx(
+        comp.aln_length,
+        get_matrix_entry(dir_anim_results / "matrix_aln_lengths.tsv", query, subject),
+    )
+    pytest.approx(
+        comp.sim_errors,
+        get_matrix_entry(dir_anim_results / "matrix_sim_errors.tsv", query, subject),
+    )
+    pytest.approx(
+        comp.cov_query,
+        get_matrix_entry(dir_anim_results / "matrix_coverage.tsv", query, subject),
+    )
+    session.close()
+    tmp_db.unlink()

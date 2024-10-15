@@ -33,7 +33,7 @@ import typer
 from rich.progress import track
 
 from pyani_plus import db_orm, tools
-from pyani_plus.methods import method_anib, method_fastani
+from pyani_plus.methods import method_anib, method_anim, method_fastani
 from pyani_plus.utils import file_md5sum
 
 app = typer.Typer()
@@ -423,6 +423,80 @@ def fragment_fasta(
         sys.exit(f"ERROR: outdir {outdir} should be a directory")
     fragmented_files = method_anib.fragment_fasta_files(fasta, outdir, fragsize)
     print(f"Fragmented {len(fragmented_files)} files")  # noqa: T201
+    return 0
+
+
+@app.command()
+def log_anim(
+    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    # These are for the comparison table
+    query_fasta: Annotated[Path, typer.Option(help="Path to query FASTA file")],
+    subject_fasta: Annotated[Path, typer.Option(help="Path to subject FASTA file")],
+    deltafilter: Annotated[Path, typer.Option(help="Path to deltafilter output file")],
+    # Don't use any of fragsize, maxmatch, kmersize, minmatch (configuration table entries)
+) -> int:
+    """Log a single pyANI-plus ANIm pairwise comparison (with nucmer) to the database."""
+    # Assuming this will match as expect this script to be called right
+    # after the computation has finished (on the same machine)
+    nucmer_tool = tools.get_nucmer()
+
+    r_aligned_bases, q_aligned_bases, identity, sim_errors = method_anim.parse_delta(
+        deltafilter
+    )
+
+    # Allowing for some variation in the filename paths here... should we?
+    used_query, used_subject = deltafilter.stem.split("_vs_")
+    if used_query != query_fasta.stem:
+        sys.exit(
+            f"ERROR: Given --query-fasta {query_fasta} but query in deltafilter filename was {used_query}"
+        )
+    if used_subject != subject_fasta.stem:
+        sys.exit(
+            f"ERROR: Given --subject-fasta {subject_fasta} but query in deltafilter filename was {used_subject}"
+        )
+
+    if database != ":memory:" and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+
+    print(f"Logging ANIm to {database}")  # noqa: T201
+    session = db_orm.connect_to_db(database)
+
+    config = db_orm.db_configuration(
+        session,
+        method="ANIm",
+        program=nucmer_tool.exe_path.stem,
+        version=nucmer_tool.version,
+        fragsize=None,
+        maxmatch=None,
+        kmersize=None,
+        minmatch=None,
+        create=False,
+    )
+
+    # Need to lookup query length to compute query_cover (fragmented FASTA irrelevant:
+    query_md5 = file_md5sum(query_fasta)
+    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
+    cov_query = float(q_aligned_bases) / query.length
+
+    # Need to lookup subject length to compute subject_cover:
+    subject_md5 = file_md5sum(subject_fasta)
+    subject = db_orm.db_genome(session, subject_fasta, subject_md5, create=False)
+    cov_subject = float(r_aligned_bases) / subject.length
+
+    db_orm.db_comparison(
+        session,
+        configuration_id=config.configuration_id,
+        query_hash=query_md5,
+        subject_hash=subject_md5,
+        identity=identity,
+        aln_length=r_aligned_bases,
+        sim_errors=sim_errors,
+        cov_query=cov_query,
+        cov_subject=cov_subject,
+    )
+
+    session.commit()
     return 0
 
 

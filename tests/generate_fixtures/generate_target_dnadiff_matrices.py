@@ -79,12 +79,10 @@ def parse_dnadiff_report(dnadiff_report: Path) -> tuple[int, float, float]:
     lines_of_interest = [lines[i].strip() for i in lines_to_retain]
 
     aligned_bases = int(
-        re.search(r"(\d+)\s*\(\d+\.\d+%\)\s*$", lines_of_interest[0]).group(1)
+        re.findall(r"(\d+)\s*\(\d+\.\d+%\)\s*$", lines_of_interest[0])[0]
     )
-    query_coverage = float(
-        re.search(r"(\d+\.\d+)%\s*\)$", lines_of_interest[0]).group(1)
-    )
-    avg_identity = float(re.search(r"(\d+\.\d+)\s*$", lines_of_interest[1]).group(1))
+    query_coverage = float(re.findall(r"(\d+\.\d+)%\s*\)$", lines_of_interest[0])[0])
+    avg_identity = float(re.findall(r"(\d+\.\d+)\s*$", lines_of_interest[1])[0])
 
     return (aligned_bases, query_coverage, avg_identity)
 

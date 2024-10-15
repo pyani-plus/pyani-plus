@@ -63,7 +63,8 @@ pyani report -v -o . --formats=stdout --run_matrices 1
 echo "Collecting output for test fixtures..."
 for file in *_1.tab; do
     # Renaming XXX_1.tab to XXX.tsv
-    cp "$file" "../../fixtures/anim/matrices/${file%_1.tab}.tsv"
+    # Removing :n suffices on MD5 hash labels
+    cat "$file" | sed "s/:[0-9]//g" > "../../fixtures/anim/matrices/${file%_1.tab}.tsv"
 done
 
 #Remove temp subdir

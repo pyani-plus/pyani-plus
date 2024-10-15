@@ -209,13 +209,6 @@ def dir_dnadiff_matrices() -> Path:
 
 
 @pytest.fixture
-def dnadiff_matrices(dir_dnadiff_matrices: Path) -> list[str]:
-    """Target dnadiff matrices."""
-    reference_paths = (FIXTUREPATH / "dnadiff" / "matrices").glob("*.tsv")
-    return [dir_dnadiff_matrices / _.name for _ in reference_paths]
-
-
-@pytest.fixture
 def dnadiff_nucmer_targets_filter_indir() -> Path:
     """Directory containing MUMmer filter snakemake reference files."""
     return FIXTUREPATH / "dnadiff" / "targets" / "filter"

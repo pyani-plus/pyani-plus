@@ -32,16 +32,18 @@ from pathlib import Path
 # Required to support pytest automated testing
 import pytest
 
-# We're testing the workflow, as called through the pyani_plus
-# wrapper code, so import only that module
+from pyani_plus.private_cli import log_configuration, log_genome, log_run
 from pyani_plus.snakemake import snakemake_scheduler
 from pyani_plus.tools import get_delta_filter, get_nucmer
+
+from . import compare_matrices
 
 
 @pytest.fixture
 def config_anim_args(
     input_genomes_tiny: Path,
     snakemake_cores: int,
+    tmp_path: str,
 ) -> dict:
     """Return configuration settings for testing snakemake filter rule.
 
@@ -49,10 +51,11 @@ def config_anim_args(
     small set of input genomes as arguments.
     """
     return {
+        "db": Path(tmp_path) / "db.sqlite",
         "nucmer": get_nucmer().exe_path,
         "delta_filter": get_delta_filter().exe_path,
         # "outdir": ... is dynamic
-        "indir": str(input_genomes_tiny),
+        "indir": input_genomes_tiny,
         "cores": snakemake_cores,
     }
 
@@ -77,10 +80,11 @@ def compare_files_with_skip(file1: Path, file2: Path, skip: int = 1) -> bool:
     return True
 
 
-def test_snakemake_rule_filter(
+def test_snakemake_rule_filter(  # noqa: PLR0913
     anim_nucmer_targets_filter: list[str],
     anim_nucmer_targets_filter_indir: Path,
     anim_nucmer_targets_filter_outdir: Path,
+    dir_anim_results: Path,
     config_anim_args: dict,
     tmp_path: str,
 ) -> None:
@@ -98,6 +102,32 @@ def test_snakemake_rule_filter(
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(anim_nucmer_targets_filter_outdir, ignore_errors=True)
 
+    # Assuming this will match but worker nodes might have a different version
+    nucmer_tool = get_nucmer()
+
+    # Setup minimal test DB
+    db = config_anim_args["db"]
+    assert not db.is_file()
+    log_configuration(
+        database=db,
+        method="ANIm",
+        program=nucmer_tool.exe_path.stem,
+        version=nucmer_tool.version,
+        fragsize=None,
+        maxmatch=None,
+        kmersize=None,
+        minmatch=None,
+        create_db=True,
+    )
+    # Record the FASTA files in the genomes table _before_ call snakemake
+    log_genome(
+        database=db,
+        fasta=list(
+            snakemake_scheduler.check_input_stems(config_anim_args["indir"]).values()
+        ),
+    )
+    assert db.is_file()
+
     config = config_anim_args.copy()
     config["outdir"] = anim_nucmer_targets_filter_outdir
 
@@ -111,6 +141,23 @@ def test_snakemake_rule_filter(
             anim_nucmer_targets_filter_indir / fname,
             anim_nucmer_targets_filter_outdir / fname,
         )
+
+    log_run(
+        fasta=config_anim_args["indir"].glob("*.f*"),
+        database=db,
+        status="Complete",
+        name="Test case",
+        cmdline="pyani-plus anib --database ... blah blah blah",
+        method="ANIm",
+        program=nucmer_tool.exe_path.stem,
+        version=nucmer_tool.version,
+        fragsize=None,
+        maxmatch=None,
+        kmersize=None,
+        minmatch=None,
+        create_db=False,
+    )
+    compare_matrices(db, dir_anim_results)
 
 
 def test_snakemake_rule_delta(

@@ -30,8 +30,10 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus import private_cli, tools
+from pyani_plus import db_orm, private_cli, tools
 from pyani_plus.methods.method_fastani import parse_fastani_file
+
+from . import get_matrix_entry
 
 
 def test_bad_path() -> None:
@@ -116,7 +118,10 @@ def test_missing_db(
 
 
 def test_logging_fastani(
-    tmp_path: str, input_genomes_tiny: Path, fastani_targets_indir: Path
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    fastani_targets_indir: Path,
+    fastani_matrices: Path,
 ) -> None:
     """Check can log a fastANI comparison to DB."""
     tmp_db = Path(tmp_path) / "new.sqlite"
@@ -154,3 +159,29 @@ def test_logging_fastani(
         kmersize=51,
         minmatch=0.9,
     )
+
+    # Check the recorded comparison values
+    session = db_orm.connect_to_db(tmp_db)
+    assert session.query(db_orm.Comparison).count() == 1
+    comp = session.query(db_orm.Comparison).one()
+    query = "689d3fd6881db36b5e08329cf23cecdd"  # MGV-GENOME-0264574.fas
+    subject = "78975d5144a1cd12e98898d573cf6536"  # MGV-GENOME-0266457.fna
+    # Using approx to avoid 0.9950140000000001 != 0.995014
+    pytest.approx(
+        comp.identity,
+        get_matrix_entry(fastani_matrices / "matrix_identity.tsv", query, subject),
+    )
+    pytest.approx(
+        comp.aln_length,
+        get_matrix_entry(fastani_matrices / "matrix_aln_lengths.tsv", query, subject),
+    )
+    pytest.approx(
+        comp.sim_errors,
+        get_matrix_entry(fastani_matrices / "matrix_sim_errors.tsv", query, subject),
+    )
+    pytest.approx(
+        comp.cov_query,
+        get_matrix_entry(fastani_matrices / "matrix_coverage.tsv", query, subject),
+    )
+    session.close()
+    tmp_db.unlink()

@@ -30,8 +30,10 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus import private_cli, tools
+from pyani_plus import db_orm, private_cli, tools
 from pyani_plus.methods import method_anib
+
+from . import get_matrix_entry
 
 
 def test_bad_path(tmp_path: str) -> None:
@@ -150,7 +152,7 @@ def test_bad_query_or_subject(
 
 
 def test_logging_anib(
-    tmp_path: str, input_genomes_tiny: Path, anib_blastn: Path
+    tmp_path: str, input_genomes_tiny: Path, anib_blastn: Path, dir_anib_results: Path
 ) -> None:
     """Check can log a ANIb comparison to DB."""
     tmp_db = Path(tmp_path) / "new.sqlite"
@@ -180,3 +182,28 @@ def test_logging_anib(
         subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
         blastn=anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
     )
+
+    # Check the recorded comparison values
+    session = db_orm.connect_to_db(tmp_db)
+    assert session.query(db_orm.Comparison).count() == 1
+    comp = session.query(db_orm.Comparison).one()
+    query = "689d3fd6881db36b5e08329cf23cecdd"  # MGV-GENOME-0264574.fas
+    subject = "78975d5144a1cd12e98898d573cf6536"  # MGV-GENOME-0266457.fna
+    pytest.approx(
+        comp.identity,
+        get_matrix_entry(dir_anib_results / "matrix_identity.tsv", query, subject),
+    )
+    pytest.approx(
+        comp.aln_length,
+        get_matrix_entry(dir_anib_results / "matrix_aln_lengths.tsv", query, subject),
+    )
+    pytest.approx(
+        comp.sim_errors,
+        get_matrix_entry(dir_anib_results / "matrix_sim_errors.tsv", query, subject),
+    )
+    pytest.approx(
+        comp.cov_query,
+        get_matrix_entry(dir_anib_results / "matrix_coverage.tsv", query, subject),
+    )
+    session.close()
+    tmp_db.unlink()

@@ -192,3 +192,11 @@ def test_coverage(
             input_genomes_tiny,
             "q_cov",
         )
+
+
+def test_bad_result_variable(
+    expected_dnadiff_results: method_dnadiff.ComparisonResultDnadiff,
+) -> None:
+    """Confirm giving non-existent ComparisonResultDnadiff variable fails."""
+    with pytest.raises(ValueError, match="Invalid attribute 'invalid_attr'.*"):
+        expected_dnadiff_results.item("invalid_attr")

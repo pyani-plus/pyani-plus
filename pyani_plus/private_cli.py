@@ -76,7 +76,7 @@ def log_configuration(  # noqa: PLR0913
         msg = f"ERROR: Database {database} does not exist, but not using --create-db"
         sys.exit(msg)
 
-    print(f"Logging to {database}")  # noqa: T201
+    print(f"Logging configuration to {database}")  # noqa: T201
     session = db_orm.connect_to_db(database)
     config = db_orm.db_configuration(
         session=session,
@@ -119,7 +119,7 @@ def log_genome(
         msg = f"ERROR: Database {database} does not exist, but not using --create-db"
         sys.exit(msg)
 
-    print(f"Logging to {database}")  # noqa: T201
+    print(f"Logging genome to {database}")  # noqa: T201
     session = db_orm.connect_to_db(database)
 
     file_total = 0
@@ -184,7 +184,7 @@ def log_run(  # noqa: PLR0913
         msg = f"ERROR: Database {database} does not exist, but not using --create-db"
         sys.exit(msg)
 
-    print(f"Logging to {database}")  # noqa: T201
+    print(f"Logging run to {database}")  # noqa: T201
     session = db_orm.connect_to_db(database)
 
     # Reuse existing config, or log a new one
@@ -272,7 +272,7 @@ def log_comparison(  # noqa: PLR0913
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging to {database}")  # noqa: T201
+    print(f"Logging comparison to {database}")  # noqa: T201
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
@@ -363,7 +363,7 @@ def log_fastani(  # noqa: PLR0913
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging to {database}")  # noqa: T201
+    print(f"Logging fastANI comparison to {database}")  # noqa: T201
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
@@ -428,7 +428,7 @@ def fragment_fasta(
 
 # Note this omits kmersize, minmatch, maxmatch
 @app.command()
-def log_anib(  # noqa: PLR0913
+def log_anib(
     database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
     # These are for the comparison table
     query_fasta: Annotated[Path, typer.Option(help="Path to query FASTA file")],
@@ -438,9 +438,6 @@ def log_anib(  # noqa: PLR0913
     fragsize: Annotated[
         int | None, typer.Option(help="Comparison method fragment size")
     ] = None,
-    create_db: Annotated[  # noqa: FBT002
-        bool, typer.Option(help="Create database if does not exist")
-    ] = False,
 ) -> int:
     """Log a single pyANI-plus ANIb pairwise comparison (with blastn) to the database."""
     # Assuming this will match as expect this script to be called right
@@ -459,11 +456,11 @@ def log_anib(  # noqa: PLR0913
             f"ERROR: Given --subject-fasta {subject_fasta} but query in blastn filename was {used_subject}"
         )
 
-    if database != ":memory:" and not create_db and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist, but not using --create-db"
+    if database != ":memory:" and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging to {database}")  # noqa: T201
+    print(f"Logging ANIb comparison to {database}")  # noqa: T201
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(

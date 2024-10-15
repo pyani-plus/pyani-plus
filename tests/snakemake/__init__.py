@@ -62,7 +62,9 @@ def compare_matrix(matrix_df: pd.DataFrame, matrix_path: Path) -> None:
 def compare_matrices(database_path: Path, matrices_path: Path) -> None:
     """Compare the matrices in the given DB to legacy output from pyANI.
 
-    Assumes there is one and only one run in the database.
+    Assumes there is one and only one run in the database. Checks there
+    is one and only one configuration in the database (as a common
+    failure was comparisons being logged to a different configuration).
 
     Assumes the legacy matrices are named ``matrix_*.tsv`` and use MD5
     captions internally:
@@ -77,6 +79,13 @@ def compare_matrices(database_path: Path, matrices_path: Path) -> None:
     """
     session = db_orm.connect_to_db(database_path)
     run = session.query(db_orm.Run).one()
+    assert (
+        session.query(db_orm.Configuration).count() == 1
+    ), f"Expected one configuration, not {session.query(db_orm.Configuration).count()}"
+    n = run.genomes.count()
+    assert (
+        run.comparisons().count() == n**2
+    ), f"Expected {n}x{n}={n**2} comparisons, not {run.comparisons().count()}"
 
     assert run.identities is not None
     assert matrices_path.is_dir()

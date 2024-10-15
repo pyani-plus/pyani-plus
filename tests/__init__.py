@@ -20,3 +20,21 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 """pyani-plus test module."""
+
+from pathlib import Path
+
+
+def get_matrix_entry(tsv_filename: Path, query_hash: str, subject_hash: str) -> float:
+    """Parse the given TSV matrix and pull out a single value as a float."""
+    msg = f"Could not find [row={query_hash}, col={subject_hash}] in {tsv_filename}"
+    with tsv_filename.open() as handle:
+        fields = handle.readline().rstrip("\n").split("\t")
+        try:
+            col_index = fields.index(subject_hash)
+        except ValueError:
+            raise ValueError(msg) from None
+        for line in handle:
+            fields = line.rstrip("\n").split("\t")
+            if fields[0] == query_hash:
+                return float(fields[col_index])
+    raise ValueError(msg) from None

@@ -30,8 +30,8 @@ from pathlib import Path
 
 import pytest
 
+from pyani_plus import private_cli, tools
 from pyani_plus.methods import method_anib
-from pyani_plus.private_cli import log_anib
 
 
 def test_bad_path(tmp_path: str) -> None:
@@ -102,7 +102,7 @@ def test_missing_db(tmp_path: str, input_genomes_tiny: Path, anib_blastn: Path) 
     assert not tmp_db.is_file()
 
     with pytest.raises(SystemExit, match="does not exist"):
-        log_anib(
+        private_cli.log_anib(
             database=tmp_db,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
@@ -125,7 +125,7 @@ def test_bad_query_or_subject(
             " but query in blastn filename was MGV-GENOME-0264574"
         ),
     ):
-        log_anib(
+        private_cli.log_anib(
             database=tmp_db,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
@@ -140,10 +140,43 @@ def test_bad_query_or_subject(
             " but query in blastn filename was MGV-GENOME-0266457"
         ),
     ):
-        log_anib(
+        private_cli.log_anib(
             database=tmp_db,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             blastn=anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
         )
+
+
+def test_logging_anib(
+    tmp_path: str, input_genomes_tiny: Path, anib_blastn: Path
+) -> None:
+    """Check can log a ANIb comparison to DB."""
+    tmp_db = Path(tmp_path) / "new.sqlite"
+    assert not tmp_db.is_file()
+
+    tool = tools.get_blastn()
+
+    private_cli.log_configuration(
+        database=tmp_db,
+        method="ANIb",
+        program=tool.exe_path.stem,
+        version=tool.version,
+        create_db=True,
+    )
+    private_cli.log_genome(
+        database=tmp_db,
+        fasta=[
+            input_genomes_tiny / "MGV-GENOME-0264574.fas",
+            input_genomes_tiny / "MGV-GENOME-0266457.fna",
+        ],
+    )
+
+    private_cli.log_anib(
+        database=tmp_db,
+        # These are for the comparison table
+        query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+        subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+        blastn=anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
+    )

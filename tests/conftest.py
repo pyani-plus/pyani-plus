@@ -203,6 +203,12 @@ def dnadiff_reports_dir() -> Path:
 
 
 @pytest.fixture
+def dir_dnadiff_matrices() -> Path:
+    """Directory containing dnadiff matrices."""
+    return FIXTUREPATH / "dnadiff" / "matrices"
+
+
+@pytest.fixture
 def dnadiff_nucmer_targets_filter_indir() -> Path:
     """Directory containing MUMmer filter snakemake reference files."""
     return FIXTUREPATH / "dnadiff" / "targets" / "filter"
@@ -270,7 +276,7 @@ def dnadiff_targets_showcoords_outdir(tmp_path: str) -> Path:
 def dnadiff_nucmer_targets_filter(
     dnadiff_nucmer_targets_filter_outdir: Path,
 ) -> list[str]:
-    """Target files for dnadiff tests.
+    """Target filter files for dnadiff method tests.
 
     These are paths to the output files we want to generate using
     nucmer for dnadiff. We aim to ask MUMmer to generate a set of
@@ -285,7 +291,7 @@ def dnadiff_nucmer_targets_filter(
 def dnadiff_nucmer_targets_delta(
     dnadiff_nucmer_targets_delta_outdir: Path,
 ) -> list[str]:
-    """Target files for dnadiff tests.
+    """Target delta files for dnadiff method tests.
 
     These are paths to the output files we want to generate using
     nucmer for dnadiff. We aim to generate a set of .delta files that
@@ -297,11 +303,11 @@ def dnadiff_nucmer_targets_delta(
 
 @pytest.fixture
 def dnadiff_targets_showdiff(dnadiff_targets_showdiff_outdir: Path) -> list[str]:
-    """Target files for ANIm tests.
+    """Target qdiff files for dnadiff method tests.
 
     These are paths to the output files we want to generate using
-    nucmer for ANIm. We aim to generate a set of .delta files that
-    could later be processed to obtain ANI values
+    show-diff for dnadiff method. We aim to generate a set of .qdiff files that
+    could later be processed to obtain ANI values.
     """
     reference_paths = (FIXTUREPATH / "dnadiff" / "targets" / "show_diff").glob(
         "*.qdiff",
@@ -311,11 +317,11 @@ def dnadiff_targets_showdiff(dnadiff_targets_showdiff_outdir: Path) -> list[str]
 
 @pytest.fixture
 def dnadiff_targets_showcoords(dnadiff_targets_showcoords_outdir: Path) -> list[Path]:
-    """Target files for ANIm tests.
+    """Target mcoords files for dnadiff method tests.
 
     These are paths to the output files we want to generate using
-    nucmer for ANIm. We aim to generate a set of .delta files that
-    could later be processed to obtain ANI values
+    show-coords for dnadiff method. We aim to generate a set of
+    .mcoords files that could later be processed to obtain ANI values.
     """
     reference_paths = (FIXTUREPATH / "dnadiff" / "targets" / "show_coords").glob(
         "*.mcoords",

@@ -60,6 +60,9 @@ pyani anim -i . -o output -v -l output/log.log --name "generate fixtures" --labe
 echo "Generate matrices..."
 pyani report -v -o . --formats=stdout --run_matrices 1
 
+echo "Fixing sim-errors diagonal..."
+python -c "import pandas as pd; import numpy as np; f='matrix_sim_errors_1.tab'; m=pd.read_csv(f, index_col=0, sep='\t'); np.fill_diagonal(m.values, 0); m.to_csv(f, sep='\t')"
+
 echo "Collecting output for test fixtures..."
 for file in *_1.tab; do
     # Renaming XXX_1.tab to XXX.tsv

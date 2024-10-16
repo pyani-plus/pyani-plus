@@ -330,13 +330,13 @@ def log_fastani(  # noqa: PLR0913
     # These are all for the configuration table:
     fragsize: Annotated[
         int, typer.Option(help="Comparison method fragment size")
-    ] = 3000,
+    ] = method_fastani.FRAG_LEN,
     kmersize: Annotated[
         int | None, typer.Option(help="Comparison method k-mer size")
-    ] = None,
+    ] = method_fastani.KMER_SIZE,
     minmatch: Annotated[
         float | None, typer.Option(help="Comparison method min-match")
-    ] = None,
+    ] = method_fastani.MIN_FRACTION,
 ) -> int:
     """Log a single pyANI-plus fastANI pairwise comparison to the database.
 
@@ -509,7 +509,7 @@ def log_anib(
     # These are all for the configuration table:
     fragsize: Annotated[
         int | None, typer.Option(help="Comparison method fragment size")
-    ] = None,
+    ] = method_anib.FRAGSIZE,
 ) -> int:
     """Log a single pyANI-plus ANIb pairwise comparison (with blastn) to the database."""
     # Assuming this will match as expect this script to be called right

@@ -38,6 +38,7 @@ from rich.progress import track
 from sqlalchemy.exc import NoResultFound
 
 from pyani_plus import db_orm, tools
+from pyani_plus.methods import method_anib, method_fastani
 from pyani_plus.snakemake import snakemake_scheduler
 from pyani_plus.utils import file_md5sum
 
@@ -261,7 +262,7 @@ def anib(
     # These are for the run table:
     name: REQ_ARG_TYPE_RUN_NAME,
     # These are all for the configuration table:
-    fragsize: OPT_ARG_TYPE_FRAGSIZE = 1020,
+    fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
     # Does not use maxmatch, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
 ) -> int:
@@ -308,10 +309,10 @@ def fastani(  # noqa: PLR0913
     # These are for the run table:
     name: REQ_ARG_TYPE_RUN_NAME,
     # These are all for the configuration table:
-    fragsize: OPT_ARG_TYPE_FRAGSIZE = 3000,
+    fragsize: OPT_ARG_TYPE_FRAGSIZE = method_fastani.FRAG_LEN,
     # Does not use maxmatch
-    kmersize: OPT_ARG_TYPE_KMERSIZE = 16,
-    minmatch: OPT_ARG_TYPE_MINMATCH = 0.2,
+    kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
+    minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""

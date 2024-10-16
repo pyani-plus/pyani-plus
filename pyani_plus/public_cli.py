@@ -46,7 +46,7 @@ FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}  # define more centrally?
 app = typer.Typer()
 
 
-def check_db(database: Path, create_db: bool) -> None:  # noqa: FBT001
+def check_db(database: Path | str, create_db: bool) -> None:  # noqa: FBT001
     """Check DB exists, or using create_db=True."""
     if database != ":memory:" and not create_db and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist, but not using --create-db"
@@ -402,7 +402,10 @@ def export_run(
 
     conf = run.configuration
 
-    # What if there are no comparisons? What if the run is incomplete?
+    if not run.comparisons().count():
+        msg = f"ERROR: Database {database} run-id {run_id} has no comparisons"
+        sys.exit(msg)
+    # What if the run is incomplete? Just output with NaN?
     if run.identities is None:
         run.cache_comparisons()
     if not isinstance(run.identities, pd.DataFrame):
@@ -427,4 +430,4 @@ def export_run(
 
 
 if __name__ == "__main__":
-    sys.exit(app())
+    sys.exit(app())  # pragma: no cover

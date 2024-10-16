@@ -657,7 +657,7 @@ def log_dnadiff(
         aln_length=aligned_bases_with_gaps - gap_lengths,
         sim_errors=None,  # Leaving this as None for now (How should we calculate this?)
         cov_query=cov_query,
-        cov_subject=None,  # Leaving this as None for now (need qdiff files to calculate this)
+        cov_subject=None,  # Leaving this as None for now (need rdiff files to calculate this)
     )
 
     session.commit()

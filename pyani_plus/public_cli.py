@@ -43,6 +43,29 @@ from pyani_plus.utils import file_md5sum
 
 FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}  # define more centrally?
 
+# Reused required command line arguments (which have no default)
+REQ_ARG_TYPE_DATABASE = Annotated[
+    Path, typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False)
+]
+REQ_ARG_TYPE_RUN_NAME = Annotated[
+    str, typer.Option(help="Run name", show_default=False)
+]
+
+# Reused optional command line arguments (defined with a default):
+OPT_ARG_TYPE_FRAGSIZE = Annotated[
+    int, typer.Option(help="Comparison method fragment size")
+]
+OPT_ARG_TYPE_KMERSIZE = Annotated[
+    int, typer.Option(help="Comparison method k-mer size")
+]
+OPT_ARG_TYPE_MINMATCH = Annotated[
+    float, typer.Option(help="Comparison method min-match")
+]
+OPT_ARG_TYPE_CREATE_DB = Annotated[
+    bool, typer.Option(help="Create database if does not exist")
+]
+
+
 app = typer.Typer()
 
 
@@ -184,16 +207,11 @@ def anim(
             show_default=False,
         ),
     ],
-    database: Annotated[
-        Path,
-        typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False),
-    ],
+    database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
-    name: Annotated[str, typer.Option(help="Run name", show_default=False)],
+    name: REQ_ARG_TYPE_RUN_NAME,
     # Does not use fragsize, maxmatch, kmersize, or minmatch
-    create_db: Annotated[  # noqa: FBT002
-        bool, typer.Option(help="Create database if does not exist")
-    ] = False,
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
 ) -> int:
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -230,20 +248,13 @@ def anib(
             show_default=False,
         ),
     ],
-    database: Annotated[
-        Path,
-        typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False),
-    ],
+    database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
-    name: Annotated[str, typer.Option(help="Run name", show_default=False)],
+    name: REQ_ARG_TYPE_RUN_NAME,
     # These are all for the configuration table:
-    fragsize: Annotated[
-        int, typer.Option(help="Comparison method fragment size")
-    ] = 1020,
+    fragsize: OPT_ARG_TYPE_FRAGSIZE = 1020,
     # Does not use maxmatch, kmersize, or minmatch
-    create_db: Annotated[  # noqa: FBT002
-        bool, typer.Option(help="Create database if does not exist")
-    ] = False,
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
 ) -> int:
     """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -284,22 +295,15 @@ def fastani(  # noqa: PLR0913
             show_default=False,
         ),
     ],
-    database: Annotated[
-        Path,
-        typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False),
-    ],
+    database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
-    name: Annotated[str, typer.Option(help="Run name", show_default=False)],
+    name: REQ_ARG_TYPE_RUN_NAME,
     # These are all for the configuration table:
-    fragsize: Annotated[
-        int, typer.Option(help="Comparison method fragment size")
-    ] = 3000,
+    fragsize: OPT_ARG_TYPE_FRAGSIZE = 3000,
     # Does not use maxmatch
-    kmersize: Annotated[int, typer.Option(help="Comparison method k-mer size")] = 16,
-    minmatch: Annotated[float, typer.Option(help="Comparison method min-match")] = 0.2,
-    create_db: Annotated[  # noqa: FBT002
-        bool, typer.Option(help="Create database if does not exist")
-    ] = False,
+    kmersize: OPT_ARG_TYPE_KMERSIZE = 16,
+    minmatch: OPT_ARG_TYPE_MINMATCH = 0.2,
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -330,7 +334,7 @@ def fastani(  # noqa: PLR0913
 
 @app.command()
 def list_runs(
-    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    database: REQ_ARG_TYPE_DATABASE,
 ) -> int:
     """List the runs defined in a given pyANI-plus SQLite3 database."""
     if database == ":memory:" or not Path(database).is_file():
@@ -351,7 +355,7 @@ def list_runs(
 
 @app.command()
 def export_run(
-    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    database: REQ_ARG_TYPE_DATABASE,
     outdir: Annotated[Path, typer.Option(help="Output directory")],
     run_id: Annotated[
         int | None,

@@ -51,6 +51,16 @@ REQ_ARG_TYPE_DATABASE = Annotated[
 REQ_ARG_TYPE_RUN_NAME = Annotated[
     str, typer.Option(help="Run name", show_default=False)
 ]
+REQ_ARG_TYPE_OUTDIR = Annotated[
+    Path, typer.Option(help="Output directory", show_default=False)
+]
+REQ_ARG_TYPE_FASTA_DIR = Annotated[
+    Path,
+    typer.Argument(
+        help=f"Directory of FASTA files (extensions {', '.join(sorted(FASTA_EXTENSIONS))})",
+        show_default=False,
+    ),
+]
 
 # Reused optional command line arguments (defined with a default):
 OPT_ARG_TYPE_FRAGSIZE = Annotated[
@@ -210,13 +220,7 @@ def run_method(  # noqa: PLR0913
 
 @app.command(rich_help_panel="ANI methods")
 def anim(
-    fasta: Annotated[
-        Path,
-        typer.Argument(
-            help=f"Directory of FASTA files (extensions {', '.join(sorted(FASTA_EXTENSIONS))})",
-            show_default=False,
-        ),
-    ],
+    fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
     name: REQ_ARG_TYPE_RUN_NAME,
@@ -251,13 +255,7 @@ def anim(
 
 @app.command(rich_help_panel="ANI methods")
 def anib(
-    fasta: Annotated[
-        Path,
-        typer.Argument(
-            help=f"Directory of FASTA files (extensions {', '.join(sorted(FASTA_EXTENSIONS))})",
-            show_default=False,
-        ),
-    ],
+    fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
     name: REQ_ARG_TYPE_RUN_NAME,
@@ -298,13 +296,7 @@ def anib(
 
 @app.command(rich_help_panel="ANI methods")
 def fastani(  # noqa: PLR0913
-    fasta: Annotated[
-        Path,
-        typer.Argument(
-            help=f"Directory of FASTA files (extensions {', '.join(sorted(FASTA_EXTENSIONS))})",
-            show_default=False,
-        ),
-    ],
+    fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
     name: REQ_ARG_TYPE_RUN_NAME,
@@ -366,7 +358,7 @@ def list_runs(
 @app.command()
 def export_run(
     database: REQ_ARG_TYPE_DATABASE,
-    outdir: Annotated[Path, typer.Option(help="Output directory")],
+    outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: Annotated[
         int | None,
         typer.Option(help="Which run to report (optional if DB contains only one)"),

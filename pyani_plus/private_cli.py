@@ -34,39 +34,74 @@ from rich.progress import track
 
 from pyani_plus import db_orm, tools
 from pyani_plus.methods import method_anib, method_anim, method_dnadiff, method_fastani
+from pyani_plus.public_cli import (
+    OPT_ARG_TYPE_CREATE_DB,
+    OPT_ARG_TYPE_FRAGSIZE,
+    OPT_ARG_TYPE_KMERSIZE,
+    OPT_ARG_TYPE_MINMATCH,
+    REQ_ARG_TYPE_DATABASE,
+    REQ_ARG_TYPE_OUTDIR,
+    REQ_ARG_TYPE_RUN_NAME,
+)
 from pyani_plus.utils import file_md5sum
 
 app = typer.Typer()
 
+REQ_ARG_TYPE_FASTA_FILES = Annotated[
+    list[Path], typer.Argument(help="Path(s) to FASTA file(s)", show_default=False)
+]
+REQ_ARG_TYPE_QUERY_FASTA = Annotated[
+    Path, typer.Option(help="Path to query FASTA file", show_default=False)
+]
+REQ_ARG_TYPE_SUBJECT_FASTA = Annotated[
+    Path, typer.Option(help="Path to subject FASTA file", show_default=False)
+]
+REQ_ARG_TYPE_METHOD = Annotated[
+    str, typer.Option(help="Method, e.g. ANIm", show_default=False)
+]
+REQ_ARG_TYPE_PROGRAM = Annotated[
+    str, typer.Option(help="Program, e.g. nucmer", show_default=False)
+]
+REQ_ARG_TYPE_VERSION = Annotated[
+    str, typer.Option(help="Program version, e.g. 3.1", show_default=False)
+]
+
+# Reused optional command line arguments (used here with None as their default,
+# whereas in the public_cli they have type-appropriate defaults):
+NONE_ARG_TYPE_FRAGSIZE = Annotated[
+    int | None,
+    typer.Option(
+        help="Comparison method fragment size", rich_help_panel="Method parameters"
+    ),
+]
+NONE_ARG_TYPE_MAXMATCH = Annotated[
+    bool | None, typer.Option(help="Comparison method max-match")
+]
+NONE_ARG_TYPE_KMERSIZE = Annotated[
+    int | None,
+    typer.Option(
+        help="Comparison method k-mer size", rich_help_panel="Method parameters"
+    ),
+]
+NONE_ARG_TYPE_MINMATCH = Annotated[
+    float | None,
+    typer.Option(
+        help="Comparison method min-match", rich_help_panel="Method parameters"
+    ),
+]
+
 
 @app.command(rich_help_panel="Low-level logging")
 def log_configuration(  # noqa: PLR0913
-    database: Annotated[
-        str,
-        typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False),
-    ],
-    method: Annotated[str, typer.Option(help="Method, e.g. ANIm", show_default=False)],
-    program: Annotated[
-        str, typer.Option(help="Program, e.g. nucmer", show_default=False)
-    ],
-    version: Annotated[
-        str, typer.Option(help="Program version, e.g. 3.1", show_default=False)
-    ],
-    fragsize: Annotated[
-        int | None, typer.Option(help="Optional method fragment size")
-    ] = None,
-    maxmatch: Annotated[
-        bool | None, typer.Option(help="Comparison method max-match")
-    ] = None,
-    kmersize: Annotated[
-        int | None, typer.Option(help="Comparison method k-mer size")
-    ] = None,
-    minmatch: Annotated[
-        float | None, typer.Option(help="Comparison method min-match")
-    ] = None,
-    create_db: Annotated[  # noqa: FBT002
-        bool, typer.Option(help="Create database if does not exist")
-    ] = False,
+    database: REQ_ARG_TYPE_DATABASE,
+    method: REQ_ARG_TYPE_METHOD,
+    program: REQ_ARG_TYPE_PROGRAM,
+    version: REQ_ARG_TYPE_VERSION,
+    fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
+    maxmatch: NONE_ARG_TYPE_MAXMATCH = None,
+    kmersize: NONE_ARG_TYPE_KMERSIZE = None,
+    minmatch: NONE_ARG_TYPE_MINMATCH = None,
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
 ) -> int:
     """Log a specific method configuration to the database.
 
@@ -100,16 +135,9 @@ def log_configuration(  # noqa: PLR0913
 
 @app.command(rich_help_panel="Low-level logging")
 def log_genome(
-    fasta: Annotated[
-        list[str], typer.Argument(help="Path(s) to FASTA file(s)", show_default=False)
-    ],
-    database: Annotated[
-        str,
-        typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False),
-    ],
-    create_db: Annotated[  # noqa: FBT002
-        bool, typer.Option(help="Create database if does not exist")
-    ] = False,
+    fasta: REQ_ARG_TYPE_FASTA_FILES,
+    database: REQ_ARG_TYPE_DATABASE,
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
 ) -> int:
     """For given FASTA file(s), compute their MD5 checksum, and log them in the database.
 
@@ -139,40 +167,21 @@ def log_genome(
 
 @app.command(rich_help_panel="Low-level logging")
 def log_run(  # noqa: PLR0913
-    fasta: Annotated[
-        list[str], typer.Argument(help="Path(s) to FASTA file(s)", show_default=False)
-    ],
-    database: Annotated[
-        str,
-        typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False),
-    ],
+    fasta: REQ_ARG_TYPE_FASTA_FILES,
+    database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
     cmdline: Annotated[str, typer.Option(help="Run command line", show_default=False)],
     status: Annotated[str, typer.Option(help="Run status", show_default=False)],
-    name: Annotated[str, typer.Option(help="Run name", show_default=False)],
+    name: REQ_ARG_TYPE_RUN_NAME,
     # These are all for the configuration table:
-    method: Annotated[str, typer.Option(help="Comparison method", show_default=False)],
-    program: Annotated[
-        str, typer.Option(help="Comparison program name", show_default=False)
-    ],
-    version: Annotated[
-        str, typer.Option(help="Comparison program version", show_default=False)
-    ],
-    fragsize: Annotated[
-        int | None, typer.Option(help="Comparison method fragment size")
-    ] = None,
-    maxmatch: Annotated[
-        bool | None, typer.Option(help="Comparison method max-match")
-    ] = None,
-    kmersize: Annotated[
-        int | None, typer.Option(help="Comparison method k-mer size")
-    ] = None,
-    minmatch: Annotated[
-        float | None, typer.Option(help="Comparison method min-match")
-    ] = None,
-    create_db: Annotated[  # noqa: FBT002
-        bool, typer.Option(help="Create database if does not exist")
-    ] = False,
+    method: REQ_ARG_TYPE_METHOD,
+    program: REQ_ARG_TYPE_PROGRAM,
+    version: REQ_ARG_TYPE_VERSION,
+    fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
+    maxmatch: NONE_ARG_TYPE_MAXMATCH = None,
+    kmersize: NONE_ARG_TYPE_KMERSIZE = None,
+    minmatch: NONE_ARG_TYPE_MINMATCH = None,
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
 ) -> int:
     """Log a run (and if need be, associated configuration and genome rows).
 
@@ -224,17 +233,10 @@ def log_run(  # noqa: PLR0913
 
 @app.command(rich_help_panel="Low-level logging")
 def log_comparison(  # noqa: PLR0913
-    database: Annotated[
-        str,
-        typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False),
-    ],
+    database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
-    query_fasta: Annotated[
-        Path, typer.Option(help="Path to query FASTA file", show_default=False)
-    ],
-    subject_fasta: Annotated[
-        Path, typer.Option(help="Path to subject FASTA file", show_default=False)
-    ],
+    query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
+    subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     identity: Annotated[
         float,
         typer.Option(help="Percent identity (float from 0 to 1)", show_default=False),
@@ -243,25 +245,13 @@ def log_comparison(  # noqa: PLR0913
         int, typer.Option(help="Alignment length", show_default=False)
     ],
     # These are all for the configuration table:
-    method: Annotated[str, typer.Option(help="Comparison method", show_default=False)],
-    program: Annotated[
-        str, typer.Option(help="Comparison program name", show_default=False)
-    ],
-    version: Annotated[
-        str, typer.Option(help="Comparison program version", show_default=False)
-    ],
-    fragsize: Annotated[
-        int | None, typer.Option(help="Comparison method fragment size")
-    ] = None,
-    maxmatch: Annotated[
-        bool | None, typer.Option(help="Comparison method max-match")
-    ] = None,
-    kmersize: Annotated[
-        int | None, typer.Option(help="Comparison method k-mer size")
-    ] = None,
-    minmatch: Annotated[
-        float | None, typer.Option(help="Comparison method min-match")
-    ] = None,
+    method: REQ_ARG_TYPE_METHOD,
+    program: REQ_ARG_TYPE_PROGRAM,
+    version: REQ_ARG_TYPE_VERSION,
+    fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
+    maxmatch: NONE_ARG_TYPE_MAXMATCH = None,
+    kmersize: NONE_ARG_TYPE_KMERSIZE = None,
+    minmatch: NONE_ARG_TYPE_MINMATCH = None,
     # Optional comparison table entries
     sim_errors: Annotated[int | None, typer.Option(help="Alignment length")] = None,
     cov_query: Annotated[float | None, typer.Option(help="Alignment length")] = None,
@@ -313,30 +303,17 @@ def log_comparison(  # noqa: PLR0913
 # Note this omits maxmatch
 @app.command(rich_help_panel="Method specific logging")
 def log_fastani(  # noqa: PLR0913
-    database: Annotated[
-        str,
-        typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False),
-    ],
+    database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
-    query_fasta: Annotated[
-        Path, typer.Option(help="Path to query FASTA file", show_default=False)
-    ],
-    subject_fasta: Annotated[
-        Path, typer.Option(help="Path to subject FASTA file", show_default=False)
-    ],
+    query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
+    subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     fastani: Annotated[
         Path, typer.Option(help="Path to fastANI output file", show_default=False)
     ],
     # These are all for the configuration table:
-    fragsize: Annotated[
-        int, typer.Option(help="Comparison method fragment size")
-    ] = method_fastani.FRAG_LEN,
-    kmersize: Annotated[
-        int | None, typer.Option(help="Comparison method k-mer size")
-    ] = method_fastani.KMER_SIZE,
-    minmatch: Annotated[
-        float | None, typer.Option(help="Comparison method min-match")
-    ] = method_fastani.MIN_FRACTION,
+    fragsize: OPT_ARG_TYPE_FRAGSIZE = method_fastani.FRAG_LEN,
+    kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
+    minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
 ) -> int:
     """Log a single pyANI-plus fastANI pairwise comparison to the database.
 
@@ -404,14 +381,9 @@ def log_fastani(  # noqa: PLR0913
 
 @app.command()
 def fragment_fasta(
-    fasta: Annotated[
-        list[Path],
-        typer.Argument(help="Path to input FASTA file(s)", show_default=False),
-    ],
-    outdir: Annotated[Path, typer.Option(help="Output directory", show_default=False)],
-    fragsize: Annotated[
-        int, typer.Option(help="Fragment size (bp)")
-    ] = method_anib.FRAGSIZE,
+    fasta: REQ_ARG_TYPE_FASTA_FILES,
+    outdir: REQ_ARG_TYPE_OUTDIR,
+    fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
 ) -> int:
     """Fragment FASTA files into subsequences of up to the given size.
 
@@ -428,10 +400,10 @@ def fragment_fasta(
 
 @app.command(rich_help_panel="Method specific logging")
 def log_anim(
-    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
-    query_fasta: Annotated[Path, typer.Option(help="Path to query FASTA file")],
-    subject_fasta: Annotated[Path, typer.Option(help="Path to subject FASTA file")],
+    query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
+    subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     deltafilter: Annotated[Path, typer.Option(help="Path to deltafilter output file")],
     # Don't use any of fragsize, maxmatch, kmersize, minmatch (configuration table entries)
 ) -> int:
@@ -501,15 +473,13 @@ def log_anim(
 # Note this omits kmersize, minmatch, maxmatch
 @app.command(rich_help_panel="Method specific logging")
 def log_anib(
-    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
-    query_fasta: Annotated[Path, typer.Option(help="Path to query FASTA file")],
-    subject_fasta: Annotated[Path, typer.Option(help="Path to subject FASTA file")],
+    query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
+    subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     blastn: Annotated[Path, typer.Option(help="Path to blastn TSV output file")],
     # These are all for the configuration table:
-    fragsize: Annotated[
-        int | None, typer.Option(help="Comparison method fragment size")
-    ] = method_anib.FRAGSIZE,
+    fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
 ) -> int:
     """Log a single pyANI-plus ANIb pairwise comparison (with blastn) to the database."""
     # Assuming this will match as expect this script to be called right

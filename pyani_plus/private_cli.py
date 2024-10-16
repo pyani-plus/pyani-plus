@@ -33,7 +33,7 @@ import typer
 from rich.progress import track
 
 from pyani_plus import db_orm, tools
-from pyani_plus.methods import method_anib, method_anim, method_fastani
+from pyani_plus.methods import method_anib, method_anim, method_dnadiff, method_fastani
 from pyani_plus.utils import file_md5sum
 
 app = typer.Typer()
@@ -569,6 +569,95 @@ def log_anib(
         sim_errors=sim_errors,
         cov_query=cov_query,
         cov_subject=cov_subject,
+    )
+
+    session.commit()
+    return 0
+
+
+@app.command()
+def log_dnadiff(
+    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    # These are for the comparison table
+    query_fasta: Annotated[Path, typer.Option(help="Path to query FASTA file")],
+    subject_fasta: Annotated[Path, typer.Option(help="Path to subject FASTA file")],
+    mcoords: Annotated[
+        Path, typer.Option(help="Path to show-coords (.mcoords) output file")
+    ],
+    qdiff: Annotated[Path, typer.Option(help="Path to show-diff (.qdiff) output file")],
+    # Should we add --maxmatch (nucmer) and -m (deltafilter) parameters?
+    # These are default parameters used in workflows
+) -> int:
+    """Log a single pyANI-plus ANIm pairwise comparison (with nucmer) to the database."""
+    # Assuming this will match as expect this script to be called right
+    # after the computation has finished (on the same machine)
+    dnadiff_tool = tools.get_dnadiff()
+
+    avg_identity, aligned_bases_with_gaps = method_dnadiff.parse_mcoords(mcoords)
+    gap_lengths = method_dnadiff.parse_qdiff(qdiff)
+
+    # As with other methods, we need to verify that the provided query/subject sequences
+    # match those used to generate the mcoords and qdiff files.
+    # Checking if the query and subject used to generate mcoords files match those for
+    # qdiff files might be unnecessary, as an incorrect query or subject will raise an error in lines 500-618.
+    used_subject_mcoords, used_query_mcoords = mcoords.stem.split("_vs_")
+    if used_query_mcoords != query_fasta.stem:
+        sys.exit(
+            f"ERROR: Given --query-fasta {query_fasta} but query in mcoords filename was {used_query_mcoords}"
+        )
+    if used_subject_mcoords != subject_fasta.stem:
+        sys.exit(
+            f"ERROR: Given --subject-fasta {subject_fasta} but query in mcoords filename was {used_subject_mcoords}"
+        )
+
+    used_subject_qdiff, used_query_qdiff = qdiff.stem.split("_vs_")
+    if used_query_qdiff != query_fasta.stem:
+        sys.exit(
+            f"ERROR: Given --query-fasta {query_fasta} but query in qdiff filename was {used_query_qdiff}"
+        )
+    if used_subject_qdiff != subject_fasta.stem:
+        sys.exit(
+            f"ERROR: Given --subject-fasta {subject_fasta} but query in qdiff filename was {used_subject_qdiff}"
+        )
+
+    if database != ":memory:" and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+
+    print(f"Logging ANIm to {database}")  # noqa: T201
+    session = db_orm.connect_to_db(database)
+
+    config = db_orm.db_configuration(
+        session,
+        method="dnadiff",
+        program=dnadiff_tool.exe_path.stem,
+        version=dnadiff_tool.version,
+        fragsize=None,
+        maxmatch=None,
+        kmersize=None,
+        minmatch=None,
+        create=False,
+    )
+
+    # Need to lookup query length to compute query_cover (fragmented FASTA irrelevant:
+    query_md5 = file_md5sum(query_fasta)
+    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
+    cov_query = (aligned_bases_with_gaps - gap_lengths) / query.length
+
+    # Need to lookup subject length to populate database:
+    # We currently can't calculate cov_sibject unless we generate rdiff files too.
+    subject_md5 = file_md5sum(subject_fasta)
+
+    db_orm.db_comparison(
+        session,
+        configuration_id=config.configuration_id,
+        query_hash=query_md5,
+        subject_hash=subject_md5,
+        identity=avg_identity,
+        aln_length=aligned_bases_with_gaps - gap_lengths,
+        sim_errors=None,  # Leaving this as None for now (How should we calculate this?)
+        cov_query=cov_query,
+        cov_subject=None,  # Leaving this as None for now (need qdiff files to calculate this)
     )
 
     session.commit()

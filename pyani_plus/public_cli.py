@@ -53,13 +53,22 @@ REQ_ARG_TYPE_RUN_NAME = Annotated[
 
 # Reused optional command line arguments (defined with a default):
 OPT_ARG_TYPE_FRAGSIZE = Annotated[
-    int, typer.Option(help="Comparison method fragment size")
+    int,
+    typer.Option(
+        help="Comparison method fragment size", rich_help_panel="Method parameters"
+    ),
 ]
 OPT_ARG_TYPE_KMERSIZE = Annotated[
-    int, typer.Option(help="Comparison method k-mer size")
+    int,
+    typer.Option(
+        help="Comparison method k-mer size", rich_help_panel="Method parameters"
+    ),
 ]
 OPT_ARG_TYPE_MINMATCH = Annotated[
-    float, typer.Option(help="Comparison method min-match")
+    float,
+    typer.Option(
+        help="Comparison method min-match", rich_help_panel="Method parameters"
+    ),
 ]
 OPT_ARG_TYPE_CREATE_DB = Annotated[
     bool, typer.Option(help="Create database if does not exist")
@@ -198,7 +207,7 @@ def run_method(  # noqa: PLR0913
     return 0
 
 
-@app.command()
+@app.command(rich_help_panel="ANI methods")
 def anim(
     fasta: Annotated[
         Path,
@@ -239,7 +248,7 @@ def anim(
     )
 
 
-@app.command()
+@app.command(rich_help_panel="ANI methods")
 def anib(
     fasta: Annotated[
         Path,
@@ -286,7 +295,7 @@ def anib(
     )
 
 
-@app.command()
+@app.command(rich_help_panel="ANI methods")
 def fastani(  # noqa: PLR0913
     fasta: Annotated[
         Path,

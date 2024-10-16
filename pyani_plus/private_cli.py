@@ -39,7 +39,7 @@ from pyani_plus.utils import file_md5sum
 app = typer.Typer()
 
 
-@app.command()
+@app.command(rich_help_panel="Low-level logging")
 def log_configuration(  # noqa: PLR0913
     database: Annotated[
         str,
@@ -68,7 +68,7 @@ def log_configuration(  # noqa: PLR0913
         bool, typer.Option(help="Create database if does not exist")
     ] = False,
 ) -> int:
-    """Log this as a known configuration in the database.
+    """Log a specific method configuration to the database.
 
     Any pre-existing configuration entry is left as is.
     """
@@ -98,7 +98,7 @@ def log_configuration(  # noqa: PLR0913
     return 0
 
 
-@app.command()
+@app.command(rich_help_panel="Low-level logging")
 def log_genome(
     fasta: Annotated[
         list[str], typer.Argument(help="Path(s) to FASTA file(s)", show_default=False)
@@ -137,7 +137,7 @@ def log_genome(
     return 0
 
 
-@app.command()
+@app.command(rich_help_panel="Low-level logging")
 def log_run(  # noqa: PLR0913
     fasta: Annotated[
         list[str], typer.Argument(help="Path(s) to FASTA file(s)", show_default=False)
@@ -222,7 +222,7 @@ def log_run(  # noqa: PLR0913
     return 0
 
 
-@app.command()
+@app.command(rich_help_panel="Low-level logging")
 def log_comparison(  # noqa: PLR0913
     database: Annotated[
         str,
@@ -311,7 +311,7 @@ def log_comparison(  # noqa: PLR0913
 
 # Ought we switch the command line arguments here to match fastANI naming?
 # Note this omits maxmatch
-@app.command()
+@app.command(rich_help_panel="Method specific logging")
 def log_fastani(  # noqa: PLR0913
     database: Annotated[
         str,
@@ -426,7 +426,7 @@ def fragment_fasta(
     return 0
 
 
-@app.command()
+@app.command(rich_help_panel="Method specific logging")
 def log_anim(
     database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
     # These are for the comparison table
@@ -499,7 +499,7 @@ def log_anim(
 
 
 # Note this omits kmersize, minmatch, maxmatch
-@app.command()
+@app.command(rich_help_panel="Method specific logging")
 def log_anib(
     database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
     # These are for the comparison table

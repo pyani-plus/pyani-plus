@@ -474,12 +474,10 @@ def log_anim(
         create=False,
     )
 
-    # Need to lookup query length to compute query_cover (fragmented FASTA irrelevant:
     query_md5 = file_md5sum(query_fasta)
     query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
     cov_query = float(q_aligned_bases) / query.length
 
-    # Need to lookup subject length to compute subject_cover:
     subject_md5 = file_md5sum(subject_fasta)
     subject = db_orm.db_genome(session, subject_fasta, subject_md5, create=False)
     cov_subject = float(r_aligned_bases) / subject.length
@@ -593,7 +591,7 @@ def log_dnadiff(
     # after the computation has finished (on the same machine)
     dnadiff_tool = tools.get_dnadiff()
 
-    avg_identity, aligned_bases_with_gaps = method_dnadiff.parse_mcoords(mcoords)
+    identity, aligned_bases_with_gaps = method_dnadiff.parse_mcoords(mcoords)
     gap_lengths = method_dnadiff.parse_qdiff(qdiff)
 
     # As with other methods, we need to verify that the provided query/subject sequences
@@ -639,13 +637,11 @@ def log_dnadiff(
         create=False,
     )
 
-    # Need to lookup query length to compute query_cover (fragmented FASTA irrelevant:
     query_md5 = file_md5sum(query_fasta)
     query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
     cov_query = (aligned_bases_with_gaps - gap_lengths) / query.length
 
-    # Need to lookup subject length to populate database:
-    # We currently can't calculate cov_sibject unless we generate rdiff files too.
+    # We currently can't calculate cov_subject unless we generate rdiff files too.
     subject_md5 = file_md5sum(subject_fasta)
 
     db_orm.db_comparison(
@@ -653,7 +649,7 @@ def log_dnadiff(
         configuration_id=config.configuration_id,
         query_hash=query_md5,
         subject_hash=subject_md5,
-        identity=avg_identity,
+        identity=identity,
         aln_length=aligned_bases_with_gaps - gap_lengths,
         sim_errors=None,  # Leaving this as None for now (How should we calculate this?)
         cov_query=cov_query,

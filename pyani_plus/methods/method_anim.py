@@ -42,48 +42,8 @@ percentage (of whole genome) for each pairwise comparison.
 
 from collections import defaultdict
 from pathlib import Path
-from typing import NamedTuple
 
 import intervaltree  # type: ignore  # noqa: PGH003
-from Bio import SeqIO  # type: ignore  # noqa: PGH003
-
-from pyani_plus import utils
-from pyani_plus.tools import get_nucmer
-
-
-class ComparisonResult(NamedTuple):
-    """A single nucmer comparison result for ANIm.
-
-    We use a NamedTuple rather than a Dataclass because the
-    anim result should be immutable (we don't need to change it),
-    and we don't need to add any additional methods, or set
-    default values.
-    """
-
-    qhash: str  # query MD5 hash name
-    rhash: str  # reference MD5 hash name
-    q_aligned_bases: int  # aligned base count of query sequence
-    r_aligned_bases: int  # aligned base count of reference sequence
-    sim_errs: int  # count of similarity errors
-    avg_id: float  # average nucleotide identity (as a percentage)
-    program: str  # the program used to calculate the comparison
-    q_length: int  # total base count of query sequence
-    r_length: int  # total base count of reference sequence
-    q_cov: float  # query coverage (as a percentage)
-    r_cov: float  # reference coverage (as a percentage)
-    r_hadamard: float  # reference hadamard (percentage identity * percentage coverage)
-    q_hadamard: float  # query hadamard (percentage identity * percentage coverage)
-
-
-# NOTE This might not be needed as this information can now
-# be stored in one of the dataframeas in the database.
-def get_genome_length(filename: Path) -> int:
-    """Return total length of all sequences in a FASTA file.
-
-    :param filename:  path to FASTA file
-    """
-    with Path.open(filename) as ifh:
-        return sum([len(record) for record in SeqIO.parse(ifh, "fasta")])
 
 
 def get_aligned_bases_count(aligned_regions: dict) -> int:
@@ -208,48 +168,4 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
         get_aligned_bases_count(regions_qry),
         avrg_identity,
         sim_error,
-    )
-
-
-def collect_results_directory(deltafilter: Path, indir: Path) -> ComparisonResult:
-    """Return a ComparisonResult for a completed NUCmer comparison.
-
-    The passed directory should contain the output of nucmer comparisons for a single
-    run on a set of input sequences. Each comparison is stored in a separate file,
-    parsed to obtain the count of aligned bases from the query and reference
-    sequences, similarity errors, and average nucleotide identity for each comparison.
-
-    :param deltafilter: Path to the filter file
-    :param indir: Path to input directory (FASTA files)
-    """
-    genome_lengths = {
-        utils.file_md5sum(record): get_genome_length(record)
-        for record in Path(indir).iterdir()
-    }
-
-    genome_hashes = {
-        record.stem: utils.file_md5sum(record) for record in Path(indir).iterdir()
-    }
-
-    rname, qname = deltafilter.stem.split("_vs_")
-    r_aligned_bases, q_aligned_bases, avrg_identity, sim_error = parse_delta(
-        deltafilter
-    )
-    rlen = genome_lengths[genome_hashes[rname]]
-    qlen = genome_lengths[genome_hashes[qname]]
-
-    return ComparisonResult(
-        qhash=genome_hashes[qname],
-        rhash=genome_hashes[rname],
-        q_aligned_bases=q_aligned_bases,
-        r_aligned_bases=r_aligned_bases,
-        sim_errs=sim_error,
-        avg_id=avrg_identity,
-        program=get_nucmer().exe_path.stem,
-        r_length=rlen,
-        q_length=qlen,
-        r_cov=r_aligned_bases / rlen,
-        q_cov=q_aligned_bases / qlen,
-        r_hadamard=(r_aligned_bases / rlen) * avrg_identity,
-        q_hadamard=(q_aligned_bases / qlen) * avrg_identity,
     )

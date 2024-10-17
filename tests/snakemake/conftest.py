@@ -21,9 +21,9 @@
 # THE SOFTWARE.
 """Pytest configuration file for our snakemake tests."""
 
-import os
-
 import pytest
+
+from pyani_plus.utils import available_cores
 
 
 @pytest.fixture
@@ -33,17 +33,4 @@ def snakemake_cores() -> int:
     Returns 8 cores, unless capped by the system limits (e.g. SLURM might only give 4 cores,
     or GitHub Actions only 2 cores).
     """
-    try:
-        # This will take into account SLURM limits,
-        # so don't need to check $SLURM_CPUS_PER_TASK explicitly.
-        # Probably don't need to check $NSLOTS on SGE either.
-        available = len(os.sched_getaffinity(0))  # type: ignore[attr-defined]
-    except AttributeError:
-        # Unavailable on macOS or Windows, use this instead
-        # Can return None
-        cpus = os.cpu_count()
-        if not cpus:
-            msg = "Cannot determine CPU count"
-            raise RuntimeError(msg) from None
-        available = cpus
-    return min(8, available)
+    return min(8, available_cores())

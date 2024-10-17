@@ -50,7 +50,7 @@ from sqlalchemy.exc import NoResultFound
 from pyani_plus import db_orm, tools
 from pyani_plus.methods import method_anib, method_fastani
 from pyani_plus.snakemake import snakemake_scheduler
-from pyani_plus.utils import file_md5sum
+from pyani_plus.utils import available_cores, file_md5sum
 
 FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}  # define more centrally?
 
@@ -263,7 +263,7 @@ def run_method(  # noqa: PLR0913
             params["indir"] = fasta.resolve()  # must be absolute
             params["outdir"] = out_path.resolve()
             params["db"] = Path(database).resolve()  # must be absolute
-            params["cores"] = 1  # should make dynamic
+            params["cores"] = available_cores()  # should make configurable
             return_code = run_snakemake_with_progress_bar(
                 workflow_name, targets, params, tmp_path
             )

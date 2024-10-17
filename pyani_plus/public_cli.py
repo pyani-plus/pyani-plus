@@ -29,12 +29,22 @@ used), and reporting on a finished analysis (exporting tables and plots).
 
 import sys
 import tempfile
+from multiprocessing import Process
 from pathlib import Path
 from typing import Annotated
 
 import pandas as pd
 import typer
-from rich.progress import track
+
+# Could use tqdm or something else instead for the progress bar:
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from sqlalchemy.exc import NoResultFound
 
 from pyani_plus import db_orm, tools
@@ -85,6 +95,15 @@ OPT_ARG_TYPE_CREATE_DB = Annotated[
     bool, typer.Option(help="Create database if does not exist")
 ]
 
+progress_columns = [
+    TextColumn("[progress.description]{task.description}"),
+    BarColumn(),
+    TaskProgressColumn(),
+    # Removing TimeRemainingColumn() from defaults, replacing with:
+    TimeElapsedColumn(),
+    # Add this last as have some out of N and some out of N^2:
+    MofNCompleteColumn(),
+]
 
 app = typer.Typer()
 
@@ -110,6 +129,52 @@ def check_fasta(fasta: Path) -> list[Path]:
         sys.exit(msg)
 
     return fasta_names
+
+
+def run_snakemake_with_progress_bar(
+    workflow_name: str,
+    targets: list[Path],
+    params: dict,
+    working_directory: Path,
+    interval: float = 0.5,
+) -> int:
+    """Run snakemake with a progress bar.
+
+    Currently this works by monitoring the filesystem for the appearance of
+    the output files, while snakemake runs in a subprocess. This is not ideal,
+    and ideally we would use some kind of callbacks from snakemake - perhaps
+    using their logging mechanism.
+    """
+    runner = snakemake_scheduler.SnakemakeRunner(workflow_name)
+    # All rest replaces one line, runner.run_workflow(targets, params, workdir=working_directory)
+
+    pending = [Path(_) for _ in targets]
+    p = Process(
+        target=runner.run_workflow,
+        args=(targets, params),
+        kwargs={"workdir": working_directory},
+    )
+    p.start()
+    with Progress(*progress_columns) as progress:
+        # Same length:
+        # Indexing FASTAs
+        # Comparing pairs
+        task = progress.add_task("Comparing pairs", total=len(pending))
+        while pending:
+            p.join(interval)
+            for t in pending[:]:
+                if t.is_file():
+                    # Could print(f"Done: {t}")
+                    pending.remove(t)
+                    progress.update(task, advance=1)
+            if p.exitcode is not None:
+                # Should be finished, but was it success or failure?
+                pending = []  # to break the loop
+    p.join()  # Should be immediate as should have finished
+    if p.exitcode is None:
+        msg = "Snakemake did not stop?"
+        sys.exit(msg)
+    return p.exitcode
 
 
 def run_method(  # noqa: PLR0913
@@ -149,15 +214,14 @@ def run_method(  # noqa: PLR0913
     )
 
     # Reuse existing genome entries and/or log new ones
+    n = len(fasta_names)
     genomes = []
     filename_to_md5 = {}
-    for filename in track(
-        fasta_names, description=f"Processing {len(fasta_names)} FASTA"
-    ):
-        md5 = file_md5sum(filename)
-        genomes.append(db_orm.db_genome(session, filename, md5, create=True))
-        filename_to_md5[filename] = md5
-    n = len(genomes)
+    with Progress(*progress_columns) as progress:
+        for filename in progress.track(fasta_names, description="Indexing FASTAs"):
+            md5 = file_md5sum(filename)
+            genomes.append(db_orm.db_genome(session, filename, md5, create=True))
+            filename_to_md5[filename] = md5
 
     run = db_orm.add_run(
         session,
@@ -173,7 +237,11 @@ def run_method(  # noqa: PLR0913
     del genomes
 
     done = run.comparisons().count()
-    if done < n**2:
+    if done == n**2:
+        print(  # noqa: T201
+            f"Database already has all {n}x{n}={n**2} comparisons"
+        )
+    else:
         print(  # noqa: T201
             f"Database already has {done} of {n}x{n}={n**2} comparisons, {n**2 - done} needed"
         )
@@ -196,8 +264,14 @@ def run_method(  # noqa: PLR0913
             params["outdir"] = out_path.resolve()
             params["db"] = Path(database).resolve()  # must be absolute
             params["cores"] = 1  # should make dynamic
-            runner = snakemake_scheduler.SnakemakeRunner(workflow_name)
-            runner.run_workflow(targets, params, workdir=tmp_path)
+            return_code = run_snakemake_with_progress_bar(
+                workflow_name, targets, params, tmp_path
+            )
+            if return_code:
+                sys.stderr.write(
+                    f"Snakemake failed to run {workflow_name} with return code {return_code}\n"
+                )
+                sys.exit(return_code)
 
         # Reconnect to the DB
         session = db_orm.connect_to_db(database)
@@ -208,7 +282,7 @@ def run_method(  # noqa: PLR0913
         msg = f"ERROR: Only have {done} of {n}x{n}={n**2} comparisons needed"
         sys.exit(msg)
 
-    run.cache_comparisons()
+    run.cache_comparisons()  # will this needs a progress bar too with large n?
     run.status = "Done"
     session.commit()
     session.close()

@@ -440,8 +440,9 @@ def log_anim(
     # after the computation has finished (on the same machine)
     nucmer_tool = tools.get_nucmer()
 
-    r_aligned_bases, q_aligned_bases, identity, sim_errors = method_anim.parse_delta(
-        deltafilter
+    # Note inconsistency in how nucmer uses query vs reference and flips order
+    query_aligned_bases, subject_aligned_bases, identity, sim_errors = (
+        method_anim.parse_delta(deltafilter)
     )
 
     # Allowing for some variation in the filename paths here... should we?
@@ -476,11 +477,11 @@ def log_anim(
 
     query_md5 = file_md5sum(query_fasta)
     query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
-    cov_query = float(q_aligned_bases) / query.length
+    cov_query = float(query_aligned_bases) / query.length
 
     subject_md5 = file_md5sum(subject_fasta)
     subject = db_orm.db_genome(session, subject_fasta, subject_md5, create=False)
-    cov_subject = float(r_aligned_bases) / subject.length
+    cov_subject = float(subject_aligned_bases) / subject.length
 
     db_orm.db_comparison(
         session,
@@ -488,7 +489,7 @@ def log_anim(
         query_hash=query_md5,
         subject_hash=subject_md5,
         identity=identity,
-        aln_length=r_aligned_bases,
+        aln_length=query_aligned_bases,
         sim_errors=sim_errors,
         cov_query=cov_query,
         cov_subject=cov_subject,

@@ -197,12 +197,6 @@ def fastani_targets_indir() -> Path:
 
 
 @pytest.fixture
-def dnadiff_reports_dir() -> Path:
-    """Directory containing dnadiff report files."""
-    return FIXTUREPATH / "dnadiff" / "targets" / "dnadiff_reports"
-
-
-@pytest.fixture
 def dir_dnadiff_matrices() -> Path:
     """Directory containing dnadiff matrices."""
     return FIXTUREPATH / "dnadiff" / "matrices"

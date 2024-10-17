@@ -103,35 +103,8 @@ QRY + REF alignment length (col_4 + col_5).
 
 # Set Up
 from pathlib import Path
-from typing import Any, NamedTuple
 
 import pandas as pd
-
-from pyani_plus.methods.method_anim import get_genome_length
-
-
-class ComparisonResultDnadiff(NamedTuple):
-    """A single comparison result for dnadiff."""
-
-    qname: str  # query sequence name
-    rname: str  # reference sequence name
-    q_aligned_bases_with_gaps: int  # aligned base count of reference sequence with gaps
-    avg_id: float  # average nucleotide identity (as a percentage)
-    q_length: int  # total base count of query sequence
-    r_length: int  # total base count of reference sequence
-    alignment_gaps: int  # length of the gaps in the query alignment
-    aligned_bases: int  # tota base count in an alignment
-    q_cov: float  # query coverage
-
-    def item(self, attribute: str) -> Any:  # noqa: ANN401
-        """Return the value of the specified attribute."""
-        try:
-            return getattr(self, attribute)
-        except AttributeError:
-            msg = (
-                f"Invalid attribute '{attribute}'. Valid attributes are: {self._fields}"
-            )
-            raise ValueError(msg)  # noqa: B904
 
 
 def parse_mcoords(mcoords_file: Path) -> tuple[float, int]:
@@ -183,37 +156,3 @@ def parse_qdiff(qdiff_file: Path) -> int:
             gap_lengths += gap
 
     return gap_lengths
-
-
-def collect_dnadiff_results(
-    mcoords_file: Path,
-    qdiff_file: Path,
-    indir: Path,
-) -> ComparisonResultDnadiff:
-    """Return a ComparisonResultDnadiff for a completed dnadiff comparison.
-
-    The passed args should contain the Path to the mcoords and qdiff output files
-    comparisons for a sungle run, and a set of input sequences.
-    Files are parsed to obtain the count of aligned bases (with and without gaps)
-    in the query, average nucleotide identity, and query genome coverage for each
-    comparison.
-    """
-    files = {fasta.stem: fasta for fasta in indir.iterdir() if fasta.is_file()}
-
-    rname, qname = mcoords_file.stem.split("_vs_")
-    r_genome_length = get_genome_length(files[rname])
-    q_genome_length = get_genome_length(files[qname])
-    avg_identity, aligned_bases_with_gaps = parse_mcoords(mcoords_file)
-    gaps = parse_qdiff(qdiff_file)
-
-    return ComparisonResultDnadiff(
-        rname=rname,
-        qname=qname,
-        avg_id=avg_identity,
-        q_aligned_bases_with_gaps=aligned_bases_with_gaps,
-        r_length=r_genome_length,
-        q_length=q_genome_length,
-        alignment_gaps=gaps,
-        aligned_bases=aligned_bases_with_gaps - gaps,
-        q_cov=(aligned_bases_with_gaps - gaps) / q_genome_length * 100,
-    )

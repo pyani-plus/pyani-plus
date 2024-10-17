@@ -55,26 +55,6 @@ def genome_hashes(input_genomes_tiny: Path) -> dict:
     }
 
 
-@pytest.fixture
-def expected_anim_results(genome_hashes: dict) -> method_anim.ComparisonResult:
-    """Example of expected aniM ComparisionResult."""  # noqa: D401
-    return method_anim.ComparisonResult(
-        qhash=genome_hashes["MGV-GENOME-0264574"],
-        rhash=genome_hashes["MGV-GENOME-0266457"],
-        q_aligned_bases=39169,
-        r_aligned_bases=39176,
-        sim_errs=222,
-        avg_id=0.9962487643734,
-        program="nucmer",
-        q_length=39253,
-        r_length=39594,
-        q_cov=39169 / 39253,
-        r_cov=39176 / 39594,
-        r_hadamard=(39176 / 39594) * 0.9962487643734,
-        q_hadamard=(39169 / 39253) * 0.9962487643734,
-    )
-
-
 def compare_results_decimal(
     filterfile: Path, datadir: pd.DataFrame, val: int, genome_hashes: dict
 ) -> bool:
@@ -177,27 +157,6 @@ def test_delta_parsing(anim_nucmer_targets_filter_indir: Path) -> None:
 def test_aligned_bases_count(aligned_regions: dict) -> None:
     """Check only aligned bases in non-overlapping regions are counted."""
     assert method_anim.get_aligned_bases_count(aligned_regions) == 39176  # noqa: PLR2004
-
-
-def test_get_genome_length(input_genomes_tiny: Path) -> None:
-    """Check retrieved genome lengths match the expected values."""
-    assert (
-        method_anim.get_genome_length(input_genomes_tiny / "MGV-GENOME-0264574.fas")
-        == 39253  # noqa: PLR2004
-    )
-
-
-def test_collect_results(
-    expected_anim_results: method_anim.ComparisonResult,
-    anim_nucmer_targets_filter_indir: Path,
-    input_genomes_tiny: Path,
-) -> None:
-    """Check that ComparisionResult class is populated with correct values."""
-    assert expected_anim_results == method_anim.collect_results_directory(
-        anim_nucmer_targets_filter_indir
-        / "MGV-GENOME-0266457_vs_MGV-GENOME-0264574.filter",
-        input_genomes_tiny,
-    )
 
 
 def test_missing_db(

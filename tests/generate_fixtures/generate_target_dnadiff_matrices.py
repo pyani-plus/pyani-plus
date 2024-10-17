@@ -65,9 +65,9 @@ import re
 from pathlib import Path
 
 import pandas as pd
+from Bio import SeqIO
 
 from pyani_plus import utils
-from pyani_plus.methods import method_anim
 
 
 def parse_dnadiff_report(dnadiff_report: Path) -> tuple[int, float, float]:
@@ -103,11 +103,22 @@ avg_identity_matrix = pd.DataFrame(
     index=genome_hashes.values(), columns=genome_hashes.values()
 )
 
+
 # Obtain input sets lengths
+
+
+def get_genome_length(filename: Path) -> int:
+    """Return total length of all sequences in a FASTA file.
+
+    :param filename:  path to FASTA file.
+    """
+    with Path.open(filename) as ifh:
+        return sum([len(record) for record in SeqIO.parse(ifh, "fasta")])
+
+
 records = Path("../fixtures/viral_example/").glob("*.f*")
 genome_lengths = {
-    utils.file_md5sum(record): method_anim.get_genome_length(record)
-    for record in records
+    utils.file_md5sum(record): get_genome_length(record) for record in records
 }
 
 # Appending information to matrices

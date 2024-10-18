@@ -43,13 +43,13 @@ def expected_mcoords_output() -> tuple[float, int]:
 
     MGV-GENOME-0264574 (REF) MGV-GENOME-0266457 (QRY).
     """  # noqa: D401
-    return (99.63, 39594)
+    return (99.63, 39253)
 
 
 @pytest.fixture
 def expected_gap_lengths_qry() -> int:
     """Expected gap length in the QRY alignment."""  # noqa: D401
-    return 418
+    return 84
 
 
 def test_parse_mcoords(
@@ -89,9 +89,9 @@ def test_missing_db(
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             mcoords=dnadiff_targets_showcoords_indir
-            / "MGV-GENOME-0266457_vs_MGV-GENOME-0264574.mcoords",
+            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
             qdiff=dnadiff_targets_showdiff_indir
-            / "MGV-GENOME-0266457_vs_MGV-GENOME-0264574.qdiff",
+            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff",
         )
 
 
@@ -117,7 +117,7 @@ def test_bad_query_or_subject(
             query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             mcoords=dnadiff_targets_showcoords_indir
-            / "MGV-GENOME-0266457_vs_MGV-GENOME-0264574.mcoords",
+            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
             qdiff=dnadiff_targets_showdiff_indir
             / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff",
         )
@@ -134,7 +134,7 @@ def test_bad_query_or_subject(
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             mcoords=dnadiff_targets_showcoords_indir
-            / "MGV-GENOME-0266457_vs_MGV-GENOME-0264574.mcoords",
+            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
             qdiff=dnadiff_targets_showdiff_indir
             / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff",
         )
@@ -151,9 +151,9 @@ def test_bad_query_or_subject(
             query_fasta=input_genomes_tiny / "OP073605.fasta",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             mcoords=dnadiff_targets_showcoords_indir
-            / "MGV-GENOME-0266457_vs_OP073605.mcoords",
+            / "OP073605_vs_MGV-GENOME-0266457.mcoords",
             qdiff=dnadiff_targets_showdiff_indir
-            / "OP073605_vs_MGV-GENOME-0266457.qdiff",
+            / "MGV-GENOME-0266457_vs_OP073605.qdiff",
         )
 
     with pytest.raises(
@@ -168,9 +168,9 @@ def test_bad_query_or_subject(
             query_fasta=input_genomes_tiny / "OP073605.fasta",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             mcoords=dnadiff_targets_showcoords_indir
-            / "MGV-GENOME-0266457_vs_OP073605.mcoords",
+            / "OP073605_vs_MGV-GENOME-0266457.mcoords",
             qdiff=dnadiff_targets_showdiff_indir
-            / "MGV-GENOME-0264574_vs_OP073605.qdiff",
+            / "OP073605_vs_MGV-GENOME-0264574.qdiff",
         )
 
 
@@ -207,9 +207,9 @@ def test_logging_dnadiff(
         query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
         subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
         mcoords=dnadiff_targets_showcoords_indir
-        / "MGV-GENOME-0266457_vs_MGV-GENOME-0264574.mcoords",
+        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
         qdiff=dnadiff_targets_showdiff_indir
-        / "MGV-GENOME-0266457_vs_MGV-GENOME-0264574.qdiff",
+        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff",
     )
 
     # Check the recorded comparison values

@@ -599,7 +599,7 @@ def log_dnadiff(
     # match those used to generate the mcoords and qdiff files.
     # Checking if the query and subject used to generate mcoords files match those for
     # qdiff files might be unnecessary, as an incorrect query or subject will raise an error in lines 500-618.
-    used_subject_mcoords, used_query_mcoords = mcoords.stem.split("_vs_")
+    used_query_mcoords, used_subject_mcoords = mcoords.stem.split("_vs_")
     if used_query_mcoords != query_fasta.stem:
         sys.exit(
             f"ERROR: Given --query-fasta {query_fasta} but query in mcoords filename was {used_query_mcoords}"
@@ -609,7 +609,7 @@ def log_dnadiff(
             f"ERROR: Given --subject-fasta {subject_fasta} but query in mcoords filename was {used_subject_mcoords}"
         )
 
-    used_subject_qdiff, used_query_qdiff = qdiff.stem.split("_vs_")
+    used_query_qdiff, used_subject_qdiff = qdiff.stem.split("_vs_")
     if used_query_qdiff != query_fasta.stem:
         sys.exit(
             f"ERROR: Given --query-fasta {query_fasta} but query in qdiff filename was {used_query_qdiff}"

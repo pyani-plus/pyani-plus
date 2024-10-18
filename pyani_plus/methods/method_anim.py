@@ -164,8 +164,8 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
     avrg_identity = weighted_identical_bases / aligned_bases
 
     return (
-        get_aligned_bases_count(regions_ref),
         get_aligned_bases_count(regions_qry),
+    get_aligned_bases_count(regions_ref),
         avrg_identity,
         sim_error,
     )

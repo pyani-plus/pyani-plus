@@ -48,7 +48,7 @@ rule delta:
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.delta",
     shell:
-        "{params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --mum {input.genomeA} {input.genomeB}"
+        "{params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --mum {input.genomeB} {input.genomeA}"
 
 
 # The filter rule runs delta-filter wrapper for nucmer

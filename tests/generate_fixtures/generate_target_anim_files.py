@@ -69,8 +69,8 @@ for genomes in comparisons:
             "-p",
             DELTA_DIR / stem,
             "--mum",
-            inputs[genomes[0]],
             inputs[genomes[1]],
+            inputs[genomes[0]],
         ],
         check=True,
     )

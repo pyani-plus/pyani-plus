@@ -43,7 +43,7 @@ sequences in the query too.
 import shutil
 import subprocess
 import tempfile
-from itertools import permutations
+from itertools import product
 from pathlib import Path
 
 from pyani_plus.tools import (
@@ -62,9 +62,9 @@ SHOW_DIFF_DIR = Path("../fixtures/dnadiff/targets/show_diff")
 SHOW_COORDS_DIR = Path("../fixtures/dnadiff/targets/show_coords")
 DNADIFF_DIR = Path("../fixtures/dnadiff/targets/dnadiff_reports")
 
-# Running comparisons
-comparisons = permutations([_.stem for _ in Path(INPUT_DIR).glob("*.f*")], 2)
+# Running comparisons (all vs all)
 inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*.f*")}
+comparisons = product(inputs, inputs)
 
 # Cleanup
 # This is to help with if and when we change the

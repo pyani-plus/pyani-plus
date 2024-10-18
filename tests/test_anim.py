@@ -153,6 +153,9 @@ def test_delta_parsing(anim_nucmer_targets_filter_indir: Path) -> None:
         222,
     )
 
+    with pytest.raises(ValueError, match="Empty delta file from nucmer, /dev/null"):
+        method_anim.parse_delta(Path("/dev/null"))
+
 
 def test_aligned_bases_count(aligned_regions: dict) -> None:
     """Check only aligned bases in non-overlapping regions are counted."""

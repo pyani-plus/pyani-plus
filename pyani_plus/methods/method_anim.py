@@ -132,7 +132,12 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
     aligned_bases = 0  # Hold a count of aligned bases for each sequence
     weighted_identical_bases = 0  # Hold a count of weighted identical bases
 
-    for line in [_.strip().split() for _ in filename.open("r").readlines()]:
+    # Ideally we wouldn't read the whole file into memory at once...
+    lines = [_.strip().split() for _ in filename.open("r").readlines()]
+    if not lines:
+        msg = f"Empty delta file from nucmer, {filename}"
+        raise ValueError(msg)
+    for line in lines:
         if line[0] == "NUCMER":  # Skip headers
             continue
         # Lines starting with ">" indicate which sequences are aligned

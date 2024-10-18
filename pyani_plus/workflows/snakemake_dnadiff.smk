@@ -47,7 +47,7 @@ rule delta:
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.delta",
     shell:
-        "{params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --maxmatch {input.genomeB} {input.genomeA}"
+        "chronic {params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --maxmatch {input.genomeB} {input.genomeA}"
 
 
 # The filter rule runs delta-filter wrapper for nucmer
@@ -61,6 +61,7 @@ rule filter:
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.filter",
     shell:
+        # Do not use chronic where we want stdout captured to file
         "{params.delta_filter} -m {input} > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter"
 
 
@@ -75,6 +76,7 @@ rule show_diff:
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.qdiff",
     shell:
+        # Do not use chronic where we want stdout captured to file
         "{params.show_diff} -qH {input} > {output}"
 
 
@@ -89,4 +91,5 @@ rule show_coords:
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.mcoords",
     shell:
+        # Do not use chronic where we want stdout captured to file
         "{params.show_coords} -rclTH {input} > {output}"

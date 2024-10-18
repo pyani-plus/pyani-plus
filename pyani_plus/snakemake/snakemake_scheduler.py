@@ -25,6 +25,7 @@ import importlib.resources as impresources
 from pathlib import Path
 
 from snakemake.api import ConfigSettings, DAGSettings, ResourceSettings, SnakemakeApi
+from snakemake.settings.types import OutputSettings, Quietness
 
 from pyani_plus import workflows
 
@@ -75,7 +76,7 @@ class SnakemakeRunner:
         snakefile = impresources.files(workflows) / self.workflow_filename
 
         # Use the defined workflow from the Python API
-        with SnakemakeApi() as snakemake_api:
+        with SnakemakeApi(OutputSettings(quiet={Quietness.ALL})) as snakemake_api:
             workflow_api = snakemake_api.workflow(
                 snakefile=snakefile,
                 resource_settings=ResourceSettings(cores=config_args["cores"]),

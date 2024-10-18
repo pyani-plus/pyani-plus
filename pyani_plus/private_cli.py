@@ -440,7 +440,6 @@ def log_anim(
     # after the computation has finished (on the same machine)
     nucmer_tool = tools.get_nucmer()
 
-    # Note inconsistency in how nucmer uses query vs reference and flips order
     query_aligned_bases, subject_aligned_bases, identity, sim_errors = (
         method_anim.parse_delta(deltafilter)
     )

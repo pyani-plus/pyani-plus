@@ -156,7 +156,11 @@ def test_anim(tmp_path: str, input_genomes_tiny: Path, dir_anim_results: Path) -
     public_cli.anim(
         database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=True
     )
-    public_cli.export_run(database=tmp_db, outdir=out)
+    # Now do it again - it should reuse the calculations:
+    public_cli.anim(
+        database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=False
+    )
+    public_cli.export_run(database=tmp_db, outdir=out, run_id=1)  # have two runs
     compare_matrix_files(
         dir_anim_results / "matrix_identity.tsv", out / "ANIm_identity.tsv"
     )

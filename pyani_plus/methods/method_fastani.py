@@ -23,6 +23,11 @@
 
 from pathlib import Path
 
+KMER_SIZE = 16  # Default fastANI k-mer size (max 16)
+FRAG_LEN = 3000  # Default fastANI fragment length, mapped to our --fragsize
+MIN_FRACTION = 0.2  # Default fastANI min fraction
+MAX_RATIO_DIFF = 10.0  # Default fastANI maximum ratio difference
+
 
 def parse_fastani_file(filename: Path) -> tuple[Path, Path, float, int, int]:
     """Parse a single-line fastANI output file extracting key fields as a tuple.

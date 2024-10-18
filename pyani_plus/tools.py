@@ -299,8 +299,8 @@ def get_dnadiff(cmd: str | Path = "dnadiff") -> ExternalToolData:
     .. code-block:: bash
 
         $ dnadiff -V
-            dnadiff
-            DNAdiff version 1.3
+        dnadiff
+        DNAdiff version 1.3
 
     Here the function would return the binary path and "1.3" as the version.
 

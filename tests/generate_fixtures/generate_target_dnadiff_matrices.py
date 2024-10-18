@@ -65,7 +65,6 @@ import re
 from pathlib import Path
 
 import pandas as pd
-from Bio import SeqIO
 
 from pyani_plus import utils
 
@@ -103,29 +102,11 @@ avg_identity_matrix = pd.DataFrame(
     index=genome_hashes.values(), columns=genome_hashes.values()
 )
 
-
-# Obtain input sets lengths
-
-
-def get_genome_length(filename: Path) -> int:
-    """Return total length of all sequences in a FASTA file.
-
-    :param filename:  path to FASTA file.
-    """
-    with Path.open(filename) as ifh:
-        return sum([len(record) for record in SeqIO.parse(ifh, "fasta")])
-
-
-records = Path("../fixtures/viral_example/").glob("*.f*")
-genome_lengths = {
-    utils.file_md5sum(record): get_genome_length(record) for record in records
-}
-
 # Appending information to matrices
 report_files = Path("../fixtures/dnadiff/targets/dnadiff_reports/").glob("*.report")
 
 for file in report_files:
-    reference, query = file.stem.split("_vs_")
+    query, reference = file.stem.split("_vs_")
     aligned_bases, query_coverage, avg_identity = parse_dnadiff_report(file)
     aligned_bases_matrix.loc[genome_hashes[reference], genome_hashes[query]] = (
         aligned_bases
@@ -133,13 +114,6 @@ for file in report_files:
     coverage_matrix.loc[genome_hashes[reference], genome_hashes[query]] = query_coverage
     avg_identity_matrix.loc[genome_hashes[reference], genome_hashes[query]] = (
         avg_identity
-    )
-    # for self-to-self assign 100% for average identity and coverage for now
-    avg_identity_matrix.loc[genome_hashes[reference], genome_hashes[reference]] = 100
-    coverage_matrix.loc[genome_hashes[reference], genome_hashes[reference]] = 100
-    # for self-to-self assign length of the whole genome for number of aligned bases for now
-    aligned_bases_matrix.loc[genome_hashes[reference], genome_hashes[reference]] = (
-        genome_lengths[genome_hashes[reference]]
     )
 
 matrices_directory = "../fixtures/dnadiff/matrices/"

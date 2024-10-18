@@ -174,8 +174,8 @@ def test_snakemake_rule_show_diff(
 ) -> None:
     """Test dnadiff show-diff snakemake wrapper.
 
-    Checks that the show-diff rule in the dnadiff snakemake wrapper gives the
-    expected output.
+    Checks that the show_diff_and_coords rule in the dnadiff snakemake wrapper gives the
+    expected show-diff output.
 
     If the output directory exists (i.e. the make clean_tests rule has not
     been run), the tests will automatically pass as snakemake will not
@@ -211,8 +211,8 @@ def test_snakemake_rule_show_coords(
 ) -> None:
     """Test dnadiff show-coords snakemake wrapper.
 
-    Checks that the show-coords rule in the dnadiff snakemake wrapper gives the
-    expected output.
+    Checks that the show_diff_and_coords rule in the dnadiff snakemake wrapper gives the
+    expected show-coords output.
 
     If the output directory exists (i.e. the make clean_tests rule has not
     been run), the tests will automatically pass as snakemake will not

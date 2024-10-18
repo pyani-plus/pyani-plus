@@ -65,31 +65,21 @@ rule filter:
         "{params.delta_filter} -m {input} > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter"
 
 
-# The filter rule runs show-diff wrapper for nucmer
+# The rule runs both show-diff and show-coords wrappers for nucmer
 # NOTE: This rule is used for dnadiff in the context of pyani_plus. The .filter file
-# is used to generate show-diff files, which are used to replicate AlignedBases.
-rule show_diff:
+# is used to generate both show-diff and show-coords files, which are used to
+# replicate AlignedBases, identity etc.
+rule show_diff_and_coords:
     params:
         show_diff=config["show_diff"],
-    input:
-        "{outdir}/{genomeA}_vs_{genomeB}.filter",
-    output:
-        "{outdir}/{genomeA}_vs_{genomeB}.qdiff",
-    shell:
-        # Do not use chronic where we want stdout captured to file
-        "{params.show_diff} -qH {input} > {output}"
-
-
-# The filter rule runs show-coords wrapper for nucmer
-# NOTE: This rule is used for dnadiff in the context of pyani_plus. The .filter file
-# is used to generate show-coords files, which are used to replicate AlignedBases.
-rule show_coords:
-    params:
         show_coords=config["show_coords"],
     input:
         "{outdir}/{genomeA}_vs_{genomeB}.filter",
     output:
-        "{outdir}/{genomeA}_vs_{genomeB}.mcoords",
+        qdiff="{outdir}/{genomeA}_vs_{genomeB}.qdiff",
+        mcoords="{outdir}/{genomeA}_vs_{genomeB}.mcoords",
     shell:
-        # Do not use chronic where we want stdout captured to file
-        "{params.show_coords} -rclTH {input} > {output}"
+        """
+        {params.show_diff} -qH {input} > {output.qdiff}
+        {params.show_coords} -rclTH {input} > {output.mcoords}
+        """

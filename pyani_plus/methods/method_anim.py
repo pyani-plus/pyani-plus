@@ -165,7 +165,7 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
 
     return (
         get_aligned_bases_count(regions_qry),
-    get_aligned_bases_count(regions_ref),
+        get_aligned_bases_count(regions_ref),
         avrg_identity,
         sim_error,
     )

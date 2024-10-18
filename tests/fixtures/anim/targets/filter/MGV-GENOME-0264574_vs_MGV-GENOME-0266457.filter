@@ -1,20 +1,20 @@
-/Users/pc40583/repositories/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/MGV-GENOME-0264574.fas /Users/pc40583/repositories/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/MGV-GENOME-0266457.fna
+/Users/angelikakiepas/Desktop/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/MGV-GENOME-0266457.fna /Users/angelikakiepas/Desktop/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/MGV-GENOME-0264574.fas
 NUCMER
->MGV_MGV-GENOME-0264574 MGV_MGV-GENOME-0266457 39253 39594
-85 37713 1 37636 215 215 0
--3013
--24624
--1
--1
--1
--1
--1
+>MGV_MGV-GENOME-0266457 MGV_MGV-GENOME-0264574 39594 39253
+1 37636 85 37713 215 215 0
+3013
+24624
+1
+1
+1
+1
+1
 0
-17709 39253 17626 39176 7 7 0
--9994
--1
--1
--1
--1
--1
+17626 39176 17709 39253 7 7 0
+9994
+1
+1
+1
+1
+1
 0

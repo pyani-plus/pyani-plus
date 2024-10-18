@@ -96,8 +96,8 @@ for genomes in comparisons:
             "-p",
             DELTA_DIR / stem,
             "--maxmatch",
-            inputs[genomes[0]],
             inputs[genomes[1]],
+            inputs[genomes[0]],
         ],
         check=True,
     )
@@ -130,8 +130,8 @@ for genomes in comparisons:
                 dnadiff.exe_path,
                 "-p",
                 tmp + "/" + stem,
-                inputs[genomes[0]],
                 inputs[genomes[1]],
+                inputs[genomes[0]],
             ],
             check=True,
         )

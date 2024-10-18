@@ -1,4 +1,4 @@
-/Users/angelikakiepas/Desktop/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/MGV-GENOME-0266457.fna /Users/angelikakiepas/Desktop/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/OP073605.fasta
+/Users/angelikakiepas/Desktop/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/OP073605.fasta /Users/angelikakiepas/Desktop/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/MGV-GENOME-0266457.fna
 NUCMER
 
                                [REF]                [QRY]
@@ -8,19 +8,19 @@ AlignedSeqs               1(100.00%)           1(100.00%)
 UnalignedSeqs               0(0.00%)             0(0.00%)
 
 [Bases]
-TotalBases                     39594                57793
-AlignedBases           39572(99.94%)        39568(68.47%)
-UnalignedBases             22(0.06%)        18225(31.53%)
+TotalBases                     57793                39594
+AlignedBases           39568(68.47%)        39572(99.94%)
+UnalignedBases         18225(31.53%)            22(0.06%)
 
 [Alignments]
 1-to-1                             1                    1
-TotalLength                    39572                39568
-AvgLength                   39572.00             39568.00
+TotalLength                    39568                39572
+AvgLength                   39568.00             39572.00
 AvgIdentity                    99.46                99.46
 
 M-to-M                             1                    1
-TotalLength                    39572                39568
-AvgLength                   39572.00             39568.00
+TotalLength                    39568                39572
+AvgLength                   39568.00             39572.00
 AvgIdentity                    99.46                99.46
 
 [Feature Estimates]
@@ -30,8 +30,8 @@ Translocations                     0                    0
 Inversions                         0                    0
 
 Insertions                         1                    1
-InsertionSum                      22                18225
-InsertionAvg                   22.00             18225.00
+InsertionSum                   18225                   22
+InsertionAvg                18225.00                22.00
 
 TandemIns                          0                    0
 TandemInsSum                       0                    0
@@ -39,49 +39,49 @@ TandemInsAvg                    0.00                 0.00
 
 [SNPs]
 TotalSNPs                        206                  206
+GT                          4(1.94%)             7(3.40%)
 GC                          2(0.97%)             2(0.97%)
-GA                        43(20.87%)           42(20.39%)
-GT                          8(3.88%)            10(4.85%)
-CG                          2(0.97%)             2(0.97%)
-CT                        26(12.62%)           36(17.48%)
-CA                          7(3.40%)             4(1.94%)
-TA                         16(7.77%)            10(4.85%)
-TG                         10(4.85%)             8(3.88%)
-TC                        36(17.48%)           26(12.62%)
+GA                        36(17.48%)           26(12.62%)
+AC                          8(3.88%)            10(4.85%)
 AT                         10(4.85%)            16(7.77%)
-AC                          4(1.94%)             7(3.40%)
-AG                        42(20.39%)           43(20.87%)
+AG                        26(12.62%)           36(17.48%)
+CA                         10(4.85%)             8(3.88%)
+CT                        42(20.39%)           43(20.87%)
+CG                          2(0.97%)             2(0.97%)
+TG                          7(3.40%)             4(1.94%)
+TA                         16(7.77%)            10(4.85%)
+TC                        43(20.87%)           42(20.39%)
 
 TotalGSNPs                        49                   49
+GT                          1(2.04%)             1(2.04%)
+GA                         5(10.20%)            8(16.33%)
 GC                          0(0.00%)             0(0.00%)
-GT                          4(8.16%)             2(4.08%)
-GA                        12(24.49%)           14(28.57%)
-CG                          0(0.00%)             0(0.00%)
-CA                          1(2.04%)             1(2.04%)
-CT                         8(16.33%)            5(10.20%)
-TC                         5(10.20%)            8(16.33%)
-TG                          2(4.08%)             4(8.16%)
-TA                          2(4.08%)             0(0.00%)
+AG                         8(16.33%)            5(10.20%)
 AT                          0(0.00%)             2(4.08%)
-AC                          1(2.04%)             1(2.04%)
-AG                        14(28.57%)           12(24.49%)
+AC                          4(8.16%)             2(4.08%)
+CG                          0(0.00%)             0(0.00%)
+CT                        14(28.57%)           12(24.49%)
+CA                          2(4.08%)             4(8.16%)
+TG                          1(2.04%)             1(2.04%)
+TC                        12(24.49%)           14(28.57%)
+TA                          2(4.08%)             0(0.00%)
 
 TotalIndels                        6                    6
-G.                         2(33.33%)            1(16.67%)
-C.                         1(16.67%)             0(0.00%)
-T.                          0(0.00%)             0(0.00%)
-A.                         2(33.33%)             0(0.00%)
-.T                          0(0.00%)             0(0.00%)
-.A                          0(0.00%)            2(33.33%)
-.C                          0(0.00%)            1(16.67%)
-.G                         1(16.67%)            2(33.33%)
+G.                          0(0.00%)            1(16.67%)
+A.                          0(0.00%)             0(0.00%)
+C.                         1(16.67%)            2(33.33%)
+T.                          0(0.00%)            2(33.33%)
+.T                         2(33.33%)             0(0.00%)
+.A                          0(0.00%)             0(0.00%)
+.C                         2(33.33%)            1(16.67%)
+.G                         1(16.67%)             0(0.00%)
 
 TotalGIndels                       0                    0
 G.                          0(0.00%)             0(0.00%)
+A.                          0(0.00%)             0(0.00%)
 C.                          0(0.00%)             0(0.00%)
 T.                          0(0.00%)             0(0.00%)
-A.                          0(0.00%)             0(0.00%)
-.T                          0(0.00%)             0(0.00%)
-.A                          0(0.00%)             0(0.00%)
 .G                          0(0.00%)             0(0.00%)
+.A                          0(0.00%)             0(0.00%)
 .C                          0(0.00%)             0(0.00%)
+.T                          0(0.00%)             0(0.00%)

@@ -71,15 +71,22 @@ rule filter:
 # replicate AlignedBases, identity etc.
 rule show_diff_and_coords:
     params:
+        db=config["db"],
         show_diff=config["show_diff"],
         show_coords=config["show_coords"],
+        outdir=config["outdir"],
     input:
         "{outdir}/{genomeA}_vs_{genomeB}.filter",
+        genomeA=get_genomeA,
+        genomeB=get_genomeB,
     output:
-        qdiff="{outdir}/{genomeA}_vs_{genomeB}.qdiff",
-        mcoords="{outdir}/{genomeA}_vs_{genomeB}.mcoords",
+        "{outdir}/{genomeA}_vs_{genomeB}.qdiff",
+        "{outdir}/{genomeA}_vs_{genomeB}.mcoords",
     shell:
         """
-        {params.show_diff} -qH {input} > {output.qdiff}
-        {params.show_coords} -rclTH {input} > {output.mcoords}
+        {params.show_diff} -qH {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.qdiff
+        {params.show_coords} -rclTH {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.mcoords &&
+        .pyani-plus-private-cli log-dnadiff --database {params.db} \
+            --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
+            --mcoords {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.mcoords --qdiff {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.qdiff
         """

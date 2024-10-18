@@ -56,11 +56,21 @@ rule delta:
 # is used to calculate ANI values
 rule filter:
     params:
+        db=config["db"],
         delta_filter=config["delta_filter"],
         outdir=config["outdir"],
     input:
         "{outdir}/{genomeA}_vs_{genomeB}.delta",
+        genomeA=get_genomeA,
+        genomeB=get_genomeB,
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.filter",
     shell:
-        "{params.delta_filter} -1 {input} > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter"
+        """
+        {params.delta_filter} \
+            -1 {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.delta \
+             > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter &&
+        .pyani-plus-private-cli log-anim --database {params.db} \
+            --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
+            --deltafilter {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter
+        """

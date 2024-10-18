@@ -37,7 +37,7 @@ delta-filter runs with the -1 parameter to filter only 1-to-1 matches
 
 # Imports
 import subprocess
-from itertools import permutations
+from itertools import product
 from pathlib import Path
 
 from pyani_plus.tools import get_delta_filter, get_nucmer
@@ -47,9 +47,9 @@ INPUT_DIR = Path("../fixtures/viral_example")
 DELTA_DIR = Path("../fixtures/anim/targets/delta")
 FILTER_DIR = Path("../fixtures/anim/targets/filter")
 
-# Running ANIm comparisons
-comparisons = permutations([_.stem for _ in Path(INPUT_DIR).glob("*.f*")], 2)
+# Running ANIm comparisons (all vs all)
 inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*.f*")}
+comparisons = product(inputs, inputs)
 
 # Cleanup
 for file in DELTA_DIR.glob("*.delta"):

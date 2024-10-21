@@ -128,7 +128,7 @@ def parse_mcoords(mcoords_file: Path) -> tuple[float, int]:
     for _index, row in mcoords.iterrows():
         sum_identity += (row["col_6"] / 100) * (row["col_4"] + row["col_5"])
         sum_alignment_lengths += row["col_4"] + row["col_5"]
-        avg_identity = round(sum_identity / sum_alignment_lengths * 100, 2)
+        avg_identity = sum_identity / sum_alignment_lengths
 
         # Get number of aligned bases with gaps
         if row["col_12"] not in seen_ref_seq:

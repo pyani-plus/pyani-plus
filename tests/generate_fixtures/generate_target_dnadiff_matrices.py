@@ -62,6 +62,7 @@ from line[11], and AvgIdentity from line[23].
 """
 
 import re
+from decimal import Decimal
 from pathlib import Path
 
 import pandas as pd
@@ -69,8 +70,11 @@ import pandas as pd
 from pyani_plus import utils
 
 
-def parse_dnadiff_report(dnadiff_report: Path) -> tuple[int, float, float]:
-    """Return dnadiff values for AlignedBases, genome coverage (QRY) and average identity."""
+def parse_dnadiff_report(dnadiff_report: Path) -> tuple[int, Decimal, Decimal]:
+    """Return dnadiff values for AlignedBases, genome coverage (QRY) and average identity.
+
+    These coverage and identity are converted to be in the range 0 to 1.
+    """
     with Path.open(dnadiff_report) as file:
         lines = file.readlines()
 
@@ -80,8 +84,10 @@ def parse_dnadiff_report(dnadiff_report: Path) -> tuple[int, float, float]:
     aligned_bases = int(
         re.findall(r"(\d+)\s*\(\d+\.\d+%\)\s*$", lines_of_interest[0])[0]
     )
-    query_coverage = float(re.findall(r"(\d+\.\d+)%\s*\)$", lines_of_interest[0])[0])
-    avg_identity = float(re.findall(r"(\d+\.\d+)\s*$", lines_of_interest[1])[0])
+    query_coverage = (
+        Decimal(re.findall(r"(\d+\.\d+)%\s*\)$", lines_of_interest[0])[0]) / 100
+    )
+    avg_identity = Decimal(re.findall(r"(\d+\.\d+)\s*$", lines_of_interest[1])[0]) / 100
 
     return (aligned_bases, query_coverage, avg_identity)
 

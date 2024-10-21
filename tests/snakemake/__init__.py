@@ -90,13 +90,20 @@ def compare_matrices(database_path: Path, matrices_path: Path) -> None:
     assert run.identities is not None
     assert matrices_path.is_dir()
 
+    checked = False
     if (matrices_path / "matrix_identity.tsv").is_file():
         compare_matrix(run.identities, matrices_path / "matrix_identity.tsv")
+        checked = True
     if (matrices_path / "matrix_aln_lengths.tsv").is_file():
         compare_matrix(run.aln_length, matrices_path / "matrix_aln_lengths.tsv")
+        checked = True
     if (matrices_path / "matrix_coverage.tsv").is_file():
         compare_matrix(run.cov_query, matrices_path / "matrix_coverage.tsv")
+        checked = True
     if (matrices_path / "matrix_hadamard.tsv").is_file():
         compare_matrix(run.hadamard, matrices_path / "matrix_hadamard.tsv")
+        checked = True
     if (matrices_path / "matrix_sim_errors.tsv").is_file():
         compare_matrix(run.sim_errors, matrices_path / "matrix_sim_errors.tsv")
+        checked = True
+    assert checked, f"Missing expected matrices in {matrices_path}"

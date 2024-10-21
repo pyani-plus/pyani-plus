@@ -91,34 +91,26 @@ genome_hashes = {
     file.stem: utils.file_md5sum(file)
     for file in Path("../fixtures/viral_example/").glob("*.f*")
 }
-
-aligned_bases_matrix = pd.DataFrame(
-    index=genome_hashes.values(), columns=genome_hashes.values()
-)
-coverage_matrix = pd.DataFrame(
-    index=genome_hashes.values(), columns=genome_hashes.values()
-)
-avg_identity_matrix = pd.DataFrame(
-    index=genome_hashes.values(), columns=genome_hashes.values()
-)
+sorted_hashes = sorted(genome_hashes.values())
+aln_lengths_matrix = pd.DataFrame(index=sorted_hashes, columns=sorted_hashes)
+coverage_matrix = pd.DataFrame(index=sorted_hashes, columns=sorted_hashes)
+identity_matrix = pd.DataFrame(index=sorted_hashes, columns=sorted_hashes)
 
 # Appending information to matrices
 report_files = Path("../fixtures/dnadiff/targets/dnadiff_reports/").glob("*.report")
 
 for file in report_files:
-    query, reference = file.stem.split("_vs_")
+    query, subject = file.stem.split("_vs_")
+    query_hash = genome_hashes[query]
+    subject_hash = genome_hashes[subject]
     aligned_bases, query_coverage, avg_identity = parse_dnadiff_report(file)
-    aligned_bases_matrix.loc[genome_hashes[reference], genome_hashes[query]] = (
-        aligned_bases
-    )
-    coverage_matrix.loc[genome_hashes[reference], genome_hashes[query]] = query_coverage
-    avg_identity_matrix.loc[genome_hashes[reference], genome_hashes[query]] = (
-        avg_identity
-    )
+    aln_lengths_matrix.loc[query_hash, subject_hash] = aligned_bases
+    coverage_matrix.loc[query_hash, subject_hash] = query_coverage
+    identity_matrix.loc[query_hash, subject_hash] = avg_identity
 
 matrices_directory = "../fixtures/dnadiff/matrices/"
 Path(matrices_directory).mkdir(parents=True, exist_ok=True)
 
-aligned_bases_matrix.to_csv(matrices_directory + "matrix_aln_lengths.tsv", sep="\t")
+aln_lengths_matrix.to_csv(matrices_directory + "matrix_aln_lengths.tsv", sep="\t")
 coverage_matrix.to_csv(matrices_directory + "matrix_coverage.tsv", sep="\t")
-avg_identity_matrix.to_csv(matrices_directory + "matrix_identity.tsv", sep="\t")
+identity_matrix.to_csv(matrices_directory + "matrix_identity.tsv", sep="\t")

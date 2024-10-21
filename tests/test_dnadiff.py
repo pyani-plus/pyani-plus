@@ -220,19 +220,17 @@ def test_logging_dnadiff(
     subject = "78975d5144a1cd12e98898d573cf6536"  # MGV-GENOME-0266457.fna
     pytest.approx(
         comp.identity,
-        get_matrix_entry(
-            dir_dnadiff_matrices / "avg_identity_matrix.tsv", query, subject
-        ),
+        get_matrix_entry(dir_dnadiff_matrices / "matrix_identity.tsv", query, subject),
     )
     pytest.approx(
         comp.aln_length,
         get_matrix_entry(
-            dir_dnadiff_matrices / "aligned_bases_matrix.tsv", query, subject
+            dir_dnadiff_matrices / "matrix_aln_lengths.tsv", query, subject
         ),
     )
     pytest.approx(
         comp.cov_query,
-        get_matrix_entry(dir_dnadiff_matrices / "coverage_matrix.tsv", query, subject),
+        get_matrix_entry(dir_dnadiff_matrices / "matrix_coverage.tsv", query, subject),
     )
     session.close()
     tmp_db.unlink()

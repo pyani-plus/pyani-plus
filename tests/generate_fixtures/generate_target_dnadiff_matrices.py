@@ -119,6 +119,6 @@ for file in report_files:
 matrices_directory = "../fixtures/dnadiff/matrices/"
 Path(matrices_directory).mkdir(parents=True, exist_ok=True)
 
-aligned_bases_matrix.to_csv(matrices_directory + "aligned_bases_matrix.tsv", sep="\t")
-coverage_matrix.to_csv(matrices_directory + "coverage_matrix.tsv", sep="\t")
-avg_identity_matrix.to_csv(matrices_directory + "avg_identity_matrix.tsv", sep="\t")
+aligned_bases_matrix.to_csv(matrices_directory + "matrix_aln_lengths.tsv", sep="\t")
+coverage_matrix.to_csv(matrices_directory + "matrix_coverage.tsv", sep="\t")
+avg_identity_matrix.to_csv(matrices_directory + "matrix_identity.tsv", sep="\t")

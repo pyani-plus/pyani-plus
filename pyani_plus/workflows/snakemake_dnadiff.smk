@@ -85,7 +85,7 @@ rule show_diff_and_coords:
         """
         {params.show_diff} -qH {input.deltafilter} > {output.qdiff} &&
         {params.show_coords} -rclTH {input.deltafilter} > {output.mcoords} &&
-        .pyani-plus-private-cli log-dnadiff --database {params.db} \
+        chronic .pyani-plus-private-cli log-dnadiff --database {params.db} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
             --mcoords {output.mcoords} --qdiff {output.qdiff}
         """

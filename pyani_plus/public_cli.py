@@ -105,7 +105,9 @@ progress_columns = [
     MofNCompleteColumn(),
 ]
 
-app = typer.Typer()
+app = typer.Typer(
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 
 
 def check_db(database: Path | str, create_db: bool) -> None:  # noqa: FBT001

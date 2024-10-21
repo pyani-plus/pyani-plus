@@ -45,7 +45,9 @@ from pyani_plus.public_cli import (
 )
 from pyani_plus.utils import file_md5sum
 
-app = typer.Typer()
+app = typer.Typer(
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 
 REQ_ARG_TYPE_FASTA_FILES = Annotated[
     list[Path], typer.Argument(help="Path(s) to FASTA file(s)", show_default=False)

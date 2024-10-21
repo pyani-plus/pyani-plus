@@ -558,7 +558,7 @@ def log_dnadiff(
     # Should we add --maxmatch (nucmer) and -m (deltafilter) parameters?
     # These are default parameters used in workflows
 ) -> int:
-    """Log a single pyANI-plus ANIm pairwise comparison (with nucmer) to the database."""
+    """Log a single pyANI-plus dnadiff pairwise comparison (with nucmer) to the database."""
     # Assuming this will match as expect this script to be called right
     # after the computation has finished (on the same machine)
     dnadiff_tool = tools.get_dnadiff()
@@ -594,7 +594,7 @@ def log_dnadiff(
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging ANIm to {database}")  # noqa: T201
+    print(f"Logging dnadiff to {database}")  # noqa: T201
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(

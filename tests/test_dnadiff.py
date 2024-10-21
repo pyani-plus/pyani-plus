@@ -185,7 +185,7 @@ def test_logging_dnadiff(
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
 
-    tool = tools.get_dnadiff()
+    tool = tools.get_nucmer()
 
     private_cli.log_configuration(
         database=tmp_db,

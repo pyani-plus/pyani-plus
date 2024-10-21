@@ -561,7 +561,13 @@ def log_dnadiff(
     """Log a single pyANI-plus dnadiff pairwise comparison (with nucmer) to the database."""
     # Assuming this will match as expect this script to be called right
     # after the computation has finished (on the same machine)
-    dnadiff_tool = tools.get_dnadiff()
+    # We don't actually call the tool dnadiff (which has its own version),
+    # rather we call nucmer, delta-filter, show-diff and show-coords from mumer
+    tool = tools.ExternalToolData(
+        exe_path=tools.get_delta_filter().exe_path,
+        # As a proxy for the missing delta-filter version
+        version=tools.get_nucmer().version,
+    )
 
     identity, aligned_bases_with_gaps = method_dnadiff.parse_mcoords(mcoords)
     gap_lengths = method_dnadiff.parse_qdiff(qdiff)
@@ -600,8 +606,8 @@ def log_dnadiff(
     config = db_orm.db_configuration(
         session,
         method="dnadiff",
-        program=dnadiff_tool.exe_path.stem,
-        version=dnadiff_tool.version,
+        program=tool.exe_path.stem,
+        version=tool.version,
         fragsize=None,
         maxmatch=None,
         kmersize=None,

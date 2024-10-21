@@ -35,7 +35,6 @@ from pyani_plus.private_cli import log_configuration, log_genome, log_run
 from pyani_plus.snakemake import snakemake_scheduler
 from pyani_plus.tools import (
     get_delta_filter,
-    get_dnadiff,
     get_nucmer,
     get_show_coords,
     get_show_diff,
@@ -193,7 +192,7 @@ def test_snakemake_rule_show_diff_and_coords(  # noqa: PLR0913
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(dnadiff_targets_showdiff_outdir, ignore_errors=True)
 
-    dnadiff_tool = get_dnadiff()
+    nucmer_tool = get_nucmer()
 
     # Setup minimal test DB
     db = config_dnadiff_args["db"]
@@ -201,8 +200,8 @@ def test_snakemake_rule_show_diff_and_coords(  # noqa: PLR0913
     log_configuration(
         database=db,
         method="dnadiff",
-        program=dnadiff_tool.exe_path.stem,
-        version=dnadiff_tool.version,
+        program=nucmer_tool.exe_path.stem,
+        version=nucmer_tool.version,  # used as a proxy for MUMmer suite
         fragsize=None,
         maxmatch=None,
         kmersize=None,
@@ -241,8 +240,8 @@ def test_snakemake_rule_show_diff_and_coords(  # noqa: PLR0913
         name="Test case",
         cmdline="pyani-plus dnadiff --database ... blah blah blah",
         method="dnadiff",
-        program=dnadiff_tool.exe_path.stem,
-        version=dnadiff_tool.version,
+        program=nucmer_tool.exe_path.stem,
+        version=nucmer_tool.version,
         fragsize=None,
         maxmatch=None,
         kmersize=None,
@@ -274,7 +273,7 @@ def test_snakemake_rule_show_coords(  # noqa: PLR0913
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(dnadiff_targets_showcoords_outdir, ignore_errors=True)
 
-    dnadiff_tool = get_dnadiff()
+    nucmer_tool = get_nucmer()
 
     # Setup minimal test DB
     db = config_dnadiff_args["db"]
@@ -282,8 +281,8 @@ def test_snakemake_rule_show_coords(  # noqa: PLR0913
     log_configuration(
         database=db,
         method="dnadiff",
-        program=dnadiff_tool.exe_path.stem,
-        version=dnadiff_tool.version,
+        program=nucmer_tool.exe_path.stem,
+        version=nucmer_tool.version,  # used as a proxy for MUMer suite
         fragsize=None,
         maxmatch=None,
         kmersize=None,
@@ -321,8 +320,8 @@ def test_snakemake_rule_show_coords(  # noqa: PLR0913
         name="Test case",
         cmdline="pyani-plus dnadiff --database ... blah blah blah",
         method="dnadiff",
-        program=dnadiff_tool.exe_path.stem,
-        version=dnadiff_tool.version,
+        program=nucmer_tool.exe_path.stem,
+        version=nucmer_tool.version,  # used as a proxy for MUMmer suite
         fragsize=None,
         maxmatch=None,
         kmersize=None,

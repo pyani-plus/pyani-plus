@@ -3,5 +3,6 @@ intervaltree
 moreutils>=0.67
 perl-ipc-run
 snakemake>=8.12
+rich
 sqlalchemy>=2.0
 typer>=0.12

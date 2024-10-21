@@ -165,6 +165,7 @@ def test_logging_anib(
         method="ANIb",
         program=tool.exe_path.stem,
         version=tool.version,
+        fragsize=method_anib.FRAGSIZE,  # will be used by default in log_anib
         create_db=True,
     )
     private_cli.log_genome(

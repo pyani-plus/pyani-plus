@@ -291,7 +291,10 @@ def run_method(  # noqa: PLR0913
         session.close()  # Reduce chance of DB locking
 
         # Run snakemake wrapper
-        with tempfile.TemporaryDirectory(prefix="pyani-plus_") as tmp:
+        slurm = True
+        with tempfile.TemporaryDirectory(
+            prefix="pyani-plus_", dir="." if slurm else None
+        ) as tmp:
             tmp_path = Path(tmp) / "working"
             out_path = Path(tmp) / "output"
             targets = [

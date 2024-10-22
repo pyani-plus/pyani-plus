@@ -25,7 +25,8 @@ import importlib.resources as impresources
 from pathlib import Path
 
 from snakemake.api import ConfigSettings, DAGSettings, ResourceSettings, SnakemakeApi
-from snakemake.settings.types import OutputSettings, Quietness
+from snakemake.resources import DefaultResources
+from snakemake.settings.types import OutputSettings, Quietness, RemoteExecutionSettings
 
 from pyani_plus import workflows
 
@@ -72,6 +73,8 @@ class SnakemakeRunner:
         """
         targetset = [str(_) for _ in targetset]
 
+        workdir = Path.cwd()  # for testing SLURM
+
         # Path to anim snakemake file
         snakefile = impresources.files(workflows) / self.workflow_filename
 
@@ -79,12 +82,46 @@ class SnakemakeRunner:
         with SnakemakeApi(OutputSettings(quiet={Quietness.ALL})) as snakemake_api:
             workflow_api = snakemake_api.workflow(
                 snakefile=snakefile,
-                resource_settings=ResourceSettings(cores=config_args["cores"]),
-                config_settings=ConfigSettings(config=config_args),
+                resource_settings=ResourceSettings(
+                    cores=config_args["cores"],
+                    nodes=4,  # for slurm not local usage
+                    default_resources=DefaultResources(
+                        # These must be configurable...
+                        args=["slurm_partition=dev", "slurm_account=pritchard-grxiv"],
+                    ),
+                ),
+                config_settings=ConfigSettings(
+                    # Force any Path to plain string to avoid excessive quotes
+                    config={
+                        k: (str(v) if isinstance(v, Path) else v)
+                        for k, v in config_args.items()
+                    },
+                ),
                 workdir=workdir,
             )
             dag_api = workflow_api.dag(
                 dag_settings=DAGSettings(targets=targetset),
             )
             dag_api.unlock()
-            dag_api.execute_workflow()
+            if True:
+                # SLURM
+                from snakemake_executor_plugin_slurm import (
+                    ExecutorSettings as SlurmExecutorSettings,
+                )
+
+                # This are very cluster specific...
+                remote_exe_settings = RemoteExecutionSettings()
+                remote_exe_settings.precommand = (
+                    "module purge && "
+                    "module load miniconda && "
+                    "conda activate pyani-plus_py312 && "
+                    "python --version"
+                )
+                dag_api.execute_workflow(
+                    executor="slurm",
+                    executor_settings=SlurmExecutorSettings(),
+                    remote_execution_settings=remote_exe_settings,
+                )
+            else:
+                # Local
+                dag_api.execute_workflow()

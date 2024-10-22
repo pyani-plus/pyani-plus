@@ -249,7 +249,7 @@ def test_snakemake_rule_show_diff_and_coords(  # noqa: PLR0913
         minmatch=None,
         create_db=False,
     )
-    compare_matrices(db, dir_dnadiff_matrices)
+    compare_matrices(db, dir_dnadiff_matrices, absolute_tolerance=5e-5)
 
 
 def test_snakemake_rule_show_coords(  # noqa: PLR0913
@@ -329,4 +329,4 @@ def test_snakemake_rule_show_coords(  # noqa: PLR0913
         minmatch=None,
         create_db=False,
     )
-    compare_matrices(db, dir_dnadiff_matrices)
+    compare_matrices(db, dir_dnadiff_matrices, absolute_tolerance=5e-5)

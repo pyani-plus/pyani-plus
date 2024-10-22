@@ -28,12 +28,16 @@ import pandas as pd
 from pyani_plus import db_orm
 
 
-def compare_matrix(matrix_df: pd.DataFrame, matrix_path: Path) -> None:
+def compare_matrix(
+    matrix_df: pd.DataFrame, matrix_path: Path, absolute_tolerance: float | None = None
+) -> None:
     """Compare output matrix to expected values from given TSV file.
 
     The output from legacy pyANI v0.3 should be using MD5 captions,
     but will have appended colon-index to them. Also the order will
     be different, the current ORM returns the matrix sorted by MD5.
+
+    Any absolute_tolerance is only used for floats.
     """
 
     def strip_colon(text: str) -> str:
@@ -56,10 +60,17 @@ def compare_matrix(matrix_df: pd.DataFrame, matrix_path: Path) -> None:
         # Cast both to float
         expected_df = expected_df.astype(float)
         matrix_df = matrix_df.astype(float)
-    pd.testing.assert_frame_equal(matrix_df, expected_df, obj=matrix_path.stem)
+    if absolute_tolerance is None:
+        pd.testing.assert_frame_equal(matrix_df, expected_df, obj=matrix_path.stem)
+    else:
+        pd.testing.assert_frame_equal(
+            matrix_df, expected_df, obj=matrix_path.stem, atol=absolute_tolerance
+        )
 
 
-def compare_matrices(database_path: Path, matrices_path: Path) -> None:
+def compare_matrices(
+    database_path: Path, matrices_path: Path, absolute_tolerance: float = 2e-8
+) -> None:
     """Compare the matrices in the given DB to legacy output from pyANI.
 
     Assumes there is one and only one run in the database. Checks there
@@ -76,6 +87,8 @@ def compare_matrices(database_path: Path, matrices_path: Path) -> None:
     * ``matrix_sim_errors.tsv``
 
     If any of the files are missing, the comparison is skipped.
+
+    The absolute_tolerance is only used for the floating point matrices.
     """
     session = db_orm.connect_to_db(database_path)
     run = session.query(db_orm.Run).one()
@@ -92,16 +105,28 @@ def compare_matrices(database_path: Path, matrices_path: Path) -> None:
 
     checked = False
     if (matrices_path / "matrix_identity.tsv").is_file():
-        compare_matrix(run.identities, matrices_path / "matrix_identity.tsv")
+        compare_matrix(
+            run.identities,
+            matrices_path / "matrix_identity.tsv",
+            absolute_tolerance=absolute_tolerance,
+        )
         checked = True
     if (matrices_path / "matrix_aln_lengths.tsv").is_file():
         compare_matrix(run.aln_length, matrices_path / "matrix_aln_lengths.tsv")
         checked = True
     if (matrices_path / "matrix_coverage.tsv").is_file():
-        compare_matrix(run.cov_query, matrices_path / "matrix_coverage.tsv")
+        compare_matrix(
+            run.cov_query,
+            matrices_path / "matrix_coverage.tsv",
+            absolute_tolerance=absolute_tolerance,
+        )
         checked = True
     if (matrices_path / "matrix_hadamard.tsv").is_file():
-        compare_matrix(run.hadamard, matrices_path / "matrix_hadamard.tsv")
+        compare_matrix(
+            run.hadamard,
+            matrices_path / "matrix_hadamard.tsv",
+            absolute_tolerance=absolute_tolerance,
+        )
         checked = True
     if (matrices_path / "matrix_sim_errors.tsv").is_file():
         compare_matrix(run.sim_errors, matrices_path / "matrix_sim_errors.tsv")

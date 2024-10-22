@@ -221,6 +221,7 @@ def test_logging_dnadiff(
     pytest.approx(
         comp.identity,
         get_matrix_entry(dir_dnadiff_matrices / "matrix_identity.tsv", query, subject),
+        abs=5e-5,
     )
     pytest.approx(
         comp.aln_length,

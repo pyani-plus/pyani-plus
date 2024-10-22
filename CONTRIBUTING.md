@@ -32,11 +32,15 @@ cd pyani-plus
 
 ### Set up the development environment
 
-We recommend creating a `conda` environment specifically for development of `pyani-plus`.
+We recommend creating a `conda` environment specifically for development of `pyani-plus`, and use just the bioconda and conda-forge channels:
 
 ```bash
 conda create --name pyani-plus_py312 python=3.12 -y
 conda activate pyani-plus_py312
+conda config --add channels bioconda
+conda config --add channels conda-forge
+conda config --set channel_priority strict
+conda config --remove channels defaults
 ```
 
 With the environment activated, use the `Makefile` to set up the recommended development environment. Use the `Make` rule corresponding to your operating system
@@ -44,6 +48,12 @@ With the environment activated, use the `Makefile` to set up the recommended dev
 ```bash
 make setup_dev_linux  # Linux OR...
 make setup_dev_macos  # macOS
+```
+
+Those conda and make commands are a one-off setup, after which all you need in a fresh terminal session is:
+
+```bash
+conda activate pyani-plus_py312
 ```
 
 This will set up the tool pre-commit as a git pre-commit hook, which will run

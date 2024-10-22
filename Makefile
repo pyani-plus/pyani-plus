@@ -39,6 +39,7 @@ fixtures:
 	cd tests/generate_fixtures/; ./generate_anib_blast_files.py
 	cd tests/generate_fixtures/; ./generate_target_anim_files.py
 	cd tests/generate_fixtures/; ./generate_target_dnadiff_files.py
+	cd tests/generate_fixtures/; ./generate_target_dnadiff_matrices.py
 	@echo ""
 	@echo "WARNING: If any tool version has changed, the generated test files"
 	@echo "under fixtures/ may have changed (check using 'git diff'), and"

@@ -62,16 +62,19 @@ from line[11], and AvgIdentity from line[23].
 """
 
 import re
+from decimal import Decimal
 from pathlib import Path
 
 import pandas as pd
-from Bio import SeqIO
 
 from pyani_plus import utils
 
 
-def parse_dnadiff_report(dnadiff_report: Path) -> tuple[int, float, float]:
-    """Return dnadiff values for AlignedBases, genome coverage (QRY) and average identity."""
+def parse_dnadiff_report(dnadiff_report: Path) -> tuple[int, Decimal, Decimal]:
+    """Return dnadiff values for AlignedBases, genome coverage (QRY) and average identity.
+
+    These coverage and identity are converted to be in the range 0 to 1.
+    """
     with Path.open(dnadiff_report) as file:
         lines = file.readlines()
 
@@ -81,8 +84,10 @@ def parse_dnadiff_report(dnadiff_report: Path) -> tuple[int, float, float]:
     aligned_bases = int(
         re.findall(r"(\d+)\s*\(\d+\.\d+%\)\s*$", lines_of_interest[0])[0]
     )
-    query_coverage = float(re.findall(r"(\d+\.\d+)%\s*\)$", lines_of_interest[0])[0])
-    avg_identity = float(re.findall(r"(\d+\.\d+)\s*$", lines_of_interest[1])[0])
+    query_coverage = (
+        Decimal(re.findall(r"(\d+\.\d+)%\s*\)$", lines_of_interest[0])[0]) / 100
+    )
+    avg_identity = Decimal(re.findall(r"(\d+\.\d+)\s*$", lines_of_interest[1])[0]) / 100
 
     return (aligned_bases, query_coverage, avg_identity)
 
@@ -92,59 +97,26 @@ genome_hashes = {
     file.stem: utils.file_md5sum(file)
     for file in Path("../fixtures/viral_example/").glob("*.f*")
 }
-
-aligned_bases_matrix = pd.DataFrame(
-    index=genome_hashes.values(), columns=genome_hashes.values()
-)
-coverage_matrix = pd.DataFrame(
-    index=genome_hashes.values(), columns=genome_hashes.values()
-)
-avg_identity_matrix = pd.DataFrame(
-    index=genome_hashes.values(), columns=genome_hashes.values()
-)
-
-
-# Obtain input sets lengths
-
-
-def get_genome_length(filename: Path) -> int:
-    """Return total length of all sequences in a FASTA file.
-
-    :param filename:  path to FASTA file.
-    """
-    with Path.open(filename) as ifh:
-        return sum([len(record) for record in SeqIO.parse(ifh, "fasta")])
-
-
-records = Path("../fixtures/viral_example/").glob("*.f*")
-genome_lengths = {
-    utils.file_md5sum(record): get_genome_length(record) for record in records
-}
+sorted_hashes = sorted(genome_hashes.values())
+aln_lengths_matrix = pd.DataFrame(index=sorted_hashes, columns=sorted_hashes)
+coverage_matrix = pd.DataFrame(index=sorted_hashes, columns=sorted_hashes)
+identity_matrix = pd.DataFrame(index=sorted_hashes, columns=sorted_hashes)
 
 # Appending information to matrices
 report_files = Path("../fixtures/dnadiff/targets/dnadiff_reports/").glob("*.report")
 
 for file in report_files:
-    reference, query = file.stem.split("_vs_")
+    query, subject = file.stem.split("_vs_")
+    query_hash = genome_hashes[query]
+    subject_hash = genome_hashes[subject]
     aligned_bases, query_coverage, avg_identity = parse_dnadiff_report(file)
-    aligned_bases_matrix.loc[genome_hashes[reference], genome_hashes[query]] = (
-        aligned_bases
-    )
-    coverage_matrix.loc[genome_hashes[reference], genome_hashes[query]] = query_coverage
-    avg_identity_matrix.loc[genome_hashes[reference], genome_hashes[query]] = (
-        avg_identity
-    )
-    # for self-to-self assign 100% for average identity and coverage for now
-    avg_identity_matrix.loc[genome_hashes[reference], genome_hashes[reference]] = 100
-    coverage_matrix.loc[genome_hashes[reference], genome_hashes[reference]] = 100
-    # for self-to-self assign length of the whole genome for number of aligned bases for now
-    aligned_bases_matrix.loc[genome_hashes[reference], genome_hashes[reference]] = (
-        genome_lengths[genome_hashes[reference]]
-    )
+    aln_lengths_matrix.loc[query_hash, subject_hash] = aligned_bases
+    coverage_matrix.loc[query_hash, subject_hash] = query_coverage
+    identity_matrix.loc[query_hash, subject_hash] = avg_identity
 
 matrices_directory = "../fixtures/dnadiff/matrices/"
 Path(matrices_directory).mkdir(parents=True, exist_ok=True)
 
-aligned_bases_matrix.to_csv(matrices_directory + "aligned_bases_matrix.tsv", sep="\t")
-coverage_matrix.to_csv(matrices_directory + "coverage_matrix.tsv", sep="\t")
-avg_identity_matrix.to_csv(matrices_directory + "avg_identity_matrix.tsv", sep="\t")
+aln_lengths_matrix.to_csv(matrices_directory + "matrix_aln_lengths.tsv", sep="\t")
+coverage_matrix.to_csv(matrices_directory + "matrix_coverage.tsv", sep="\t")
+identity_matrix.to_csv(matrices_directory + "matrix_identity.tsv", sep="\t")

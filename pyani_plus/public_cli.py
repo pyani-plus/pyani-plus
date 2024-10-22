@@ -330,6 +330,44 @@ def anim(
 
 
 @app.command(rich_help_panel="ANI methods")
+def dnadiff(
+    fasta: REQ_ARG_TYPE_FASTA_DIR,
+    database: REQ_ARG_TYPE_DATABASE,
+    # These are for the run table:
+    name: REQ_ARG_TYPE_RUN_NAME,
+    # Does not use fragsize, maxmatch, kmersize, or minmatch
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+) -> int:
+    """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
+    check_db(database, create_db)
+
+    target_extension = ".qdiff"  # or .mcoords as rule makes both
+    # We don't actually call the tool dnadiff (which has its own version),
+    # rather we call nucmer, delta-filter, show-diff and show-coords from MUMmer
+    tool = tools.get_nucmer()
+    params: dict[str, object] = {
+        "nucmer": tool.exe_path,
+        "delta_filter": tools.get_delta_filter().exe_path,
+        "show_diff": tools.get_show_diff().exe_path,
+        "show_coords": tools.get_show_coords().exe_path,
+    }
+    fragsize = maxmatch = kmersize = minmatch = None
+    return run_method(
+        database,
+        name,
+        "dnadiff",
+        fasta,
+        target_extension,
+        tool,
+        fragsize,
+        maxmatch,
+        kmersize,
+        minmatch,
+        params,
+    )
+
+
+@app.command(rich_help_panel="ANI methods")
 def anib(
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,

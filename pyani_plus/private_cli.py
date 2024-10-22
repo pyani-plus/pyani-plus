@@ -547,10 +547,10 @@ def log_anib(
 
 @app.command()
 def log_dnadiff(
-    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
-    query_fasta: Annotated[Path, typer.Option(help="Path to query FASTA file")],
-    subject_fasta: Annotated[Path, typer.Option(help="Path to subject FASTA file")],
+    query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
+    subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     mcoords: Annotated[
         Path, typer.Option(help="Path to show-coords (.mcoords) output file")
     ],
@@ -558,10 +558,12 @@ def log_dnadiff(
     # Should we add --maxmatch (nucmer) and -m (deltafilter) parameters?
     # These are default parameters used in workflows
 ) -> int:
-    """Log a single pyANI-plus ANIm pairwise comparison (with nucmer) to the database."""
+    """Log a single pyANI-plus dnadiff pairwise comparison (with nucmer) to the database."""
     # Assuming this will match as expect this script to be called right
     # after the computation has finished (on the same machine)
-    dnadiff_tool = tools.get_dnadiff()
+    # We don't actually call the tool dnadiff (which has its own version),
+    # rather we call nucmer, delta-filter, show-diff and show-coords from mumer
+    tool = tools.get_nucmer()
 
     identity, aligned_bases_with_gaps = method_dnadiff.parse_mcoords(mcoords)
     gap_lengths = method_dnadiff.parse_qdiff(qdiff)
@@ -594,14 +596,14 @@ def log_dnadiff(
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging ANIm to {database}")  # noqa: T201
+    print(f"Logging dnadiff to {database}")  # noqa: T201
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
         session,
         method="dnadiff",
-        program=dnadiff_tool.exe_path.stem,
-        version=dnadiff_tool.version,
+        program=tool.exe_path.stem,
+        version=tool.version,
         fragsize=None,
         maxmatch=None,
         kmersize=None,

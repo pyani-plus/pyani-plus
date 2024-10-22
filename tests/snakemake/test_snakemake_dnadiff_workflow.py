@@ -31,6 +31,7 @@ from pathlib import Path
 
 import pytest
 
+from pyani_plus.private_cli import log_configuration, log_genome, log_run
 from pyani_plus.snakemake import snakemake_scheduler
 from pyani_plus.tools import (
     get_delta_filter,
@@ -39,11 +40,14 @@ from pyani_plus.tools import (
     get_show_diff,
 )
 
+from . import compare_matrices
+
 
 @pytest.fixture
 def config_dnadiff_args(
     input_genomes_tiny: Path,
     snakemake_cores: int,
+    tmp_path: str,
 ) -> dict:
     """Return configuration settings for testing snakemake dnadiff file.
 
@@ -51,12 +55,13 @@ def config_dnadiff_args(
     the small set of input genomes as arguments.
     """
     return {
+        "db": Path(tmp_path) / "db.sqlite",
         "nucmer": get_nucmer().exe_path,
         "delta_filter": get_delta_filter().exe_path,
         "show_coords": get_show_coords().exe_path,
         "show_diff": get_show_diff().exe_path,
         # "outdir": ... is dynamic
-        "indir": str(input_genomes_tiny),
+        "indir": input_genomes_tiny,
         "cores": snakemake_cores,
     }
 
@@ -165,17 +170,18 @@ def test_snakemake_rule_filter(
         )
 
 
-def test_snakemake_rule_show_diff(
+def test_snakemake_rule_show_diff_and_coords(  # noqa: PLR0913
     dnadiff_targets_showdiff: list[str],
     dnadiff_targets_showdiff_indir: Path,
     dnadiff_targets_showdiff_outdir: Path,
     config_dnadiff_args: dict,
+    dir_dnadiff_matrices: Path,
     tmp_path: str,
 ) -> None:
     """Test dnadiff show-diff snakemake wrapper.
 
-    Checks that the show-diff rule in the dnadiff snakemake wrapper gives the
-    expected output.
+    Checks that the show_diff_and_coords rule in the dnadiff snakemake wrapper gives the
+    expected show-diff output.
 
     If the output directory exists (i.e. the make clean_tests rule has not
     been run), the tests will automatically pass as snakemake will not
@@ -185,6 +191,32 @@ def test_snakemake_rule_show_diff(
     """
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(dnadiff_targets_showdiff_outdir, ignore_errors=True)
+
+    nucmer_tool = get_nucmer()
+
+    # Setup minimal test DB
+    db = config_dnadiff_args["db"]
+    assert not db.is_file()
+    log_configuration(
+        database=db,
+        method="dnadiff",
+        program=nucmer_tool.exe_path.stem,
+        version=nucmer_tool.version,  # used as a proxy for MUMmer suite
+        fragsize=None,
+        maxmatch=None,
+        kmersize=None,
+        minmatch=None,
+        create_db=True,
+    )
+
+    # Record the FASTA files in the genomes table _before_ call snakemake
+    log_genome(
+        database=db,
+        fasta=list(
+            snakemake_scheduler.check_input_stems(config_dnadiff_args["indir"]).values()
+        ),
+    )
+    assert db.is_file()
 
     config = config_dnadiff_args.copy()
     config["outdir"] = dnadiff_targets_showdiff_outdir
@@ -201,18 +233,36 @@ def test_snakemake_rule_show_diff(
             skip=0,
         )
 
+    log_run(
+        fasta=config_dnadiff_args["indir"].glob("*.f*"),
+        database=db,
+        status="Complete",
+        name="Test case",
+        cmdline="pyani-plus dnadiff --database ... blah blah blah",
+        method="dnadiff",
+        program=nucmer_tool.exe_path.stem,
+        version=nucmer_tool.version,
+        fragsize=None,
+        maxmatch=None,
+        kmersize=None,
+        minmatch=None,
+        create_db=False,
+    )
+    compare_matrices(db, dir_dnadiff_matrices, absolute_tolerance=5e-5)
 
-def test_snakemake_rule_show_coords(
+
+def test_snakemake_rule_show_coords(  # noqa: PLR0913
     dnadiff_targets_showcoords: list[str],
     dnadiff_targets_showcoords_indir: Path,
     dnadiff_targets_showcoords_outdir: Path,
     config_dnadiff_args: dict,
+    dir_dnadiff_matrices: Path,
     tmp_path: str,
 ) -> None:
     """Test dnadiff show-coords snakemake wrapper.
 
-    Checks that the show-coords rule in the dnadiff snakemake wrapper gives the
-    expected output.
+    Checks that the show_diff_and_coords rule in the dnadiff snakemake wrapper gives the
+    expected show-coords output.
 
     If the output directory exists (i.e. the make clean_tests rule has not
     been run), the tests will automatically pass as snakemake will not
@@ -222,6 +272,31 @@ def test_snakemake_rule_show_coords(
     """
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(dnadiff_targets_showcoords_outdir, ignore_errors=True)
+
+    nucmer_tool = get_nucmer()
+
+    # Setup minimal test DB
+    db = config_dnadiff_args["db"]
+    assert not db.is_file()
+    log_configuration(
+        database=db,
+        method="dnadiff",
+        program=nucmer_tool.exe_path.stem,
+        version=nucmer_tool.version,  # used as a proxy for MUMer suite
+        fragsize=None,
+        maxmatch=None,
+        kmersize=None,
+        minmatch=None,
+        create_db=True,
+    )
+    # Record the FASTA files in the genomes table _before_ call snakemake
+    log_genome(
+        database=db,
+        fasta=list(
+            snakemake_scheduler.check_input_stems(config_dnadiff_args["indir"]).values()
+        ),
+    )
+    assert db.is_file()
 
     config = config_dnadiff_args.copy()
     config["outdir"] = dnadiff_targets_showcoords_outdir
@@ -237,3 +312,20 @@ def test_snakemake_rule_show_coords(
             dnadiff_targets_showcoords_outdir / fname,
             skip=0,
         )
+
+    log_run(
+        fasta=config_dnadiff_args["indir"].glob("*.f*"),
+        database=db,
+        status="Complete",
+        name="Test case",
+        cmdline="pyani-plus dnadiff --database ... blah blah blah",
+        method="dnadiff",
+        program=nucmer_tool.exe_path.stem,
+        version=nucmer_tool.version,  # used as a proxy for MUMmer suite
+        fragsize=None,
+        maxmatch=None,
+        kmersize=None,
+        minmatch=None,
+        create_db=False,
+    )
+    compare_matrices(db, dir_dnadiff_matrices, absolute_tolerance=5e-5)

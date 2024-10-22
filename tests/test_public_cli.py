@@ -35,7 +35,9 @@ from pyani_plus import db_orm, public_cli
 
 
 # This is very similar to the functions under tests/snakemake/__init__.py
-def compare_matrix_files(expected_file: Path, new_file: Path) -> None:
+def compare_matrix_files(
+    expected_file: Path, new_file: Path, atol: float | None = None
+) -> None:
     """Compare two matrix files (after sorting)."""
     assert expected_file.is_file(), f"Missing expected {expected_file}"
     assert new_file.is_file(), f"Missing output {new_file}"
@@ -49,7 +51,10 @@ def compare_matrix_files(expected_file: Path, new_file: Path) -> None:
         .sort_index(axis=0)
         .sort_index(axis=1)
     )
-    pd.testing.assert_frame_equal(expected_df, new_df, obj=new_file)
+    if atol is None:
+        pd.testing.assert_frame_equal(expected_df, new_df, obj=new_file)
+    else:
+        pd.testing.assert_frame_equal(expected_df, new_df, obj=new_file, atol=atol)
 
 
 def test_check_db() -> None:
@@ -163,6 +168,24 @@ def test_anim(tmp_path: str, input_genomes_tiny: Path, dir_anim_results: Path) -
     public_cli.export_run(database=tmp_db, outdir=out, run_id=1)  # have two runs
     compare_matrix_files(
         dir_anim_results / "matrix_identity.tsv", out / "ANIm_identity.tsv"
+    )
+
+
+def test_dnadiff(
+    tmp_path: str, input_genomes_tiny: Path, dir_dnadiff_matrices: Path
+) -> None:
+    """Check dnadiff run (default settings)."""
+    out = Path(tmp_path)
+    tmp_db = out / "example.sqlite"
+    public_cli.dnadiff(
+        database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=True
+    )
+    public_cli.export_run(database=tmp_db, outdir=out)
+    # Fuzzy, 0.9963 from dnadiff tool != 0.9962661747 from our code
+    compare_matrix_files(
+        dir_dnadiff_matrices / "matrix_identity.tsv",
+        out / "dnadiff_identity.tsv",
+        atol=5e-5,
     )
 
 

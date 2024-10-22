@@ -27,9 +27,9 @@ new analysis (which can build on existing comparisons if the same DB is
 used), and reporting on a finished analysis (exporting tables and plots).
 """
 
+import multiprocessing
 import sys
 import tempfile
-from multiprocessing import Process
 from pathlib import Path
 from typing import Annotated
 
@@ -151,7 +151,14 @@ def run_snakemake_with_progress_bar(
     # All rest replaces one line, runner.run_workflow(targets, params, workdir=working_directory)
 
     pending = [Path(_) for _ in targets]
-    p = Process(
+
+    # As of Python 3.8 onwards, the default on macOS ("Darwin") is "spawn"
+    # As of Python 3.12, the default of "fork" on Linux triggers a deprecation warning.
+    # This should match the defaults on Python 3.14 onwards.
+    # Note mypy currently can't handle this dynamic situation, their issue #8603
+    p = multiprocessing.get_context(  # type:ignore [attr-defined]
+        "spawn" if sys.platform == "darwin" else "forkserver"
+    ).Process(
         target=runner.run_workflow,
         args=(targets, params),
         kwargs={"workdir": working_directory},

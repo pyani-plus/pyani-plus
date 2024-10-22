@@ -547,10 +547,10 @@ def log_anib(
 
 @app.command()
 def log_dnadiff(
-    database: Annotated[str, typer.Option(help="Path to pyANI-plus SQLite3 database")],
+    database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
-    query_fasta: Annotated[Path, typer.Option(help="Path to query FASTA file")],
-    subject_fasta: Annotated[Path, typer.Option(help="Path to subject FASTA file")],
+    query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
+    subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     mcoords: Annotated[
         Path, typer.Option(help="Path to show-coords (.mcoords) output file")
     ],
@@ -563,11 +563,7 @@ def log_dnadiff(
     # after the computation has finished (on the same machine)
     # We don't actually call the tool dnadiff (which has its own version),
     # rather we call nucmer, delta-filter, show-diff and show-coords from mumer
-    tool = tools.ExternalToolData(
-        exe_path=tools.get_delta_filter().exe_path,
-        # As a proxy for the missing delta-filter version
-        version=tools.get_nucmer().version,
-    )
+    tool = tools.get_nucmer()
 
     identity, aligned_bases_with_gaps = method_dnadiff.parse_mcoords(mcoords)
     gap_lengths = method_dnadiff.parse_qdiff(qdiff)

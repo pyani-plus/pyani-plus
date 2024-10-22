@@ -43,7 +43,7 @@ def expected_mcoords_output() -> tuple[float, int]:
 
     MGV-GENOME-0264574 (REF) MGV-GENOME-0266457 (QRY).
     """  # noqa: D401
-    return (99.63, 39253)
+    return (0.996266174669021, 39253)
 
 
 @pytest.fixture

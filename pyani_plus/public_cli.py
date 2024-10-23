@@ -46,6 +46,7 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
+from sqlalchemy import text
 from sqlalchemy.exc import NoResultFound
 
 from pyani_plus import db_orm, tools
@@ -134,26 +135,43 @@ def check_fasta(fasta: Path) -> list[Path]:
     return fasta_names
 
 
-def progress_bar_for_targets(
-    caption: str, pending: list[Path], interval: float
+def progress_bar_via_db_comparisons(
+    database: Path, run_id: int, interval: float = 1.0
 ) -> None:
-    """Show a progress bar based on monitor the given list of filenames.
+    """Show a progress bar based on monitoring the DB entries.
 
-    Will only self-terminate once all the files exist!
+    Will only self-terminate once all the run's comparisons are
+    in the database! Up to the caller to terminate it early.
     """
+    session = db_orm.connect_to_db(database)
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+
+    already_done = run.comparisons().count()
+    total = run.genomes.count() ** 2 - already_done
+
+    done = 0
+    old_db_version = -1
     with Progress(*progress_columns) as progress:
-        task = progress.add_task(caption, total=len(pending))
-        while pending:
+        task = progress.add_task("Comparing pairs", total=total)
+        while done < total:
             sleep(interval)
-            for t in pending[:]:
-                if t.is_file():
-                    # Could print(f"Done: {t}")
-                    pending.remove(t)
-                    progress.update(task, advance=1)
+            # Have there been any DB changes?
+            db_version = (
+                session.connection().execute(text("PRAGMA data_version;")).one()[0]
+            )
+            if old_db_version == db_version:
+                continue
+            old_db_version = db_version
+            new = run.comparisons().count() - already_done - done
+            progress.update(task, advance=new)
+            done += new
+    session.close()
 
 
-def run_snakemake_with_progress_bar(
+def run_snakemake_with_progress_bar(  # noqa: PLR0913
     workflow_name: str,
+    database: Path,
+    run_id: int,
     targets: list[Path],
     params: dict,
     working_directory: Path,
@@ -169,8 +187,6 @@ def run_snakemake_with_progress_bar(
     runner = snakemake_scheduler.SnakemakeRunner(workflow_name)
     # All rest replaces one line, runner.run_workflow(targets, params, workdir=working_directory)
 
-    pending = [Path(_) for _ in targets]
-
     # As of Python 3.8 onwards, the default on macOS ("Darwin") is "spawn"
     # As of Python 3.12, the default of "fork" on Linux triggers a deprecation warning.
     # This should match the defaults on Python 3.14 onwards.
@@ -178,11 +194,12 @@ def run_snakemake_with_progress_bar(
     p = multiprocessing.get_context(  # type:ignore [attr-defined]
         "spawn" if sys.platform == "darwin" else "forkserver"
     ).Process(
-        target=progress_bar_for_targets,
-        # Same length:
-        # Indexing FASTAs
-        # Comparing pairs
-        args=("Comparing pairs", pending, interval),
+        target=progress_bar_via_db_comparisons,
+        args=(
+            database,
+            run_id,
+            interval,
+        ),
     )
     p.start()
 
@@ -196,7 +213,8 @@ def run_snakemake_with_progress_bar(
         raise err from None
 
     if p.is_alive():
-        # Should have finished!
+        # Should have finished, but perhaps final update is pending...
+        sleep(interval)
         p.terminate()
     p.join()
 
@@ -288,7 +306,14 @@ def run_method(  # noqa: PLR0913
             params["outdir"] = out_path.resolve()
             params["db"] = Path(database).resolve()  # must be absolute
             params["cores"] = available_cores()  # should make configurable
-            run_snakemake_with_progress_bar(workflow_name, targets, params, tmp_path)
+            run_snakemake_with_progress_bar(
+                workflow_name,
+                Path(database),
+                run_id,
+                targets,
+                params,
+                tmp_path,
+            )
 
         # Reconnect to the DB
         session = db_orm.connect_to_db(database)

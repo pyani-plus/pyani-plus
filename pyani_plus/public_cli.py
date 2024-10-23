@@ -31,6 +31,7 @@ import multiprocessing
 import sys
 import tempfile
 from pathlib import Path
+from time import sleep
 from typing import Annotated
 
 import pandas as pd
@@ -133,13 +134,31 @@ def check_fasta(fasta: Path) -> list[Path]:
     return fasta_names
 
 
+def progress_bar_for_targets(
+    caption: str, pending: list[Path], interval: float
+) -> None:
+    """Show a progress bar based on monitor the given list of filenames.
+
+    Will only self-terminate once all the files exist!
+    """
+    with Progress(*progress_columns) as progress:
+        task = progress.add_task(caption, total=len(pending))
+        while pending:
+            sleep(interval)
+            for t in pending[:]:
+                if t.is_file():
+                    # Could print(f"Done: {t}")
+                    pending.remove(t)
+                    progress.update(task, advance=1)
+
+
 def run_snakemake_with_progress_bar(
     workflow_name: str,
     targets: list[Path],
     params: dict,
     working_directory: Path,
     interval: float = 0.5,
-) -> int:
+) -> None:
     """Run snakemake with a progress bar.
 
     Currently this works by monitoring the filesystem for the appearance of
@@ -159,31 +178,27 @@ def run_snakemake_with_progress_bar(
     p = multiprocessing.get_context(  # type:ignore [attr-defined]
         "spawn" if sys.platform == "darwin" else "forkserver"
     ).Process(
-        target=runner.run_workflow,
-        args=(targets, params),
-        kwargs={"workdir": working_directory},
-    )
-    p.start()
-    with Progress(*progress_columns) as progress:
+        target=progress_bar_for_targets,
         # Same length:
         # Indexing FASTAs
         # Comparing pairs
-        task = progress.add_task("Comparing pairs", total=len(pending))
-        while pending:
-            p.join(interval)
-            for t in pending[:]:
-                if t.is_file():
-                    # Could print(f"Done: {t}")
-                    pending.remove(t)
-                    progress.update(task, advance=1)
-            if p.exitcode is not None:
-                # Should be finished, but was it success or failure?
-                pending = []  # to break the loop
-    p.join()  # Should be immediate as should have finished
-    if p.exitcode is None:
-        msg = "Snakemake did not stop?"
-        sys.exit(msg)
-    return p.exitcode
+        args=("Comparing pairs", pending, interval),
+    )
+    p.start()
+
+    # Call slurm!
+    try:
+        runner.run_workflow(targets, params, workdir=working_directory)
+    except Exception as err:  # noqa: BLE001
+        p.terminate()
+        # Ensure traceback starts on a new line after interrupted progress bar
+        print()  # noqa: T201
+        raise err from None
+
+    if p.is_alive():
+        # Should have finished!
+        p.terminate()
+    p.join()
 
 
 def run_method(  # noqa: PLR0913
@@ -273,14 +288,7 @@ def run_method(  # noqa: PLR0913
             params["outdir"] = out_path.resolve()
             params["db"] = Path(database).resolve()  # must be absolute
             params["cores"] = available_cores()  # should make configurable
-            return_code = run_snakemake_with_progress_bar(
-                workflow_name, targets, params, tmp_path
-            )
-            if return_code:
-                sys.stderr.write(
-                    f"Snakemake failed to run {workflow_name} with return code {return_code}\n"
-                )
-                sys.exit(return_code)
+            run_snakemake_with_progress_bar(workflow_name, targets, params, tmp_path)
 
         # Reconnect to the DB
         session = db_orm.connect_to_db(database)

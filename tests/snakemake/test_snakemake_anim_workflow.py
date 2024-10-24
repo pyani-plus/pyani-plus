@@ -33,9 +33,12 @@ from pathlib import Path
 import pytest
 
 from pyani_plus.private_cli import log_configuration, log_genome, log_run
-from pyani_plus.snakemake import snakemake_scheduler
-from pyani_plus.tools import ToolExecutor, get_delta_filter, get_nucmer
-from pyani_plus.workflows import check_input_stems
+from pyani_plus.tools import get_delta_filter, get_nucmer
+from pyani_plus.workflows import (
+    ToolExecutor,
+    check_input_stems,
+    run_snakemake_with_progress_bar,
+)
 
 from . import compare_matrices
 
@@ -131,10 +134,16 @@ def test_snakemake_rule_filter(  # noqa: PLR0913
     config["outdir"] = anim_nucmer_targets_filter_outdir
 
     # Run snakemake wrapper
-    runner = snakemake_scheduler.SnakemakeRunner(
-        ToolExecutor.local, "snakemake_anim.smk"
+    run_snakemake_with_progress_bar(
+        executor=ToolExecutor.local,
+        workflow_name="snakemake_anim.smk",
+        database=db,
+        run_id=0,  # only needed for progress bar
+        targets=anim_nucmer_targets_filter,
+        params=config,
+        working_directory=Path(tmp_path),
+        show_progress_bar=False,
     )
-    runner.run_workflow(anim_nucmer_targets_filter, config, workdir=Path(tmp_path))
 
     # Check output against target fixtures
     for fname in anim_nucmer_targets_filter:
@@ -142,11 +151,10 @@ def test_snakemake_rule_filter(  # noqa: PLR0913
             anim_nucmer_targets_filter_indir / fname,
             anim_nucmer_targets_filter_outdir / fname,
         )
-
     log_run(
         fasta=config_anim_args["indir"].glob("*.f*"),
         database=db,
-        status="Complete",
+        status="Started",
         name="Test case",
         cmdline="pyani-plus anib --database ... blah blah blah",
         method="ANIm",
@@ -185,11 +193,14 @@ def test_snakemake_rule_delta(
     config = config_anim_args.copy()
     config["outdir"] = anim_nucmer_targets_delta_outdir
 
-    # Run snakemake wrapper
-    runner = snakemake_scheduler.SnakemakeRunner(
-        ToolExecutor.local, "snakemake_anim.smk"
+    run_snakemake_with_progress_bar(
+        executor=ToolExecutor.local,
+        workflow_name="snakemake_anim.smk",
+        targets=anim_nucmer_targets_delta,
+        params=config,
+        working_directory=Path(tmp_path),
+        show_progress_bar=False,
     )
-    runner.run_workflow(anim_nucmer_targets_delta, config, workdir=Path(tmp_path))
 
     # Check output against target fixtures
     for fname in anim_nucmer_targets_delta:

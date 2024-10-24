@@ -32,16 +32,8 @@ reproducibility of results.
 import re
 import shutil
 import subprocess
-from enum import Enum
 from pathlib import Path
 from typing import NamedTuple
-
-
-class ToolExecutor(str, Enum):
-    """Enum for the executor command line argument passed to snakemake."""
-
-    local = "local"
-    slurm = "slurm"
 
 
 class ExternalToolData(NamedTuple):

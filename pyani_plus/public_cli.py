@@ -27,31 +27,24 @@ new analysis (which can build on existing comparisons if the same DB is
 used), and reporting on a finished analysis (exporting tables and plots).
 """
 
-import multiprocessing
 import sys
 import tempfile
 from pathlib import Path
-from time import sleep
 from typing import Annotated
 
 import pandas as pd
 import typer
-
-# Could use tqdm or something else instead for the progress bar:
-from rich.progress import (
-    BarColumn,
-    MofNCompleteColumn,
-    Progress,
-    TaskProgressColumn,
-    TextColumn,
-    TimeElapsedColumn,
-)
-from sqlalchemy import text
+from rich.progress import Progress
 from sqlalchemy.exc import NoResultFound
 
 from pyani_plus import db_orm, tools
 from pyani_plus.methods import method_anib, method_fastani
-from pyani_plus.utils import available_cores, file_md5sum
+from pyani_plus.utils import (
+    available_cores,
+    file_md5sum,
+    progress_columns,  # rich.progress config
+)
+from pyani_plus.workflows import ToolExecutor, run_snakemake_with_progress_bar
 
 FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}  # define more centrally?
 
@@ -96,18 +89,9 @@ OPT_ARG_TYPE_CREATE_DB = Annotated[
     bool, typer.Option(help="Create database if does not exist")
 ]
 OPT_ARG_TYPE_EXECUTOR = Annotated[
-    tools.ToolExecutor, typer.Option(help="How should the internal tools be run?")
+    ToolExecutor, typer.Option(help="How should the internal tools be run?")
 ]
 
-progress_columns = [
-    TextColumn("[progress.description]{task.description}"),
-    BarColumn(),
-    TaskProgressColumn(),
-    # Removing TimeRemainingColumn() from defaults, replacing with:
-    TimeElapsedColumn(),
-    # Add this last as have some out of N and some out of N^2:
-    MofNCompleteColumn(),
-]
 
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -137,123 +121,8 @@ def check_fasta(fasta: Path) -> list[Path]:
     return fasta_names
 
 
-def progress_bar_via_db_comparisons(
-    database: Path, run_id: int, interval: float = 1.0
-) -> None:
-    """Show a progress bar based on monitoring the DB entries.
-
-    Will only self-terminate once all the run's comparisons are
-    in the database! Up to the caller to terminate it early.
-    """
-    session = db_orm.connect_to_db(database)
-    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-
-    already_done = run.comparisons().count()
-    total = run.genomes.count() ** 2 - already_done
-
-    done = 0
-    old_db_version = -1
-    with Progress(*progress_columns) as progress:
-        task = progress.add_task("Comparing pairs", total=total)
-        while done < total:
-            sleep(interval)
-            # Have there been any DB changes?
-            db_version = (
-                session.connection().execute(text("PRAGMA data_version;")).one()[0]
-            )
-            if old_db_version == db_version:
-                continue
-            old_db_version = db_version
-            new = run.comparisons().count() - already_done - done
-            progress.update(task, advance=new)
-            done += new
-    session.close()
-
-
-def run_snakemake_with_progress_bar(  # noqa: PLR0913
-    executor: tools.ToolExecutor,
-    workflow_name: str,
-    database: Path,
-    run_id: int,
-    targets: list[Path],
-    params: dict,
-    working_directory: Path,
-    *,
-    show_progress_bar: bool = False,
-    interval: float = 0.5,
-) -> None:
-    """Run snakemake with a progress bar.
-
-    Currently this works by monitoring the filesystem for the appearance of
-    the output files, while snakemake runs in a subprocess. This is not ideal,
-    and ideally we would use some kind of callbacks from snakemake - perhaps
-    using their logging mechanism.
-    """
-    import importlib.resources as impresources
-
-    from snakemake.cli import args_to_api, parse_args
-
-    from pyani_plus import workflows
-
-    # Path to anim snakemake file
-    snakefile = impresources.files(workflows) / workflow_name
-
-    # Want snakemake to pull everything else from its profiles,
-    # most easily controlled via setting $SNAKEMAKE_PROFILE
-    parser, args = parse_args(
-        [
-            "--quiet",
-            "all" if show_progress_bar else "rules",
-            "--executor",
-            executor.value,
-            "--directory",
-            str(working_directory),
-            "--snakefile",
-            str(snakefile),
-        ]
-        + [str(_) for _ in targets]
-    )
-    args.config = [f"{k}={v}" for k, v in params.items()]
-    if not show_progress_bar:
-        success = args_to_api(args, parser)
-    else:
-        # As of Python 3.8 onwards, the default on macOS ("Darwin") is "spawn"
-        # As of Python 3.12, the default of "fork" on Linux triggers a deprecation warning.
-        # This should match the defaults on Python 3.14 onwards.
-        # Note mypy currently can't handle this dynamic situation, their issue #8603
-        p = multiprocessing.get_context(  # type:ignore [attr-defined]
-            "spawn" if sys.platform == "darwin" else "forkserver"
-        ).Process(
-            target=progress_bar_via_db_comparisons,
-            args=(
-                database,
-                run_id,
-                interval,
-            ),
-        )
-        p.start()
-
-        # Call snakemake!
-        try:
-            success = args_to_api(args, parser)
-        except Exception as err:  # noqa: BLE001
-            p.terminate()
-            # Ensure traceback starts on a new line after interrupted progress bar
-            print()  # noqa: T201
-            raise err from None
-
-        if p.is_alive():
-            # Should have finished, but perhaps final update is pending...
-            sleep(interval)
-            p.terminate()
-        p.join()
-
-    if not success:
-        sys.exit("Snakemake workflow failed")
-
-
 def run_method(  # noqa: PLR0913
-    executor: tools.ToolExecutor,
+    executor: ToolExecutor,
     database: Path,
     name: str,
     method: str,
@@ -346,11 +215,12 @@ def run_method(  # noqa: PLR0913
             run_snakemake_with_progress_bar(
                 executor,
                 workflow_name,
-                Path(database),
-                run_id,
                 targets,
                 params,
                 tmp_path,
+                show_progress_bar=True,
+                database=Path(database),
+                run_id=run_id,
             )
 
         # Reconnect to the DB
@@ -380,7 +250,7 @@ def anim(
     name: REQ_ARG_TYPE_RUN_NAME,
     # Does not use fragsize, maxmatch, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
-    executor: OPT_ARG_TYPE_EXECUTOR = tools.ToolExecutor.local,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -417,7 +287,7 @@ def dnadiff(
     name: REQ_ARG_TYPE_RUN_NAME,
     # Does not use fragsize, maxmatch, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
-    executor: OPT_ARG_TYPE_EXECUTOR = tools.ToolExecutor.local,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -459,7 +329,7 @@ def anib(  # noqa: PLR0913
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
     # Does not use maxmatch, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
-    executor: OPT_ARG_TYPE_EXECUTOR = tools.ToolExecutor.local,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
     """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -504,7 +374,7 @@ def fastani(  # noqa: PLR0913
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
     minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
-    executor: OPT_ARG_TYPE_EXECUTOR = tools.ToolExecutor.local,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)

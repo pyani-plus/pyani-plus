@@ -29,7 +29,7 @@ from snakemake.resources import DefaultResources
 from snakemake.settings.types import OutputSettings, Quietness, RemoteExecutionSettings
 
 from pyani_plus import workflows
-from pyani_plus.tools import ToolExecutor
+from pyani_plus.workflows import ToolExecutor
 
 
 class SnakemakeRunner:

@@ -73,7 +73,9 @@ REQ_ARG_TYPE_VERSION = Annotated[
 NONE_ARG_TYPE_FRAGSIZE = Annotated[
     int | None,
     typer.Option(
-        help="Comparison method fragment size", rich_help_panel="Method parameters"
+        help="Comparison method fragment size",
+        rich_help_panel="Method parameters",
+        min=1,
     ),
 ]
 NONE_ARG_TYPE_MAXMATCH = Annotated[
@@ -82,13 +84,16 @@ NONE_ARG_TYPE_MAXMATCH = Annotated[
 NONE_ARG_TYPE_KMERSIZE = Annotated[
     int | None,
     typer.Option(
-        help="Comparison method k-mer size", rich_help_panel="Method parameters"
+        help="Comparison method k-mer size", rich_help_panel="Method parameters", min=1
     ),
 ]
 NONE_ARG_TYPE_MINMATCH = Annotated[
     float | None,
     typer.Option(
-        help="Comparison method min-match", rich_help_panel="Method parameters"
+        help="Comparison method min-match",
+        rich_help_panel="Method parameters",
+        min=0.0,
+        max=1.0,
     ),
 ]
 

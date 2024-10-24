@@ -25,6 +25,25 @@ import hashlib
 import os
 from pathlib import Path
 
+# Could use tqdm or something else instead for the progress bar:
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
+
+progress_columns = [
+    TextColumn("[progress.description]{task.description}"),
+    BarColumn(),
+    TaskProgressColumn(),
+    # Removing TimeRemainingColumn() from defaults, replacing with:
+    TimeElapsedColumn(),
+    # Add this last as have some out of N and some out of N^2:
+    MofNCompleteColumn(),
+]
+
 
 def str_md5sum(text: str, encoding: str = "ascii") -> str:
     """Return the MD5 checksum hash digest of the passed string.

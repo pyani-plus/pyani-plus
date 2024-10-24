@@ -29,28 +29,22 @@ used), and reporting on a finished analysis (exporting tables and plots).
 
 import sys
 import tempfile
-from multiprocessing import Process
 from pathlib import Path
 from typing import Annotated
 
 import pandas as pd
 import typer
-
-# Could use tqdm or something else instead for the progress bar:
-from rich.progress import (
-    BarColumn,
-    MofNCompleteColumn,
-    Progress,
-    TaskProgressColumn,
-    TextColumn,
-    TimeElapsedColumn,
-)
+from rich.progress import Progress
 from sqlalchemy.exc import NoResultFound
 
 from pyani_plus import db_orm, tools
 from pyani_plus.methods import method_anib, method_fastani
-from pyani_plus.snakemake import snakemake_scheduler
-from pyani_plus.utils import available_cores, file_md5sum
+from pyani_plus.utils import (
+    available_cores,
+    file_md5sum,
+    progress_columns,  # rich.progress config
+)
+from pyani_plus.workflows import ToolExecutor, run_snakemake_with_progress_bar
 
 FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}  # define more centrally?
 
@@ -94,16 +88,10 @@ OPT_ARG_TYPE_MINMATCH = Annotated[
 OPT_ARG_TYPE_CREATE_DB = Annotated[
     bool, typer.Option(help="Create database if does not exist")
 ]
-
-progress_columns = [
-    TextColumn("[progress.description]{task.description}"),
-    BarColumn(),
-    TaskProgressColumn(),
-    # Removing TimeRemainingColumn() from defaults, replacing with:
-    TimeElapsedColumn(),
-    # Add this last as have some out of N and some out of N^2:
-    MofNCompleteColumn(),
+OPT_ARG_TYPE_EXECUTOR = Annotated[
+    ToolExecutor, typer.Option(help="How should the internal tools be run?")
 ]
+
 
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -133,53 +121,8 @@ def check_fasta(fasta: Path) -> list[Path]:
     return fasta_names
 
 
-def run_snakemake_with_progress_bar(
-    workflow_name: str,
-    targets: list[Path],
-    params: dict,
-    working_directory: Path,
-    interval: float = 0.5,
-) -> int:
-    """Run snakemake with a progress bar.
-
-    Currently this works by monitoring the filesystem for the appearance of
-    the output files, while snakemake runs in a subprocess. This is not ideal,
-    and ideally we would use some kind of callbacks from snakemake - perhaps
-    using their logging mechanism.
-    """
-    runner = snakemake_scheduler.SnakemakeRunner(workflow_name)
-    # All rest replaces one line, runner.run_workflow(targets, params, workdir=working_directory)
-
-    pending = [Path(_) for _ in targets]
-    p = Process(
-        target=runner.run_workflow,
-        args=(targets, params),
-        kwargs={"workdir": working_directory},
-    )
-    p.start()
-    with Progress(*progress_columns) as progress:
-        # Same length:
-        # Indexing FASTAs
-        # Comparing pairs
-        task = progress.add_task("Comparing pairs", total=len(pending))
-        while pending:
-            p.join(interval)
-            for t in pending[:]:
-                if t.is_file():
-                    # Could print(f"Done: {t}")
-                    pending.remove(t)
-                    progress.update(task, advance=1)
-            if p.exitcode is not None:
-                # Should be finished, but was it success or failure?
-                pending = []  # to break the loop
-    p.join()  # Should be immediate as should have finished
-    if p.exitcode is None:
-        msg = "Snakemake did not stop?"
-        sys.exit(msg)
-    return p.exitcode
-
-
 def run_method(  # noqa: PLR0913
+    executor: ToolExecutor,
     database: Path,
     name: str,
     method: str,
@@ -251,7 +194,10 @@ def run_method(  # noqa: PLR0913
         session.close()  # Reduce chance of DB locking
 
         # Run snakemake wrapper
-        with tempfile.TemporaryDirectory(prefix="pyani-plus_") as tmp:
+        slurm = True
+        with tempfile.TemporaryDirectory(
+            prefix="pyani-plus_", dir="." if slurm else None
+        ) as tmp:
             tmp_path = Path(tmp) / "working"
             out_path = Path(tmp) / "output"
             targets = [
@@ -266,14 +212,16 @@ def run_method(  # noqa: PLR0913
             params["outdir"] = out_path.resolve()
             params["db"] = Path(database).resolve()  # must be absolute
             params["cores"] = available_cores()  # should make configurable
-            return_code = run_snakemake_with_progress_bar(
-                workflow_name, targets, params, tmp_path
+            run_snakemake_with_progress_bar(
+                executor,
+                workflow_name,
+                targets,
+                params,
+                tmp_path,
+                show_progress_bar=True,
+                database=Path(database),
+                run_id=run_id,
             )
-            if return_code:
-                sys.stderr.write(
-                    f"Snakemake failed to run {workflow_name} with return code {return_code}\n"
-                )
-                sys.exit(return_code)
 
         # Reconnect to the DB
         session = db_orm.connect_to_db(database)
@@ -302,6 +250,7 @@ def anim(
     name: REQ_ARG_TYPE_RUN_NAME,
     # Does not use fragsize, maxmatch, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -315,6 +264,7 @@ def anim(
     }
     fragsize = maxmatch = kmersize = minmatch = None
     return run_method(
+        executor,
         database,
         name,
         "ANIm",
@@ -337,6 +287,7 @@ def dnadiff(
     name: REQ_ARG_TYPE_RUN_NAME,
     # Does not use fragsize, maxmatch, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -353,6 +304,7 @@ def dnadiff(
     }
     fragsize = maxmatch = kmersize = minmatch = None
     return run_method(
+        executor,
         database,
         name,
         "dnadiff",
@@ -368,7 +320,7 @@ def dnadiff(
 
 
 @app.command(rich_help_panel="ANI methods")
-def anib(
+def anib(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
@@ -377,6 +329,7 @@ def anib(
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
     # Does not use maxmatch, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
     """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -394,6 +347,7 @@ def anib(
     }
     maxmatch = kmersize = minmatch = None
     return run_method(
+        executor,
         database,
         name,
         "ANIb",
@@ -420,6 +374,7 @@ def fastani(  # noqa: PLR0913
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
     minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -434,6 +389,7 @@ def fastani(  # noqa: PLR0913
     }
     maxmatch = None
     return run_method(
+        executor,
         database,
         name,
         "fastANI",

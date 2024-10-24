@@ -20,9 +20,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 """Snakemake workflow for ANIm"""
-from pyani_plus.snakemake import snakemake_scheduler
+from pyani_plus.workflows import check_input_stems
 
-indir_files = snakemake_scheduler.check_input_stems(config["indir"])
+indir_files = check_input_stems(config["indir"])
 
 
 def get_genomeA(wildcards):

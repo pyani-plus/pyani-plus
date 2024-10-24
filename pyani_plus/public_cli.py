@@ -92,7 +92,8 @@ OPT_ARG_TYPE_MINMATCH = Annotated[
     ),
 ]
 OPT_ARG_TYPE_CREATE_DB = Annotated[
-    bool, typer.Option(help="Create database if does not exist")
+    # Listing name(s) explicitly to avoid automatic matching --no-create-db
+    bool, typer.Option("--create-db", help="Create database if does not exist")
 ]
 
 progress_columns = [

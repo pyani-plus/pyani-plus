@@ -51,7 +51,6 @@ from sqlalchemy.exc import NoResultFound
 
 from pyani_plus import db_orm, tools
 from pyani_plus.methods import method_anib, method_fastani
-from pyani_plus.snakemake import snakemake_scheduler
 from pyani_plus.utils import available_cores, file_md5sum
 
 FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}  # define more centrally?
@@ -179,6 +178,8 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     targets: list[Path],
     params: dict,
     working_directory: Path,
+    *,
+    show_progress_bar: bool = False,
     interval: float = 0.5,
 ) -> None:
     """Run snakemake with a progress bar.
@@ -188,39 +189,67 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     and ideally we would use some kind of callbacks from snakemake - perhaps
     using their logging mechanism.
     """
-    runner = snakemake_scheduler.SnakemakeRunner(executor, workflow_name)
-    # All rest replaces one line, runner.run_workflow(targets, params, workdir=working_directory)
+    import importlib.resources as impresources
 
-    # As of Python 3.8 onwards, the default on macOS ("Darwin") is "spawn"
-    # As of Python 3.12, the default of "fork" on Linux triggers a deprecation warning.
-    # This should match the defaults on Python 3.14 onwards.
-    # Note mypy currently can't handle this dynamic situation, their issue #8603
-    p = multiprocessing.get_context(  # type:ignore [attr-defined]
-        "spawn" if sys.platform == "darwin" else "forkserver"
-    ).Process(
-        target=progress_bar_via_db_comparisons,
-        args=(
-            database,
-            run_id,
-            interval,
-        ),
+    from snakemake.cli import args_to_api, parse_args
+
+    from pyani_plus import workflows
+
+    # Path to anim snakemake file
+    snakefile = impresources.files(workflows) / workflow_name
+
+    # Want snakemake to pull everything else from its profiles,
+    # most easily controlled via setting $SNAKEMAKE_PROFILE
+    parser, args = parse_args(
+        [
+            "--quiet",
+            "all" if show_progress_bar else "rules",
+            "--executor",
+            executor.value,
+            "--directory",
+            str(working_directory),
+            "--snakefile",
+            str(snakefile),
+        ]
+        + [str(_) for _ in targets]
     )
-    p.start()
+    args.config = [f"{k}={v}" for k, v in params.items()]
+    if not show_progress_bar:
+        success = args_to_api(args, parser)
+    else:
+        # As of Python 3.8 onwards, the default on macOS ("Darwin") is "spawn"
+        # As of Python 3.12, the default of "fork" on Linux triggers a deprecation warning.
+        # This should match the defaults on Python 3.14 onwards.
+        # Note mypy currently can't handle this dynamic situation, their issue #8603
+        p = multiprocessing.get_context(  # type:ignore [attr-defined]
+            "spawn" if sys.platform == "darwin" else "forkserver"
+        ).Process(
+            target=progress_bar_via_db_comparisons,
+            args=(
+                database,
+                run_id,
+                interval,
+            ),
+        )
+        p.start()
 
-    # Call snakemake!
-    try:
-        runner.run_workflow(targets, params, workdir=working_directory)
-    except Exception as err:  # noqa: BLE001
-        p.terminate()
-        # Ensure traceback starts on a new line after interrupted progress bar
-        print()  # noqa: T201
-        raise err from None
+        # Call snakemake!
+        try:
+            success = args_to_api(args, parser)
+        except Exception as err:  # noqa: BLE001
+            p.terminate()
+            # Ensure traceback starts on a new line after interrupted progress bar
+            print()  # noqa: T201
+            raise err from None
 
-    if p.is_alive():
-        # Should have finished, but perhaps final update is pending...
-        sleep(interval)
-        p.terminate()
-    p.join()
+        if p.is_alive():
+            # Should have finished, but perhaps final update is pending...
+            sleep(interval)
+            p.terminate()
+        p.join()
+
+    if not success:
+        sys.exit("Snakemake workflow failed")
 
 
 def run_method(  # noqa: PLR0913

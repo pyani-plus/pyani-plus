@@ -40,6 +40,7 @@ from pyani_plus.tools import (
     get_show_coords,
     get_show_diff,
 )
+from pyani_plus.workflows import check_input_stems
 
 from . import compare_matrices
 
@@ -217,9 +218,7 @@ def test_snakemake_rule_show_diff_and_coords(  # noqa: PLR0913
     # Record the FASTA files in the genomes table _before_ call snakemake
     log_genome(
         database=db,
-        fasta=list(
-            snakemake_scheduler.check_input_stems(config_dnadiff_args["indir"]).values()
-        ),
+        fasta=list(check_input_stems(config_dnadiff_args["indir"]).values()),
     )
     assert db.is_file()
 
@@ -299,9 +298,7 @@ def test_snakemake_rule_show_coords(  # noqa: PLR0913
     # Record the FASTA files in the genomes table _before_ call snakemake
     log_genome(
         database=db,
-        fasta=list(
-            snakemake_scheduler.check_input_stems(config_dnadiff_args["indir"]).values()
-        ),
+        fasta=list(check_input_stems(config_dnadiff_args["indir"]).values()),
     )
     assert db.is_file()
 

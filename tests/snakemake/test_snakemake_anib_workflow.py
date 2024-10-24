@@ -36,6 +36,7 @@ import pytest
 from pyani_plus.private_cli import log_configuration, log_genome, log_run
 from pyani_plus.snakemake import snakemake_scheduler
 from pyani_plus.tools import ToolExecutor, get_blastn, get_makeblastdb
+from pyani_plus.workflows import check_input_stems
 
 from . import compare_matrices
 
@@ -155,9 +156,7 @@ def test_snakemake_rule_blastn(  # noqa: PLR0913
     # Record the FASTA files in the genomes table _before_ call snakemake
     log_genome(
         database=db,
-        fasta=list(
-            snakemake_scheduler.check_input_stems(config_anib_args["indir"]).values()
-        ),
+        fasta=list(check_input_stems(config_anib_args["indir"]).values()),
     )
     assert db.is_file()
 

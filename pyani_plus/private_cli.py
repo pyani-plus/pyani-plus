@@ -545,7 +545,7 @@ def log_anib(
     return 0
 
 
-@app.command()
+@app.command(rich_help_panel="Method specific logging")
 def log_dnadiff(
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table

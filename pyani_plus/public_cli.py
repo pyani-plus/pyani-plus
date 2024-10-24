@@ -177,13 +177,7 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     working_directory: Path,
     interval: float = 0.5,
 ) -> None:
-    """Run snakemake with a progress bar.
-
-    Currently this works by monitoring the filesystem for the appearance of
-    the output files, while snakemake runs in a subprocess. This is not ideal,
-    and ideally we would use some kind of callbacks from snakemake - perhaps
-    using their logging mechanism.
-    """
+    """Run snakemake with a progress bar."""
     runner = snakemake_scheduler.SnakemakeRunner(workflow_name)
     # All rest replaces one line, runner.run_workflow(targets, params, workdir=working_directory)
 

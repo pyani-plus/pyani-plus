@@ -34,7 +34,7 @@ import pytest
 
 from pyani_plus.private_cli import log_configuration, log_genome, log_run
 from pyani_plus.snakemake import snakemake_scheduler
-from pyani_plus.tools import get_delta_filter, get_nucmer
+from pyani_plus.tools import ToolExecutor, get_delta_filter, get_nucmer
 
 from . import compare_matrices
 
@@ -132,7 +132,9 @@ def test_snakemake_rule_filter(  # noqa: PLR0913
     config["outdir"] = anim_nucmer_targets_filter_outdir
 
     # Run snakemake wrapper
-    runner = snakemake_scheduler.SnakemakeRunner("snakemake_anim.smk")
+    runner = snakemake_scheduler.SnakemakeRunner(
+        ToolExecutor.local, "snakemake_anim.smk"
+    )
     runner.run_workflow(anim_nucmer_targets_filter, config, workdir=Path(tmp_path))
 
     # Check output against target fixtures
@@ -185,7 +187,9 @@ def test_snakemake_rule_delta(
     config["outdir"] = anim_nucmer_targets_delta_outdir
 
     # Run snakemake wrapper
-    runner = snakemake_scheduler.SnakemakeRunner("snakemake_anim.smk")
+    runner = snakemake_scheduler.SnakemakeRunner(
+        ToolExecutor.local, "snakemake_anim.smk"
+    )
     runner.run_workflow(anim_nucmer_targets_delta, config, workdir=Path(tmp_path))
 
     # Check output against target fixtures

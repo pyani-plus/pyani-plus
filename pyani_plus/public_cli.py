@@ -96,6 +96,9 @@ OPT_ARG_TYPE_MINMATCH = Annotated[
 OPT_ARG_TYPE_CREATE_DB = Annotated[
     bool, typer.Option(help="Create database if does not exist")
 ]
+OPT_ARG_TYPE_EXECUTOR = Annotated[
+    tools.ToolExecutor, typer.Option(help="How should the internal tools be run?")
+]
 
 progress_columns = [
     TextColumn("[progress.description]{task.description}"),
@@ -169,6 +172,7 @@ def progress_bar_via_db_comparisons(
 
 
 def run_snakemake_with_progress_bar(  # noqa: PLR0913
+    executor: tools.ToolExecutor,
     workflow_name: str,
     database: Path,
     run_id: int,
@@ -184,7 +188,7 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     and ideally we would use some kind of callbacks from snakemake - perhaps
     using their logging mechanism.
     """
-    runner = snakemake_scheduler.SnakemakeRunner(workflow_name)
+    runner = snakemake_scheduler.SnakemakeRunner(executor, workflow_name)
     # All rest replaces one line, runner.run_workflow(targets, params, workdir=working_directory)
 
     # As of Python 3.8 onwards, the default on macOS ("Darwin") is "spawn"
@@ -203,7 +207,7 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     )
     p.start()
 
-    # Call slurm!
+    # Call snakemake!
     try:
         runner.run_workflow(targets, params, workdir=working_directory)
     except Exception as err:  # noqa: BLE001
@@ -220,6 +224,7 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
 
 
 def run_method(  # noqa: PLR0913
+    executor: tools.ToolExecutor,
     database: Path,
     name: str,
     method: str,
@@ -310,6 +315,7 @@ def run_method(  # noqa: PLR0913
             params["db"] = Path(database).resolve()  # must be absolute
             params["cores"] = available_cores()  # should make configurable
             run_snakemake_with_progress_bar(
+                executor,
                 workflow_name,
                 Path(database),
                 run_id,
@@ -345,6 +351,7 @@ def anim(
     name: REQ_ARG_TYPE_RUN_NAME,
     # Does not use fragsize, maxmatch, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    executor: OPT_ARG_TYPE_EXECUTOR = tools.ToolExecutor.local,
 ) -> int:
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -358,6 +365,7 @@ def anim(
     }
     fragsize = maxmatch = kmersize = minmatch = None
     return run_method(
+        executor,
         database,
         name,
         "ANIm",
@@ -380,6 +388,7 @@ def dnadiff(
     name: REQ_ARG_TYPE_RUN_NAME,
     # Does not use fragsize, maxmatch, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    executor: OPT_ARG_TYPE_EXECUTOR = tools.ToolExecutor.local,
 ) -> int:
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -396,6 +405,7 @@ def dnadiff(
     }
     fragsize = maxmatch = kmersize = minmatch = None
     return run_method(
+        executor,
         database,
         name,
         "dnadiff",
@@ -411,7 +421,7 @@ def dnadiff(
 
 
 @app.command(rich_help_panel="ANI methods")
-def anib(
+def anib(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
@@ -420,6 +430,7 @@ def anib(
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
     # Does not use maxmatch, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    executor: OPT_ARG_TYPE_EXECUTOR = tools.ToolExecutor.local,
 ) -> int:
     """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -437,6 +448,7 @@ def anib(
     }
     maxmatch = kmersize = minmatch = None
     return run_method(
+        executor,
         database,
         name,
         "ANIb",
@@ -463,6 +475,7 @@ def fastani(  # noqa: PLR0913
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
     minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    executor: OPT_ARG_TYPE_EXECUTOR = tools.ToolExecutor.local,
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -477,6 +490,7 @@ def fastani(  # noqa: PLR0913
     }
     maxmatch = None
     return run_method(
+        executor,
         database,
         name,
         "fastANI",

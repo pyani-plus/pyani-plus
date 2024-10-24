@@ -35,7 +35,7 @@ import pytest
 
 from pyani_plus.private_cli import log_configuration, log_genome, log_run
 from pyani_plus.snakemake import snakemake_scheduler
-from pyani_plus.tools import get_fastani
+from pyani_plus.tools import ToolExecutor, get_fastani
 
 from . import compare_matrices
 
@@ -126,7 +126,9 @@ def test_snakemake_rule_fastani(  # noqa: PLR0913
     assert db.is_file()
 
     # Run snakemake wrapper
-    runner = snakemake_scheduler.SnakemakeRunner("snakemake_fastani.smk")
+    runner = snakemake_scheduler.SnakemakeRunner(
+        ToolExecutor.local, "snakemake_fastani.smk"
+    )
 
     runner.run_workflow(fastani_targets, config_fastani_args, workdir=Path(tmp_path))
 
@@ -181,7 +183,9 @@ def test_snakemake_duplicate_stems(
     msg = f"Duplicated stems found for {sorted(stems)}. Please investigate."
 
     # Run snakemake wrapper
-    runner = snakemake_scheduler.SnakemakeRunner("snakemake_fastani.smk")
+    runner = snakemake_scheduler.SnakemakeRunner(
+        ToolExecutor.local, "snakemake_fastani.smk"
+    )
 
     with pytest.raises(ValueError, match=re.escape(msg)):
         runner.run_workflow(fastani_targets, dup_config, workdir=Path(tmp_path))

@@ -29,6 +29,7 @@ from snakemake.resources import DefaultResources
 from snakemake.settings.types import OutputSettings, Quietness, RemoteExecutionSettings
 
 from pyani_plus import workflows
+from pyani_plus.tools import ToolExecutor
 
 
 def check_input_stems(indir: str) -> dict[str, Path]:
@@ -59,8 +60,9 @@ def check_input_stems(indir: str) -> dict[str, Path]:
 class SnakemakeRunner:
     """Execute Snakemake workflows for pairwise comparisons."""
 
-    def __init__(self, workflow_filename: str) -> None:
+    def __init__(self, executor: ToolExecutor, workflow_filename: str) -> None:
         """Initialise SnakemakeRunner with SnakeMake workflow filename."""
+        self.executor = executor.value
         self.workflow_filename = workflow_filename
 
     def run_workflow(
@@ -118,7 +120,7 @@ class SnakemakeRunner:
                     "python --version"
                 )
                 dag_api.execute_workflow(
-                    executor="slurm",
+                    executor=self.executor,  # i.e. "local" or "slurm"
                     executor_settings=SlurmExecutorSettings(),
                     remote_execution_settings=remote_exe_settings,
                 )

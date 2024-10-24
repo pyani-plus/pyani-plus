@@ -50,13 +50,34 @@ app = typer.Typer(
 )
 
 REQ_ARG_TYPE_FASTA_FILES = Annotated[
-    list[Path], typer.Argument(help="Path(s) to FASTA file(s)", show_default=False)
+    list[Path],
+    typer.Argument(
+        help="Path(s) to FASTA file(s)",
+        show_default=False,
+        exists=True,
+        dir_okay=False,
+        file_okay=True,
+    ),
 ]
 REQ_ARG_TYPE_QUERY_FASTA = Annotated[
-    Path, typer.Option(help="Path to query FASTA file", show_default=False)
+    Path,
+    typer.Option(
+        help="Path to query FASTA file",
+        show_default=False,
+        exists=True,
+        dir_okay=False,
+        file_okay=True,
+    ),
 ]
 REQ_ARG_TYPE_SUBJECT_FASTA = Annotated[
-    Path, typer.Option(help="Path to subject FASTA file", show_default=False)
+    Path,
+    typer.Option(
+        help="Path to subject FASTA file",
+        show_default=False,
+        exists=True,
+        dir_okay=False,
+        file_okay=True,
+    ),
 ]
 REQ_ARG_TYPE_METHOD = Annotated[
     str, typer.Option(help="Method, e.g. ANIm", show_default=False)

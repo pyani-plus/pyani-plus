@@ -47,7 +47,7 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 from sqlalchemy import text
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound, OperationalError
 
 from pyani_plus import db_orm, tools
 from pyani_plus.methods import method_anib, method_fastani
@@ -156,10 +156,15 @@ def progress_bar_via_db_comparisons(
         while done < total:
             sleep(interval)
             # Have there been any DB changes?
-            db_version = (
-                session.connection().execute(text("PRAGMA data_version;")).one()[0]
-            )
+            try:
+                db_version = (
+                    session.connection().execute(text("PRAGMA data_version;")).one()[0]
+                )
+            except OperationalError:
+                # Probably another process is updating the DB, try again soon
+                continue
             if old_db_version == db_version:
+                # No changes, check again soon
                 continue
             old_db_version = db_version
             new = run.comparisons().count() - already_done - done

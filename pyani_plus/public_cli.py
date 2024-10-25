@@ -36,8 +36,7 @@ from typing import Annotated
 
 import pandas as pd
 import typer
-
-# Could use tqdm or something else instead for the progress bar:
+from rich.console import Console
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
@@ -46,6 +45,8 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
+from rich.table import Table
+from rich.text import Text
 from sqlalchemy import insert, text
 from sqlalchemy.exc import NoResultFound, OperationalError
 from sqlalchemy.orm import Session
@@ -551,13 +552,41 @@ def list_runs(
 
     session = db_orm.connect_to_db(database)
     runs = session.query(db_orm.Run)
-    print(f"Database {database} contains {runs.count()} runs")  # noqa: T201
+
+    table = Table(
+        title=f"{runs.count()} analysis runs in {database}",
+        row_styles=["dim", ""],  # alternating zebra stripes
+    )
+    table.add_column("ID", justify="right", no_wrap=True)
+    table.add_column("Date")
+    table.add_column("Method")
+    table.add_column(Text("Comparisons", justify="left"), justify="right", no_wrap=True)
+    table.add_column("Status")
+    table.add_column("Name")
+    # Would be nice to report {conf.program} {conf.version} too,
+    # perhaps conditional on the terminal width?
     for run in runs:
-        print(f"Run-ID {run.run_id}, '{run.name}'")  # noqa: T201
-        print(f"  {run.genomes.count()} genomes; date {run.date}; status {run.status}")  # noqa: T201
         conf = run.configuration
-        print(f"  Method {conf.method}; program {conf.program} {conf.version}")  # noqa: T201
+        n = run.genomes.count()
+        done = run.comparisons().count()
+        comparison_summary = f"{done}/{n**2}={n}x{n}"
+        if done == 0:
+            comparison_summary = Text(comparison_summary, style="red")
+        elif done != n**2:
+            comparison_summary = Text(comparison_summary, style="yellow")
+        else:
+            comparison_summary = Text(comparison_summary, style="green")
+        table.add_row(
+            str(run.run_id),
+            str(run.date.date()),
+            conf.method,
+            comparison_summary,
+            run.status,
+            run.name,
+        )
     session.close()
+    console = Console()
+    console.print(table)
     return 0
 
 

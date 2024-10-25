@@ -569,7 +569,7 @@ def list_runs(
         conf = run.configuration
         n = run.genomes.count()
         done = run.comparisons().count()
-        comparison_summary = f"{done}/{n**2}={n}x{n}"
+        comparison_summary = f"{done}/{n**2}={n}²"
         if done == 0:
             comparison_summary = Text(comparison_summary, style="red")
         elif done != n**2:

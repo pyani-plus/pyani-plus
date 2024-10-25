@@ -30,7 +30,7 @@ from time import sleep
 from rich.progress import Progress
 from sqlalchemy import text
 
-from pyani_plus import db_orm
+from pyani_plus import FASTA_EXTENSIONS, db_orm
 from pyani_plus.utils import progress_columns  # rich.progress config
 
 
@@ -47,12 +47,11 @@ def check_input_stems(indir: str) -> dict[str, Path]:
     If duplicate stems with approved extensions are present
     raise a ValueError.
     """
-    extensions = [".fasta", ".fas", ".fna"]
-    stems = [_.stem for _ in Path(indir).glob("*") if _.suffix in extensions]
+    stems = [_.stem for _ in Path(indir).glob("*") if _.suffix in FASTA_EXTENSIONS]
 
     if len(stems) == len(set(stems)):
         input_files = {
-            _.stem: _ for _ in Path(indir).glob("*") if _.suffix in extensions
+            _.stem: _ for _ in Path(indir).glob("*") if _.suffix in FASTA_EXTENSIONS
         }
     else:
         duplicates = [

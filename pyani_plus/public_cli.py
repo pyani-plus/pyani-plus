@@ -37,7 +37,7 @@ import typer
 from rich.progress import Progress
 from sqlalchemy.exc import NoResultFound
 
-from pyani_plus import db_orm, tools
+from pyani_plus import FASTA_EXTENSIONS, db_orm, tools
 from pyani_plus.methods import method_anib, method_fastani
 from pyani_plus.utils import (
     available_cores,
@@ -45,8 +45,6 @@ from pyani_plus.utils import (
     progress_columns,  # rich.progress config
 )
 from pyani_plus.workflows import ToolExecutor, run_snakemake_with_progress_bar
-
-FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}  # define more centrally?
 
 # Reused required command line arguments (which have no default)
 REQ_ARG_TYPE_DATABASE = Annotated[

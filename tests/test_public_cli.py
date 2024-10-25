@@ -34,6 +34,8 @@ import pytest
 from pyani_plus import db_orm, public_cli
 from pyani_plus.utils import file_md5sum
 
+from . import get_matrix_entry
+
 
 # This is very similar to the functions under tests/snakemake/__init__.py
 def compare_matrix_files(
@@ -97,10 +99,10 @@ def test_list_runs_empty(capsys: pytest.CaptureFixture[str], tmp_path: str) -> N
     assert " 0 analysis runs in " in output, output
 
 
-def test_list_runs(
+def test_partial_run(
     capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
 ) -> None:
-    """Check list-runs with mock data."""
+    """Check list-runs and export-run with mock data including a partial run."""
     tmp_db = Path(tmp_path) / "list-runs.sqlite"
     session = db_orm.connect_to_db(tmp_db)
     config = db_orm.db_configuration(
@@ -145,13 +147,28 @@ def test_list_runs(
         name="Trial C",
         genomes=genomes[0:2],  # 2/3 genomes, but have all 4/4 comparisons
     )
-    # Can we test stdout, should say 3 runs:
+
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 3 analysis runs in " in output, output
     assert " 0/0=0² │ Empty " in output, output
     assert " 4/9=3² │ Partial " in output, output
     assert " 4/4=2² │ Done " in output, output
+
+    # Unlike a typical method calculation, we have not triggered
+    # .cache_comparisons() yet, so that will happen in export_run.
+    public_cli.export_run(database=tmp_db, run_id=2, outdir=tmp_path)
+    output = capsys.readouterr().out
+    assert f"Wrote matrices to {tmp_path}" in output, output
+    # By construction run 2 is partial, only 4 of 9 matrix entries are
+    # defined - the missing entries are just blanks (empty strings)
+    with pytest.raises(ValueError, match="could not convert string to float: ''"):
+        get_matrix_entry(
+            Path(tmp_path) / ("fastANI_identity.tsv"),
+            genomes[2].genome_hash,
+            genomes[2].genome_hash,
+        )
+
     tmp_db.unlink()
 
 

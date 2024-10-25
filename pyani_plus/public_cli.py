@@ -46,7 +46,7 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
-from sqlalchemy import text
+from sqlalchemy import insert, text
 from sqlalchemy.exc import NoResultFound, OperationalError
 
 from pyani_plus import db_orm, tools
@@ -274,28 +274,42 @@ def run_method(  # noqa: PLR0913
         create=True,
     )
 
-    # Reuse existing genome entries and/or log new ones
-    n = len(fasta_names)
-    genomes = []
-    filename_to_md5 = {}
-    with Progress(*progress_columns) as progress:
-        for filename in progress.track(fasta_names, description="Indexing FASTAs"):
-            md5 = file_md5sum(filename)
-            genomes.append(db_orm.db_genome(session, filename, md5, create=True))
-            filename_to_md5[filename] = md5
-
     run = db_orm.add_run(
         session,
         config,
         cmdline=" ".join(sys.argv),
-        status="Setup",
+        status="Initialising",
         name=name,
         date=None,
-        genomes=genomes,
+        genomes=[],
     )
     run_id = run.run_id
-    session.commit()  # Redundant?
-    del genomes
+
+    # Reuse existing genome entries and/or log new ones
+    n = len(fasta_names)
+    filename_to_md5 = {}
+    with Progress(*progress_columns) as progress:
+        for filename in progress.track(fasta_names, description="Indexing FASTAs"):
+            md5 = file_md5sum(filename)
+            # Could check here for multiple files with same MD5 checksum?
+            db_orm.db_genome(session, filename, md5, create=True)
+            filename_to_md5[filename] = md5
+
+    # Will now update the runs_genomes linker table, but did not scale
+    # well via runs.genomes = [list of genome ORM objects]
+    session.execute(
+        insert(db_orm.RunGenomeAssociation),
+        [
+            {
+                "genome_hash": md5,
+                "run_id": run_id,
+            }
+            for md5 in filename_to_md5.values()
+        ],
+    )
+    run.status = "Setup"
+    session.commit()
+    print(f"Run setup with {n} genomes in database")  # noqa: T201
 
     done = run.comparisons().count()
     if done == n**2:

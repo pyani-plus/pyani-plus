@@ -32,6 +32,7 @@ import pandas as pd
 import pytest
 
 from pyani_plus import db_orm, public_cli
+from pyani_plus.utils import file_md5sum
 
 
 # This is very similar to the functions under tests/snakemake/__init__.py
@@ -80,30 +81,77 @@ def test_check_fasta(tmp_path: str) -> None:
         public_cli.check_fasta(Path(tmp_path))
 
 
-def test_list_runs(tmp_path: str) -> None:
-    """Check list-runs."""
+def test_list_runs_empty(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
+    """Check list-runs with no data."""
     with pytest.raises(
         SystemExit, match="ERROR: Database /does/not/exist does not exist"
     ):
         public_cli.list_runs(database=Path("/does/not/exist"))
 
+    tmp_db = Path(tmp_path) / "list-runs-empty.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
+    session.close()
+
+    public_cli.list_runs(database=tmp_db)
+    output = capsys.readouterr().out
+    assert " 0 analysis runs in " in output, output
+
+
+def test_list_runs(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
+    """Check list-runs with mock data."""
     tmp_db = Path(tmp_path) / "list-runs.sqlite"
     session = db_orm.connect_to_db(tmp_db)
-
-    # Can we test stdout, should say 0 runs:
-    public_cli.list_runs(database=tmp_db)
-
     config = db_orm.db_configuration(
         session, "fastANI", "fastani", "1.2.3", create=True
     )
+    genomes = [
+        db_orm.db_genome(session, filename, file_md5sum(filename), create=True)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    ]
+    # Record 4 of the possible 9 comparisons:
+    for query in genomes[0:2]:
+        for subject in genomes[0:2]:
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query.genome_hash,
+                subject.genome_hash,
+                1.0 if query is subject else 0.99,
+                12345,
+            )
     db_orm.add_run(
-        session, config, cmdline="pyani fastani ...", status="Empty", name="Trial A"
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        status="Empty",
+        name="Trial A",
+        genomes=[],
     )
     db_orm.add_run(
-        session, config, cmdline="pyani fastani ...", status="Empty", name="Trial B"
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        status="Partial",
+        name="Trial B",
+        genomes=genomes,  # 3/3 genomes, so only have 4/9 comparisons
     )
-    # Can we test stdout, should say 2 runs:
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        status="Done",
+        name="Trial C",
+        genomes=genomes[0:2],  # 2/3 genomes, but have all 4/4 comparisons
+    )
+    # Can we test stdout, should say 3 runs:
     public_cli.list_runs(database=tmp_db)
+    output = capsys.readouterr().out
+    assert " 3 analysis runs in " in output, output
+    assert " 0/0=0² │ Empty " in output, output
+    assert " 4/9=3² │ Partial " in output, output
+    assert " 4/4=2² │ Done " in output, output
     tmp_db.unlink()
 
 

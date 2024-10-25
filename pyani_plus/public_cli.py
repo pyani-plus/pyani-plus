@@ -48,6 +48,7 @@ from rich.progress import (
 )
 from sqlalchemy import insert, text
 from sqlalchemy.exc import NoResultFound, OperationalError
+from sqlalchemy.orm import Session
 
 from pyani_plus import db_orm, tools
 from pyani_plus.methods import method_anib, method_fastani
@@ -238,6 +239,46 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     p.join()
 
 
+def record_genomes(
+    session: Session, run: db_orm.Run, fasta_names: list[Path]
+) -> dict[Path, str]:
+    """Compute the MD5 of the FASTA files and record them against this run.
+
+    Returns a dict mapping filenames to MD5 checksums.
+    """
+    # Reuse existing genome entries and/or log new ones
+    n = len(fasta_names)
+    filename_to_md5 = {}
+    hashes = set()
+    with Progress(*progress_columns) as progress:
+        for filename in progress.track(fasta_names, description="Indexing FASTAs"):
+            md5 = file_md5sum(filename)
+            filename_to_md5[filename] = md5
+            if md5 in hashes:
+                # This avoids hitting IntegrityError UNIQUE constraint failed
+                dups = "\n" + "\n".join(
+                    sorted({str(k) for k, v in filename_to_md5.items() if v == md5})
+                )
+                msg = f"ERROR - Multiple genomes with same MD5 checksum {md5}:{dups}"
+                sys.exit(msg)
+            hashes.add(md5)
+            db_orm.db_genome(session, filename, md5, create=True)
+
+    # Will now update the runs_genomes linker table, but did not scale
+    # well via runs.genomes = [list of genome ORM objects]
+    # We could update the runs_genomes incrementally, or in batches?
+    run_id = run.run_id
+    session.execute(
+        insert(db_orm.RunGenomeAssociation),
+        [{"run_id": run_id, "genome_hash": md5} for md5 in hashes],
+    )
+    del hashes
+    run.status = "Setup"
+    session.commit()
+    print(f"Run setup with {n} genomes in database")  # noqa: T201
+    return filename_to_md5
+
+
 def run_method(  # noqa: PLR0913
     database: Path,
     name: str,
@@ -285,31 +326,9 @@ def run_method(  # noqa: PLR0913
     )
     run_id = run.run_id
 
-    # Reuse existing genome entries and/or log new ones
     n = len(fasta_names)
-    filename_to_md5 = {}
-    with Progress(*progress_columns) as progress:
-        for filename in progress.track(fasta_names, description="Indexing FASTAs"):
-            md5 = file_md5sum(filename)
-            # Could check here for multiple files with same MD5 checksum?
-            db_orm.db_genome(session, filename, md5, create=True)
-            filename_to_md5[filename] = md5
-
-    # Will now update the runs_genomes linker table, but did not scale
-    # well via runs.genomes = [list of genome ORM objects]
-    session.execute(
-        insert(db_orm.RunGenomeAssociation),
-        [
-            {
-                "genome_hash": md5,
-                "run_id": run_id,
-            }
-            for md5 in filename_to_md5.values()
-        ],
-    )
-    run.status = "Setup"
-    session.commit()
-    print(f"Run setup with {n} genomes in database")  # noqa: T201
+    filename_to_md5 = record_genomes(session, run, fasta_names)
+    del fasta_names
 
     done = run.comparisons().count()
     if done == n**2:

@@ -215,3 +215,18 @@ def test_fastani(
     compare_matrix_files(
         fastani_matrices / "matrix_identity.tsv", out / "fastANI_identity.tsv"
     )
+
+
+def test_fastani_dups(tmp_path: str) -> None:
+    """Check fastANI run (duplicate FASTA inputs)."""
+    tmp = Path(tmp_path)
+    tmp_db = tmp / "example.sqlite"
+    for name in ("alpha", "beta", "gamma"):
+        with (tmp / (name + ".fasta")).open("w") as handle:
+            handle.write(">genome\nACGTACGT\n")
+    with pytest.raises(
+        SystemExit, match="ERROR - Multiple genomes with same MD5 checksum"
+    ):
+        public_cli.fastani(
+            database=tmp_db, fasta=tmp, name="Test duplicates fail", create_db=True
+        )

@@ -29,3 +29,5 @@ additional schedulers and methods.
 """
 
 __version__ = "0.0.1"
+
+FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}

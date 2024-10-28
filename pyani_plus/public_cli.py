@@ -224,10 +224,14 @@ def run_method(  # noqa: PLR0913
         session.close()  # Reduce chance of DB locking
 
         # Run snakemake wrapper
+        # With a cluster-based running like SLURM, the location of the working and
+        # output directories must be viewable from all the worker nodes too.
+        # i.e. Can't use a temp directory on the head node.
+        # We might want to make this explicitly configurable, e.g. to /mnt/scratch/
         with tempfile.TemporaryDirectory(
             prefix="pyani-plus_", dir=None if executor.value == "local" else "."
         ) as tmp:
-            tmp_path = Path(tmp) / "working"
+            work_path = Path(tmp) / "working"
             out_path = Path(tmp) / "output"
             targets = [
                 out_path / f"{query.stem}_vs_{subject.stem}{target_extension}"
@@ -238,7 +242,7 @@ def run_method(  # noqa: PLR0913
             del done_hashes
             # Must all inputs be in one place? Symlinks?
             params["indir"] = fasta.resolve()  # must be absolute
-            params["outdir"] = out_path.resolve()
+            params["outdir"] = work_path.resolve()
             params["db"] = Path(database).resolve()  # must be absolute
             params["cores"] = available_cores()  # should make configurable
             run_snakemake_with_progress_bar(
@@ -246,7 +250,7 @@ def run_method(  # noqa: PLR0913
                 workflow_name,
                 targets,
                 params,
-                tmp_path,
+                work_path,
                 show_progress_bar=True,
                 database=Path(database),
                 run_id=run_id,

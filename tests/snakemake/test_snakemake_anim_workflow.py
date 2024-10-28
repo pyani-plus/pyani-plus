@@ -33,8 +33,8 @@ from pathlib import Path
 import pytest
 
 from pyani_plus.private_cli import log_configuration, log_genome, log_run
-from pyani_plus.snakemake import snakemake_scheduler
 from pyani_plus.tools import get_delta_filter, get_nucmer
+from pyani_plus.workflows import SnakemakeRunner, check_input_stems
 
 from . import compare_matrices
 
@@ -122,9 +122,7 @@ def test_snakemake_rule_filter(  # noqa: PLR0913
     # Record the FASTA files in the genomes table _before_ call snakemake
     log_genome(
         database=db,
-        fasta=list(
-            snakemake_scheduler.check_input_stems(config_anim_args["indir"]).values()
-        ),
+        fasta=list(check_input_stems(config_anim_args["indir"]).values()),
     )
     assert db.is_file()
 
@@ -132,7 +130,7 @@ def test_snakemake_rule_filter(  # noqa: PLR0913
     config["outdir"] = anim_nucmer_targets_filter_outdir
 
     # Run snakemake wrapper
-    runner = snakemake_scheduler.SnakemakeRunner("snakemake_anim.smk")
+    runner = SnakemakeRunner("snakemake_anim.smk")
     runner.run_workflow(anim_nucmer_targets_filter, config, workdir=Path(tmp_path))
 
     # Check output against target fixtures
@@ -185,7 +183,7 @@ def test_snakemake_rule_delta(
     config["outdir"] = anim_nucmer_targets_delta_outdir
 
     # Run snakemake wrapper
-    runner = snakemake_scheduler.SnakemakeRunner("snakemake_anim.smk")
+    runner = SnakemakeRunner("snakemake_anim.smk")
     runner.run_workflow(anim_nucmer_targets_delta, config, workdir=Path(tmp_path))
 
     # Check output against target fixtures

@@ -28,6 +28,24 @@ methods. It is a reimplemented version of ``pyani`` with support for
 additional schedulers and methods.
 """
 
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
+
 __version__ = "0.0.1"
 
+# The following are assorted centrally defined constants:
 FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}
+PROGRESS_BAR_COLUMNS = [
+    TextColumn("[progress.description]{task.description}"),
+    BarColumn(),
+    TaskProgressColumn(),
+    # Removing TimeRemainingColumn() from defaults, replacing with:
+    TimeElapsedColumn(),
+    # Add this last as have some out of N and some out of N^2:
+    MofNCompleteColumn(),
+]

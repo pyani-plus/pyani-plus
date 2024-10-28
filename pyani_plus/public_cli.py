@@ -37,21 +37,14 @@ from typing import Annotated
 import pandas as pd
 import typer
 from rich.console import Console
-from rich.progress import (
-    BarColumn,
-    MofNCompleteColumn,
-    Progress,
-    TaskProgressColumn,
-    TextColumn,
-    TimeElapsedColumn,
-)
+from rich.progress import Progress
 from rich.table import Table
 from rich.text import Text
 from sqlalchemy import insert, text
 from sqlalchemy.exc import NoResultFound, OperationalError
 from sqlalchemy.orm import Session
 
-from pyani_plus import FASTA_EXTENSIONS, db_orm, tools
+from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, db_orm, tools
 from pyani_plus.methods import method_anib, method_fastani
 from pyani_plus.utils import available_cores, check_db, check_fasta, file_md5sum
 from pyani_plus.workflows import SnakemakeRunner
@@ -117,16 +110,6 @@ OPT_ARG_TYPE_CREATE_DB = Annotated[
     bool, typer.Option("--create-db", help="Create database if does not exist")
 ]
 
-progress_columns = [
-    TextColumn("[progress.description]{task.description}"),
-    BarColumn(),
-    TaskProgressColumn(),
-    # Removing TimeRemainingColumn() from defaults, replacing with:
-    TimeElapsedColumn(),
-    # Add this last as have some out of N and some out of N^2:
-    MofNCompleteColumn(),
-]
-
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
@@ -148,7 +131,7 @@ def progress_bar_via_db_comparisons(
 
     done = 0
     old_db_version = -1
-    with Progress(*progress_columns) as progress:
+    with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         task = progress.add_task("Comparing pairs", total=total)
         while done < total:
             sleep(interval)
@@ -226,7 +209,7 @@ def record_genomes(
     n = len(fasta_names)
     filename_to_md5 = {}
     hashes = set()
-    with Progress(*progress_columns) as progress:
+    with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         for filename in progress.track(fasta_names, description="Indexing FASTAs"):
             md5 = file_md5sum(filename)
             filename_to_md5[filename] = md5

@@ -52,8 +52,8 @@ from sqlalchemy.orm import Session
 
 from pyani_plus import db_orm, tools
 from pyani_plus.methods import method_anib, method_fastani
-from pyani_plus.snakemake import snakemake_scheduler
 from pyani_plus.utils import available_cores, file_md5sum
+from pyani_plus.workflows import SnakemakeRunner
 
 FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}  # define more centrally?
 
@@ -204,7 +204,7 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     interval: float = 0.5,
 ) -> None:
     """Run snakemake with a progress bar."""
-    runner = snakemake_scheduler.SnakemakeRunner(workflow_name)
+    runner = SnakemakeRunner(workflow_name)
     # All rest replaces one line, runner.run_workflow(targets, params, workdir=working_directory)
 
     # As of Python 3.8 onwards, the default on macOS ("Darwin") is "spawn"

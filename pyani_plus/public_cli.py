@@ -107,6 +107,9 @@ OPT_ARG_TYPE_CREATE_DB = Annotated[
     # Listing name(s) explicitly to avoid automatic matching --no-create-db
     bool, typer.Option("--create-db", help="Create database if does not exist")
 ]
+OPT_ARG_TYPE_EXECUTOR = Annotated[
+    ToolExecutor, typer.Option(help="How should the internal tools be run?")
+]
 
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -154,6 +157,7 @@ def record_genomes(
 
 
 def run_method(  # noqa: PLR0913
+    executor: ToolExecutor,
     database: Path,
     name: str,
     method: str,
@@ -220,9 +224,8 @@ def run_method(  # noqa: PLR0913
         session.close()  # Reduce chance of DB locking
 
         # Run snakemake wrapper
-        slurm = False  # TOGGLE THIS WHILE TESTING
         with tempfile.TemporaryDirectory(
-            prefix="pyani-plus_", dir="." if slurm else None
+            prefix="pyani-plus_", dir=None if executor.value == "local" else "."
         ) as tmp:
             tmp_path = Path(tmp) / "working"
             out_path = Path(tmp) / "output"
@@ -239,7 +242,7 @@ def run_method(  # noqa: PLR0913
             params["db"] = Path(database).resolve()  # must be absolute
             params["cores"] = available_cores()  # should make configurable
             run_snakemake_with_progress_bar(
-                ToolExecutor.slurm if slurm else ToolExecutor.local,
+                executor,
                 workflow_name,
                 targets,
                 params,
@@ -277,6 +280,7 @@ def anim(
     *,
     # Does not use fragsize, maxmatch, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -288,6 +292,7 @@ def anim(
         "delta_filter": tools.get_delta_filter().exe_path,
     }
     return run_method(
+        executor,
         database,
         name,
         "ANIm",
@@ -307,6 +312,7 @@ def dnadiff(
     *,
     # Does not use fragsize, maxmatch, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -322,6 +328,7 @@ def dnadiff(
         "show_coords": tools.get_show_coords().exe_path,
     }
     return run_method(
+        executor,
         database,
         name,
         "dnadiff",
@@ -333,7 +340,7 @@ def dnadiff(
 
 
 @app.command(rich_help_panel="ANI methods")
-def anib(
+def anib(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
@@ -343,6 +350,7 @@ def anib(
     *,
     # Does not use maxmatch, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
     """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -358,6 +366,7 @@ def anib(
         "makeblastdb": alt.exe_path,
     }
     return run_method(
+        executor,
         database,
         name,
         "ANIb",
@@ -382,6 +391,7 @@ def fastani(  # noqa: PLR0913
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
     minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -392,6 +402,7 @@ def fastani(  # noqa: PLR0913
         "fastani": tool.exe_path,
     }
     return run_method(
+        executor,
         database,
         name,
         "fastANI",

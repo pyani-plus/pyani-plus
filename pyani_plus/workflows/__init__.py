@@ -131,7 +131,9 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     parser, args = parse_args(
         [
             "--quiet",
-            "all" if show_progress_bar else "rules",
+            # No argument for quiet mode (with progress bar),
+            # otherwise --quiet rules isn't too verbose:
+            *([] if show_progress_bar else ["rules"]),
             "--executor",
             executor.value,
             "--directory",

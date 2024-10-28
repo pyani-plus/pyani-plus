@@ -6,6 +6,9 @@
 *#
 .#
 
+# Backup files
+*.bak
+
 # Config files for development tools
 .ipynb_checkpoints
 .Rhistory

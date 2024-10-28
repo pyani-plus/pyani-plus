@@ -26,6 +26,8 @@ from pathlib import Path
 from snakemake.api import ConfigSettings, DAGSettings, ResourceSettings, SnakemakeApi
 from snakemake.settings.types import OutputSettings, Quietness
 
+from pyani_plus import FASTA_EXTENSIONS
+
 
 def check_input_stems(indir: str) -> dict[str, Path]:
     """Check input files against approved list of extensions.
@@ -33,12 +35,11 @@ def check_input_stems(indir: str) -> dict[str, Path]:
     If duplicate stems with approved extensions are present
     raise a ValueError.
     """
-    extensions = [".fasta", ".fas", ".fna"]
-    stems = [_.stem for _ in Path(indir).glob("*") if _.suffix in extensions]
+    stems = [_.stem for _ in Path(indir).glob("*") if _.suffix in FASTA_EXTENSIONS]
 
     if len(stems) == len(set(stems)):
         input_files = {
-            _.stem: _ for _ in Path(indir).glob("*") if _.suffix in extensions
+            _.stem: _ for _ in Path(indir).glob("*") if _.suffix in FASTA_EXTENSIONS
         }
     else:
         duplicates = [

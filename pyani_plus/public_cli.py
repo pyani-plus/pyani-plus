@@ -58,13 +58,26 @@ FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}  # define more centrally?
 
 # Reused required command line arguments (which have no default)
 REQ_ARG_TYPE_DATABASE = Annotated[
-    Path, typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False)
+    Path,
+    typer.Option(
+        help="Path to pyANI-plus SQLite3 database",
+        show_default=False,
+        dir_okay=False,
+        file_okay=True,
+    ),
 ]
 REQ_ARG_TYPE_RUN_NAME = Annotated[
     str, typer.Option(help="Run name", show_default=False)
 ]
 REQ_ARG_TYPE_OUTDIR = Annotated[
-    Path, typer.Option(help="Output directory", show_default=False)
+    Path,
+    typer.Option(
+        help="Output directory",
+        show_default=False,
+        exists=True,
+        dir_okay=True,
+        file_okay=False,
+    ),
 ]
 REQ_ARG_TYPE_FASTA_DIR = Annotated[
     Path,
@@ -78,23 +91,30 @@ REQ_ARG_TYPE_FASTA_DIR = Annotated[
 OPT_ARG_TYPE_FRAGSIZE = Annotated[
     int,
     typer.Option(
-        help="Comparison method fragment size", rich_help_panel="Method parameters"
+        help="Comparison method fragment size",
+        rich_help_panel="Method parameters",
+        min=1,
     ),
 ]
+# fastANI has maximum (and default) k-mer size 16
 OPT_ARG_TYPE_KMERSIZE = Annotated[
     int,
     typer.Option(
-        help="Comparison method k-mer size", rich_help_panel="Method parameters"
+        help="Comparison method k-mer size", rich_help_panel="Method parameters", min=1
     ),
 ]
 OPT_ARG_TYPE_MINMATCH = Annotated[
     float,
     typer.Option(
-        help="Comparison method min-match", rich_help_panel="Method parameters"
+        help="Comparison method min-match",
+        rich_help_panel="Method parameters",
+        min=0.0,
+        max=1.0,
     ),
 ]
 OPT_ARG_TYPE_CREATE_DB = Annotated[
-    bool, typer.Option(help="Create database if does not exist")
+    # Listing name(s) explicitly to avoid automatic matching --no-create-db
+    bool, typer.Option("--create-db", help="Create database if does not exist")
 ]
 
 progress_columns = [

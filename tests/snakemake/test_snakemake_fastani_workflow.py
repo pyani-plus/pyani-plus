@@ -35,7 +35,11 @@ import pytest
 
 from pyani_plus.private_cli import log_configuration, log_genome, log_run
 from pyani_plus.tools import get_fastani
-from pyani_plus.workflows import SnakemakeRunner, check_input_stems
+from pyani_plus.workflows import (
+    ToolExecutor,
+    check_input_stems,
+    run_snakemake_with_progress_bar,
+)
 
 from . import compare_matrices
 
@@ -124,9 +128,14 @@ def test_snakemake_rule_fastani(  # noqa: PLR0913
     assert db.is_file()
 
     # Run snakemake wrapper
-    runner = SnakemakeRunner("snakemake_fastani.smk")
-
-    runner.run_workflow(fastani_targets, config_fastani_args, workdir=Path(tmp_path))
+    run_snakemake_with_progress_bar(
+        executor=ToolExecutor.local,
+        workflow_name="snakemake_fastani.smk",
+        targets=fastani_targets,
+        params=config_fastani_args,
+        working_directory=Path(tmp_path),
+        show_progress_bar=False,
+    )
 
     # Check output against target fixtures
     for fname in fastani_targets:
@@ -178,8 +187,12 @@ def test_snakemake_duplicate_stems(
     dup_config["indir"] = dup_input_dir
     msg = f"Duplicated stems found for {sorted(stems)}. Please investigate."
 
-    # Run snakemake wrapper
-    runner = SnakemakeRunner("snakemake_fastani.smk")
-
     with pytest.raises(ValueError, match=re.escape(msg)):
-        runner.run_workflow(fastani_targets, dup_config, workdir=Path(tmp_path))
+        run_snakemake_with_progress_bar(
+            executor=ToolExecutor.local,
+            workflow_name="snakemake_fastani.smk",
+            targets=fastani_targets,
+            params=dup_config,
+            working_directory=Path(tmp_path),
+            show_progress_bar=False,
+        )

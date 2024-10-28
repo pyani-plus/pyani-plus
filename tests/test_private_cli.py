@@ -27,7 +27,8 @@ pytest -v
 """
 
 import filecmp
-from multiprocessing import Pool
+import multiprocessing
+import sys
 from pathlib import Path
 
 import pytest
@@ -313,7 +314,10 @@ def test_log_comparison_parallel(tmp_path: str, input_genomes_tiny: Path) -> Non
     )
 
     fasta = list(input_genomes_tiny.glob("*.f*"))
-    pool = Pool(3)
+    # Avoid implicit fork, should match the defaults on Python 3.14 onwards:
+    pool = multiprocessing.get_context(  # type:ignore [attr-defined]
+        "spawn" if sys.platform == "darwin" else "forkserver"
+    ).Pool(3)
     for filename in fasta:
         # Deliberately add each file multiple times to try to clash
         for _ in range(3):
@@ -353,7 +357,10 @@ def test_log_comparison_parallel(tmp_path: str, input_genomes_tiny: Path) -> Non
         for subject in fasta
     ]
 
-    pool = Pool(len(fasta) ** 2)
+    # Avoid implicit fork, should match the defaults on Python 3.14 onwards:
+    pool = multiprocessing.get_context(  # type:ignore [attr-defined]
+        "spawn" if sys.platform == "darwin" else "forkserver"
+    ).Pool(len(fasta) ** 2)
     for kwargs in tasks:
         pool.apply_async(private_cli.log_comparison, [], kwargs)
     pool.close()

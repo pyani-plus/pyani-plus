@@ -47,7 +47,10 @@ rule delta:
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.delta",
     shell:
-        "chronic {params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --maxmatch {input.genomeB} {input.genomeA}"
+        """
+        {params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} \
+            --maxmatch {input.genomeB} {input.genomeA} 2> {output}.log
+        """
 
 
 # The filter rule runs delta-filter wrapper for nucmer

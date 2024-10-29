@@ -48,9 +48,9 @@ rule fastani:
         "{outdir}/{genomeA}_vs_{genomeB}.fastani",
     shell:
         """
-        chronic {params.fastani} -q {input.genomeA} -r {input.genomeB} \
-            -o {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.fastani \
-            --fragLen {params.fragsize} -k {params.kmersize} --minFraction {params.minmatch} &&
+        {params.fastani} -q {input.genomeA} -r {input.genomeB} \
+            -o {output} --fragLen {params.fragsize} -k {params.kmersize} \
+            --minFraction {params.minmatch} > {output}.log &&
         .pyani-plus-private-cli log-fastani --quiet --database {params.db} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
             --fastani {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.fastani \

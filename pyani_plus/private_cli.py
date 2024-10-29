@@ -125,11 +125,12 @@ def log_configuration(  # noqa: PLR0913
     method: REQ_ARG_TYPE_METHOD,
     program: REQ_ARG_TYPE_PROGRAM,
     version: REQ_ARG_TYPE_VERSION,
+    *,
     fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
     maxmatch: NONE_ARG_TYPE_MAXMATCH = None,
     kmersize: NONE_ARG_TYPE_KMERSIZE = None,
     minmatch: NONE_ARG_TYPE_MINMATCH = None,
-    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
 ) -> int:
     """Log a specific method configuration to database.
 
@@ -163,7 +164,8 @@ def log_configuration(  # noqa: PLR0913
 def log_genome(
     fasta: REQ_ARG_TYPE_FASTA_FILES,
     database: REQ_ARG_TYPE_DATABASE,
-    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    *,
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
 ) -> int:
     """Compute MD5 checksums of given FASTA files, log them to database.
 
@@ -201,11 +203,12 @@ def log_run(  # noqa: PLR0913
     method: REQ_ARG_TYPE_METHOD,
     program: REQ_ARG_TYPE_PROGRAM,
     version: REQ_ARG_TYPE_VERSION,
+    *,
     fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
     maxmatch: NONE_ARG_TYPE_MAXMATCH = None,
     kmersize: NONE_ARG_TYPE_KMERSIZE = None,
     minmatch: NONE_ARG_TYPE_MINMATCH = None,
-    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
 ) -> int:
     """Log a run (and if need be, associated configuration and genome rows).
 
@@ -275,6 +278,7 @@ def log_comparison(  # noqa: PLR0913
     method: REQ_ARG_TYPE_METHOD,
     program: REQ_ARG_TYPE_PROGRAM,
     version: REQ_ARG_TYPE_VERSION,
+    *,
     fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
     maxmatch: NONE_ARG_TYPE_MAXMATCH = None,
     kmersize: NONE_ARG_TYPE_KMERSIZE = None,

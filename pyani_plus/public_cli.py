@@ -389,8 +389,9 @@ def anim(
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
     name: REQ_ARG_TYPE_RUN_NAME,
+    *,
     # Does not use fragsize, maxmatch, kmersize, or minmatch
-    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
 ) -> int:
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -424,8 +425,9 @@ def dnadiff(
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
     name: REQ_ARG_TYPE_RUN_NAME,
+    *,
     # Does not use fragsize, maxmatch, kmersize, or minmatch
-    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
 ) -> int:
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -464,8 +466,9 @@ def anib(
     name: REQ_ARG_TYPE_RUN_NAME,
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
+    *,
     # Does not use maxmatch, kmersize, or minmatch
-    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
 ) -> int:
     """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -503,12 +506,13 @@ def fastani(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
     name: REQ_ARG_TYPE_RUN_NAME,
+    *,
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_fastani.FRAG_LEN,
     # Does not use maxmatch
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
     minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
-    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)

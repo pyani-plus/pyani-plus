@@ -74,7 +74,7 @@ rule filter:
         {params.delta_filter} \
             -1 {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.delta \
              > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter &&
-        chronic .pyani-plus-private-cli log-anim --database {params.db} \
+        .pyani-plus-private-cli log-anim --quiet --database {params.db} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
             --deltafilter {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter \
             --mode {params.mode}

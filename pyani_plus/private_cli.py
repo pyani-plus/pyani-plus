@@ -50,6 +50,10 @@ app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 
+OPT_ARG_TYPE_QUIET = Annotated[
+    # Listing name(s) explicitly to avoid automatic matching --no-quiet
+    bool, typer.Option("--quiet", help="Suppress any output except if fails")
+]
 REQ_ARG_TYPE_FASTA_FILES = Annotated[
     list[Path],
     typer.Argument(
@@ -352,6 +356,8 @@ def log_fastani(  # noqa: PLR0913
             exists=True,
         ),
     ],
+    *,
+    quiet: OPT_ARG_TYPE_QUIET = False,
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_fastani.FRAG_LEN,
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
@@ -392,7 +398,8 @@ def log_fastani(  # noqa: PLR0913
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging fastANI comparison to {database}")
+    if not quiet:
+        print(f"Logging fastANI comparison to {database}")
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
@@ -430,7 +437,9 @@ def log_fastani(  # noqa: PLR0913
 def fragment_fasta(
     fasta: REQ_ARG_TYPE_FASTA_FILES,
     outdir: REQ_ARG_TYPE_OUTDIR,
+    *,
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
+    quiet: OPT_ARG_TYPE_QUIET = False,
 ) -> int:
     """Fragment FASTA files into subsequences of up to the given size.
 
@@ -441,12 +450,13 @@ def fragment_fasta(
     if not outdir.is_dir():
         sys.exit(f"ERROR: outdir {outdir} should be a directory")
     fragmented_files = method_anib.fragment_fasta_files(fasta, outdir, fragsize)
-    print(f"Fragmented {len(fragmented_files)} files")
+    if not quiet:
+        print(f"Fragmented {len(fragmented_files)} files")
     return 0
 
 
 @app.command(rich_help_panel="Method specific logging")
-def log_anim(
+def log_anim(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
@@ -460,8 +470,11 @@ def log_anim(
             exists=True,
         ),
     ],
+    *,
     # Don't use any of fragsize, kmersize, minmatch (configuration table entries)
     mode: OPT_ARG_TYPE_ANIM_MODE = method_anim.MODE,
+    quiet: OPT_ARG_TYPE_QUIET = False,
+    # Don't use any of fragsize, maxmatch, kmersize, minmatch (configuration table entries)
 ) -> int:
     """Log single ANIm pairwise comparison (with nucmer) to database.
 
@@ -489,7 +502,8 @@ def log_anim(
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging ANIm to {database}")
+    if not quiet:
+        print(f"Logging ANIm to {database}")
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
@@ -526,7 +540,7 @@ def log_anim(
 
 # Note this omits kmersize, minmatch, mode
 @app.command(rich_help_panel="Method specific logging")
-def log_anib(
+def log_anib(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
@@ -540,6 +554,8 @@ def log_anib(
             exists=True,
         ),
     ],
+    *,
+    quiet: OPT_ARG_TYPE_QUIET = False,
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
 ) -> int:
@@ -566,7 +582,8 @@ def log_anib(
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging ANIb comparison to {database}")
+    if not quiet:
+        print(f"Logging ANIb comparison to {database}")
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
@@ -602,7 +619,7 @@ def log_anib(
 
 
 @app.command(rich_help_panel="Method specific logging")
-def log_dnadiff(
+def log_dnadiff(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
@@ -625,6 +642,8 @@ def log_dnadiff(
             exists=True,
         ),
     ],
+    *,
+    quiet: OPT_ARG_TYPE_QUIET = False,
     # Should we add --maxmatch (nucmer) and -m (deltafilter) parameters?
     # These are default parameters used in workflows
 ) -> int:
@@ -669,7 +688,8 @@ def log_dnadiff(
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging dnadiff to {database}")
+    if not quiet:
+        print(f"Logging dnadiff to {database}")
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(

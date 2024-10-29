@@ -77,7 +77,7 @@ def test_bad_query_or_subject(
         SystemExit,
         match=(
             "ERROR: Given --subject-fasta .*/MGV-GENOME-0264574.fas"
-            " but query in fastANI file was .*/MGV-GENOME-0266457.fna"
+            " but subject in fastANI file was .*/MGV-GENOME-0266457.fna"
         ),
     ):
         private_cli.log_fastani(

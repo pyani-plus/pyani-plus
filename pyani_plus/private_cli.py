@@ -367,7 +367,7 @@ def log_fastani(  # noqa: PLR0913
         )
     if used_subject.stem != subject_fasta.stem:
         sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but query in fastANI file was {used_subject}"
+            f"ERROR: Given --subject-fasta {subject_fasta} but subject in fastANI file was {used_subject}"
         )
 
     if database != ":memory:" and not Path(database).is_file():
@@ -469,7 +469,7 @@ def log_anim(
         )
     if used_subject != subject_fasta.stem:
         sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but query in deltafilter filename was {used_subject}"
+            f"ERROR: Given --subject-fasta {subject_fasta} but subject in deltafilter filename was {used_subject}"
         )
 
     if database != ":memory:" and not Path(database).is_file():
@@ -551,7 +551,7 @@ def log_anib(
         )
     if used_subject != subject_fasta.stem:
         sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but query in blastn filename was {used_subject}"
+            f"ERROR: Given --subject-fasta {subject_fasta} but subject in blastn filename was {used_subject}"
         )
 
     if database != ":memory:" and not Path(database).is_file():
@@ -650,7 +650,7 @@ def log_dnadiff(
         )
     if used_subject_mcoords != subject_fasta.stem:
         sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but query in mcoords filename was {used_subject_mcoords}"
+            f"ERROR: Given --subject-fasta {subject_fasta} but subject in mcoords filename was {used_subject_mcoords}"
         )
 
     used_query_qdiff, used_subject_qdiff = qdiff.stem.split("_vs_")
@@ -660,7 +660,7 @@ def log_dnadiff(
         )
     if used_subject_qdiff != subject_fasta.stem:
         sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but query in qdiff filename was {used_subject_qdiff}"
+            f"ERROR: Given --subject-fasta {subject_fasta} but subject in qdiff filename was {used_subject_qdiff}"
         )
 
     if database != ":memory:" and not Path(database).is_file():

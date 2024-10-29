@@ -139,7 +139,7 @@ def test_bad_query_or_subject(
         SystemExit,
         match=(
             "ERROR: Given --subject-fasta .*/MGV-GENOME-0264574.fas"
-            " but query in blastn filename was MGV-GENOME-0266457"
+            " but subject in blastn filename was MGV-GENOME-0266457"
         ),
     ):
         private_cli.log_anib(

@@ -357,17 +357,27 @@ def log_fastani(  # noqa: PLR0913
     # after the computation has finished (on the same machine)
     fastani_tool = tools.get_fastani()
 
-    used_query, used_subject, identity, orthologous_matches, fragments = (
+    used_query, used_subject = fastani.stem.split("_vs_")
+    if used_query != query_fasta.stem:
+        sys.exit(
+            f"ERROR: Given --query-fasta {query_fasta} but query in fastANI filename was {used_query}"
+        )
+    if used_subject != subject_fasta.stem:
+        sys.exit(
+            f"ERROR: Given --subject-fasta {subject_fasta} but subject in fastANI filename was {used_subject}"
+        )
+
+    used_query_path, used_subject_path, identity, orthologous_matches, fragments = (
         method_fastani.parse_fastani_file(fastani)
     )
-    # Allowing for some variation in the filename paths here... should we?
-    if used_query.stem != query_fasta.stem:
+    # Allow for variation in the folder part of the filenames (e.g. relative paths)
+    if used_query_path.stem != query_fasta.stem:
         sys.exit(
-            f"ERROR: Given --query-fasta {query_fasta} but query in fastANI file was {used_query}"
+            f"ERROR: Given --query-fasta {query_fasta} but query in fastANI file contents was {used_query_path}"
         )
-    if used_subject.stem != subject_fasta.stem:
+    if used_subject_path.stem != subject_fasta.stem:
         sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but subject in fastANI file was {used_subject}"
+            f"ERROR: Given --subject-fasta {subject_fasta} but subject in fastANI file contents was {used_subject_path}"
         )
 
     if database != ":memory:" and not Path(database).is_file():
@@ -461,7 +471,6 @@ def log_anim(
         method_anim.parse_delta(deltafilter)
     )
 
-    # Allowing for some variation in the filename paths here... should we?
     used_query, used_subject = deltafilter.stem.split("_vs_")
     if used_query != query_fasta.stem:
         sys.exit(
@@ -543,7 +552,6 @@ def log_anib(
     blastn_tool = tools.get_blastn()
 
     identity, aln_length, sim_errors = method_anib.parse_blastn_file(blastn)
-    # Allowing for some variation in the filename paths here... should we?
     used_query, used_subject = blastn.stem.split("_vs_")
     if used_query != query_fasta.stem:
         sys.exit(

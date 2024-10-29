@@ -126,7 +126,6 @@ def log_configuration(  # noqa: PLR0913
     program: REQ_ARG_TYPE_PROGRAM,
     version: REQ_ARG_TYPE_VERSION,
     fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
-    maxmatch: NONE_ARG_TYPE_MAXMATCH = None,
     kmersize: NONE_ARG_TYPE_KMERSIZE = None,
     minmatch: NONE_ARG_TYPE_MINMATCH = None,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
@@ -147,7 +146,6 @@ def log_configuration(  # noqa: PLR0913
         program=program,
         version=version,
         fragsize=fragsize,
-        maxmatch=maxmatch,
         kmersize=kmersize,
         minmatch=minmatch,
         create=True,
@@ -206,7 +204,6 @@ def log_run(  # noqa: PLR0913
     program: REQ_ARG_TYPE_PROGRAM,
     version: REQ_ARG_TYPE_VERSION,
     fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
-    maxmatch: NONE_ARG_TYPE_MAXMATCH = None,
     kmersize: NONE_ARG_TYPE_KMERSIZE = None,
     minmatch: NONE_ARG_TYPE_MINMATCH = None,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
@@ -231,7 +228,6 @@ def log_run(  # noqa: PLR0913
         program=program,
         version=version,
         fragsize=fragsize,
-        maxmatch=maxmatch,
         kmersize=kmersize,
         minmatch=minmatch,
         create=True,
@@ -277,7 +273,6 @@ def log_comparison(  # noqa: PLR0913
     program: REQ_ARG_TYPE_PROGRAM,
     version: REQ_ARG_TYPE_VERSION,
     fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
-    maxmatch: NONE_ARG_TYPE_MAXMATCH = None,
     kmersize: NONE_ARG_TYPE_KMERSIZE = None,
     minmatch: NONE_ARG_TYPE_MINMATCH = None,
     # Optional comparison table entries
@@ -299,7 +294,6 @@ def log_comparison(  # noqa: PLR0913
         program=program,
         version=version,
         fragsize=fragsize,
-        maxmatch=maxmatch,
         kmersize=kmersize,
         minmatch=minmatch,
         create=False,
@@ -328,7 +322,6 @@ def log_comparison(  # noqa: PLR0913
 
 
 # Ought we switch the command line arguments here to match fastANI naming?
-# Note this omits maxmatch
 @app.command(rich_help_panel="Method specific logging")
 def log_fastani(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
@@ -377,7 +370,6 @@ def log_fastani(  # noqa: PLR0913
         program=fastani_tool.exe_path.stem,
         version=fastani_tool.version,
         fragsize=fragsize,  # aka --fragLen
-        maxmatch=None,
         kmersize=kmersize,  # aka --k
         minmatch=minmatch,  # aka --minFraction
         create=False,
@@ -433,7 +425,7 @@ def log_anim(
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     deltafilter: Annotated[Path, typer.Option(help="Path to deltafilter output file")],
-    # Don't use any of fragsize, maxmatch, kmersize, minmatch (configuration table entries)
+    # Don't use any of fragsize, kmersize, minmatch (configuration table entries)
 ) -> int:
     """Log a single pyANI-plus ANIm pairwise comparison (with nucmer) to the database."""
     # Assuming this will match as expect this script to be called right
@@ -468,7 +460,6 @@ def log_anim(
         program=nucmer_tool.exe_path.stem,
         version=nucmer_tool.version,
         fragsize=None,
-        maxmatch=None,
         kmersize=None,
         minmatch=None,
         create=False,
@@ -539,7 +530,6 @@ def log_anib(
         program=blastn_tool.exe_path.stem,
         version=blastn_tool.version,
         fragsize=fragsize,
-        maxmatch=None,
         kmersize=None,
         minmatch=None,
         create=False,
@@ -582,7 +572,6 @@ def log_dnadiff(
     ],
     qdiff: Annotated[Path, typer.Option(help="Path to show-diff (.qdiff) output file")],
     # Should we add --maxmatch (nucmer) and -m (deltafilter) parameters?
-    # These are default parameters used in workflows
 ) -> int:
     """Log a single pyANI-plus dnadiff pairwise comparison (with nucmer) to the database."""
     # Assuming this will match as expect this script to be called right
@@ -631,7 +620,6 @@ def log_dnadiff(
         program=tool.exe_path.stem,
         version=tool.version,
         fragsize=None,
-        maxmatch=None,
         kmersize=None,
         minmatch=None,
         create=False,

@@ -66,7 +66,6 @@ def test_make_and_populate_comparisons(tmp_path: str) -> None:
         program="guestimate",
         version="v0.1.2beta3",
         fragsize=100,
-        maxmatch=True,
         kmersize=17,
         minmatch=0.3,
     )
@@ -74,7 +73,7 @@ def test_make_and_populate_comparisons(tmp_path: str) -> None:
     assert repr(config) == (
         "Configuration(configuration_id=None,"
         " program='guestimate', version='v0.1.2beta3',"
-        " fragsize=100, maxmatch=True, kmersize=17, minmatch=0.3)"
+        " fragsize=100, kmersize=17, minmatch=0.3)"
     )
     session.add(config)
     assert config.configuration_id is None
@@ -135,7 +134,7 @@ def test_make_and_populate_comparisons(tmp_path: str) -> None:
         assert str(comparison) == (
             f"Query: {comparison.query_hash}, Subject: {comparison.subject_hash},"
             " %ID=0.96, (guestimate v0.1.2beta3), "
-            "FragSize: 100, MaxMatch: True, KmerSize: 17, MinMatch: 0.3"
+            "FragSize: 100, KmerSize: 17, MinMatch: 0.3"
         )
 
         # Check the configuration object attribute:
@@ -192,7 +191,7 @@ def test_make_and_populate_runs(tmp_path: str) -> None:
     assert repr(config) == (
         "Configuration(configuration_id=None,"
         " program='guestimate', version='v0.1.2beta3',"
-        " fragsize=1000, maxmatch=None, kmersize=31, minmatch=None)"
+        " fragsize=1000, kmersize=31, minmatch=None)"
     )
     session.add(config)
     assert config.configuration_id is None
@@ -280,7 +279,7 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
     assert repr(config) == (
         "Configuration(configuration_id=None,"
         " program='guestimate', version='v0.1.2beta3',"
-        " fragsize=1000, maxmatch=None, kmersize=31, minmatch=None)"
+        " fragsize=1000, kmersize=31, minmatch=None)"
     )
     session.add(config)
     session.commit()
@@ -495,7 +494,7 @@ def test_add_config(tmp_path: str) -> None:
     assert repr(config) == (
         "Configuration(configuration_id=1,"
         " program='guestimate', version='v0.1.2beta3',"
-        " fragsize=100, maxmatch=None, kmersize=17, minmatch=None)"
+        " fragsize=100, kmersize=17, minmatch=None)"
     )
 
     # Trying to add the exact same values should return the existing entry:
@@ -550,7 +549,7 @@ def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
     assert repr(config) == (
         "Configuration(configuration_id=1,"
         " program='guestimate', version='v0.1.2beta3',"
-        " fragsize=1000, maxmatch=None, kmersize=31, minmatch=None)"
+        " fragsize=1000, kmersize=31, minmatch=None)"
     )
 
     hashes = {}

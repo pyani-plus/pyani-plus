@@ -286,7 +286,6 @@ def run_method(  # noqa: PLR0913
     target_extension: str,
     tool: tools.ExternalToolData,
     fragsize: int | None,
-    maxmatch: bool | None,
     kmersize: int | None,
     minmatch: float | None,
     params: dict[str, object],
@@ -308,7 +307,6 @@ def run_method(  # noqa: PLR0913
         tool.exe_path.stem,
         tool.version,
         fragsize,
-        maxmatch,
         kmersize,
         minmatch,
         create=True,
@@ -391,7 +389,7 @@ def anim(
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
     name: REQ_ARG_TYPE_RUN_NAME,
-    # Does not use fragsize, maxmatch, kmersize, or minmatch
+    # Does not use fragsize, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
 ) -> int:
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
@@ -404,7 +402,7 @@ def anim(
         "delta_filter": tools.get_delta_filter().exe_path,
         "mode": "mum",
     }
-    fragsize = maxmatch = kmersize = minmatch = None
+    fragsize = kmersize = minmatch = None
     return run_method(
         database,
         name,
@@ -413,7 +411,6 @@ def anim(
         target_extension,
         tool,
         fragsize,
-        maxmatch,
         kmersize,
         minmatch,
         params,
@@ -426,7 +423,7 @@ def dnadiff(
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
     name: REQ_ARG_TYPE_RUN_NAME,
-    # Does not use fragsize, maxmatch, kmersize, or minmatch
+    # Does not use fragsize, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
 ) -> int:
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
@@ -442,7 +439,7 @@ def dnadiff(
         "show_diff": tools.get_show_diff().exe_path,
         "show_coords": tools.get_show_coords().exe_path,
     }
-    fragsize = maxmatch = kmersize = minmatch = None
+    fragsize = kmersize = minmatch = None
     return run_method(
         database,
         name,
@@ -451,7 +448,6 @@ def dnadiff(
         target_extension,
         tool,
         fragsize,
-        maxmatch,
         kmersize,
         minmatch,
         params,
@@ -466,7 +462,7 @@ def anib(
     name: REQ_ARG_TYPE_RUN_NAME,
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
-    # Does not use maxmatch, kmersize, or minmatch
+    # Does not use kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
 ) -> int:
     """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
@@ -483,7 +479,7 @@ def anib(
         "makeblastdb": alt.exe_path,
         "fragLen": fragsize,
     }
-    maxmatch = kmersize = minmatch = None
+    kmersize = minmatch = None
     return run_method(
         database,
         name,
@@ -492,7 +488,6 @@ def anib(
         target_extension,
         tool,
         fragsize,
-        maxmatch,
         kmersize,
         minmatch,
         params,
@@ -507,7 +502,6 @@ def fastani(  # noqa: PLR0913
     name: REQ_ARG_TYPE_RUN_NAME,
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_fastani.FRAG_LEN,
-    # Does not use maxmatch
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
     minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
@@ -523,7 +517,7 @@ def fastani(  # noqa: PLR0913
         "kmerSize": kmersize,
         "minFrac": minmatch,
     }
-    maxmatch = None
+
     return run_method(
         database,
         name,
@@ -532,7 +526,6 @@ def fastani(  # noqa: PLR0913
         target_extension,
         tool,
         fragsize,
-        maxmatch,
         kmersize,
         minmatch,
         params,

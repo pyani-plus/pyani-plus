@@ -104,7 +104,7 @@ def test_missing_db(tmp_path: str, input_genomes_tiny: Path, anib_blastn: Path) 
     assert not tmp_db.is_file()
 
     with pytest.raises(SystemExit, match="does not exist"):
-        private_cli.log_anib(
+        private_cli.anib(
             database=tmp_db,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
@@ -127,7 +127,7 @@ def test_bad_query_or_subject(
             " but query in blastn filename was MGV-GENOME-0264574"
         ),
     ):
-        private_cli.log_anib(
+        private_cli.anib(
             database=tmp_db,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
@@ -142,7 +142,7 @@ def test_bad_query_or_subject(
             " but subject in blastn filename was MGV-GENOME-0266457"
         ),
     ):
-        private_cli.log_anib(
+        private_cli.anib(
             database=tmp_db,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
@@ -165,7 +165,7 @@ def test_logging_anib(
         method="ANIb",
         program=tool.exe_path.stem,
         version=tool.version,
-        fragsize=method_anib.FRAGSIZE,  # will be used by default in log_anib
+        fragsize=method_anib.FRAGSIZE,  # will be used by default in anib
         create_db=True,
     )
     private_cli.log_genome(
@@ -176,7 +176,7 @@ def test_logging_anib(
         ],
     )
 
-    private_cli.log_anib(
+    private_cli.anib(
         database=tmp_db,
         # These are for the comparison table
         query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",

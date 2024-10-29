@@ -56,7 +56,7 @@ def test_missing_db(
     assert not tmp_db.is_file()
 
     with pytest.raises(SystemExit, match="does not exist"):
-        private_cli.log_sourmash(
+        private_cli.sourmash(
             database=tmp_db,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
@@ -80,7 +80,7 @@ def test_bad_query_or_subject(
             " but query in sourmash compare filename was MGV-GENOME-0264574"
         ),
     ):
-        private_cli.log_sourmash(
+        private_cli.sourmash(
             database=tmp_db,
             query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
@@ -95,7 +95,7 @@ def test_bad_query_or_subject(
             " but subject in sourmash compare filename was MGV-GENOME-0266457"
         ),
     ):
-        private_cli.log_sourmash(
+        private_cli.sourmash(
             database=tmp_db,
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
@@ -134,7 +134,7 @@ def test_logging_sourmash(
         ],
     )
 
-    private_cli.log_sourmash(
+    private_cli.sourmash(
         database=tmp_db,
         query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
         subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",

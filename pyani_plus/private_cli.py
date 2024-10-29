@@ -373,8 +373,8 @@ def log_comparison(  # noqa: PLR0913
 
 # Ought we switch the command line arguments here to match fastANI naming?
 # Note this omits mode
-@app.command(rich_help_panel="Method specific logging")
-def log_fastani(  # noqa: PLR0913
+@app.command(rich_help_panel="ANI methods")
+def fastani(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
@@ -488,8 +488,8 @@ def fragment_fasta(
     return 0
 
 
-@app.command(rich_help_panel="Method specific logging")
-def log_anim(  # noqa: PLR0913
+@app.command(rich_help_panel="ANI methods")
+def anim(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
@@ -572,8 +572,8 @@ def log_anim(  # noqa: PLR0913
 
 
 # Note this omits kmersize, minmatch, mode
-@app.command(rich_help_panel="Method specific logging")
-def log_anib(  # noqa: PLR0913
+@app.command(rich_help_panel="ANI methods")
+def anib(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
@@ -651,8 +651,8 @@ def log_anib(  # noqa: PLR0913
     return 0
 
 
-@app.command(rich_help_panel="Method specific logging")
-def log_dnadiff(  # noqa: PLR0913
+@app.command(rich_help_panel="ANI methods")
+def dnadiff(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
@@ -754,8 +754,8 @@ def log_dnadiff(  # noqa: PLR0913
     return 0
 
 
-@app.command(rich_help_panel="Method specific logging")
-def log_sourmash(  # noqa: PLR0913
+@app.command(rich_help_panel="ANI methods")
+def sourmash(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
@@ -778,7 +778,7 @@ def log_sourmash(  # noqa: PLR0913
     extra: NONE_ARG_TYPE_EXTRA = f"scaled={method_sourmash.SCALED}",
     # Don't use any of fragsize, maxmatch, minmatch (configuration table entries)
 ) -> int:
-    """Log single sourmash pairwise comparison to database.
+    """Compute a single dnadiff pairwise comparison and log to database.
 
     The associated configuration and genome entries must already exist.
     """

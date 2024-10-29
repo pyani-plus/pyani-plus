@@ -60,7 +60,7 @@ def test_bad_query_or_subject(
             " but query in fastANI filename was MGV-GENOME-0264574"
         ),
     ):
-        private_cli.log_fastani(
+        private_cli.fastani(
             database=":memory:",
             # These are for the comparison table
             query_fasta=input_genomes_tiny
@@ -81,7 +81,7 @@ def test_bad_query_or_subject(
             " but subject in fastANI filename was MGV-GENOME-0266457"
         ),
     ):
-        private_cli.log_fastani(
+        private_cli.fastani(
             database=":memory:",
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
@@ -106,7 +106,7 @@ def test_bad_query_or_subject(
             " but query in fastANI file contents was .*/MGV-GENOME-0264574.fas"
         ),
     ):
-        private_cli.log_fastani(
+        private_cli.fastani(
             database=":memory:",
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
@@ -129,7 +129,7 @@ def test_bad_query_or_subject(
             " but subject in fastANI file contents was .*/MGV-GENOME-0266457.fna"
         ),
     ):
-        private_cli.log_fastani(
+        private_cli.fastani(
             database=":memory:",
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
@@ -150,7 +150,7 @@ def test_missing_db(
     assert not tmp_db.is_file()
 
     with pytest.raises(SystemExit, match="does not exist"):
-        private_cli.log_fastani(
+        private_cli.fastani(
             database=tmp_db,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
@@ -194,7 +194,7 @@ def test_logging_fastani(
         ],
     )
 
-    private_cli.log_fastani(
+    private_cli.fastani(
         database=tmp_db,
         # These are for the comparison table
         query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",

@@ -66,7 +66,7 @@ rule compare:
         """
         sourmash compare --quiet --csv {output} --estimate-ani --{params.mode} \
             {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.sig &&
-        .pyani-plus-private-cli log-sourmash --quiet --database {params.db} \
+        .pyani-plus-private-cli sourmash --quiet --database {params.db} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
             --mode {params.mode} --kmersize {params.kmersize} --extra {params.extra} \
             --compare {output}

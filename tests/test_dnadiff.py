@@ -83,7 +83,7 @@ def test_missing_db(
     assert not tmp_db.is_file()
 
     with pytest.raises(SystemExit, match="does not exist"):
-        private_cli.log_dnadiff(
+        private_cli.dnadiff(
             database=tmp_db,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
@@ -112,7 +112,7 @@ def test_bad_query_or_subject(
             " but query in mcoords filename was MGV-GENOME-0264574"
         ),
     ):
-        private_cli.log_dnadiff(
+        private_cli.dnadiff(
             database=tmp_db,
             query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
@@ -129,7 +129,7 @@ def test_bad_query_or_subject(
             " but subject in mcoords filename was MGV-GENOME-0266457"
         ),
     ):
-        private_cli.log_dnadiff(
+        private_cli.dnadiff(
             database=tmp_db,
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
@@ -146,7 +146,7 @@ def test_bad_query_or_subject(
             " but query in qdiff filename was MGV-GENOME-0266457"
         ),
     ):
-        private_cli.log_dnadiff(
+        private_cli.dnadiff(
             database=tmp_db,
             query_fasta=input_genomes_tiny / "OP073605.fasta",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
@@ -163,7 +163,7 @@ def test_bad_query_or_subject(
             " but subject in qdiff filename was MGV-GENOME-0264574"
         ),
     ):
-        private_cli.log_dnadiff(
+        private_cli.dnadiff(
             database=tmp_db,
             query_fasta=input_genomes_tiny / "OP073605.fasta",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
@@ -202,7 +202,7 @@ def test_logging_dnadiff(
         ],
     )
 
-    private_cli.log_dnadiff(
+    private_cli.dnadiff(
         database=tmp_db,
         query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
         subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",

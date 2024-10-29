@@ -45,7 +45,7 @@ rule fragment:
     output:
         "{outdir}/{genomeA}-fragments.fna",
     shell:
-        "chronic .pyani-plus-private-cli fragment-fasta --outdir {wildcards.outdir} --fragsize {params.fragsize} {input.genomeA}"
+        ".pyani-plus-private-cli fragment-fasta --quiet --outdir {wildcards.outdir} --fragsize {params.fragsize} {input.genomeA}"
 
 
 # The nucleotide database of the FASTA file is used for the ANIb reference.
@@ -87,7 +87,7 @@ rule blastn:
             -outfmt '6 qseqid sseqid length mismatch pident nident qlen slen \
                      qstart qend sstart send positive ppos gaps' \
             -xdrop_gap_final 150 -dust no -evalue 1e-15 -max_target_seqs 1 &&
-        chronic .pyani-plus-private-cli log-anib --database {params.db} \
+        .pyani-plus-private-cli log-anib --quiet --database {params.db} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
             --blastn {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.tsv \
             --fragsize {params.fragsize}

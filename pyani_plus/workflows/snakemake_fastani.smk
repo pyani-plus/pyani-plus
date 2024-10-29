@@ -51,7 +51,7 @@ rule fastani:
         chronic {params.fastani} -q {input.genomeA} -r {input.genomeB} \
             -o {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.fastani \
             --fragLen {params.fragsize} -k {params.kmersize} --minFraction {params.minmatch} &&
-        chronic .pyani-plus-private-cli log-fastani --database {params.db} \
+        .pyani-plus-private-cli log-fastani --quiet --database {params.db} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
             --fastani {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.fastani \
             --fragsize {params.fragsize} --kmersize {params.kmersize} --minmatch {params.minmatch}

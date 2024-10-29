@@ -110,6 +110,8 @@ def test_missing_db(tmp_path: str, input_genomes_tiny: Path, anib_blastn: Path) 
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             blastn=anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
+            fragments=Path("MGV-GENOME-0264574-fragments.fna"),
+            blastdb=Path("MGV-GENOME-0266457.njs"),
         )
 
 
@@ -124,7 +126,7 @@ def test_bad_query_or_subject(
         SystemExit,
         match=(
             "ERROR: Given --query-fasta .*/MGV-GENOME-0266457.fna"
-            " but query in blastn filename was MGV-GENOME-0264574"
+            " but query in target filename was MGV-GENOME-0264574"
         ),
     ):
         private_cli.anib(
@@ -133,13 +135,15 @@ def test_bad_query_or_subject(
             query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             blastn=anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
+            fragments=Path("MGV-GENOME-0266457-fragments.fna"),
+            blastdb=Path("MGV-GENOME-0266457.njs"),
         )
 
     with pytest.raises(
         SystemExit,
         match=(
             "ERROR: Given --subject-fasta .*/MGV-GENOME-0264574.fas"
-            " but subject in blastn filename was MGV-GENOME-0266457"
+            " but subject in target filename was MGV-GENOME-0266457"
         ),
     ):
         private_cli.anib(
@@ -148,6 +152,8 @@ def test_bad_query_or_subject(
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             blastn=anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
+            fragments=Path("MGV-GENOME-0264574-fragments.fna"),
+            blastdb=Path("MGV-GENOME-0264574.njs"),
         )
 
 
@@ -182,6 +188,8 @@ def test_logging_anib(
         query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
         subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
         blastn=anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
+        fragments=Path("MGV-GENOME-0264574-fragments.fna"),
+        blastdb=Path("MGV-GENOME-0266457.njs"),
     )
 
     # Check the recorded comparison values

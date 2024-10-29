@@ -73,7 +73,6 @@ rule blastdb:
 rule blastn:
     params:
         db=config["db"],
-        blastn=config["blastn"],
         fragsize=config["fragsize"],
         indir=config["indir"],
         outdir=config["outdir"],
@@ -86,13 +85,10 @@ rule blastn:
         "{outdir}/{genomeA}_vs_{genomeB}.tsv",
     shell:
         """
-        {params.blastn} -query {wildcards.outdir}/{wildcards.genomeA}-fragments.fna \
-            -db {wildcards.outdir}/{wildcards.genomeB} -out {output} -task blastn \
-            -outfmt '6 qseqid sseqid length mismatch pident nident qlen slen \
-                     qstart qend sstart send positive ppos gaps' \
-            -xdrop_gap_final 150 -dust no -evalue 1e-15 > {output}.log &&
         .pyani-plus-private-cli anib --quiet --database {params.db} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
+            --fragments {wildcards.outdir}/{wildcards.genomeA}-fragments.fna \
+            --blastdb {wildcards.outdir}/{wildcards.genomeB}.njs \
             --blastn {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.tsv \
             --fragsize {params.fragsize}
         """

@@ -86,9 +86,8 @@ rule show_diff_and_coords:
         mcoords="{outdir}/{genomeA}_vs_{genomeB}.mcoords",
     shell:
         """
-        {params.show_diff} -qH {input.deltafilter} > {output.qdiff} &&
-        {params.show_coords} -rclTH {input.deltafilter} > {output.mcoords} &&
         .pyani-plus-private-cli dnadiff --quiet --database {params.db} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
-            --mcoords {output.mcoords} --qdiff {output.qdiff}
+            --deltafilter {input.deltafilter} \
+            --qdiff {output.qdiff}  --mcoords {output.mcoords}
         """

@@ -25,6 +25,7 @@ The commands defined here are intended to be used from within pyANI-plus via
 snakemake, for example from worker nodes, to log results to the database.
 """
 
+import subprocess
 import sys
 from pathlib import Path
 from typing import Annotated
@@ -371,6 +372,88 @@ def log_comparison(  # noqa: PLR0913
     return 0
 
 
+def _validate_method_inputs(  # noqa: PLR0913
+    database: Path,
+    method: str,
+    query_fasta: Path,
+    subject_fasta: Path,
+    target_filenames: list[Path],
+    tool: tools.ExternalToolData,
+    *,
+    fragsize: int | None = None,
+    mode: str | None = None,
+    kmersize: int | None = None,
+    minmatch: float | None = None,
+) -> tuple[db_orm.Session, db_orm.Configuration, str, str, bool]:
+    """Validate method input arguments, compute query and subject hashes, and check if already in DB."""
+    for filename in target_filenames:
+        used_query, used_subject = filename.stem.split("_vs_")
+        if used_query != query_fasta.stem:
+            sys.exit(
+                f"ERROR: Given --query-fasta {query_fasta} but query in target filename was {used_query}"
+            )
+        if used_subject != subject_fasta.stem:
+            sys.exit(
+                f"ERROR: Given --subject-fasta {subject_fasta} but subject in target filename was {used_subject}"
+            )
+
+    if database != ":memory:" and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+
+    session = db_orm.connect_to_db(database)
+    config = db_orm.db_configuration(
+        session,
+        method=method,
+        program=tool.exe_path.stem,
+        version=tool.version,
+        fragsize=fragsize,
+        mode=mode,
+        kmersize=kmersize,
+        minmatch=minmatch,
+        create=False,
+    )
+    query_md5 = file_md5sum(query_fasta)
+    subject_md5 = file_md5sum(subject_fasta)
+
+    in_db = bool(
+        session.query(db_orm.Comparison)
+        .where(db_orm.Comparison.configuration_id == config.configuration_id)
+        .where(db_orm.Comparison.query_hash == query_md5)
+        .where(db_orm.Comparison.subject_hash == subject_md5)
+        .count()
+    )
+
+    return session, config, query_md5, subject_md5, in_db
+
+
+def _run_tool(args: list[str], *, quiet: bool) -> None:
+    """Run a command line tool, hiding stdout/stderr unless if fails."""
+    if not quiet:
+        print("INFO: Running command: " + " ".join(args))
+    try:
+        subprocess.check_output(args, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as err:
+        sys.stderr.write(f"ERROR: Command failed (return code {err.returncode}):\n")
+        sys.stderr.write(" ".join(args) + "\n")
+        sys.stderr.buffer.write(err.output)  # bytes!
+        sys.exit(err.returncode)
+
+
+def _run_tool_to_stdout(args: list[str], stdout_path: Path, *, quiet: bool) -> None:
+    """Run a command line tool, stdout to given file, hiding stderr unless if fails."""
+    if not quiet:
+        print("INFO: Running command: " + " ".join(args) + f" > {stdout_path}")
+    try:
+        with stdout_path.open("w") as handle:
+            subprocess.check_call(args, stdout=handle, stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError as err:
+        sys.stderr.write(f"ERROR: Command failed (return code {err.returncode}):\n")
+        sys.stderr.write(" ".join(args) + f" > {stdout_path}\n")
+        sys.stderr.buffer.write(err.output)  # bytes!
+        sys.exit(err.returncode)
+
+
 # Ought we switch the command line arguments here to match fastANI naming?
 # Note this omits mode
 @app.command(rich_help_panel="ANI methods")
@@ -382,11 +465,10 @@ def fastani(  # noqa: PLR0913
     fastani: Annotated[
         Path,
         typer.Option(
-            help="Path to fastANI output file",
+            help="Path to fastANI output file (will be generated if missing)",
             show_default=False,
             dir_okay=False,
             file_okay=True,
-            exists=True,
         ),
     ],
     *,
@@ -396,58 +478,67 @@ def fastani(  # noqa: PLR0913
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
     minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
 ) -> int:
-    """Log single fastANI pairwise comparison to database.
+    """Compute a single fastANI pairwise comparison and log to database.
 
     The associated configuration and genome entries must already exist.
+    If the fastANI output file already exists, it will be reused. If not,
+    this will run the fastANI tool to generate that file.
     """
-    # Assuming this will match as expect this script to be called right
-    # after the computation has finished (on the same machine)
-    fastani_tool = tools.get_fastani()
+    tool = tools.get_fastani()
+    session, config, query_md5, subject_md5, in_db = _validate_method_inputs(
+        database,
+        "fastANI",
+        query_fasta,
+        subject_fasta,
+        [fastani],
+        tool,
+        fragsize=fragsize,
+        kmersize=kmersize,
+        minmatch=minmatch,
+    )
 
-    used_query, used_subject = fastani.stem.split("_vs_")
-    if used_query != query_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --query-fasta {query_fasta} but query in fastANI filename was {used_query}"
-        )
-    if used_subject != subject_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but subject in fastANI filename was {used_subject}"
+    if in_db:
+        if not quiet:
+            print("Already in the database")
+        session.close()
+        return 0
+
+    if not fastani.is_file():
+        _run_tool(
+            [
+                str(tool.exe_path),
+                "-q",
+                str(query_fasta),
+                "-r",
+                str(subject_fasta),
+                "-o",
+                str(fastani),
+                "--fragLen",
+                str(fragsize),
+                "-k",
+                str(kmersize),
+                "--minFraction",
+                str(minmatch),
+            ],
+            quiet=quiet,
         )
 
+    if not quiet:
+        print(f"Parsing {fastani}")
     used_query_path, used_subject_path, identity, orthologous_matches, fragments = (
         method_fastani.parse_fastani_file(fastani)
     )
     # Allow for variation in the folder part of the filenames (e.g. relative paths)
     if used_query_path.stem != query_fasta.stem:
         sys.exit(
-            f"ERROR: Given --query-fasta {query_fasta} but query in fastANI file contents was {used_query_path}"
+            f"ERROR: Given --query-fasta {query_fasta}"
+            f" but query in fastANI file contents was {used_query_path}"
         )
     if used_subject_path.stem != subject_fasta.stem:
         sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but subject in fastANI file contents was {used_subject_path}"
+            f"ERROR: Given --subject-fasta {subject_fasta}"
+            f" but subject in fastANI file contents was {used_subject_path}"
         )
-
-    if database != ":memory:" and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
-
-    if not quiet:
-        print(f"Logging fastANI comparison to {database}")
-    session = db_orm.connect_to_db(database)
-
-    config = db_orm.db_configuration(
-        session,
-        method="fastANI",
-        program=fastani_tool.exe_path.stem,
-        version=fastani_tool.version,
-        fragsize=fragsize,  # aka --fragLen
-        kmersize=kmersize,  # aka --k
-        minmatch=minmatch,  # aka --minFraction
-        create=False,
-    )
-
-    query_md5 = file_md5sum(query_fasta)
-    subject_md5 = file_md5sum(subject_fasta)
 
     # We assume both genomes have been recorded, if not this will fail:
     db_orm.db_comparison(
@@ -494,64 +585,71 @@ def anim(  # noqa: PLR0913
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
-    deltafilter: Annotated[
+    delta: Annotated[
         Path,
         typer.Option(
-            help="Path to deltafilter output file",
+            help="Path to nucmer delta output file",
             dir_okay=False,
             file_okay=True,
             exists=True,
+        ),
+    ],
+    deltafilter: Annotated[
+        Path,
+        typer.Option(
+            help="Path to deltafilter output file (will be generated if missing)",
+            dir_okay=False,
+            file_okay=True,
         ),
     ],
     *,
     # Don't use any of fragsize, kmersize, minmatch (configuration table entries)
     mode: OPT_ARG_TYPE_ANIM_MODE = method_anim.MODE,
     quiet: OPT_ARG_TYPE_QUIET = False,
-    # Don't use any of fragsize, maxmatch, kmersize, minmatch (configuration table entries)
 ) -> int:
-    """Log single ANIm pairwise comparison (with nucmer) to database.
+    """Compute a single ANIm pairwise comparison and log to database.
 
     The associated configuration and genome entries must already exist.
     """
-    # Assuming this will match as expect this script to be called right
-    # after the computation has finished (on the same machine)
-    nucmer_tool = tools.get_nucmer()
+    tool = tools.get_nucmer()
+    tool_deltafilter = tools.get_delta_filter()
+    if (
+        delta.stem != deltafilter.stem
+        or delta.suffix != ".delta"
+        or deltafilter.suffix != ".filter"
+    ):
+        msg = "ERROR: Require the delta and delta-filter files to be named <stem>.delta and <stem>.filter"
+        sys.exit(msg)
+    session, config, query_md5, subject_md5, in_db = _validate_method_inputs(
+        database,
+        "ANIm",
+        query_fasta,
+        subject_fasta,
+        [delta, deltafilter],
+        tool,
+        mode=mode.value,  # enum to string
+    )
 
+    if in_db:
+        if not quiet:
+            print("Already in the database")
+        session.close()
+        return 0
+
+    if not deltafilter.is_file():
+        _run_tool_to_stdout(
+            [str(tool_deltafilter.exe_path), "-1", str(delta)],
+            quiet=quiet,
+            stdout_path=deltafilter,
+        )
+
+    if not quiet:
+        print("Parsing ANIm comparison from nucmer via delta-filter")
     query_aligned_bases, subject_aligned_bases, identity, sim_errors = (
         method_anim.parse_delta(deltafilter)
     )
 
-    used_query, used_subject = deltafilter.stem.split("_vs_")
-    if used_query != query_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --query-fasta {query_fasta} but query in deltafilter filename was {used_query}"
-        )
-    if used_subject != subject_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but subject in deltafilter filename was {used_subject}"
-        )
-
-    if database != ":memory:" and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
-
-    if not quiet:
-        print(f"Logging ANIm to {database}")
-    session = db_orm.connect_to_db(database)
-
-    config = db_orm.db_configuration(
-        session,
-        method="ANIm",
-        program=nucmer_tool.exe_path.stem,
-        version=nucmer_tool.version,
-        mode=mode,
-        create=False,
-    )
-
-    query_md5 = file_md5sum(query_fasta)
-    subject_md5 = file_md5sum(subject_fasta)
-
-    # Need genome lengths for coverage:
+    # Need genome lengths for coverage
     query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
     subject = db_orm.db_genome(session, subject_fasta, subject_md5, create=False)
 
@@ -578,13 +676,33 @@ def anib(  # noqa: PLR0913
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
+    fragments: Annotated[
+        Path,
+        typer.Option(
+            help="Path to fragmented query file",
+            show_default=False,
+            dir_okay=False,
+            file_okay=True,
+            exists=True,
+        ),
+    ],
+    blastdb: Annotated[
+        Path,
+        typer.Option(
+            help="Path to subject BLAST database .njs file",
+            show_default=False,
+            dir_okay=False,
+            file_okay=True,
+            exists=True,
+        ),
+    ],
     blastn: Annotated[
         Path,
         typer.Option(
             help="Path to blastn TSV output file",
+            show_default=False,
             dir_okay=False,
             file_okay=True,
-            exists=True,
         ),
     ],
     *,
@@ -592,49 +710,72 @@ def anib(  # noqa: PLR0913
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
 ) -> int:
-    """Log single ANIb pairwise comparison (with blastn) to database.
+    """Compute a single ANIb pairwise comparison and log to database.
 
     The associated configuration and genome entries must already exist.
     """
-    # Assuming this will match as expect this script to be called right
-    # after the computation has finished (on the same machine)
-    blastn_tool = tools.get_blastn()
-
-    identity, aln_length, sim_errors = method_anib.parse_blastn_file(blastn)
-    used_query, used_subject = blastn.stem.split("_vs_")
-    if used_query != query_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --query-fasta {query_fasta} but query in blastn filename was {used_query}"
+    tool = tools.get_blastn()
+    if fragments.name != query_fasta.stem + "-fragments.fna":
+        msg = (
+            "ERROR - Fragmented version of query should be named"
+            f" {query_fasta.stem}-fragments.fna, not {fragments.name}"
         )
-    if used_subject != subject_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but subject in blastn filename was {used_subject}"
-        )
-
-    if database != ":memory:" and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
-
-    if not quiet:
-        print(f"Logging ANIb comparison to {database}")
-    session = db_orm.connect_to_db(database)
-
-    config = db_orm.db_configuration(
-        session,
-        method="ANIb",
-        program=blastn_tool.exe_path.stem,
-        version=blastn_tool.version,
+    if blastdb.name != subject_fasta.stem + ".njs":
+        msg = f"ERROR - Require the subject BLASTDB to be named {subject_fasta.stem}.njs, not {blastdb.name}"
+        sys.exit(msg)
+    session, config, query_md5, subject_md5, in_db = _validate_method_inputs(
+        database,
+        "ANIb",
+        query_fasta,
+        subject_fasta,
+        [blastn],
+        tool,
         fragsize=fragsize,
-        create=False,
     )
 
-    query_md5 = file_md5sum(query_fasta)
-    subject_md5 = file_md5sum(subject_fasta)
+    if in_db:
+        if not quiet:
+            print("Already in the database")
+        session.close()
+        return 0
 
-    # Need genome lengths for coverage (fragmented FASTA irrelevant):
+    if not blastn.is_file():
+        _run_tool(
+            [
+                str(tool.exe_path),
+                "-query",
+                str(fragments),
+                "-db",
+                str(blastdb.with_suffix("")),  # drop the .njs
+                "-out",
+                str(blastn),
+                "-task",
+                "blastn",
+                "-outfmt",
+                "6 qseqid sseqid length mismatch pident nident qlen slen qstart qend sstart send positive ppos gaps",
+                "-xdrop_gap_final",
+                "150",
+                "-dust",
+                "no",
+                "-evalue",
+                "1e-15",
+                "-max_target_seqs",
+                "1",
+            ],
+            quiet=quiet,
+        )
+
+    if not quiet:
+        print(f"Parsing ANIb comparison from {blastn}")
+    identity, aln_length, sim_errors = method_anib.parse_blastn_file(blastn)
+
+    # Need to lookup query and subject lengths for coverage (fragment length no relevant)
     query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
     subject = db_orm.db_genome(session, subject_fasta, subject_md5, create=False)
 
+    if not quiet:
+        print(f"Logging ANIb comparison to {database}")
     db_orm.db_comparison(
         session,
         configuration_id=config.configuration_id,
@@ -652,27 +793,34 @@ def anib(  # noqa: PLR0913
 
 
 @app.command(rich_help_panel="ANI methods")
-def dnadiff(  # noqa: PLR0913
+def dnadiff(  # noqa: PLR0913, C901
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
-    mcoords: Annotated[
+    deltafilter: Annotated[
         Path,
         typer.Option(
-            help="Path to show-coords (.mcoords) output file",
+            help="Path to deltafilter (.filter) output file",
             dir_okay=False,
             file_okay=True,
             exists=True,
         ),
     ],
+    mcoords: Annotated[
+        Path,
+        typer.Option(
+            help="Path to show-coords (.mcoords) output file (will be generated if missing)",
+            dir_okay=False,
+            file_okay=True,
+        ),
+    ],
     qdiff: Annotated[
         Path,
         typer.Option(
-            help="Path to show-diff (.qdiff) output file",
+            help="Path to show-diff (.qdiff) output file (will be generated if missing)",
             dir_okay=False,
             file_okay=True,
-            exists=True,
         ),
     ],
     *,
@@ -680,16 +828,54 @@ def dnadiff(  # noqa: PLR0913
     # Should we add --maxmatch (nucmer) and -m (deltafilter) parameters?
     # These are default parameters used in workflows
 ) -> int:
-    """Log single dnadiff pairwise comparison (with nucmer) to database.
+    """Compute a single dnadiff pairwise comparison and log to database.
 
     The associated configuration and genome entries must already exist.
     """
-    # Assuming this will match as expect this script to be called right
-    # after the computation has finished (on the same machine)
-    # We don't actually call the tool dnadiff (which has its own version),
-    # rather we call nucmer, delta-filter, show-diff and show-coords from mumer
     tool = tools.get_nucmer()
+    tool_show_diff = tools.get_show_diff()
+    tool_show_coords = tools.get_show_coords()
+    if (
+        not (deltafilter.stem == mcoords.stem == qdiff.stem)
+        or deltafilter.suffix != ".filter"
+        or mcoords.suffix != ".mcoords"
+        or qdiff.suffix != ".qdiff"
+    ):
+        msg = (
+            "ERROR: Require the delta-filter, qdiff, and mcoords files to be"
+            "named <stem>.filter, <stem>.qdiff, and <stem>.mcoords"
+        )
+        sys.exit(msg)
+    session, config, query_md5, subject_md5, in_db = _validate_method_inputs(
+        database,
+        "dnadiff",
+        query_fasta,
+        subject_fasta,
+        [deltafilter, qdiff, mcoords],
+        tool,
+    )
 
+    if in_db:
+        if not quiet:
+            print("Already in the database")
+        session.close()
+        return 0
+
+    if not qdiff.is_file():
+        _run_tool_to_stdout(
+            [str(tool_show_diff.exe_path), "-qH", str(deltafilter)],
+            quiet=quiet,
+            stdout_path=qdiff,
+        )
+    if not mcoords.is_file():
+        _run_tool_to_stdout(
+            [str(tool_show_coords.exe_path), "-rclTH", str(deltafilter)],
+            quiet=quiet,
+            stdout_path=mcoords,
+        )
+
+    if not quiet:
+        print("Parsing ANIm comparison from nucmer via delta-filter")
     identity, aligned_bases_with_gaps = method_dnadiff.parse_mcoords(mcoords)
     gap_lengths = method_dnadiff.parse_qdiff(qdiff)
 
@@ -700,21 +886,21 @@ def dnadiff(  # noqa: PLR0913
     used_query_mcoords, used_subject_mcoords = mcoords.stem.split("_vs_")
     if used_query_mcoords != query_fasta.stem:
         sys.exit(
-            f"ERROR: Given --query-fasta {query_fasta} but query in mcoords filename was {used_query_mcoords}"
+            f"ERROR: Given --query-fasta {query_fasta} but query in target filename was {used_query_mcoords}"
         )
     if used_subject_mcoords != subject_fasta.stem:
         sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but subject in mcoords filename was {used_subject_mcoords}"
+            f"ERROR: Given --subject-fasta {subject_fasta} but subject in target filename was {used_subject_mcoords}"
         )
 
     used_query_qdiff, used_subject_qdiff = qdiff.stem.split("_vs_")
     if used_query_qdiff != query_fasta.stem:
         sys.exit(
-            f"ERROR: Given --query-fasta {query_fasta} but query in qdiff filename was {used_query_qdiff}"
+            f"ERROR: Given --query-fasta {query_fasta} but query in target filename was {used_query_qdiff}"
         )
     if used_subject_qdiff != subject_fasta.stem:
         sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but subject in qdiff filename was {used_subject_qdiff}"
+            f"ERROR: Given --subject-fasta {subject_fasta} but subject in target filename was {used_subject_qdiff}"
         )
 
     if database != ":memory:" and not Path(database).is_file():

@@ -48,8 +48,8 @@ def test_empty_path() -> None:
         parse_fastani_file(Path("/dev/null"))
 
 
-def test_bad_query_or_subject(
-    input_genomes_tiny: Path, fastani_targets_indir: Path, tmp_path: str
+def test_bad_query_or_subject_filenames(
+    input_genomes_tiny: Path, fastani_targets_indir: Path
 ) -> None:
     """Mismatch between query or subject FASTA in fastANI output and commandline."""
     # First, query filename mismatch:
@@ -57,7 +57,7 @@ def test_bad_query_or_subject(
         SystemExit,
         match=(
             "ERROR: Given --query-fasta .*/MGV-GENOME-0266457.fna"
-            " but query in fastANI filename was MGV-GENOME-0264574"
+            " but query in target filename was MGV-GENOME-0264574"
         ),
     ):
         private_cli.fastani(
@@ -78,7 +78,7 @@ def test_bad_query_or_subject(
         SystemExit,
         match=(
             "ERROR: Given --subject-fasta .*/MGV-GENOME-0264574.fas"
-            " but subject in fastANI filename was MGV-GENOME-0266457"
+            " but subject in target filename was MGV-GENOME-0266457"
         ),
     ):
         private_cli.fastani(
@@ -94,7 +94,26 @@ def test_bad_query_or_subject(
             kmersize=51,
             minmatch=0.9,
         )
-    # Now a good filename, but bad contents (flipped query and subject)
+
+
+def test_bad_query_or_subject_in_output(
+    input_genomes_tiny: Path, fastani_targets_indir: Path, tmp_path: str
+) -> None:
+    """Mismatch between query or subject in the fastANI output itself."""
+    tool = tools.get_fastani()
+    database = Path(tmp_path) / "mock.db"
+    session = db_orm.connect_to_db(database)
+    db_orm.db_configuration(
+        session=session,
+        method="fastANI",
+        program=tool.exe_path.stem,
+        version=tool.version,
+        fragsize=1000,
+        kmersize=51,
+        minmatch=0.9,
+        create=True,
+    )
+    session.close()
     fake_file = Path(tmp_path) / "MGV-GENOME-0266457_vs_MGV-GENOME-0264574.fastani"
     fake_file.symlink_to(
         fastani_targets_indir / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.fastani"
@@ -107,7 +126,7 @@ def test_bad_query_or_subject(
         ),
     ):
         private_cli.fastani(
-            database=":memory:",
+            database=database,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
@@ -130,7 +149,7 @@ def test_bad_query_or_subject(
         ),
     ):
         private_cli.fastani(
-            database=":memory:",
+            database=database,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",

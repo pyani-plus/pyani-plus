@@ -163,7 +163,10 @@ def test_aligned_bases_count(aligned_regions: dict) -> None:
 
 
 def test_missing_db(
-    tmp_path: str, input_genomes_tiny: Path, anim_nucmer_targets_filter_indir: Path
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    anim_nucmer_targets_delta_indir: Path,
+    anim_nucmer_targets_filter_indir: Path,
 ) -> None:
     """Check expected error when DB does not exist."""
     tmp_db = Path(tmp_path) / "new.sqlite"
@@ -175,13 +178,18 @@ def test_missing_db(
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+            delta=anim_nucmer_targets_delta_indir
+            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.delta",
             deltafilter=anim_nucmer_targets_filter_indir
             / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
         )
 
 
 def test_bad_query_or_subject(
-    tmp_path: str, input_genomes_tiny: Path, anim_nucmer_targets_filter_indir: Path
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    anim_nucmer_targets_delta_indir: Path,
+    anim_nucmer_targets_filter_indir: Path,
 ) -> None:
     """Mismatch between query or subject FASTA in fastANI output and commandline."""
     tmp_db = Path(tmp_path) / "new.sqlite"
@@ -191,13 +199,15 @@ def test_bad_query_or_subject(
         SystemExit,
         match=(
             "ERROR: Given --query-fasta .*/MGV-GENOME-0266457.fna"
-            " but query in deltafilter filename was MGV-GENOME-0264574"
+            " but query in target filename was MGV-GENOME-0264574"
         ),
     ):
         private_cli.anim(
             database=tmp_db,
             query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+            delta=anim_nucmer_targets_delta_indir
+            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.delta",
             deltafilter=anim_nucmer_targets_filter_indir
             / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
         )
@@ -206,13 +216,15 @@ def test_bad_query_or_subject(
         SystemExit,
         match=(
             "ERROR: Given --subject-fasta .*/MGV-GENOME-0264574.fas"
-            " but subject in deltafilter filename was MGV-GENOME-0266457"
+            " but subject in target filename was MGV-GENOME-0266457"
         ),
     ):
         private_cli.anim(
             database=tmp_db,
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+            delta=anim_nucmer_targets_delta_indir
+            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.delta",
             deltafilter=anim_nucmer_targets_filter_indir
             / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
         )
@@ -221,6 +233,7 @@ def test_bad_query_or_subject(
 def test_logging_anim(
     tmp_path: str,
     input_genomes_tiny: Path,
+    anim_nucmer_targets_delta_indir: Path,
     anim_nucmer_targets_filter_indir: Path,
     dir_anim_results: Path,
 ) -> None:
@@ -235,7 +248,7 @@ def test_logging_anim(
         method="ANIm",
         program=tool.exe_path.stem,
         version=tool.version,
-        mode=method_anim.MODE,
+        mode=method_anim.MODE.value,
         create_db=True,
     )
     private_cli.log_genome(
@@ -250,6 +263,8 @@ def test_logging_anim(
         database=tmp_db,
         query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
         subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+        delta=anim_nucmer_targets_delta_indir
+        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.delta",
         deltafilter=anim_nucmer_targets_filter_indir
         / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
     )

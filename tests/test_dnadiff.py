@@ -75,6 +75,7 @@ def test_parse_qdiff(
 def test_missing_db(
     tmp_path: str,
     input_genomes_tiny: Path,
+    dnadiff_nucmer_targets_delta_outdir: Path,
     dnadiff_targets_showcoords_indir: Path,
     dnadiff_targets_showdiff_indir: Path,
 ) -> None:
@@ -88,6 +89,8 @@ def test_missing_db(
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+            deltafilter=dnadiff_nucmer_targets_delta_outdir
+            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
             mcoords=dnadiff_targets_showcoords_indir
             / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
             qdiff=dnadiff_targets_showdiff_indir
@@ -98,6 +101,7 @@ def test_missing_db(
 def test_bad_query_or_subject(
     tmp_path: str,
     input_genomes_tiny: Path,
+    dnadiff_nucmer_targets_delta_outdir: Path,
     dnadiff_targets_showcoords_indir: Path,
     dnadiff_targets_showdiff_indir: Path,
 ) -> None:
@@ -109,13 +113,15 @@ def test_bad_query_or_subject(
         SystemExit,
         match=(
             "ERROR: Given --query-fasta .*/MGV-GENOME-0266457.fna"
-            " but query in mcoords filename was MGV-GENOME-0264574"
+            " but query in target filename was MGV-GENOME-0264574"
         ),
     ):
         private_cli.dnadiff(
             database=tmp_db,
             query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+            deltafilter=dnadiff_nucmer_targets_delta_outdir
+            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
             mcoords=dnadiff_targets_showcoords_indir
             / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
             qdiff=dnadiff_targets_showdiff_indir
@@ -126,13 +132,15 @@ def test_bad_query_or_subject(
         SystemExit,
         match=(
             "ERROR: Given --subject-fasta .*/MGV-GENOME-0264574.fas"
-            " but subject in mcoords filename was MGV-GENOME-0266457"
+            " but subject in target filename was MGV-GENOME-0266457"
         ),
     ):
         private_cli.dnadiff(
             database=tmp_db,
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+            deltafilter=dnadiff_nucmer_targets_delta_outdir
+            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
             mcoords=dnadiff_targets_showcoords_indir
             / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
             qdiff=dnadiff_targets_showdiff_indir
@@ -143,15 +151,17 @@ def test_bad_query_or_subject(
         SystemExit,
         match=(
             "ERROR: Given --query-fasta .*/OP073605.fasta"
-            " but query in qdiff filename was MGV-GENOME-0266457"
+            " but query in target filename was MGV-GENOME-0266457"
         ),
     ):
         private_cli.dnadiff(
             database=tmp_db,
             query_fasta=input_genomes_tiny / "OP073605.fasta",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+            deltafilter=dnadiff_nucmer_targets_delta_outdir
+            / "MGV-GENOME-0266457_vs_OP073605.filter",
             mcoords=dnadiff_targets_showcoords_indir
-            / "OP073605_vs_MGV-GENOME-0266457.mcoords",
+            / "MGV-GENOME-0266457_vs_OP073605.mcoords",
             qdiff=dnadiff_targets_showdiff_indir
             / "MGV-GENOME-0266457_vs_OP073605.qdiff",
         )
@@ -160,23 +170,26 @@ def test_bad_query_or_subject(
         SystemExit,
         match=(
             "ERROR: Given --subject-fasta .*/MGV-GENOME-0266457.fna"
-            " but subject in qdiff filename was MGV-GENOME-0264574"
+            " but subject in target filename was MGV-GENOME-0264574"
         ),
     ):
         private_cli.dnadiff(
             database=tmp_db,
             query_fasta=input_genomes_tiny / "OP073605.fasta",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+            deltafilter=dnadiff_nucmer_targets_delta_outdir
+            / "OP073605_vs_MGV-GENOME-0264574.filter",
             mcoords=dnadiff_targets_showcoords_indir
-            / "OP073605_vs_MGV-GENOME-0266457.mcoords",
+            / "OP073605_vs_MGV-GENOME-0264574.mcoords",
             qdiff=dnadiff_targets_showdiff_indir
             / "OP073605_vs_MGV-GENOME-0264574.qdiff",
         )
 
 
-def test_logging_dnadiff(
+def test_logging_dnadiff(  # noqa: PLR0913
     tmp_path: str,
     input_genomes_tiny: Path,
+    dnadiff_nucmer_targets_delta_outdir: Path,
     dnadiff_targets_showcoords_indir: Path,
     dnadiff_targets_showdiff_indir: Path,
     dir_dnadiff_matrices: Path,
@@ -206,6 +219,8 @@ def test_logging_dnadiff(
         database=tmp_db,
         query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
         subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+        deltafilter=dnadiff_nucmer_targets_delta_outdir
+        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
         mcoords=dnadiff_targets_showcoords_indir
         / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
         qdiff=dnadiff_targets_showdiff_indir

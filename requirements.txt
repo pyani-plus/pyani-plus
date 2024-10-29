@@ -1,7 +1,5 @@
 biopython
 intervaltree
-moreutils>=0.67
-perl-ipc-run
 snakemake>=8.24
 snakemake-executor-plugin-slurm
 rich

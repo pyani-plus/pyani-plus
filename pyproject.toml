@@ -32,6 +32,9 @@ ignore = ["ANN101", "ANN102", "COM812", "D203", "D213", "S603"]
 "tests/*" = ["S101"]
 # Ignore print and assert statements here:
 "tests/generate_fixtures/*" = ["T201", "S101"]
+# Ignore print statements in our CLI code here:
+"pyani_plus/private_cli.py" = ["T201"]
+"pyani_plus/public_cli.py" = ["T201"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"

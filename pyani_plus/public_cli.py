@@ -228,7 +228,7 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     except Exception as err:  # noqa: BLE001
         p.terminate()
         # Ensure traceback starts on a new line after interrupted progress bar
-        print()  # noqa: T201
+        print()
         raise err from None
 
     if p.is_alive():
@@ -274,7 +274,7 @@ def record_genomes(
     del hashes
     run.status = "Setup"
     session.commit()
-    print(f"Run setup with {n} genomes in database")  # noqa: T201
+    print(f"Run setup with {n} genomes in database")
     return filename_to_md5
 
 
@@ -331,11 +331,9 @@ def run_method(  # noqa: PLR0913
 
     done = run.comparisons().count()
     if done == n**2:
-        print(  # noqa: T201
-            f"Database already has all {n}x{n}={n**2} comparisons"
-        )
+        print(f"Database already has all {n}x{n}={n**2} comparisons")
     else:
-        print(  # noqa: T201
+        print(
             f"Database already has {done} of {n}x{n}={n**2} comparisons, {n**2 - done} needed"
         )
         done_hashes = {(_.query_hash, _.subject_hash) for _ in run.comparisons()}
@@ -379,7 +377,7 @@ def run_method(  # noqa: PLR0913
     run.status = "Done"
     session.commit()
     session.close()
-    print(  # noqa: T201
+    print(
         f"Logged new run-id {run_id} for method {method} with {n} genomes to database {database}"
     )
     return 0
@@ -618,7 +616,7 @@ def export_run(
         if count == 1:
             run = runs.one()
             run_id = run.run_id
-            print(f"INFO: Reporting on run-id {run_id} from {database}")  # noqa: T201
+            print(f"INFO: Reporting on run-id {run_id} from {database}")
         elif count:
             msg = (
                 f"ERROR: Database {database} contains {count} runs,"
@@ -662,7 +660,7 @@ def export_run(
     run.cov_query.to_csv(outdir / f"{conf.method}_query_cov.tsv", sep="\t")
     run.hadamard.to_csv(outdir / f"{conf.method}_hadamard.tsv", sep="\t")
 
-    print(f"Wrote matrices to {outdir}/{conf.method}_*.tsv")  # noqa: T201
+    print(f"Wrote matrices to {outdir}/{conf.method}_*.tsv")
 
     session.close()
     return 0

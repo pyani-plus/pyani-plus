@@ -139,7 +139,7 @@ def log_configuration(  # noqa: PLR0913
         msg = f"ERROR: Database {database} does not exist, but not using --create-db"
         sys.exit(msg)
 
-    print(f"Logging configuration to {database}")  # noqa: T201
+    print(f"Logging configuration to {database}")
     session = db_orm.connect_to_db(database)
     config = db_orm.db_configuration(
         session=session,
@@ -153,9 +153,7 @@ def log_configuration(  # noqa: PLR0913
         create=True,
     )
     session.commit()  # should be redundant
-    print(  # noqa: T201
-        f"Configuration identifier {config.configuration_id}"
-    )
+    print(f"Configuration identifier {config.configuration_id}")
     session.close()
 
     return 0
@@ -175,7 +173,7 @@ def log_genome(
         msg = f"ERROR: Database {database} does not exist, but not using --create-db"
         sys.exit(msg)
 
-    print(f"Logging genome to {database}")  # noqa: T201
+    print(f"Logging genome to {database}")
     session = db_orm.connect_to_db(database)
 
     file_total = 0
@@ -186,9 +184,7 @@ def log_genome(
             db_orm.db_genome(session, filename, md5, create=True)
     session.commit()
     session.close()
-    print(  # noqa: T201
-        f"Processed {file_total} FASTA files"
-    )
+    print(f"Processed {file_total} FASTA files")
 
     return 0
 
@@ -221,7 +217,7 @@ def log_run(  # noqa: PLR0913
         msg = f"ERROR: Database {database} does not exist, but not using --create-db"
         sys.exit(msg)
 
-    print(f"Logging run to {database}")  # noqa: T201
+    print(f"Logging run to {database}")
     session = db_orm.connect_to_db(database)
 
     # Reuse existing config, or log a new one
@@ -252,9 +248,7 @@ def log_run(  # noqa: PLR0913
 
     session.commit()
     session.close()
-    print(  # noqa: T201
-        f"Run identifier {run_id}"
-    )
+    print(f"Run identifier {run_id}")
 
     return 0
 
@@ -290,7 +284,7 @@ def log_comparison(  # noqa: PLR0913
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging comparison to {database}")  # noqa: T201
+    print(f"Logging comparison to {database}")
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
@@ -368,7 +362,7 @@ def log_fastani(  # noqa: PLR0913
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging fastANI comparison to {database}")  # noqa: T201
+    print(f"Logging fastANI comparison to {database}")
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
@@ -422,7 +416,7 @@ def fragment_fasta(
     if not outdir.is_dir():
         sys.exit(f"ERROR: outdir {outdir} should be a directory")
     fragmented_files = method_anib.fragment_fasta_files(fasta, outdir, fragsize)
-    print(f"Fragmented {len(fragmented_files)} files")  # noqa: T201
+    print(f"Fragmented {len(fragmented_files)} files")
     return 0
 
 
@@ -462,7 +456,7 @@ def log_anim(
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging ANIm to {database}")  # noqa: T201
+    print(f"Logging ANIm to {database}")
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
@@ -536,7 +530,7 @@ def log_anib(
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging ANIb comparison to {database}")  # noqa: T201
+    print(f"Logging ANIb comparison to {database}")
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
@@ -631,7 +625,7 @@ def log_dnadiff(
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging dnadiff to {database}")  # noqa: T201
+    print(f"Logging dnadiff to {database}")
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(

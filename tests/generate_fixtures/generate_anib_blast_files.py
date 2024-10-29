@@ -105,8 +105,6 @@ for subject in SUBJECT_DIR.glob("*.f*"):
                     "no",
                     "-evalue",
                     "1e-15",
-                    "-max_target_seqs",
-                    "1",
                     "-task",
                     "blastn",
                 ],

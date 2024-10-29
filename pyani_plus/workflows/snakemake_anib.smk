@@ -90,8 +90,7 @@ rule blastn:
             -db {wildcards.outdir}/{wildcards.genomeB} -out {output} -task blastn \
             -outfmt '6 qseqid sseqid length mismatch pident nident qlen slen \
                      qstart qend sstart send positive ppos gaps' \
-            -xdrop_gap_final 150 -dust no -evalue 1e-15 -max_target_seqs 1 \
-            > {output}.log &&
+            -xdrop_gap_final 150 -dust no -evalue 1e-15 > {output}.log &&
         .pyani-plus-private-cli log-anib --quiet --database {params.db} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
             --blastn {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.tsv \

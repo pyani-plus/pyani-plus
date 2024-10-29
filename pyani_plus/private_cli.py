@@ -131,7 +131,7 @@ def log_configuration(  # noqa: PLR0913
     minmatch: NONE_ARG_TYPE_MINMATCH = None,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
 ) -> int:
-    """Log a specific method configuration to the database.
+    """Log a specific method configuration to database.
 
     Any pre-existing configuration entry is left as is.
     """
@@ -167,7 +167,7 @@ def log_genome(
     database: REQ_ARG_TYPE_DATABASE,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
 ) -> int:
-    """For given FASTA file(s), compute their MD5 checksum, and log them in the database.
+    """Compute MD5 checksums of given FASTA files, log them to database.
 
     Any pre-existing duplicate FASTA entries are left as is.
     """
@@ -285,7 +285,7 @@ def log_comparison(  # noqa: PLR0913
     cov_query: Annotated[float | None, typer.Option(help="Alignment length")] = None,
     cov_subject: Annotated[float | None, typer.Option(help="Alignment length")] = None,
 ) -> int:
-    """Log a single pyANI-plus pairwise comparison to the database."""
+    """Log single pairwise comparison to database."""
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
@@ -343,7 +343,7 @@ def log_fastani(  # noqa: PLR0913
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
     minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
 ) -> int:
-    """Log a single pyANI-plus fastANI pairwise comparison to the database.
+    """Log single fastANI pairwise comparison to database.
 
     The associated configuration and genome entries must already exist.
     """
@@ -435,7 +435,10 @@ def log_anim(
     deltafilter: Annotated[Path, typer.Option(help="Path to deltafilter output file")],
     # Don't use any of fragsize, maxmatch, kmersize, minmatch (configuration table entries)
 ) -> int:
-    """Log a single pyANI-plus ANIm pairwise comparison (with nucmer) to the database."""
+    """Log single ANIm pairwise comparison (with nucmer) to database.
+
+    The associated configuration and genome entries must already exist.
+    """
     # Assuming this will match as expect this script to be called right
     # after the computation has finished (on the same machine)
     nucmer_tool = tools.get_nucmer()
@@ -509,7 +512,10 @@ def log_anib(
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
 ) -> int:
-    """Log a single pyANI-plus ANIb pairwise comparison (with blastn) to the database."""
+    """Log single ANIb pairwise comparison (with blastn) to database.
+
+    The associated configuration and genome entries must already exist.
+    """
     # Assuming this will match as expect this script to be called right
     # after the computation has finished (on the same machine)
     blastn_tool = tools.get_blastn()
@@ -584,7 +590,10 @@ def log_dnadiff(
     # Should we add --maxmatch (nucmer) and -m (deltafilter) parameters?
     # These are default parameters used in workflows
 ) -> int:
-    """Log a single pyANI-plus dnadiff pairwise comparison (with nucmer) to the database."""
+    """Log single dnadiff pairwise comparison (with nucmer) to database.
+
+    The associated configuration and genome entries must already exist.
+    """
     # Assuming this will match as expect this script to be called right
     # after the computation has finished (on the same machine)
     # We don't actually call the tool dnadiff (which has its own version),

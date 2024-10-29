@@ -261,7 +261,12 @@ def log_comparison(  # noqa: PLR0913
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     identity: Annotated[
         float,
-        typer.Option(help="Percent identity (float from 0 to 1)", show_default=False),
+        typer.Option(
+            help="Percent identity",
+            show_default=False,
+            min=0.0,
+            max=1.0,
+        ),
     ],
     aln_length: Annotated[
         int, typer.Option(help="Alignment length", show_default=False)
@@ -330,7 +335,14 @@ def log_fastani(  # noqa: PLR0913
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     fastani: Annotated[
-        Path, typer.Option(help="Path to fastANI output file", show_default=False)
+        Path,
+        typer.Option(
+            help="Path to fastANI output file",
+            show_default=False,
+            dir_okay=False,
+            file_okay=True,
+            exists=True,
+        ),
     ],
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_fastani.FRAG_LEN,
@@ -426,7 +438,15 @@ def log_anim(
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
-    deltafilter: Annotated[Path, typer.Option(help="Path to deltafilter output file")],
+    deltafilter: Annotated[
+        Path,
+        typer.Option(
+            help="Path to deltafilter output file",
+            dir_okay=False,
+            file_okay=True,
+            exists=True,
+        ),
+    ],
     # Don't use any of fragsize, maxmatch, kmersize, minmatch (configuration table entries)
 ) -> int:
     """Log single ANIm pairwise comparison (with nucmer) to database.
@@ -502,7 +522,15 @@ def log_anib(
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
-    blastn: Annotated[Path, typer.Option(help="Path to blastn TSV output file")],
+    blastn: Annotated[
+        Path,
+        typer.Option(
+            help="Path to blastn TSV output file",
+            dir_okay=False,
+            file_okay=True,
+            exists=True,
+        ),
+    ],
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
 ) -> int:
@@ -578,9 +606,23 @@ def log_dnadiff(
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     mcoords: Annotated[
-        Path, typer.Option(help="Path to show-coords (.mcoords) output file")
+        Path,
+        typer.Option(
+            help="Path to show-coords (.mcoords) output file",
+            dir_okay=False,
+            file_okay=True,
+            exists=True,
+        ),
     ],
-    qdiff: Annotated[Path, typer.Option(help="Path to show-diff (.qdiff) output file")],
+    qdiff: Annotated[
+        Path,
+        typer.Option(
+            help="Path to show-diff (.qdiff) output file",
+            dir_okay=False,
+            file_okay=True,
+            exists=True,
+        ),
+    ],
     # Should we add --maxmatch (nucmer) and -m (deltafilter) parameters?
     # These are default parameters used in workflows
 ) -> int:

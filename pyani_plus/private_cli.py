@@ -402,10 +402,6 @@ def log_fastani(  # noqa: PLR0913
     query_md5 = file_md5sum(query_fasta)
     subject_md5 = file_md5sum(subject_fasta)
 
-    estimated_cov_query = float(orthologous_matches) / fragments  # an approximation
-    sim_errors = fragments - orthologous_matches  # proxy value, not bp
-    estimated_aln_length = fragsize * orthologous_matches  # proxy value
-
     # We assume both genomes have been recorded, if not this will fail:
     db_orm.db_comparison(
         session,
@@ -413,9 +409,9 @@ def log_fastani(  # noqa: PLR0913
         query_hash=query_md5,
         subject_hash=subject_md5,
         identity=identity,
-        aln_length=estimated_aln_length,
-        sim_errors=sim_errors,
-        cov_query=estimated_cov_query,
+        aln_length=round(fragsize * orthologous_matches),  # proxy value,
+        sim_errors=fragments - orthologous_matches,  # proxy value, not bp,
+        cov_query=float(orthologous_matches) / fragments,  # an approximation,
         cov_subject=None,
     )
 
@@ -501,12 +497,11 @@ def log_anim(
     )
 
     query_md5 = file_md5sum(query_fasta)
-    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
-    cov_query = float(query_aligned_bases) / query.length
-
     subject_md5 = file_md5sum(subject_fasta)
+
+    # Need genome lengths for coverage:
+    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
     subject = db_orm.db_genome(session, subject_fasta, subject_md5, create=False)
-    cov_subject = float(subject_aligned_bases) / subject.length
 
     db_orm.db_comparison(
         session,
@@ -516,8 +511,8 @@ def log_anim(
         identity=identity,
         aln_length=query_aligned_bases,
         sim_errors=sim_errors,
-        cov_query=cov_query,
-        cov_subject=cov_subject,
+        cov_query=float(query_aligned_bases) / query.length,
+        cov_subject=float(subject_aligned_bases) / subject.length,
     )
 
     session.commit()
@@ -581,15 +576,12 @@ def log_anib(
         create=False,
     )
 
-    # Need to lookup query length to compute query_cover (fragmented FASTA irrelevant:
     query_md5 = file_md5sum(query_fasta)
-    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
-    cov_query = float(aln_length) / query.length
-
-    # Need to lookup subject length to compute subject_cover:
     subject_md5 = file_md5sum(subject_fasta)
+
+    # Need genome lengths for coverage (fragmented FASTA irrelevant):
+    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
     subject = db_orm.db_genome(session, subject_fasta, subject_md5, create=False)
-    cov_subject = float(aln_length) / subject.length
 
     db_orm.db_comparison(
         session,
@@ -599,8 +591,8 @@ def log_anib(
         identity=identity,
         aln_length=aln_length,
         sim_errors=sim_errors,
-        cov_query=cov_query,
-        cov_subject=cov_subject,
+        cov_query=float(aln_length) / query.length,
+        cov_subject=float(aln_length) / subject.length,
     )
 
     session.commit()
@@ -691,11 +683,9 @@ def log_dnadiff(
     )
 
     query_md5 = file_md5sum(query_fasta)
-    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
-    cov_query = (aligned_bases_with_gaps - gap_lengths) / query.length
-
-    # We currently can't calculate cov_subject unless we generate rdiff files too.
     subject_md5 = file_md5sum(subject_fasta)
+
+    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
 
     db_orm.db_comparison(
         session,
@@ -705,7 +695,7 @@ def log_dnadiff(
         identity=identity,
         aln_length=aligned_bases_with_gaps - gap_lengths,
         sim_errors=None,  # Leaving this as None for now (How should we calculate this?)
-        cov_query=cov_query,
+        cov_query=(aligned_bases_with_gaps - gap_lengths) / query.length,
         cov_subject=None,  # Leaving this as None for now (need rdiff files to calculate this)
     )
 

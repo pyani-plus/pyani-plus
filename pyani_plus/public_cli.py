@@ -53,7 +53,7 @@ from sqlalchemy.orm import Session
 
 from pyani_plus import FASTA_EXTENSIONS, db_orm, tools
 from pyani_plus.methods import method_anib, method_fastani
-from pyani_plus.utils import available_cores, file_md5sum
+from pyani_plus.utils import available_cores, check_db, check_fasta, file_md5sum
 from pyani_plus.workflows import SnakemakeRunner
 
 # Reused required command line arguments (which have no default)
@@ -130,29 +130,6 @@ progress_columns = [
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
-
-
-def check_db(database: Path | str, create_db: bool) -> None:  # noqa: FBT001
-    """Check DB exists, or using create_db=True."""
-    if database != ":memory:" and not create_db and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist, but not using --create-db"
-        sys.exit(msg)
-
-
-def check_fasta(fasta: Path) -> list[Path]:
-    """Check fasta is a directory and return list of FASTA files in it."""
-    if not fasta.is_dir():
-        msg = f"ERROR: FASTA input {fasta} is not a directory"
-        sys.exit(msg)
-
-    fasta_names: list[Path] = []
-    for pattern in FASTA_EXTENSIONS:
-        fasta_names.extend(fasta.glob("*" + pattern))
-    if not fasta_names:
-        msg = f"ERROR: No FASTA input genomes under {fasta} with extensions {', '.join(FASTA_EXTENSIONS)}"
-        sys.exit(msg)
-
-    return fasta_names
 
 
 def progress_bar_via_db_comparisons(

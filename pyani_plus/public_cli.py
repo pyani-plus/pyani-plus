@@ -39,6 +39,7 @@ from rich.progress import Progress
 from rich.table import Table
 from rich.text import Text
 from sqlalchemy.exc import NoResultFound
+from sqlalchemy.orm import Session
 
 from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, db_orm, tools
 from pyani_plus.methods import method_anib, method_anim, method_fastani
@@ -121,7 +122,7 @@ app = typer.Typer(
 )
 
 
-def run_method(  # noqa: PLR0913
+def start_and_run_method(  # noqa: PLR0913
     executor: ToolExecutor,
     database: Path,
     name: str,
@@ -188,6 +189,27 @@ def run_method(  # noqa: PLR0913
     session.commit()  # Redundant?
     print(f"Run setup with {n} genomes in database")
 
+    return run_method(
+        executor,
+        filename_to_md5,
+        database,
+        session,
+        run,
+        target_extension,
+        binaries,
+    )
+
+
+def run_method(  # noqa: PLR0913
+    executor: ToolExecutor,
+    filename_to_md5: dict[Path, str],
+    database: Path,
+    session: Session,
+    run: db_orm.Run,
+    target_extension: str,
+    binaries: dict[str, Path],
+) -> int:
+    """Run the snakemake workflow for given method and log run to database."""
     run_id = run.run_id
     configuration = run.configuration
     workflow_name = f"snakemake_{configuration.method.lower()}.smk"
@@ -206,6 +228,7 @@ def run_method(  # noqa: PLR0913
     del configuration
 
     done = run.comparisons().count()
+    n = len(filename_to_md5)
     if done == n**2:
         print(f"Database already has all {n}x{n}={n**2} comparisons")
     else:
@@ -213,7 +236,10 @@ def run_method(  # noqa: PLR0913
             f"Database already has {done} of {n}x{n}={n**2} comparisons, {n**2 - done} needed"
         )
         done_hashes = {(_.query_hash, _.subject_hash) for _ in run.comparisons()}
+        run.status = "Running"
+        session.commit()
         session.close()  # Reduce chance of DB locking
+        del run
 
         # Run snakemake wrapper
         # With a cluster-based running like SLURM, the location of the working and
@@ -256,10 +282,8 @@ def run_method(  # noqa: PLR0913
     run.cache_comparisons()  # will this needs a progress bar too with large n?
     run.status = "Done"
     session.commit()
+    print(f"Completed run-id {run_id} with {n} genomes in database {database}")
     session.close()
-    print(
-        f"Logged new run-id {run_id} for method {method} with {n} genomes to database {database}"
-    )
     return 0
 
 
@@ -285,7 +309,7 @@ def anim(  # noqa: PLR0913
         "nucmer": tool.exe_path,
         "delta_filter": tools.get_delta_filter().exe_path,
     }
-    return run_method(
+    return start_and_run_method(
         executor,
         database,
         name,
@@ -322,7 +346,7 @@ def dnadiff(
         "show_diff": tools.get_show_diff().exe_path,
         "show_coords": tools.get_show_coords().exe_path,
     }
-    return run_method(
+    return start_and_run_method(
         executor,
         database,
         name,
@@ -360,7 +384,7 @@ def anib(  # noqa: PLR0913
         "blastn": tool.exe_path,
         "makeblastdb": alt.exe_path,
     }
-    return run_method(
+    return start_and_run_method(
         executor,
         database,
         name,
@@ -396,7 +420,7 @@ def fastani(  # noqa: PLR0913
     binaries = {
         "fastani": tool.exe_path,
     }
-    return run_method(
+    return start_and_run_method(
         executor,
         database,
         name,
@@ -408,6 +432,143 @@ def fastani(  # noqa: PLR0913
         fragsize=fragsize,
         kmersize=kmersize,
         minmatch=minmatch,
+    )
+
+
+@app.command()
+def resume(  # noqa: C901, PLR0912, PLR0915
+    database: REQ_ARG_TYPE_DATABASE,
+    *,
+    run_id: Annotated[
+        int | None,
+        typer.Option(help="Which run to resume (defaults to most recent)"),
+    ] = None,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+) -> int:
+    """Resume any (paritual) run already logged in the database.
+
+    If the run was already complete, this should have no effect.
+
+    Any missing pairwise comparisons will be computed, and the the old
+    run will be marked as complete.
+
+    If the version of the underlying tool has changed, this will abort
+    as the original run cannot be completed.
+    """
+    if database == ":memory:" or not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+
+    session = db_orm.connect_to_db(database)
+    if run_id is None:
+        runs = session.query(db_orm.Run)
+        count = runs.count()
+        if count == 1:
+            run = runs.one()
+            run_id = run.run_id
+            print(f"INFO: Resuming run-id {run_id}, the only run in the {database}")
+        elif count:
+            run = runs.order_by(db_orm.Run.run_id.desc()).first()
+            run_id = run.run_id
+            print(f"INFO: Resuming run-id {run_id}, the latest run in the {database}")
+        else:
+            msg = f"ERROR: Database {database} contains no runs."
+            sys.exit(msg)
+    else:
+        try:
+            run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+        except NoResultFound:
+            msg = (
+                f"ERROR: Database {database} has no run-id {run_id}."
+                " Use the list-runs command for more information."
+            )
+            sys.exit(msg)
+        print(f"INFO: Resuming run-id {run_id} in the {database}")
+
+    config = run.configuration
+    print(
+        f"INFO: This is a {config.method} run on {run.genomes.count()} genomes, "
+        f"using {config.program} version {config.version}"
+    )
+    if not run.genomes.count():
+        msg = f"ERROR: No genomes recorded for run-id {run_id}, cannot resume."
+        sys.exit(msg)
+
+    # The params dict has two kinds of entries,
+    # - tool paths, which ought to be handled more neatly
+    # - config entries, which ought to be named consistently and done centrally
+    match config.method:
+        case "fastANI":
+            tool = tools.get_fastani()
+            binaries = {
+                "fastani": tool.exe_path,
+            }
+            target_extension = ".fastani"
+        case "ANIm":
+            tool = tools.get_nucmer()
+            binaries = {
+                "nucmer": tool.exe_path,
+            }
+            target_extension = ".filter"
+        case "dnadiff":
+            tool = tools.get_nucmer()
+            binaries = {
+                "nucmer": tool.exe_path,
+                "delta_filter": tools.get_delta_filter().exe_path,
+                "show_diff": tools.get_show_diff().exe_path,
+                "show_coords": tools.get_show_coords().exe_path,
+            }
+            target_extension = ".qdiff"
+        case "ANIb":
+            tool = tools.get_blastn()
+            binaries = {
+                "blastn": tool.exe_path,
+                "makeblastdb": tools.get_makeblastdb().exe_path,
+            }
+            target_extension = ".tsv"
+        case _:
+            msg = f"ERROR: Unknown method {config.method} for run-id {run_id} in {database}"
+            sys.exit(msg)
+    if tool.exe_path.stem != config.program or tool.version != config.version:
+        msg = (
+            f"ERROR: We have {tool.exe_path.stem} version {tool.version}, but"
+            f" run-id {run_id} used {config.program} version {config.version} instead."
+        )
+        sys.exit(msg)
+    del tool
+
+    # Now we need to check the fasta files in the directory
+    # against those included in the run...
+    fasta = Path(run.fasta_directory)
+    if not fasta.is_dir():
+        msg = f"ERROR: run-id {run_id} used input folder {fasta}, but that is not a directory (now)."
+        sys.exit(msg)
+
+    # Recombine the fasta directory name from the runs table with the plain filename from
+    # the run-genome linking table
+    filename_to_md5 = {
+        fasta / link.fasta_filename: link.genome_hash for link in run.fasta_hashes
+    }
+    for filename in filename_to_md5:
+        if not filename.is_file():
+            msg = (
+                f"ERROR: run-id {run_id} used {filename} with MD5 {filename_to_md5[filename]}"
+                f" but this FASTA file no longer exists"
+            )
+            sys.exit(msg)
+
+    # Resuming
+    run.status = "Resuming"
+    session.commit()
+
+    return run_method(
+        executor,
+        filename_to_md5,
+        database,
+        session,
+        run,
+        target_extension,
+        binaries,
     )
 
 

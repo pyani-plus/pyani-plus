@@ -31,7 +31,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from pyani_plus import db_orm, public_cli
+from pyani_plus import db_orm, public_cli, tools
 from pyani_plus.utils import file_md5sum
 
 from . import get_matrix_entry
@@ -97,6 +97,29 @@ def test_list_runs_empty(capsys: pytest.CaptureFixture[str], tmp_path: str) -> N
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 0 analysis runs in " in output, output
+
+
+def test_resume_empty(tmp_path: str) -> None:
+    """Check list-runs with no data."""
+    with pytest.raises(
+        SystemExit, match="ERROR: Database /does/not/exist does not exist"
+    ):
+        public_cli.resume(database=Path("/does/not/exist"))
+
+    tmp_db = Path(tmp_path) / "resume-empty.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
+    session.close()
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Database .*/resume-empty.sqlite contains no runs."
+    ):
+        public_cli.resume(database=tmp_db)
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Database .*/resume-empty.sqlite has no run-id 1.",
+    ):
+        public_cli.resume(database=tmp_db, run_id=1)
 
 
 def test_partial_run(
@@ -176,6 +199,20 @@ def test_partial_run(
             list(fasta_to_hash.values())[2],
             list(fasta_to_hash.values())[2],
         )
+
+    # Resuming the partial job should fail as the fastANI version won't match:
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: We have fastANI version .*, but run-id 2 used fastani version 1.2.3 instead.",
+    ):
+        public_cli.resume(database=tmp_db, run_id=2)
+
+    # Resuming run 1 should fail as no genomes:
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: No genomes recorded for run-id 1, cannot resume.",
+    ):
+        public_cli.resume(database=tmp_db, run_id=1)
 
     tmp_db.unlink()
 
@@ -313,3 +350,296 @@ def test_fastani_dups(tmp_path: str) -> None:
         public_cli.fastani(
             database=tmp_db, fasta=tmp, name="Test duplicates fail", create_db=True
         )
+
+
+def test_resume_partial(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
+    """Check list-runs and export-run with mock data including a partial run."""
+    tmp_db = Path(tmp_path) / "resume.sqlite"
+    tool = tools.get_fastani()
+    session = db_orm.connect_to_db(tmp_db)
+    config = db_orm.db_configuration(
+        session,
+        "fastANI",
+        tool.exe_path.stem,
+        tool.version,
+        kmersize=14,
+        fragsize=2500,
+        minmatch=0.3,
+        create=True,
+    )
+
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+
+    # Record 8 of the possible 9 comparisons:
+    genomes = list(fasta_to_hash.values())
+    for query_hash in genomes:
+        for subject_hash in genomes:
+            if query_hash == genomes[2] and subject_hash == genomes[0]:
+                # Skip one comparison
+                continue
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query_hash,
+                subject_hash,
+                1.0 if query_hash is subject_hash else 0.99,
+                12345,
+            )
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        fasta_directory=input_genomes_tiny,
+        status="Partial",
+        name="Test Resuming A Run",
+        fasta_to_hash=fasta_to_hash,  # 3/3 genomes, so only have 8/9 comparisons
+    )
+    public_cli.list_runs(database=tmp_db)
+    output = capsys.readouterr().out
+    assert " 1 analysis runs in " in output, output
+    assert " 8/9=3² │ Partial " in output, output
+
+    public_cli.resume(database=tmp_db)
+    output = capsys.readouterr().out
+    assert "Resuming run-id 1, the only run" in output, output
+    assert "Database already has 8 of 3x3=9 comparisons, 1 needed" in output, output
+
+    public_cli.list_runs(database=tmp_db)
+    output = capsys.readouterr().out
+    assert " 1 analysis runs in " in output, output
+    assert " 9/9=3² │ Done " in output, output
+
+
+def test_resume_dir_gone(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Check expected failure trying to resume without the input directory."""
+    tmp_db = Path(tmp_path) / "resume.sqlite"
+    tool = tools.get_fastani()
+    session = db_orm.connect_to_db(tmp_db)
+    config = db_orm.db_configuration(
+        session,
+        "fastANI",
+        tool.exe_path.stem,
+        tool.version,
+        kmersize=14,
+        fragsize=2500,
+        minmatch=0.3,
+        create=True,
+    )
+
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani ...",
+        fasta_directory=Path("/mnt/shared/old"),
+        status="Partial",
+        name="Test how resuming without input directory present fails",
+        fasta_to_hash=fasta_to_hash,
+    )
+    session.close()
+
+    with pytest.raises(
+        SystemExit,
+        match=r"ERROR: run-id 1 used input folder /mnt/shared/old, but that is not a directory \(now\).",
+    ):
+        public_cli.resume(database=tmp_db)
+
+
+def test_resume_unknown(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Check expected failure trying to resume an unknown method."""
+    tmp_db = Path(tmp_path) / "resume.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
+    config = db_orm.db_configuration(
+        session,
+        "guessing",
+        "gestimator",
+        "1.2.3b4",
+        kmersize=51,
+        fragsize=999,
+        minmatch=0.25,
+        create=True,
+    )
+
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani ...",
+        fasta_directory=input_genomes_tiny,
+        status="Partial",
+        name="Test how resuming from an unknown method fails",
+        fasta_to_hash=fasta_to_hash,
+    )
+    session.close()
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Unknown method guessing for run-id 1 in .*/resume.sqlite",
+    ):
+        public_cli.resume(database=tmp_db)
+
+
+def test_resume_complete(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
+    """Check resume works for all the methods (using completed runs for speed)."""
+    tmp_db = Path(tmp_path) / "resume.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
+
+    for index, (method, tool) in enumerate(
+        [
+            ("ANIm", tools.get_nucmer()),
+            ("dnadiff", tools.get_nucmer()),
+            ("ANIb", tools.get_blastn()),
+            ("fastANI", tools.get_fastani()),
+        ]
+    ):
+        config = db_orm.db_configuration(
+            session,
+            method,
+            tool.exe_path.stem,
+            tool.version,
+            create=True,
+        )
+
+        fasta_to_hash = {
+            filename: file_md5sum(filename)
+            for filename in sorted(input_genomes_tiny.glob("*.f*"))
+        }
+        for filename, md5 in fasta_to_hash.items():
+            db_orm.db_genome(session, filename, md5, create=True)
+
+        # Record dummy values for all of the possible 9 comparisons:
+        for query_hash in fasta_to_hash.values():
+            for subject_hash in fasta_to_hash.values():
+                db_orm.db_comparison(
+                    session,
+                    config.configuration_id,
+                    query_hash,
+                    subject_hash,
+                    1.0 if query_hash == subject_hash else 0.99,
+                    12345,
+                )
+
+        db_orm.add_run(
+            session,
+            config,
+            cmdline=f"pyani {method} --database ...",
+            fasta_directory=input_genomes_tiny,
+            status="Complete",
+            name=f"Test resuming a complete {method} run",
+            fasta_to_hash=fasta_to_hash,
+        )
+        public_cli.resume(database=tmp_db)
+        output = capsys.readouterr().out
+        if index == 0:
+            assert "Resuming run-id 1, the only run" in output, output
+        else:
+            assert f"Resuming run-id {index+1}, the latest run" in output, output
+        assert "Database already has all 3x3=9 comparisons" in output, output
+
+
+def test_resume_fasta_gone(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
+    """Check resume error handling when a FASTA file is missing."""
+    tmp_indir = Path(tmp_path) / "input"
+    tmp_indir.mkdir()
+    tmp_db = Path(tmp_path) / "resume.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
+    tool = tools.get_blastn()
+    config = db_orm.db_configuration(
+        session,
+        "ANIb",
+        tool.exe_path.stem,
+        tool.version,
+        fragsize=1500,
+        create=True,
+    )
+
+    # Record the genome entries under input_genomes_tiny
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+
+    # Setup a subset under tmp_dir
+    for filename in list(fasta_to_hash)[:-1]:
+        fasta = Path(filename)
+        (tmp_indir / fasta.name).symlink_to(fasta)
+    assert len(fasta_to_hash) - 1 == len(list(tmp_indir.glob("*.f*"))), list(
+        tmp_indir.glob("*.f*")
+    )
+    missing = list(fasta_to_hash)[-1]
+
+    # Record dummy values for all of the possible 9 comparisons:
+    for query_hash in fasta_to_hash.values():
+        for subject_hash in fasta_to_hash.values():
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query_hash,
+                subject_hash,
+                1.0 if query_hash == subject_hash else 0.99,
+                12345,
+            )
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani ANIb --database ...",
+        fasta_directory=tmp_indir,  # NOT using input_genomes_tiny
+        status="Complete",
+        name="Test resuming when the FASTA files have gone",
+        fasta_to_hash=fasta_to_hash,
+    )
+
+    # Won't work with a FASTA missing:
+    with pytest.raises(
+        SystemExit,
+        match=(
+            f"ERROR: run-id 1 used .*/{Path(missing).name} with MD5 {fasta_to_hash[missing]}"
+            " but this FASTA file no longer exists"
+        ),
+    ):
+        public_cli.resume(database=tmp_db)
+
+    # Should work with all the FASTA files, even though now in a different directory
+    # to that logged in the genome table (as could happen via an older run):
+    (tmp_indir / Path(missing).name).symlink_to(Path(missing))
+    public_cli.resume(database=tmp_db)
+    output = capsys.readouterr().out
+    assert "Database already has all 3x3=9 comparisons" in output, output
+
+    # Should work even with extra FASTA files, real world use case:
+    # Using input directory like /mnt/shared/genomes
+    # Start a run when there are 100 genomes (but it was not completed)
+    # Add some more genomes, say now 150 genomes
+    # Resume the run - it should only operate on the first 100 genomes!
+    with (tmp_indir / "extra.fasta").open("w") as handle:
+        handle.write(">recently-added-genome\nACGTACGTAGT\n")
+    public_cli.resume(database=tmp_db)
+    output = capsys.readouterr().out
+    assert "Database already has all 3x3=9 comparisons" in output, output

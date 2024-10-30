@@ -54,9 +54,9 @@ def config_fastani_args(
         "outdir": fastani_targets_outdir,
         "indir": str(input_genomes_tiny),
         "cores": snakemake_cores,
-        "fragLen": 3000,
-        "kmerSize": 16,
-        "minFrac": 0.2,
+        "fragsize": 3000,
+        "kmersize": 16,
+        "minmatch": 0.2,
     }
 
 
@@ -111,9 +111,9 @@ def test_snakemake_rule_fastani(  # noqa: PLR0913
         method="fastANI",
         program=fastani_tool.exe_path.stem,
         version=fastani_tool.version,
-        fragsize=config_fastani_args["fragLen"],
-        kmersize=config_fastani_args["kmerSize"],
-        minmatch=config_fastani_args["minFrac"],
+        fragsize=config_fastani_args["fragsize"],
+        kmersize=config_fastani_args["kmersize"],
+        minmatch=config_fastani_args["minmatch"],
         create_db=True,
     )
     # Record the FASTA files in the genomes table _before_ call snakemake
@@ -144,9 +144,9 @@ def test_snakemake_rule_fastani(  # noqa: PLR0913
         method="fastANI",
         program=fastani_tool.exe_path.stem,
         version=fastani_tool.version,
-        fragsize=config_fastani_args["fragLen"],
-        kmersize=config_fastani_args["kmerSize"],
-        minmatch=config_fastani_args["minFrac"],
+        fragsize=config_fastani_args["fragsize"],
+        kmersize=config_fastani_args["kmersize"],
+        minmatch=config_fastani_args["minmatch"],
         create_db=False,
     )
     compare_matrices(db, fastani_matrices)

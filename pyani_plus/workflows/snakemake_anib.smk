@@ -37,7 +37,7 @@ def get_genomeB(wildcards):
 # Should we put use fragment size in the filename?
 rule fragment:
     params:
-        fragLen=config["fragLen"],
+        fragsize=config["fragsize"],
         indir=config["indir"],
         outdir=config["outdir"],
     input:
@@ -45,7 +45,7 @@ rule fragment:
     output:
         "{outdir}/{genomeA}-fragments.fna",
     shell:
-        "chronic .pyani-plus-private-cli fragment-fasta --outdir {wildcards.outdir} --fragsize {params.fragLen} {input.genomeA}"
+        "chronic .pyani-plus-private-cli fragment-fasta --outdir {wildcards.outdir} --fragsize {params.fragsize} {input.genomeA}"
 
 
 # The nucleotide database of the FASTA file is used for the ANIb reference.
@@ -70,7 +70,7 @@ rule blastn:
     params:
         db=config["db"],
         blastn=config["blastn"],
-        fragLen=config["fragLen"],
+        fragsize=config["fragsize"],
         indir=config["indir"],
         outdir=config["outdir"],
     input:
@@ -90,5 +90,5 @@ rule blastn:
         chronic .pyani-plus-private-cli log-anib --database {params.db} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
             --blastn {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.tsv \
-            --fragsize {params.fragLen}
+            --fragsize {params.fragsize}
         """

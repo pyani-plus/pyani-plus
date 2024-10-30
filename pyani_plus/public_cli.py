@@ -285,16 +285,21 @@ def run_method(  # noqa: PLR0913
     fasta: Path,
     target_extension: str,
     tool: tools.ExternalToolData,
-    fragsize: int | None,
-    maxmatch: bool | None,
-    kmersize: int | None,
-    minmatch: float | None,
-    params: dict[str, object],
+    binaries: dict[str, Path],
+    *,
+    fragsize: int | None = None,
+    maxmatch: bool | None = None,
+    kmersize: int | None = None,
+    minmatch: float | None = None,
 ) -> int:
     """Run the snakemake workflow for given method and log run to database."""
     fasta_names = check_fasta(fasta)
-
     workflow_name = f"snakemake_{method.lower()}.smk"
+    params: dict[str, object] = {k: str(v) for k, v in binaries.items()}
+    params["fragsize"] = fragsize
+    params["maxmatch"] = maxmatch
+    params["kmersize"] = kmersize
+    params["minmatch"] = minmatch
 
     # We should have caught all the obvious failures above,
     # including missing inputs or missing external tools.
@@ -398,12 +403,10 @@ def anim(
 
     target_extension = ".filter"
     tool = tools.get_nucmer()
-    params = {
+    binaries = {
         "nucmer": tool.exe_path,
         "delta_filter": tools.get_delta_filter().exe_path,
-        "mode": "mum",
     }
-    fragsize = maxmatch = kmersize = minmatch = None
     return run_method(
         database,
         name,
@@ -411,11 +414,7 @@ def anim(
         fasta,
         target_extension,
         tool,
-        fragsize,
-        maxmatch,
-        kmersize,
-        minmatch,
-        params,
+        binaries,
     )
 
 
@@ -436,13 +435,12 @@ def dnadiff(
     # We don't actually call the tool dnadiff (which has its own version),
     # rather we call nucmer, delta-filter, show-diff and show-coords from MUMmer
     tool = tools.get_nucmer()
-    params: dict[str, object] = {
+    binaries = {
         "nucmer": tool.exe_path,
         "delta_filter": tools.get_delta_filter().exe_path,
         "show_diff": tools.get_show_diff().exe_path,
         "show_coords": tools.get_show_coords().exe_path,
     }
-    fragsize = maxmatch = kmersize = minmatch = None
     return run_method(
         database,
         name,
@@ -450,11 +448,7 @@ def dnadiff(
         fasta,
         target_extension,
         tool,
-        fragsize,
-        maxmatch,
-        kmersize,
-        minmatch,
-        params,
+        binaries,
     )
 
 
@@ -479,12 +473,10 @@ def anib(
     if tool.version != alt.version:
         msg = f"ERROR: blastn {tool.version} vs makeblastdb {alt.version}"
         sys.exit(msg)
-    params = {
+    binaries = {
         "blastn": tool.exe_path,
         "makeblastdb": alt.exe_path,
-        "fragLen": fragsize,
     }
-    maxmatch = kmersize = minmatch = None
     return run_method(
         database,
         name,
@@ -492,11 +484,8 @@ def anib(
         fasta,
         target_extension,
         tool,
-        fragsize,
-        maxmatch,
-        kmersize,
-        minmatch,
-        params,
+        binaries,
+        fragsize=fragsize,
     )
 
 
@@ -519,13 +508,9 @@ def fastani(  # noqa: PLR0913
 
     target_extension = ".fastani"
     tool = tools.get_fastani()
-    params = {
+    binaries = {
         "fastani": tool.exe_path,
-        "fragLen": fragsize,
-        "kmerSize": kmersize,
-        "minFrac": minmatch,
     }
-    maxmatch = None
     return run_method(
         database,
         name,
@@ -533,11 +518,10 @@ def fastani(  # noqa: PLR0913
         fasta,
         target_extension,
         tool,
-        fragsize,
-        maxmatch,
-        kmersize,
-        minmatch,
-        params,
+        binaries,
+        fragsize=fragsize,
+        kmersize=kmersize,
+        minmatch=minmatch,
     )
 
 

@@ -59,7 +59,7 @@ def config_anib_args(
         "outdir": anib_targets_outdir,
         "indir": input_genomes_tiny,
         "cores": snakemake_cores,
-        "fragLen": "1020",
+        "fragsize": "1020",
     }
 
 
@@ -145,7 +145,7 @@ def test_snakemake_rule_blastn(  # noqa: PLR0913
         method="ANIb",
         program=blastn_tool.exe_path.stem,
         version=blastn_tool.version,
-        fragsize=config_anib_args["fragLen"],
+        fragsize=config_anib_args["fragsize"],
         create_db=True,
     )
     # Record the FASTA files in the genomes table _before_ call snakemake
@@ -175,7 +175,7 @@ def test_snakemake_rule_blastn(  # noqa: PLR0913
         method="ANIb",
         program=blastn_tool.exe_path.stem,
         version=blastn_tool.version,
-        fragsize=config_anib_args["fragLen"],
+        fragsize=config_anib_args["fragsize"],
         kmersize=None,
         minmatch=None,
         create_db=False,

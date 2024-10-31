@@ -317,3 +317,30 @@ def get_dnadiff(cmd: str | Path = "dnadiff") -> ExternalToolData:
         raise RuntimeError(msg)
 
     return ExternalToolData(exe_path, version)
+
+
+def get_sourmash(cmd: str | Path = "sourmash") -> ExternalToolData:
+    """Return sourmash and version as a named tuple.
+
+    We expect the tool to behave as follows:
+
+    .. code-block:: bash
+
+        $ sourmash -v
+        sourmash 4.8.11
+
+    Here the function would return the binary path and "4.8.11" as the version.
+
+    Raises a RuntimeError if the command cannot be found, run, or if the
+    version cannot be inferred - this likely indicates a dramatically
+    different version of the tool with different behaviour.
+    """
+    exe_path, output = _get_path_and_version_output(cmd, ["-v"])
+
+    match = re.search(r"(?<=sourmash )[0-9.]+", output)
+    version = match.group().strip() if match else None
+    if not version:
+        msg = f"Executable exists at {exe_path} but could not retrieve version."
+        raise RuntimeError(msg)
+
+    return ExternalToolData(exe_path, version)

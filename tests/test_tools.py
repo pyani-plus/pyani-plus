@@ -172,6 +172,20 @@ def test_fake_dnadiff() -> None:
         tools.get_dnadiff(cmd)
 
 
+def test_fake_sourmash() -> None:
+    """Confirm simple sourmash version parsing works."""
+    info = tools.get_sourmash(
+        "tests/fixtures/tools/mock_sourmash"
+    )  # outputs "sourmash 1.0.0"
+    assert info.exe_path == Path("tests/fixtures/tools/mock_sourmash").resolve()
+    assert info.version == "1.0.0"
+
+    cmd = Path("tests/fixtures/tools/cutting_edge")  # no numerical output
+    msg = f"Executable exists at {cmd.resolve()} but could not retrieve version"
+    with pytest.raises(RuntimeError, match=msg):
+        tools.get_sourmash(cmd)
+
+
 def test_find_makeblastdb() -> None:
     """Confirm can find NCBI makeblastdb if on $PATH and determine its version."""
     # At the time of writing this dependency is NOT installed for CI testing
@@ -242,3 +256,11 @@ def test_find_dnadiff() -> None:
     info = tools.get_dnadiff()
     assert info.exe_path.parts[-1] == "dnadiff"
     assert info.version.startswith("1.")
+
+
+def test_find_sourmash() -> None:
+    """Confirm can find sourmash on $PATH and determine its version."""
+    # At the time of writing this dependency is installed for CI testing
+    info = tools.get_sourmash()
+    assert info.exe_path.parts[-1] == "sourmash"
+    assert info.version.startswith("4.")

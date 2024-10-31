@@ -49,14 +49,15 @@ def test_empty_path() -> None:
 
 
 def test_bad_query_or_subject(
-    input_genomes_tiny: Path, fastani_targets_indir: Path
+    input_genomes_tiny: Path, fastani_targets_indir: Path, tmp_path: str
 ) -> None:
     """Mismatch between query or subject FASTA in fastANI output and commandline."""
+    # First, query filename mismatch:
     with pytest.raises(
         SystemExit,
         match=(
             "ERROR: Given --query-fasta .*/MGV-GENOME-0266457.fna"
-            " but query in fastANI file was .*/MGV-GENOME-0264574.fas"
+            " but query in fastANI filename was MGV-GENOME-0264574"
         ),
     ):
         private_cli.log_fastani(
@@ -72,12 +73,12 @@ def test_bad_query_or_subject(
             kmersize=51,
             minmatch=0.9,
         )
-
+    # Second, subject filename mismatch:
     with pytest.raises(
         SystemExit,
         match=(
             "ERROR: Given --subject-fasta .*/MGV-GENOME-0264574.fas"
-            " but query in fastANI file was .*/MGV-GENOME-0266457.fna"
+            " but subject in fastANI filename was MGV-GENOME-0266457"
         ),
     ):
         private_cli.log_fastani(
@@ -88,6 +89,52 @@ def test_bad_query_or_subject(
             / "MGV-GENOME-0264574.fas",  # should be MGV-GENOME-0266457.fna",
             fastani=fastani_targets_indir
             / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.fastani",
+            # These are all for the configuration table:
+            fragsize=1000,
+            kmersize=51,
+            minmatch=0.9,
+        )
+    # Now a good filename, but bad contents (flipped query and subject)
+    fake_file = Path(tmp_path) / "MGV-GENOME-0266457_vs_MGV-GENOME-0264574.fastani"
+    fake_file.symlink_to(
+        fastani_targets_indir / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.fastani"
+    )
+    with pytest.raises(
+        SystemExit,
+        match=(
+            "ERROR: Given --query-fasta .*/MGV-GENOME-0266457.fna"
+            " but query in fastANI file contents was .*/MGV-GENOME-0264574.fas"
+        ),
+    ):
+        private_cli.log_fastani(
+            database=":memory:",
+            # These are for the comparison table
+            query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+            subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+            fastani=fake_file,
+            # These are all for the configuration table:
+            fragsize=1000,
+            kmersize=51,
+            minmatch=0.9,
+        )
+    # Again good filename, but bad contents (wrong subject)
+    fake_file = Path(tmp_path) / "MGV-GENOME-0264574_vs_MGV-GENOME-0264574.fastani"
+    fake_file.symlink_to(
+        fastani_targets_indir / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.fastani"
+    )
+    with pytest.raises(
+        SystemExit,
+        match=(
+            "ERROR: Given --subject-fasta .*/MGV-GENOME-0264574.fas"
+            " but subject in fastANI file contents was .*/MGV-GENOME-0266457.fna"
+        ),
+    ):
+        private_cli.log_fastani(
+            database=":memory:",
+            # These are for the comparison table
+            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+            subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+            fastani=fake_file,
             # These are all for the configuration table:
             fragsize=1000,
             kmersize=51,

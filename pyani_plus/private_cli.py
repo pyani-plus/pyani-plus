@@ -50,13 +50,34 @@ app = typer.Typer(
 )
 
 REQ_ARG_TYPE_FASTA_FILES = Annotated[
-    list[Path], typer.Argument(help="Path(s) to FASTA file(s)", show_default=False)
+    list[Path],
+    typer.Argument(
+        help="Path(s) to FASTA file(s)",
+        show_default=False,
+        exists=True,
+        dir_okay=False,
+        file_okay=True,
+    ),
 ]
 REQ_ARG_TYPE_QUERY_FASTA = Annotated[
-    Path, typer.Option(help="Path to query FASTA file", show_default=False)
+    Path,
+    typer.Option(
+        help="Path to query FASTA file",
+        show_default=False,
+        exists=True,
+        dir_okay=False,
+        file_okay=True,
+    ),
 ]
 REQ_ARG_TYPE_SUBJECT_FASTA = Annotated[
-    Path, typer.Option(help="Path to subject FASTA file", show_default=False)
+    Path,
+    typer.Option(
+        help="Path to subject FASTA file",
+        show_default=False,
+        exists=True,
+        dir_okay=False,
+        file_okay=True,
+    ),
 ]
 REQ_ARG_TYPE_METHOD = Annotated[
     str, typer.Option(help="Method, e.g. ANIm", show_default=False)
@@ -73,7 +94,9 @@ REQ_ARG_TYPE_VERSION = Annotated[
 NONE_ARG_TYPE_FRAGSIZE = Annotated[
     int | None,
     typer.Option(
-        help="Comparison method fragment size", rich_help_panel="Method parameters"
+        help="Comparison method fragment size",
+        rich_help_panel="Method parameters",
+        min=1,
     ),
 ]
 NONE_ARG_TYPE_MAXMATCH = Annotated[
@@ -82,13 +105,16 @@ NONE_ARG_TYPE_MAXMATCH = Annotated[
 NONE_ARG_TYPE_KMERSIZE = Annotated[
     int | None,
     typer.Option(
-        help="Comparison method k-mer size", rich_help_panel="Method parameters"
+        help="Comparison method k-mer size", rich_help_panel="Method parameters", min=1
     ),
 ]
 NONE_ARG_TYPE_MINMATCH = Annotated[
     float | None,
     typer.Option(
-        help="Comparison method min-match", rich_help_panel="Method parameters"
+        help="Comparison method min-match",
+        rich_help_panel="Method parameters",
+        min=0.0,
+        max=1.0,
     ),
 ]
 
@@ -99,13 +125,14 @@ def log_configuration(  # noqa: PLR0913
     method: REQ_ARG_TYPE_METHOD,
     program: REQ_ARG_TYPE_PROGRAM,
     version: REQ_ARG_TYPE_VERSION,
+    *,
     fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
     maxmatch: NONE_ARG_TYPE_MAXMATCH = None,
     kmersize: NONE_ARG_TYPE_KMERSIZE = None,
     minmatch: NONE_ARG_TYPE_MINMATCH = None,
-    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
 ) -> int:
-    """Log a specific method configuration to the database.
+    """Log a specific method configuration to database.
 
     Any pre-existing configuration entry is left as is.
     """
@@ -113,7 +140,7 @@ def log_configuration(  # noqa: PLR0913
         msg = f"ERROR: Database {database} does not exist, but not using --create-db"
         sys.exit(msg)
 
-    print(f"Logging configuration to {database}")  # noqa: T201
+    print(f"Logging configuration to {database}")
     session = db_orm.connect_to_db(database)
     config = db_orm.db_configuration(
         session=session,
@@ -127,9 +154,7 @@ def log_configuration(  # noqa: PLR0913
         create=True,
     )
     session.commit()  # should be redundant
-    print(  # noqa: T201
-        f"Configuration identifier {config.configuration_id}"
-    )
+    print(f"Configuration identifier {config.configuration_id}")
     session.close()
 
     return 0
@@ -139,9 +164,10 @@ def log_configuration(  # noqa: PLR0913
 def log_genome(
     fasta: REQ_ARG_TYPE_FASTA_FILES,
     database: REQ_ARG_TYPE_DATABASE,
-    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    *,
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
 ) -> int:
-    """For given FASTA file(s), compute their MD5 checksum, and log them in the database.
+    """Compute MD5 checksums of given FASTA files, log them to database.
 
     Any pre-existing duplicate FASTA entries are left as is.
     """
@@ -149,7 +175,7 @@ def log_genome(
         msg = f"ERROR: Database {database} does not exist, but not using --create-db"
         sys.exit(msg)
 
-    print(f"Logging genome to {database}")  # noqa: T201
+    print(f"Logging genome to {database}")
     session = db_orm.connect_to_db(database)
 
     file_total = 0
@@ -160,9 +186,7 @@ def log_genome(
             db_orm.db_genome(session, filename, md5, create=True)
     session.commit()
     session.close()
-    print(  # noqa: T201
-        f"Processed {file_total} FASTA files"
-    )
+    print(f"Processed {file_total} FASTA files")
 
     return 0
 
@@ -179,11 +203,12 @@ def log_run(  # noqa: PLR0913
     method: REQ_ARG_TYPE_METHOD,
     program: REQ_ARG_TYPE_PROGRAM,
     version: REQ_ARG_TYPE_VERSION,
+    *,
     fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
     maxmatch: NONE_ARG_TYPE_MAXMATCH = None,
     kmersize: NONE_ARG_TYPE_KMERSIZE = None,
     minmatch: NONE_ARG_TYPE_MINMATCH = None,
-    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
 ) -> int:
     """Log a run (and if need be, associated configuration and genome rows).
 
@@ -195,7 +220,7 @@ def log_run(  # noqa: PLR0913
         msg = f"ERROR: Database {database} does not exist, but not using --create-db"
         sys.exit(msg)
 
-    print(f"Logging run to {database}")  # noqa: T201
+    print(f"Logging run to {database}")
     session = db_orm.connect_to_db(database)
 
     # Reuse existing config, or log a new one
@@ -226,9 +251,7 @@ def log_run(  # noqa: PLR0913
 
     session.commit()
     session.close()
-    print(  # noqa: T201
-        f"Run identifier {run_id}"
-    )
+    print(f"Run identifier {run_id}")
 
     return 0
 
@@ -241,7 +264,12 @@ def log_comparison(  # noqa: PLR0913
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     identity: Annotated[
         float,
-        typer.Option(help="Percent identity (float from 0 to 1)", show_default=False),
+        typer.Option(
+            help="Percent identity",
+            show_default=False,
+            min=0.0,
+            max=1.0,
+        ),
     ],
     aln_length: Annotated[
         int, typer.Option(help="Alignment length", show_default=False)
@@ -250,6 +278,7 @@ def log_comparison(  # noqa: PLR0913
     method: REQ_ARG_TYPE_METHOD,
     program: REQ_ARG_TYPE_PROGRAM,
     version: REQ_ARG_TYPE_VERSION,
+    *,
     fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
     maxmatch: NONE_ARG_TYPE_MAXMATCH = None,
     kmersize: NONE_ARG_TYPE_KMERSIZE = None,
@@ -259,12 +288,12 @@ def log_comparison(  # noqa: PLR0913
     cov_query: Annotated[float | None, typer.Option(help="Alignment length")] = None,
     cov_subject: Annotated[float | None, typer.Option(help="Alignment length")] = None,
 ) -> int:
-    """Log a single pyANI-plus pairwise comparison to the database."""
+    """Log single pairwise comparison to database."""
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging comparison to {database}")  # noqa: T201
+    print(f"Logging comparison to {database}")
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
@@ -310,14 +339,21 @@ def log_fastani(  # noqa: PLR0913
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     fastani: Annotated[
-        Path, typer.Option(help="Path to fastANI output file", show_default=False)
+        Path,
+        typer.Option(
+            help="Path to fastANI output file",
+            show_default=False,
+            dir_okay=False,
+            file_okay=True,
+            exists=True,
+        ),
     ],
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_fastani.FRAG_LEN,
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
     minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
 ) -> int:
-    """Log a single pyANI-plus fastANI pairwise comparison to the database.
+    """Log single fastANI pairwise comparison to database.
 
     The associated configuration and genome entries must already exist.
     """
@@ -325,24 +361,34 @@ def log_fastani(  # noqa: PLR0913
     # after the computation has finished (on the same machine)
     fastani_tool = tools.get_fastani()
 
-    used_query, used_subject, identity, orthologous_matches, fragments = (
+    used_query, used_subject = fastani.stem.split("_vs_")
+    if used_query != query_fasta.stem:
+        sys.exit(
+            f"ERROR: Given --query-fasta {query_fasta} but query in fastANI filename was {used_query}"
+        )
+    if used_subject != subject_fasta.stem:
+        sys.exit(
+            f"ERROR: Given --subject-fasta {subject_fasta} but subject in fastANI filename was {used_subject}"
+        )
+
+    used_query_path, used_subject_path, identity, orthologous_matches, fragments = (
         method_fastani.parse_fastani_file(fastani)
     )
-    # Allowing for some variation in the filename paths here... should we?
-    if used_query.stem != query_fasta.stem:
+    # Allow for variation in the folder part of the filenames (e.g. relative paths)
+    if used_query_path.stem != query_fasta.stem:
         sys.exit(
-            f"ERROR: Given --query-fasta {query_fasta} but query in fastANI file was {used_query}"
+            f"ERROR: Given --query-fasta {query_fasta} but query in fastANI file contents was {used_query_path}"
         )
-    if used_subject.stem != subject_fasta.stem:
+    if used_subject_path.stem != subject_fasta.stem:
         sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but query in fastANI file was {used_subject}"
+            f"ERROR: Given --subject-fasta {subject_fasta} but subject in fastANI file contents was {used_subject_path}"
         )
 
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging fastANI comparison to {database}")  # noqa: T201
+    print(f"Logging fastANI comparison to {database}")
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
@@ -360,10 +406,6 @@ def log_fastani(  # noqa: PLR0913
     query_md5 = file_md5sum(query_fasta)
     subject_md5 = file_md5sum(subject_fasta)
 
-    estimated_cov_query = float(orthologous_matches) / fragments  # an approximation
-    sim_errors = fragments - orthologous_matches  # proxy value, not bp
-    estimated_aln_length = fragsize * orthologous_matches  # proxy value
-
     # We assume both genomes have been recorded, if not this will fail:
     db_orm.db_comparison(
         session,
@@ -371,9 +413,9 @@ def log_fastani(  # noqa: PLR0913
         query_hash=query_md5,
         subject_hash=subject_md5,
         identity=identity,
-        aln_length=estimated_aln_length,
-        sim_errors=sim_errors,
-        cov_query=estimated_cov_query,
+        aln_length=round(fragsize * orthologous_matches),  # proxy value,
+        sim_errors=fragments - orthologous_matches,  # proxy value, not bp,
+        cov_query=float(orthologous_matches) / fragments,  # an approximation,
         cov_subject=None,
     )
 
@@ -396,7 +438,7 @@ def fragment_fasta(
     if not outdir.is_dir():
         sys.exit(f"ERROR: outdir {outdir} should be a directory")
     fragmented_files = method_anib.fragment_fasta_files(fasta, outdir, fragsize)
-    print(f"Fragmented {len(fragmented_files)} files")  # noqa: T201
+    print(f"Fragmented {len(fragmented_files)} files")
     return 0
 
 
@@ -406,10 +448,21 @@ def log_anim(
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
-    deltafilter: Annotated[Path, typer.Option(help="Path to deltafilter output file")],
+    deltafilter: Annotated[
+        Path,
+        typer.Option(
+            help="Path to deltafilter output file",
+            dir_okay=False,
+            file_okay=True,
+            exists=True,
+        ),
+    ],
     # Don't use any of fragsize, maxmatch, kmersize, minmatch (configuration table entries)
 ) -> int:
-    """Log a single pyANI-plus ANIm pairwise comparison (with nucmer) to the database."""
+    """Log single ANIm pairwise comparison (with nucmer) to database.
+
+    The associated configuration and genome entries must already exist.
+    """
     # Assuming this will match as expect this script to be called right
     # after the computation has finished (on the same machine)
     nucmer_tool = tools.get_nucmer()
@@ -418,7 +471,6 @@ def log_anim(
         method_anim.parse_delta(deltafilter)
     )
 
-    # Allowing for some variation in the filename paths here... should we?
     used_query, used_subject = deltafilter.stem.split("_vs_")
     if used_query != query_fasta.stem:
         sys.exit(
@@ -426,14 +478,14 @@ def log_anim(
         )
     if used_subject != subject_fasta.stem:
         sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but query in deltafilter filename was {used_subject}"
+            f"ERROR: Given --subject-fasta {subject_fasta} but subject in deltafilter filename was {used_subject}"
         )
 
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging ANIm to {database}")  # noqa: T201
+    print(f"Logging ANIm to {database}")
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
@@ -449,12 +501,11 @@ def log_anim(
     )
 
     query_md5 = file_md5sum(query_fasta)
-    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
-    cov_query = float(query_aligned_bases) / query.length
-
     subject_md5 = file_md5sum(subject_fasta)
+
+    # Need genome lengths for coverage:
+    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
     subject = db_orm.db_genome(session, subject_fasta, subject_md5, create=False)
-    cov_subject = float(subject_aligned_bases) / subject.length
 
     db_orm.db_comparison(
         session,
@@ -464,8 +515,8 @@ def log_anim(
         identity=identity,
         aln_length=query_aligned_bases,
         sim_errors=sim_errors,
-        cov_query=cov_query,
-        cov_subject=cov_subject,
+        cov_query=float(query_aligned_bases) / query.length,
+        cov_subject=float(subject_aligned_bases) / subject.length,
     )
 
     session.commit()
@@ -479,17 +530,27 @@ def log_anib(
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
-    blastn: Annotated[Path, typer.Option(help="Path to blastn TSV output file")],
+    blastn: Annotated[
+        Path,
+        typer.Option(
+            help="Path to blastn TSV output file",
+            dir_okay=False,
+            file_okay=True,
+            exists=True,
+        ),
+    ],
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
 ) -> int:
-    """Log a single pyANI-plus ANIb pairwise comparison (with blastn) to the database."""
+    """Log single ANIb pairwise comparison (with blastn) to database.
+
+    The associated configuration and genome entries must already exist.
+    """
     # Assuming this will match as expect this script to be called right
     # after the computation has finished (on the same machine)
     blastn_tool = tools.get_blastn()
 
     identity, aln_length, sim_errors = method_anib.parse_blastn_file(blastn)
-    # Allowing for some variation in the filename paths here... should we?
     used_query, used_subject = blastn.stem.split("_vs_")
     if used_query != query_fasta.stem:
         sys.exit(
@@ -497,14 +558,14 @@ def log_anib(
         )
     if used_subject != subject_fasta.stem:
         sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but query in blastn filename was {used_subject}"
+            f"ERROR: Given --subject-fasta {subject_fasta} but subject in blastn filename was {used_subject}"
         )
 
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging ANIb comparison to {database}")  # noqa: T201
+    print(f"Logging ANIb comparison to {database}")
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
@@ -519,15 +580,12 @@ def log_anib(
         create=False,
     )
 
-    # Need to lookup query length to compute query_cover (fragmented FASTA irrelevant:
     query_md5 = file_md5sum(query_fasta)
-    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
-    cov_query = float(aln_length) / query.length
-
-    # Need to lookup subject length to compute subject_cover:
     subject_md5 = file_md5sum(subject_fasta)
+
+    # Need genome lengths for coverage (fragmented FASTA irrelevant):
+    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
     subject = db_orm.db_genome(session, subject_fasta, subject_md5, create=False)
-    cov_subject = float(aln_length) / subject.length
 
     db_orm.db_comparison(
         session,
@@ -537,28 +595,45 @@ def log_anib(
         identity=identity,
         aln_length=aln_length,
         sim_errors=sim_errors,
-        cov_query=cov_query,
-        cov_subject=cov_subject,
+        cov_query=float(aln_length) / query.length,
+        cov_subject=float(aln_length) / subject.length,
     )
 
     session.commit()
     return 0
 
 
-@app.command()
+@app.command(rich_help_panel="Method specific logging")
 def log_dnadiff(
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     mcoords: Annotated[
-        Path, typer.Option(help="Path to show-coords (.mcoords) output file")
+        Path,
+        typer.Option(
+            help="Path to show-coords (.mcoords) output file",
+            dir_okay=False,
+            file_okay=True,
+            exists=True,
+        ),
     ],
-    qdiff: Annotated[Path, typer.Option(help="Path to show-diff (.qdiff) output file")],
+    qdiff: Annotated[
+        Path,
+        typer.Option(
+            help="Path to show-diff (.qdiff) output file",
+            dir_okay=False,
+            file_okay=True,
+            exists=True,
+        ),
+    ],
     # Should we add --maxmatch (nucmer) and -m (deltafilter) parameters?
     # These are default parameters used in workflows
 ) -> int:
-    """Log a single pyANI-plus dnadiff pairwise comparison (with nucmer) to the database."""
+    """Log single dnadiff pairwise comparison (with nucmer) to database.
+
+    The associated configuration and genome entries must already exist.
+    """
     # Assuming this will match as expect this script to be called right
     # after the computation has finished (on the same machine)
     # We don't actually call the tool dnadiff (which has its own version),
@@ -579,7 +654,7 @@ def log_dnadiff(
         )
     if used_subject_mcoords != subject_fasta.stem:
         sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but query in mcoords filename was {used_subject_mcoords}"
+            f"ERROR: Given --subject-fasta {subject_fasta} but subject in mcoords filename was {used_subject_mcoords}"
         )
 
     used_query_qdiff, used_subject_qdiff = qdiff.stem.split("_vs_")
@@ -589,14 +664,14 @@ def log_dnadiff(
         )
     if used_subject_qdiff != subject_fasta.stem:
         sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but query in qdiff filename was {used_subject_qdiff}"
+            f"ERROR: Given --subject-fasta {subject_fasta} but subject in qdiff filename was {used_subject_qdiff}"
         )
 
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging dnadiff to {database}")  # noqa: T201
+    print(f"Logging dnadiff to {database}")
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
@@ -612,11 +687,9 @@ def log_dnadiff(
     )
 
     query_md5 = file_md5sum(query_fasta)
-    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
-    cov_query = (aligned_bases_with_gaps - gap_lengths) / query.length
-
-    # We currently can't calculate cov_subject unless we generate rdiff files too.
     subject_md5 = file_md5sum(subject_fasta)
+
+    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
 
     db_orm.db_comparison(
         session,
@@ -626,7 +699,7 @@ def log_dnadiff(
         identity=identity,
         aln_length=aligned_bases_with_gaps - gap_lengths,
         sim_errors=round((aligned_bases_with_gaps - gap_lengths) * (1 - identity)),
-        cov_query=cov_query,
+        cov_query=(aligned_bases_with_gaps - gap_lengths) / query.length,
         cov_subject=None,  # Leaving this as None for now (need rdiff files to calculate this)
     )
 

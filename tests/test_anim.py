@@ -206,7 +206,7 @@ def test_bad_query_or_subject(
         SystemExit,
         match=(
             "ERROR: Given --subject-fasta .*/MGV-GENOME-0264574.fas"
-            " but query in deltafilter filename was MGV-GENOME-0266457"
+            " but subject in deltafilter filename was MGV-GENOME-0266457"
         ),
     ):
         private_cli.log_anim(

@@ -126,7 +126,7 @@ def test_bad_query_or_subject(
         SystemExit,
         match=(
             "ERROR: Given --subject-fasta .*/MGV-GENOME-0264574.fas"
-            " but query in mcoords filename was MGV-GENOME-0266457"
+            " but subject in mcoords filename was MGV-GENOME-0266457"
         ),
     ):
         private_cli.log_dnadiff(
@@ -160,7 +160,7 @@ def test_bad_query_or_subject(
         SystemExit,
         match=(
             "ERROR: Given --subject-fasta .*/MGV-GENOME-0266457.fna"
-            " but query in qdiff filename was MGV-GENOME-0264574"
+            " but subject in qdiff filename was MGV-GENOME-0264574"
         ),
     ):
         private_cli.log_dnadiff(

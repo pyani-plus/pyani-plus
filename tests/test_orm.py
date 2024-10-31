@@ -66,13 +66,15 @@ def test_make_and_populate_comparisons(tmp_path: str) -> None:
         program="guestimate",
         version="v0.1.2beta3",
         fragsize=100,
+        maxmatch=True,
         kmersize=17,
+        minmatch=0.3,
     )
     # Test the __repr__
     assert repr(config) == (
         "Configuration(configuration_id=None,"
         " program='guestimate', version='v0.1.2beta3',"
-        " fragsize=100, maxmatch=None, kmersize=17, minmatch=None)"
+        " fragsize=100, maxmatch=True, kmersize=17, minmatch=0.3)"
     )
     session.add(config)
     assert config.configuration_id is None
@@ -133,7 +135,7 @@ def test_make_and_populate_comparisons(tmp_path: str) -> None:
         assert str(comparison) == (
             f"Query: {comparison.query_hash}, Subject: {comparison.subject_hash},"
             " %ID=0.96, (guestimate v0.1.2beta3), "
-            "FragSize: 100, MaxMatch: None, KmerSize: 17, MinMatch: None"
+            "FragSize: 100, MaxMatch: True, KmerSize: 17, MinMatch: 0.3"
         )
 
         # Check the configuration object attribute:

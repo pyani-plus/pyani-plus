@@ -32,14 +32,14 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus.snakemake import snakemake_scheduler
+from pyani_plus.workflows import check_input_stems
 
 
 def test_input_stems(
     input_genomes_tiny: Path,
 ) -> None:
     """Verify expected stem:filename mapping from FASTA directory."""
-    mapping = snakemake_scheduler.check_input_stems(str(input_genomes_tiny))
+    mapping = check_input_stems(str(input_genomes_tiny))
     assert mapping == {
         "MGV-GENOME-0264574": input_genomes_tiny / "MGV-GENOME-0264574.fas",
         "MGV-GENOME-0266457": input_genomes_tiny / "MGV-GENOME-0266457.fna",
@@ -63,4 +63,4 @@ def test_duplicate_stems(
 
     msg = f"Duplicated stems found for {sorted(stems)}. Please investigate."
     with pytest.raises(ValueError, match=re.escape(msg)):
-        snakemake_scheduler.check_input_stems(str(dup_input_dir))
+        check_input_stems(str(dup_input_dir))

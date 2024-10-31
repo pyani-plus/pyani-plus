@@ -32,6 +32,9 @@ import pandas as pd
 import pytest
 
 from pyani_plus import db_orm, public_cli
+from pyani_plus.utils import file_md5sum
+
+from . import get_matrix_entry
 
 
 # This is very similar to the functions under tests/snakemake/__init__.py
@@ -80,30 +83,92 @@ def test_check_fasta(tmp_path: str) -> None:
         public_cli.check_fasta(Path(tmp_path))
 
 
-def test_list_runs(tmp_path: str) -> None:
-    """Check list-runs."""
+def test_list_runs_empty(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
+    """Check list-runs with no data."""
     with pytest.raises(
         SystemExit, match="ERROR: Database /does/not/exist does not exist"
     ):
         public_cli.list_runs(database=Path("/does/not/exist"))
 
+    tmp_db = Path(tmp_path) / "list-runs-empty.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
+    session.close()
+
+    public_cli.list_runs(database=tmp_db)
+    output = capsys.readouterr().out
+    assert " 0 analysis runs in " in output, output
+
+
+def test_partial_run(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
+    """Check list-runs and export-run with mock data including a partial run."""
     tmp_db = Path(tmp_path) / "list-runs.sqlite"
     session = db_orm.connect_to_db(tmp_db)
-
-    # Can we test stdout, should say 0 runs:
-    public_cli.list_runs(database=tmp_db)
-
     config = db_orm.db_configuration(
         session, "fastANI", "fastani", "1.2.3", create=True
     )
+    genomes = [
+        db_orm.db_genome(session, filename, file_md5sum(filename), create=True)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    ]
+    # Record 4 of the possible 9 comparisons:
+    for query in genomes[0:2]:
+        for subject in genomes[0:2]:
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query.genome_hash,
+                subject.genome_hash,
+                1.0 if query is subject else 0.99,
+                12345,
+            )
     db_orm.add_run(
-        session, config, cmdline="pyani fastani ...", status="Empty", name="Trial A"
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        status="Empty",
+        name="Trial A",
+        genomes=[],
     )
     db_orm.add_run(
-        session, config, cmdline="pyani fastani ...", status="Empty", name="Trial B"
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        status="Partial",
+        name="Trial B",
+        genomes=genomes,  # 3/3 genomes, so only have 4/9 comparisons
     )
-    # Can we test stdout, should say 2 runs:
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        status="Done",
+        name="Trial C",
+        genomes=genomes[0:2],  # 2/3 genomes, but have all 4/4 comparisons
+    )
+
     public_cli.list_runs(database=tmp_db)
+    output = capsys.readouterr().out
+    assert " 3 analysis runs in " in output, output
+    assert " 0/0=0² │ Empty " in output, output
+    assert " 4/9=3² │ Partial " in output, output
+    assert " 4/4=2² │ Done " in output, output
+
+    # Unlike a typical method calculation, we have not triggered
+    # .cache_comparisons() yet, so that will happen in export_run.
+    public_cli.export_run(database=tmp_db, run_id=2, outdir=tmp_path)
+    output = capsys.readouterr().out
+    assert f"Wrote matrices to {tmp_path}" in output, output
+    # By construction run 2 is partial, only 4 of 9 matrix entries are
+    # defined - the missing entries are just blanks (empty strings)
+    with pytest.raises(ValueError, match="could not convert string to float: ''"):
+        get_matrix_entry(
+            Path(tmp_path) / ("fastANI_identity.tsv"),
+            genomes[2].genome_hash,
+            genomes[2].genome_hash,
+        )
+
     tmp_db.unlink()
 
 
@@ -215,3 +280,18 @@ def test_fastani(
     compare_matrix_files(
         fastani_matrices / "matrix_identity.tsv", out / "fastANI_identity.tsv"
     )
+
+
+def test_fastani_dups(tmp_path: str) -> None:
+    """Check fastANI run (duplicate FASTA inputs)."""
+    tmp = Path(tmp_path)
+    tmp_db = tmp / "example.sqlite"
+    for name in ("alpha", "beta", "gamma"):
+        with (tmp / (name + ".fasta")).open("w") as handle:
+            handle.write(">genome\nACGTACGT\n")
+    with pytest.raises(
+        SystemExit, match="ERROR - Multiple genomes with same MD5 checksum"
+    ):
+        public_cli.fastani(
+            database=tmp_db, fasta=tmp, name="Test duplicates fail", create_db=True
+        )

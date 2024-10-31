@@ -27,16 +27,16 @@ new analysis (which can build on existing comparisons if the same DB is
 used), and reporting on a finished analysis (exporting tables and plots).
 """
 
+import multiprocessing
 import sys
 import tempfile
-from multiprocessing import Process
 from pathlib import Path
+from time import sleep
 from typing import Annotated
 
 import pandas as pd
 import typer
-
-# Could use tqdm or something else instead for the progress bar:
+from rich.console import Console
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
@@ -45,24 +45,39 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
-from sqlalchemy.exc import NoResultFound
+from rich.table import Table
+from rich.text import Text
+from sqlalchemy import insert, text
+from sqlalchemy.exc import NoResultFound, OperationalError
+from sqlalchemy.orm import Session
 
-from pyani_plus import db_orm, tools
+from pyani_plus import FASTA_EXTENSIONS, db_orm, tools
 from pyani_plus.methods import method_anib, method_fastani
-from pyani_plus.snakemake import snakemake_scheduler
 from pyani_plus.utils import available_cores, file_md5sum
-
-FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}  # define more centrally?
+from pyani_plus.workflows import SnakemakeRunner
 
 # Reused required command line arguments (which have no default)
 REQ_ARG_TYPE_DATABASE = Annotated[
-    Path, typer.Option(help="Path to pyANI-plus SQLite3 database", show_default=False)
+    Path,
+    typer.Option(
+        help="Path to pyANI-plus SQLite3 database",
+        show_default=False,
+        dir_okay=False,
+        file_okay=True,
+    ),
 ]
 REQ_ARG_TYPE_RUN_NAME = Annotated[
     str, typer.Option(help="Run name", show_default=False)
 ]
 REQ_ARG_TYPE_OUTDIR = Annotated[
-    Path, typer.Option(help="Output directory", show_default=False)
+    Path,
+    typer.Option(
+        help="Output directory",
+        show_default=False,
+        exists=True,
+        dir_okay=True,
+        file_okay=False,
+    ),
 ]
 REQ_ARG_TYPE_FASTA_DIR = Annotated[
     Path,
@@ -76,23 +91,30 @@ REQ_ARG_TYPE_FASTA_DIR = Annotated[
 OPT_ARG_TYPE_FRAGSIZE = Annotated[
     int,
     typer.Option(
-        help="Comparison method fragment size", rich_help_panel="Method parameters"
+        help="Comparison method fragment size",
+        rich_help_panel="Method parameters",
+        min=1,
     ),
 ]
+# fastANI has maximum (and default) k-mer size 16
 OPT_ARG_TYPE_KMERSIZE = Annotated[
     int,
     typer.Option(
-        help="Comparison method k-mer size", rich_help_panel="Method parameters"
+        help="Comparison method k-mer size", rich_help_panel="Method parameters", min=1
     ),
 ]
 OPT_ARG_TYPE_MINMATCH = Annotated[
     float,
     typer.Option(
-        help="Comparison method min-match", rich_help_panel="Method parameters"
+        help="Comparison method min-match",
+        rich_help_panel="Method parameters",
+        min=0.0,
+        max=1.0,
     ),
 ]
 OPT_ARG_TYPE_CREATE_DB = Annotated[
-    bool, typer.Option(help="Create database if does not exist")
+    # Listing name(s) explicitly to avoid automatic matching --no-create-db
+    bool, typer.Option("--create-db", help="Create database if does not exist")
 ]
 
 progress_columns = [
@@ -133,50 +155,127 @@ def check_fasta(fasta: Path) -> list[Path]:
     return fasta_names
 
 
-def run_snakemake_with_progress_bar(
+def progress_bar_via_db_comparisons(
+    database: Path, run_id: int, interval: float = 1.0
+) -> None:
+    """Show a progress bar based on monitoring the DB entries.
+
+    Will only self-terminate once all the run's comparisons are
+    in the database! Up to the caller to terminate it early.
+    """
+    session = db_orm.connect_to_db(database)
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+
+    already_done = run.comparisons().count()
+    total = run.genomes.count() ** 2 - already_done
+
+    done = 0
+    old_db_version = -1
+    with Progress(*progress_columns) as progress:
+        task = progress.add_task("Comparing pairs", total=total)
+        while done < total:
+            sleep(interval)
+            # Have there been any DB changes?
+            try:
+                db_version = (
+                    session.connection().execute(text("PRAGMA data_version;")).one()[0]
+                )
+            except OperationalError:
+                # Probably another process is updating the DB, try again soon
+                continue
+            if old_db_version == db_version:
+                # No changes, check again soon
+                continue
+            old_db_version = db_version
+            new = run.comparisons().count() - already_done - done
+            progress.update(task, advance=new)
+            done += new
+    session.close()
+
+
+def run_snakemake_with_progress_bar(  # noqa: PLR0913
     workflow_name: str,
+    database: Path,
+    run_id: int,
     targets: list[Path],
     params: dict,
     working_directory: Path,
     interval: float = 0.5,
-) -> int:
-    """Run snakemake with a progress bar.
-
-    Currently this works by monitoring the filesystem for the appearance of
-    the output files, while snakemake runs in a subprocess. This is not ideal,
-    and ideally we would use some kind of callbacks from snakemake - perhaps
-    using their logging mechanism.
-    """
-    runner = snakemake_scheduler.SnakemakeRunner(workflow_name)
+) -> None:
+    """Run snakemake with a progress bar."""
+    runner = SnakemakeRunner(workflow_name)
     # All rest replaces one line, runner.run_workflow(targets, params, workdir=working_directory)
 
-    pending = [Path(_) for _ in targets]
-    p = Process(
-        target=runner.run_workflow,
-        args=(targets, params),
-        kwargs={"workdir": working_directory},
+    # As of Python 3.8 onwards, the default on macOS ("Darwin") is "spawn"
+    # As of Python 3.12, the default of "fork" on Linux triggers a deprecation warning.
+    # This should match the defaults on Python 3.14 onwards.
+    # Note mypy currently can't handle this dynamic situation, their issue #8603
+    p = multiprocessing.get_context(  # type:ignore [attr-defined]
+        "spawn" if sys.platform == "darwin" else "forkserver"
+    ).Process(
+        target=progress_bar_via_db_comparisons,
+        args=(
+            database,
+            run_id,
+            interval,
+        ),
     )
     p.start()
+
+    # Call slurm!
+    try:
+        runner.run_workflow(targets, params, workdir=working_directory)
+    except Exception as err:  # noqa: BLE001
+        p.terminate()
+        # Ensure traceback starts on a new line after interrupted progress bar
+        print()
+        raise err from None
+
+    if p.is_alive():
+        # Should have finished, but perhaps final update is pending...
+        sleep(interval)
+        p.terminate()
+    p.join()
+
+
+def record_genomes(
+    session: Session, run: db_orm.Run, fasta_names: list[Path]
+) -> dict[Path, str]:
+    """Compute the MD5 of the FASTA files and record them against this run.
+
+    Returns a dict mapping filenames to MD5 checksums.
+    """
+    # Reuse existing genome entries and/or log new ones
+    n = len(fasta_names)
+    filename_to_md5 = {}
+    hashes = set()
     with Progress(*progress_columns) as progress:
-        # Same length:
-        # Indexing FASTAs
-        # Comparing pairs
-        task = progress.add_task("Comparing pairs", total=len(pending))
-        while pending:
-            p.join(interval)
-            for t in pending[:]:
-                if t.is_file():
-                    # Could print(f"Done: {t}")
-                    pending.remove(t)
-                    progress.update(task, advance=1)
-            if p.exitcode is not None:
-                # Should be finished, but was it success or failure?
-                pending = []  # to break the loop
-    p.join()  # Should be immediate as should have finished
-    if p.exitcode is None:
-        msg = "Snakemake did not stop?"
-        sys.exit(msg)
-    return p.exitcode
+        for filename in progress.track(fasta_names, description="Indexing FASTAs"):
+            md5 = file_md5sum(filename)
+            filename_to_md5[filename] = md5
+            if md5 in hashes:
+                # This avoids hitting IntegrityError UNIQUE constraint failed
+                dups = "\n" + "\n".join(
+                    sorted({str(k) for k, v in filename_to_md5.items() if v == md5})
+                )
+                msg = f"ERROR - Multiple genomes with same MD5 checksum {md5}:{dups}"
+                sys.exit(msg)
+            hashes.add(md5)
+            db_orm.db_genome(session, filename, md5, create=True)
+
+    # Will now update the runs_genomes linker table, but did not scale
+    # well via runs.genomes = [list of genome ORM objects]
+    # We could update the runs_genomes incrementally, or in batches?
+    run_id = run.run_id
+    session.execute(
+        insert(db_orm.RunGenomeAssociation),
+        [{"run_id": run_id, "genome_hash": md5} for md5 in hashes],
+    )
+    del hashes
+    run.status = "Setup"
+    session.commit()
+    print(f"Run setup with {n} genomes in database")
+    return filename_to_md5
 
 
 def run_method(  # noqa: PLR0913
@@ -215,36 +314,26 @@ def run_method(  # noqa: PLR0913
         create=True,
     )
 
-    # Reuse existing genome entries and/or log new ones
-    n = len(fasta_names)
-    genomes = []
-    filename_to_md5 = {}
-    with Progress(*progress_columns) as progress:
-        for filename in progress.track(fasta_names, description="Indexing FASTAs"):
-            md5 = file_md5sum(filename)
-            genomes.append(db_orm.db_genome(session, filename, md5, create=True))
-            filename_to_md5[filename] = md5
-
     run = db_orm.add_run(
         session,
         config,
         cmdline=" ".join(sys.argv),
-        status="Setup",
+        status="Initialising",
         name=name,
         date=None,
-        genomes=genomes,
+        genomes=[],
     )
     run_id = run.run_id
-    session.commit()  # Redundant?
-    del genomes
+
+    n = len(fasta_names)
+    filename_to_md5 = record_genomes(session, run, fasta_names)
+    del fasta_names
 
     done = run.comparisons().count()
     if done == n**2:
-        print(  # noqa: T201
-            f"Database already has all {n}x{n}={n**2} comparisons"
-        )
+        print(f"Database already has all {n}x{n}={n**2} comparisons")
     else:
-        print(  # noqa: T201
+        print(
             f"Database already has {done} of {n}x{n}={n**2} comparisons, {n**2 - done} needed"
         )
         done_hashes = {(_.query_hash, _.subject_hash) for _ in run.comparisons()}
@@ -266,14 +355,14 @@ def run_method(  # noqa: PLR0913
             params["outdir"] = out_path.resolve()
             params["db"] = Path(database).resolve()  # must be absolute
             params["cores"] = available_cores()  # should make configurable
-            return_code = run_snakemake_with_progress_bar(
-                workflow_name, targets, params, tmp_path
+            run_snakemake_with_progress_bar(
+                workflow_name,
+                Path(database),
+                run_id,
+                targets,
+                params,
+                tmp_path,
             )
-            if return_code:
-                sys.stderr.write(
-                    f"Snakemake failed to run {workflow_name} with return code {return_code}\n"
-                )
-                sys.exit(return_code)
 
         # Reconnect to the DB
         session = db_orm.connect_to_db(database)
@@ -288,7 +377,7 @@ def run_method(  # noqa: PLR0913
     run.status = "Done"
     session.commit()
     session.close()
-    print(  # noqa: T201
+    print(
         f"Logged new run-id {run_id} for method {method} with {n} genomes to database {database}"
     )
     return 0
@@ -300,8 +389,9 @@ def anim(
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
     name: REQ_ARG_TYPE_RUN_NAME,
+    *,
     # Does not use fragsize, maxmatch, kmersize, or minmatch
-    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
 ) -> int:
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -335,8 +425,9 @@ def dnadiff(
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
     name: REQ_ARG_TYPE_RUN_NAME,
+    *,
     # Does not use fragsize, maxmatch, kmersize, or minmatch
-    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
 ) -> int:
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -375,8 +466,9 @@ def anib(
     name: REQ_ARG_TYPE_RUN_NAME,
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
+    *,
     # Does not use maxmatch, kmersize, or minmatch
-    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
 ) -> int:
     """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -414,12 +506,13 @@ def fastani(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
     name: REQ_ARG_TYPE_RUN_NAME,
+    *,
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_fastani.FRAG_LEN,
     # Does not use maxmatch
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
     minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
-    create_db: OPT_ARG_TYPE_CREATE_DB = False,  # noqa: FBT002
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -459,13 +552,41 @@ def list_runs(
 
     session = db_orm.connect_to_db(database)
     runs = session.query(db_orm.Run)
-    print(f"Database {database} contains {runs.count()} runs")  # noqa: T201
+
+    table = Table(
+        title=f"{runs.count()} analysis runs in {database}",
+        row_styles=["dim", ""],  # alternating zebra stripes
+    )
+    table.add_column("ID", justify="right", no_wrap=True)
+    table.add_column("Date")
+    table.add_column("Method")
+    table.add_column(Text("Comparisons", justify="left"), justify="right", no_wrap=True)
+    table.add_column("Status")
+    table.add_column("Name")
+    # Would be nice to report {conf.program} {conf.version} too,
+    # perhaps conditional on the terminal width?
     for run in runs:
-        print(f"Run-ID {run.run_id}, '{run.name}'")  # noqa: T201
-        print(f"  {run.genomes.count()} genomes; date {run.date}; status {run.status}")  # noqa: T201
         conf = run.configuration
-        print(f"  Method {conf.method}; program {conf.program} {conf.version}")  # noqa: T201
+        n = run.genomes.count()
+        done = run.comparisons().count()
+        comparison_summary = f"{done}/{n**2}={n}²"
+        if done == 0:
+            comparison_summary = Text(comparison_summary, style="red")
+        elif done != n**2:
+            comparison_summary = Text(comparison_summary, style="yellow")
+        else:
+            comparison_summary = Text(comparison_summary, style="green")
+        table.add_row(
+            str(run.run_id),
+            str(run.date.date()),
+            conf.method,
+            comparison_summary,
+            run.status,
+            run.name,
+        )
     session.close()
+    console = Console()
+    console.print(table)
     return 0
 
 
@@ -499,7 +620,7 @@ def export_run(
         if count == 1:
             run = runs.one()
             run_id = run.run_id
-            print(f"INFO: Reporting on run-id {run_id} from {database}")  # noqa: T201
+            print(f"INFO: Reporting on run-id {run_id} from {database}")
         elif count:
             msg = (
                 f"ERROR: Database {database} contains {count} runs,"
@@ -543,7 +664,7 @@ def export_run(
     run.cov_query.to_csv(outdir / f"{conf.method}_query_cov.tsv", sep="\t")
     run.hadamard.to_csv(outdir / f"{conf.method}_hadamard.tsv", sep="\t")
 
-    print(f"Wrote matrices to {outdir}/{conf.method}_*.tsv")  # noqa: T201
+    print(f"Wrote matrices to {outdir}/{conf.method}_*.tsv")
 
     session.close()
     return 0

@@ -22,6 +22,7 @@
 """Snakemake workflows for ANI pairwise comparisons."""
 
 import multiprocessing
+import signal
 import sys
 from enum import Enum
 from pathlib import Path
@@ -73,6 +74,9 @@ def progress_bar_via_db_comparisons(
     Will only self-terminate once all the run's comparisons are
     in the database! Up to the caller to terminate it early.
     """
+    # Ignore any keyboard interrupte - let main thread handle it
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
     session = db_orm.connect_to_db(database)
     run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
 
@@ -160,12 +164,20 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
                 run_id,
                 interval,
             ),
+            daemon=True,
         )
         p.start()
 
         # Call snakemake!
         try:
             success = args_to_api(args, parser)
+        except KeyboardInterrupt:
+            p.terminate()
+            p.join()
+            # Ensure exit message starts on a new line after interrupted progress bar
+            print()  # noqa: T201
+            msg = "User aborted with keyboard interrupt"
+            sys.exit(msg)
         except Exception as err:  # noqa: BLE001
             p.terminate()
             # Ensure traceback starts on a new line after interrupted progress bar

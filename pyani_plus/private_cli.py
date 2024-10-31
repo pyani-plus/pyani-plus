@@ -41,10 +41,11 @@ from pyani_plus.public_cli import (
     OPT_ARG_TYPE_KMERSIZE,
     OPT_ARG_TYPE_MINMATCH,
     REQ_ARG_TYPE_DATABASE,
+    REQ_ARG_TYPE_FASTA_DIR,
     REQ_ARG_TYPE_OUTDIR,
     REQ_ARG_TYPE_RUN_NAME,
 )
-from pyani_plus.utils import file_md5sum
+from pyani_plus.utils import check_fasta, file_md5sum
 
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -201,7 +202,7 @@ def log_genome(
 
 @app.command(rich_help_panel="Low-level logging")
 def log_run(  # noqa: PLR0913
-    fasta: REQ_ARG_TYPE_FASTA_FILES,
+    fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
     cmdline: Annotated[str, typer.Option(help="Run command line", show_default=False)],
@@ -245,14 +246,15 @@ def log_run(  # noqa: PLR0913
     )
 
     genomes = []
-    if fasta:
+    fasta_names = check_fasta(fasta)
+    if fasta_names:
         # Reuse existing genome entries and/or log new ones
-        for filename in track(fasta, description="Processing..."):
+        for filename in track(fasta_names, description="Processing..."):
             md5 = file_md5sum(filename)
             genomes.append(db_orm.db_genome(session, filename, md5, create=True))
 
     run = db_orm.add_run(
-        session, config, cmdline, status, name, date=None, genomes=genomes
+        session, config, cmdline, fasta, status, name, date=None, genomes=genomes
     )
     run.cache_comparisons()
     run_id = run.run_id

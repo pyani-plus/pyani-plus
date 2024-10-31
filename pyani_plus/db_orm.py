@@ -301,6 +301,7 @@ class Run(Base):
     )
 
     cmdline: Mapped[str] = mapped_column()
+    fasta_directory: Mapped[str] = mapped_column()  # can't use Mapped[Path] (yet)
     date: Mapped[datetime.datetime] = mapped_column()
     status: Mapped[str] = mapped_column()
     name: Mapped[str] = mapped_column()
@@ -653,6 +654,7 @@ def add_run(  # noqa: PLR0913
     session: Session,
     configuration: Configuration,
     cmdline: str,
+    fasta_directory: Path,
     status: str,
     name: str,
     date: datetime.datetime | None = None,
@@ -666,6 +668,7 @@ def add_run(  # noqa: PLR0913
     run = Run(
         configuration_id=configuration.configuration_id,
         cmdline=cmdline,
+        fasta_directory=str(fasta_directory),
         status=status,
         name=name,
         date=date if date else datetime.datetime.now(tz=datetime.UTC),

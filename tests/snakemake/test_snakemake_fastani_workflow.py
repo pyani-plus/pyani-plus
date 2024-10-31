@@ -56,7 +56,7 @@ def config_fastani_args(
         "db": Path(tmp_path) / "db.slqite",
         "fastani": get_fastani().exe_path,
         "outdir": fastani_targets_outdir,
-        "indir": str(input_genomes_tiny),
+        "indir": input_genomes_tiny,
         "cores": snakemake_cores,
         "fragsize": 3000,
         "kmersize": 16,
@@ -145,7 +145,7 @@ def test_snakemake_rule_fastani(  # noqa: PLR0913
         )
 
     log_run(
-        fasta=input_fasta,
+        fasta=config_fastani_args["indir"],
         database=db,
         status="Complete",
         name="Test case",
@@ -178,7 +178,7 @@ def test_snakemake_duplicate_stems(
     dup_input_dir = Path(tmp_path) / "duplicated_stems"
     dup_input_dir.mkdir()
     stems = set()
-    for sequence in Path(config_fastani_args["indir"]).glob("*.f*"):
+    for sequence in config_fastani_args["indir"].glob("*.f*"):
         # For every input FASTA file, make two versions - XXX.fasta and XXX.fna
         os.symlink(sequence, dup_input_dir / (sequence.stem + ".fasta"))
         os.symlink(sequence, dup_input_dir / (sequence.stem + ".fna"))

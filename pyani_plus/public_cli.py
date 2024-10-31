@@ -209,6 +209,7 @@ def run_method(  # noqa: PLR0913
         session,
         config,
         cmdline=" ".join(sys.argv),
+        fasta_directory=fasta,
         status="Initialising",
         name=name,
         date=None,

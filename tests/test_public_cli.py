@@ -127,6 +127,7 @@ def test_partial_run(
         session,
         config,
         cmdline="pyani fastani ...",
+        fasta_directory=input_genomes_tiny,
         status="Empty",
         name="Trial A",
         genomes=[],
@@ -135,6 +136,7 @@ def test_partial_run(
         session,
         config,
         cmdline="pyani fastani ...",
+        fasta_directory=input_genomes_tiny,
         status="Partial",
         name="Trial B",
         genomes=genomes,  # 3/3 genomes, so only have 4/9 comparisons
@@ -143,6 +145,7 @@ def test_partial_run(
         session,
         config,
         cmdline="pyani fastani ...",
+        fasta_directory=input_genomes_tiny,
         status="Done",
         name="Trial C",
         genomes=genomes[0:2],  # 2/3 genomes, but have all 4/4 comparisons
@@ -197,10 +200,20 @@ def test_export_run(tmp_path: str) -> None:
         session, "fastANI", "fastani", "1.2.3", create=True
     )
     db_orm.add_run(
-        session, config, cmdline="pyani fastani ...", status="Empty", name="Trial A"
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        fasta_directory=Path("/does/not/exist"),
+        status="Empty",
+        name="Trial A",
     )
     db_orm.add_run(
-        session, config, cmdline="pyani fastani ...", status="Empty", name="Trial B"
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        fasta_directory=Path("/does/not/exist"),
+        status="Empty",
+        name="Trial B",
     )
     with pytest.raises(
         SystemExit,

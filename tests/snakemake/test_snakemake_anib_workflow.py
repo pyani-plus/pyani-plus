@@ -187,7 +187,7 @@ def test_snakemake_rule_blastn(  # noqa: PLR0913
         assert filecmp.cmp(fname, anib_blastn / fname.name)
 
     log_run(
-        fasta=config_anib_args["indir"].glob("*.f*"),
+        fasta=config_anib_args["indir"],
         database=db,
         status="Complete",
         name="Test case",

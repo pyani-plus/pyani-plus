@@ -151,7 +151,7 @@ def test_snakemake_rule_filter(  # noqa: PLR0913
         )
 
     log_run(
-        fasta=config_anim_args["indir"].glob("*.f*"),
+        fasta=config_anim_args["indir"],
         database=db,
         status="Complete",
         name="Test case",

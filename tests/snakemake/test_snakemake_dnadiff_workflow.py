@@ -254,7 +254,7 @@ def test_snakemake_rule_show_diff_and_coords(  # noqa: PLR0913
         )
 
     log_run(
-        fasta=config_dnadiff_args["indir"].glob("*.f*"),
+        fasta=config_dnadiff_args["indir"],
         database=db,
         status="Complete",
         name="Test case",
@@ -338,7 +338,7 @@ def test_snakemake_rule_show_coords(  # noqa: PLR0913
         )
 
     log_run(
-        fasta=config_dnadiff_args["indir"].glob("*.f*"),
+        fasta=config_dnadiff_args["indir"],
         database=db,
         status="Complete",
         name="Test case",

@@ -203,6 +203,7 @@ def test_make_and_populate_runs(tmp_path: str) -> None:
         configuration_id=config.configuration_id,
         name="Test One",
         cmdline="pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite",
+        fasta_directory="../my-genomes/",
         date=datetime.date(2024, 9, 3),
         status="Pending",
     )
@@ -232,6 +233,7 @@ def test_make_and_populate_runs(tmp_path: str) -> None:
         configuration_id=config.configuration_id,
         name="Test Two",
         cmdline="pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite",
+        fasta_directory="../my-genomes/",
         date=datetime.date(2024, 9, 4),
         status="Pending",
     )
@@ -289,6 +291,7 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
         configuration_id=config.configuration_id,
         name="Empty",
         cmdline="pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite",
+        fasta_directory="../my-genomes/",
         date=datetime.date(2023, 12, 25),
         status="Aborted",
     )
@@ -304,6 +307,7 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
         configuration_id=config.configuration_id,
         name="Test Run",
         cmdline="pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite",
+        fasta_directory="../my-genomes/",
         date=datetime.date(2023, 12, 25),
         status="Complete",
     )
@@ -566,6 +570,7 @@ def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
         configuration=config,
         genomes=genomes,
         status="Started",
+        fasta_directory=Path("/mnt/shared/genomes/"),
         name="Guess Run",
         date=None,
         cmdline="pyani_plus run --method guestimate --fasta blah blah",

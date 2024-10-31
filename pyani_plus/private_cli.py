@@ -625,11 +625,7 @@ def log_dnadiff(
         subject_hash=subject_md5,
         identity=identity,
         aln_length=aligned_bases_with_gaps - gap_lengths,
-        sim_errors=int(
-            aligned_bases_with_gaps
-            - gap_lengths
-            - (aligned_bases_with_gaps - gap_lengths) * identity
-        ),
+        sim_errors=round((aligned_bases_with_gaps - gap_lengths) * (1 - identity)),
         cov_query=cov_query,
         cov_subject=None,  # Leaving this as None for now (need rdiff files to calculate this)
     )

@@ -114,10 +114,7 @@ for file in report_files:
     aln_lengths_matrix.loc[query_hash, subject_hash] = aligned_bases
     coverage_matrix.loc[query_hash, subject_hash] = query_coverage
     identity_matrix.loc[query_hash, subject_hash] = avg_identity
-    sim_errors.loc[query_hash, subject_hash] = aligned_bases - (
-        aligned_bases * avg_identity
-    )
-    print(query, subject, aligned_bases - (aligned_bases * avg_identity))
+    sim_errors.loc[query_hash, subject_hash] = round(aligned_bases * (1 - avg_identity))
 
 matrices_directory = "../fixtures/dnadiff/matrices/"
 Path(matrices_directory).mkdir(parents=True, exist_ok=True)

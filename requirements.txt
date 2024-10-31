@@ -4,5 +4,6 @@ moreutils>=0.67
 perl-ipc-run
 snakemake>=8.24
 rich
+sourmash
 sqlalchemy>=2.0
 typer>=0.12

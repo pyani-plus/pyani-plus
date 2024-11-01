@@ -60,6 +60,7 @@ def config_anim_args(
         "delta_filter": get_delta_filter().exe_path,
         # "outdir": ... is dynamic
         "indir": input_genomes_tiny,
+        "mode": "mum",
         "cores": snakemake_cores,
     }
 
@@ -117,10 +118,7 @@ def test_snakemake_rule_filter(  # noqa: PLR0913
         method="ANIm",
         program=nucmer_tool.exe_path.stem,
         version=nucmer_tool.version,
-        fragsize=None,
-        maxmatch=None,
-        kmersize=None,
-        minmatch=None,
+        mode=config_anim_args["mode"],
         create_db=True,
     )
     # Record the FASTA files in the genomes table _before_ call snakemake
@@ -161,10 +159,7 @@ def test_snakemake_rule_filter(  # noqa: PLR0913
         method="ANIm",
         program=nucmer_tool.exe_path.stem,
         version=nucmer_tool.version,
-        fragsize=None,
-        maxmatch=None,
-        kmersize=None,
-        minmatch=None,
+        mode=config_anim_args["mode"],
         create_db=False,
     )
     compare_matrices(db, dir_anim_results)

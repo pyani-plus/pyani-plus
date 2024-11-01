@@ -37,9 +37,11 @@ def get_genomeB(wildcards):
 # NOTE: We do not need to construct forward and reverse comparisons within this
 # rule. This is done in the context of pyani_plus by specifying target files in
 # the calling code
+# Here mode will be "mum" (default) or "maxmatch", meaning nucmer --mum etc.
 rule delta:
     params:
         nucmer=config["nucmer"],
+        mode=config["mode"],
         indir=config["indir"],
         outdir=config["outdir"],
     input:
@@ -48,7 +50,7 @@ rule delta:
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.delta",
     shell:
-        "chronic {params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --mum {input.genomeB} {input.genomeA}"
+        "chronic {params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --{params.mode} {input.genomeB} {input.genomeA}"
 
 
 # The filter rule runs delta-filter wrapper for nucmer
@@ -57,6 +59,7 @@ rule delta:
 rule filter:
     params:
         db=config["db"],
+        mode=config["mode"],
         delta_filter=config["delta_filter"],
         outdir=config["outdir"],
     input:
@@ -73,5 +76,6 @@ rule filter:
              > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter &&
         chronic .pyani-plus-private-cli log-anim --database {params.db} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
-            --deltafilter {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter
+            --deltafilter {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter \
+            --mode {params.mode}
         """

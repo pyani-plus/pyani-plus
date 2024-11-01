@@ -35,6 +35,7 @@ from rich.progress import track
 from pyani_plus import db_orm, tools
 from pyani_plus.methods import method_anib, method_anim, method_dnadiff, method_fastani
 from pyani_plus.public_cli import (
+    OPT_ARG_TYPE_ANIM_MODE,
     OPT_ARG_TYPE_CREATE_DB,
     OPT_ARG_TYPE_FRAGSIZE,
     OPT_ARG_TYPE_KMERSIZE,
@@ -99,8 +100,11 @@ NONE_ARG_TYPE_FRAGSIZE = Annotated[
         min=1,
     ),
 ]
-NONE_ARG_TYPE_MAXMATCH = Annotated[
-    bool | None, typer.Option(help="Comparison method max-match")
+NONE_ARG_TYPE_MODE = Annotated[
+    str | None,
+    typer.Option(
+        help="Comparison method specific mode", rich_help_panel="Method parameters"
+    ),
 ]
 NONE_ARG_TYPE_KMERSIZE = Annotated[
     int | None,
@@ -127,7 +131,7 @@ def log_configuration(  # noqa: PLR0913
     version: REQ_ARG_TYPE_VERSION,
     *,
     fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
-    maxmatch: NONE_ARG_TYPE_MAXMATCH = None,
+    mode: NONE_ARG_TYPE_MODE = None,
     kmersize: NONE_ARG_TYPE_KMERSIZE = None,
     minmatch: NONE_ARG_TYPE_MINMATCH = None,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
@@ -148,7 +152,7 @@ def log_configuration(  # noqa: PLR0913
         program=program,
         version=version,
         fragsize=fragsize,
-        maxmatch=maxmatch,
+        mode=mode,
         kmersize=kmersize,
         minmatch=minmatch,
         create=True,
@@ -205,7 +209,7 @@ def log_run(  # noqa: PLR0913
     version: REQ_ARG_TYPE_VERSION,
     *,
     fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
-    maxmatch: NONE_ARG_TYPE_MAXMATCH = None,
+    mode: NONE_ARG_TYPE_MODE = None,
     kmersize: NONE_ARG_TYPE_KMERSIZE = None,
     minmatch: NONE_ARG_TYPE_MINMATCH = None,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
@@ -230,7 +234,7 @@ def log_run(  # noqa: PLR0913
         program=program,
         version=version,
         fragsize=fragsize,
-        maxmatch=maxmatch,
+        mode=mode,
         kmersize=kmersize,
         minmatch=minmatch,
         create=True,
@@ -280,7 +284,7 @@ def log_comparison(  # noqa: PLR0913
     version: REQ_ARG_TYPE_VERSION,
     *,
     fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
-    maxmatch: NONE_ARG_TYPE_MAXMATCH = None,
+    mode: NONE_ARG_TYPE_MODE = None,
     kmersize: NONE_ARG_TYPE_KMERSIZE = None,
     minmatch: NONE_ARG_TYPE_MINMATCH = None,
     # Optional comparison table entries
@@ -302,7 +306,7 @@ def log_comparison(  # noqa: PLR0913
         program=program,
         version=version,
         fragsize=fragsize,
-        maxmatch=maxmatch,
+        mode=mode,
         kmersize=kmersize,
         minmatch=minmatch,
         create=False,
@@ -331,7 +335,7 @@ def log_comparison(  # noqa: PLR0913
 
 
 # Ought we switch the command line arguments here to match fastANI naming?
-# Note this omits maxmatch
+# Note this omits mode
 @app.command(rich_help_panel="Method specific logging")
 def log_fastani(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
@@ -397,7 +401,6 @@ def log_fastani(  # noqa: PLR0913
         program=fastani_tool.exe_path.stem,
         version=fastani_tool.version,
         fragsize=fragsize,  # aka --fragLen
-        maxmatch=None,
         kmersize=kmersize,  # aka --k
         minmatch=minmatch,  # aka --minFraction
         create=False,
@@ -457,7 +460,8 @@ def log_anim(
             exists=True,
         ),
     ],
-    # Don't use any of fragsize, maxmatch, kmersize, minmatch (configuration table entries)
+    # Don't use any of fragsize, kmersize, minmatch (configuration table entries)
+    mode: OPT_ARG_TYPE_ANIM_MODE = method_anim.MODE,
 ) -> int:
     """Log single ANIm pairwise comparison (with nucmer) to database.
 
@@ -493,10 +497,7 @@ def log_anim(
         method="ANIm",
         program=nucmer_tool.exe_path.stem,
         version=nucmer_tool.version,
-        fragsize=None,
-        maxmatch=None,
-        kmersize=None,
-        minmatch=None,
+        mode=mode,
         create=False,
     )
 
@@ -523,7 +524,7 @@ def log_anim(
     return 0
 
 
-# Note this omits kmersize, minmatch, maxmatch
+# Note this omits kmersize, minmatch, mode
 @app.command(rich_help_panel="Method specific logging")
 def log_anib(
     database: REQ_ARG_TYPE_DATABASE,
@@ -574,9 +575,6 @@ def log_anib(
         program=blastn_tool.exe_path.stem,
         version=blastn_tool.version,
         fragsize=fragsize,
-        maxmatch=None,
-        kmersize=None,
-        minmatch=None,
         create=False,
     )
 
@@ -679,10 +677,6 @@ def log_dnadiff(
         method="dnadiff",
         program=tool.exe_path.stem,
         version=tool.version,
-        fragsize=None,
-        maxmatch=None,
-        kmersize=None,
-        minmatch=None,
         create=False,
     )
 

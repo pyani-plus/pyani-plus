@@ -219,7 +219,7 @@ def test_snakemake_rule_show_diff_and_coords(  # noqa: PLR0913
         program=nucmer_tool.exe_path.stem,
         version=nucmer_tool.version,  # used as a proxy for MUMmer suite
         fragsize=None,
-        maxmatch=None,
+        mode=None,
         kmersize=None,
         minmatch=None,
         create_db=True,
@@ -263,7 +263,7 @@ def test_snakemake_rule_show_diff_and_coords(  # noqa: PLR0913
         program=nucmer_tool.exe_path.stem,
         version=nucmer_tool.version,
         fragsize=None,
-        maxmatch=None,
+        mode=None,
         kmersize=None,
         minmatch=None,
         create_db=False,
@@ -304,7 +304,7 @@ def test_snakemake_rule_show_coords(  # noqa: PLR0913
         program=nucmer_tool.exe_path.stem,
         version=nucmer_tool.version,  # used as a proxy for MUMer suite
         fragsize=None,
-        maxmatch=None,
+        mode=None,
         kmersize=None,
         minmatch=None,
         create_db=True,
@@ -347,7 +347,7 @@ def test_snakemake_rule_show_coords(  # noqa: PLR0913
         program=nucmer_tool.exe_path.stem,
         version=nucmer_tool.version,  # used as a proxy for MUMmer suite
         fragsize=None,
-        maxmatch=None,
+        mode=None,
         kmersize=None,
         minmatch=None,
         create_db=False,

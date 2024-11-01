@@ -327,3 +327,15 @@ def dnadiff_targets_showcoords(dnadiff_targets_showcoords_outdir: Path) -> list[
 def input_genomes_tiny() -> Path:
     """Path to small set of two viral input genomes."""
     return FIXTUREPATH / "viral_example"
+
+
+@pytest.fixture
+def sourmash_targets_sig_indir() -> Path:
+    """Directory containing sourmash signature target files."""
+    return FIXTUREPATH / "sourmash" / "targets" / "signatures"
+
+
+@pytest.fixture
+def sourmash_targets_compare_indir() -> Path:
+    """Directory containing sourmash compare target files."""
+    return FIXTUREPATH / "sourmash" / "targets" / "compare"

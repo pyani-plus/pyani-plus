@@ -31,11 +31,11 @@ This script generates target files for sourmash comparisons.
 Genomes are compared in both directions (forward and reverse)
 using `sourmash sketch dna` and `sourmash compare`.
 
-sourmash sketch dna runs with k=31, scaled=1 to find DNA sketches.
+sourmash sketch dna runs with k=31, scaled=300 to find DNA sketches.
 Note: By default, sketch dna uses the parameter string "k=31,scaled=1000".
 However, these settings fail to estimate ANI values for the current test
 set (viral genomes). For testing purposes, we will set the parameters to
-"k=31,scaled=1", which does return an estimation of ANI.
+"k=31,scaled=300", which does return an estimation of ANI.
 
 sourmash compare runs with --max-containment parameter to compare signatures
 and estimate ANI.
@@ -74,7 +74,7 @@ for genomes in comparisons:
             "sketch",
             "dna",
             "-p",
-            "k=31,scaled=1",
+            "k=31,scaled=300",
             inputs[genomes[1]],
             inputs[genomes[0]],
             "-o",

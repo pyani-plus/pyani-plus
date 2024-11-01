@@ -363,7 +363,7 @@ def sourmash_targets_compare_outdir(tmp_path: str) -> Path:
 
 
 @pytest.fixture
-def sourmash_targets_sig(sourmash_targets_signature_outdir: Path) -> list[str]:
+def sourmash_targets_sig(sourmash_targets_signature_outdir: Path) -> list[Path]:
     """Target files for sourmash sketch tests.
 
     These are paths to the output files we want to generate using
@@ -377,8 +377,8 @@ def sourmash_targets_sig(sourmash_targets_signature_outdir: Path) -> list[str]:
 
 
 @pytest.fixture
-def sourmash_compare_sig(sourmash_targets_compare_outdir: Path) -> list[str]:
-    """Target files for sourmash sketch tests.
+def sourmash_target_ani(sourmash_targets_compare_outdir: Path) -> list[Path]:
+    """Target files for sourmash ani estimation tests.
 
     These are paths to the output files we want to generate using
     sourmash sketch. We aim to ask sourmash sketch to generate a set of

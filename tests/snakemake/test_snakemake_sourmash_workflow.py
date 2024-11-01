@@ -26,8 +26,11 @@ These tests are intended to be run from the repository root using:
 pytest -v or make test
 """
 
+import json
 import shutil  # We need this for filesystem operations
 from pathlib import Path
+
+import pandas as pd
 
 # Required to support pytest automated testing
 import pytest
@@ -45,23 +48,65 @@ def config_sourmash_args(
         # "outdir": ... is dynamic
         "indir": input_genomes_tiny,
         "cores": snakemake_cores,
-        "scaled": 1000,
+        "scaled": 300,
         "kmer": 31,
     }
 
 
-def compare_sourmash_files(file1: Path, file2: Path) -> bool:
-    """Compare two files.
+def compare_sourmash_sig_files(
+    file1: Path, file2: Path, key_to_exclude: str = "filename"
+) -> bool:
+    """Compare two .sig files, excluding filename ifnormation.
 
-    This function expects two text files as input and returns True if the content
-    of the files is the same, and False if the two files differ.
+    Return True if they are the same or False if they are different.
     """
-    with file1.open() as if1, file2.open() as if2:
-        for line1, line2 in zip(if1.readlines(), if2.readlines(), strict=False):
-            if line1 != line2:
-                return False
 
-    return True
+    def remove_key(data: dict, key_to_remove: str) -> dict:
+        """Remove the specified key (file) from a JSON-like structure (dict or list).
+
+        This is because sourmash provides the full path for input genomes in .sig files,
+        which will differ when comparing target files with those generated during workflow run.
+        """
+        if isinstance(data, dict):  # If the data is a dictionary
+            # Remove the key if it exists in the dictionary
+            data.pop(key_to_remove, None)
+            # Call remove_key on each value in the dictionary
+            for value in data.values():
+                remove_key(value, key_to_remove)
+        elif isinstance(data, list):  # If the data is a list
+            # Call remove_key on each item in the list
+            for item in data:
+                remove_key(item, key_to_remove)
+
+        return data
+
+    # Load sketch data from the first .sig file
+    with Path.open(file1) as f1:
+        data1 = json.load(f1)
+
+    # Load sketch data from the second .sig file
+    with Path.open(file2) as f2:
+        data2 = json.load(f2)
+
+    # Remove the specified key from both loaded sig files
+    cleaned_data1 = remove_key(data1, key_to_exclude)
+    cleaned_data2 = remove_key(data2, key_to_exclude)
+
+    # Compare the cleaned .sig data and return True if they are identical, False if different
+    return cleaned_data1 == cleaned_data2
+
+
+def compare_sourmash_ani_files(data1: Path, data2: Path) -> bool:
+    """Compare two .csv files returned by sourmash compare."""
+    # Read the .csv files into DataFrames
+    csv1 = pd.read_csv(data1)
+    csv2 = pd.read_csv(data2)
+
+    # Use regex to replace everything before the last '/' with an empty string
+    csv1.columns = csv1.columns.str.replace(r".*/", "", regex=True)
+    csv2.columns = csv2.columns.str.replace(r".*/", "", regex=True)
+
+    return csv1.equals(csv2)
 
 
 def test_snakemake_sketch_rule(
@@ -93,19 +138,18 @@ def test_snakemake_sketch_rule(
     runner.run_workflow(sourmash_targets_sig, config, workdir=Path(tmp_path))
 
     # Check output against target fixtures
-    # THIS TEST SHOULD FAIL, but passes instead?
-    # Target/fixture files were generated with scaled=300
-    # Here, I use scaled=1000?
     for fname in sourmash_targets_sig:
-        assert compare_sourmash_files(
-            sourmash_targets_sig_indir / fname,
-            sourmash_targets_signature_outdir / fname,
+        assert Path(fname).suffix == ".sig", fname
+        assert Path(fname).is_file()
+        assert compare_sourmash_sig_files(
+            sourmash_targets_signature_outdir / Path(fname).name,
+            sourmash_targets_sig_indir / Path(fname).name,
         )
 
 
 def test_snakemake_compare_rule(
     sourmash_targets_compare_outdir: Path,
-    sourmash_compare_sig: list[str],
+    sourmash_target_ani: list[str],
     config_sourmash_args: dict,
     sourmash_targets_compare_indir: Path,
     tmp_path: str,
@@ -129,14 +173,13 @@ def test_snakemake_compare_rule(
 
     # Run snakemake wrapper
     runner = SnakemakeRunner("snakemake_sourmash.smk")
-    runner.run_workflow(sourmash_compare_sig, config, workdir=Path(tmp_path))
+    runner.run_workflow(sourmash_target_ani, config, workdir=Path(tmp_path))
 
     # Check output against target fixtures
-    # THIS TEST SHOULD FAIL, but passes instead?
-    # Target/fixture files were generated with scaled=300
-    # Here, I use scaled=1000?
-    for fname in sourmash_compare_sig:
-        assert compare_sourmash_files(
-            sourmash_targets_compare_indir / fname,
-            sourmash_targets_compare_outdir / fname,
+    for fname in sourmash_target_ani:
+        assert Path(fname).suffix == ".csv", fname
+        assert Path(fname).is_file()
+        assert compare_sourmash_ani_files(
+            sourmash_targets_compare_outdir / Path(fname).name,
+            sourmash_targets_compare_indir / Path(fname).name,
         )

@@ -245,16 +245,24 @@ def log_run(  # noqa: PLR0913
         create=True,
     )
 
-    genomes = []
+    fasta_to_hash = {}
     fasta_names = check_fasta(fasta)
     if fasta_names:
         # Reuse existing genome entries and/or log new ones
         for filename in track(fasta_names, description="Processing..."):
             md5 = file_md5sum(filename)
-            genomes.append(db_orm.db_genome(session, filename, md5, create=True))
+            fasta_to_hash[filename] = md5
+            db_orm.db_genome(session, filename, md5, create=True)
 
     run = db_orm.add_run(
-        session, config, cmdline, fasta, status, name, date=None, genomes=genomes
+        session,
+        config,
+        cmdline,
+        fasta,
+        status,
+        name,
+        date=None,
+        fasta_to_hash=fasta_to_hash,
     )
     run.cache_comparisons()
     run_id = run.run_id

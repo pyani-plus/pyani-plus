@@ -336,9 +336,16 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
             f"Genome(genome_hash={md5!r}, path='../my-genomes/{name}.fasta',"
             f" length={len(seq)}, description='{name}')"
         )
-        if name[-1] in ("A", "T"):
-            genome.runs.append(run)  # setup the link to the runs table
         session.add(genome)
+        if name[-1] in ("A", "T"):
+            # Don't know the run_id until the run is committed
+            session.add(
+                db_orm.RunGenomeAssociation(
+                    run=run,
+                    genome_hash=md5,
+                    fasta_filename=f"{name}.fasta",  # no path here, just filename
+                )
+            )
 
     for a in hashes:
         for b in hashes:
@@ -557,18 +564,16 @@ def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
         " fragsize=1000, mode=None, kmersize=31, minmatch=None)"
     )
 
-    hashes = {}
-    genomes = []
-    for fasta in input_genomes_tiny.glob("*.f*"):
-        md5 = file_md5sum(fasta)
-        genome = db_orm.db_genome(session, fasta, md5, create=True)
-        hashes[md5] = fasta
-        genomes.append(genome)
+    fasta_to_hash = {}
+    for fasta_filename in input_genomes_tiny.glob("*.f*"):
+        md5 = file_md5sum(fasta_filename)
+        db_orm.db_genome(session, fasta_filename, md5, create=True)
+        fasta_to_hash[fasta_filename] = md5
 
     run = db_orm.add_run(
         session,
         configuration=config,
-        genomes=genomes,
+        fasta_to_hash=fasta_to_hash,
         status="Started",
         fasta_directory=Path("/mnt/shared/genomes/"),
         name="Guess Run",
@@ -581,13 +586,13 @@ def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
         "cmdline='pyani_plus run --method guestimate --fasta blah blah', "
         f"date={now!r}, status='Started', name='Guess Run', ...)"
     )
-    assert run.genomes.count() == len(hashes)
+    assert run.genomes.count() == len(fasta_to_hash)
     assert run.comparisons().count() == 0  # not logged yet
 
     # At this point in a real run we would start parallel worker jobs
     # to compute the comparisons (possible spread over a cluster):
-    for a in hashes:
-        for b in hashes:
+    for a in fasta_to_hash.values():
+        for b in fasta_to_hash.values():
             db_orm.db_comparison(
                 session,
                 config.configuration_id,
@@ -600,7 +605,7 @@ def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
             )
 
     # Now that all the comparisons are in the DB, can collate and cache matrices
-    assert run.comparisons().count() == len(hashes) ** 2
+    assert run.comparisons().count() == len(fasta_to_hash) ** 2
     run.cache_comparisons()
     run.status = "Complete"
     session.commit()

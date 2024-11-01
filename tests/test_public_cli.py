@@ -108,21 +108,25 @@ def test_partial_run(
     config = db_orm.db_configuration(
         session, "fastANI", "fastani", "1.2.3", create=True
     )
-    genomes = [
-        db_orm.db_genome(session, filename, file_md5sum(filename), create=True)
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
-    ]
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+
     # Record 4 of the possible 9 comparisons:
-    for query in genomes[0:2]:
-        for subject in genomes[0:2]:
+    for query_hash in list(fasta_to_hash.values())[0:2]:
+        for subject_hash in list(fasta_to_hash.values())[0:2]:
             db_orm.db_comparison(
                 session,
                 config.configuration_id,
-                query.genome_hash,
-                subject.genome_hash,
-                1.0 if query is subject else 0.99,
+                query_hash,
+                subject_hash,
+                1.0 if query_hash == subject_hash else 0.99,
                 12345,
             )
+
     db_orm.add_run(
         session,
         config,
@@ -130,7 +134,7 @@ def test_partial_run(
         fasta_directory=input_genomes_tiny,
         status="Empty",
         name="Trial A",
-        genomes=[],
+        fasta_to_hash={},
     )
     db_orm.add_run(
         session,
@@ -139,7 +143,7 @@ def test_partial_run(
         fasta_directory=input_genomes_tiny,
         status="Partial",
         name="Trial B",
-        genomes=genomes,  # 3/3 genomes, so only have 4/9 comparisons
+        fasta_to_hash=fasta_to_hash,  # 3/3 genomes, so only have 4/9 comparisons
     )
     db_orm.add_run(
         session,
@@ -148,7 +152,8 @@ def test_partial_run(
         fasta_directory=input_genomes_tiny,
         status="Done",
         name="Trial C",
-        genomes=genomes[0:2],  # 2/3 genomes, but have all 4/4 comparisons
+        # This run uses just 2/3 genomes, but has all 4/4 = 2*2 comparisons:
+        fasta_to_hash=dict(list(fasta_to_hash.items())[0:2]),
     )
 
     public_cli.list_runs(database=tmp_db)
@@ -168,8 +173,8 @@ def test_partial_run(
     with pytest.raises(ValueError, match="could not convert string to float: ''"):
         get_matrix_entry(
             Path(tmp_path) / ("fastANI_identity.tsv"),
-            genomes[2].genome_hash,
-            genomes[2].genome_hash,
+            list(fasta_to_hash.values())[2],
+            list(fasta_to_hash.values())[2],
         )
 
     tmp_db.unlink()

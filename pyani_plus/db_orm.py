@@ -38,6 +38,7 @@ from sqlalchemy import (
     ForeignKey,
     UniqueConstraint,
     create_engine,
+    insert,
 )
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import (
@@ -68,6 +69,11 @@ class RunGenomeAssociation(Base):
         ForeignKey("genomes.genome_hash"), primary_key=True
     )
     run_id: Mapped[int] = mapped_column(ForeignKey("runs.run_id"), primary_key=True)
+    # Just filename, no containing directory - that's in the associated run table entry
+    fasta_filename: Mapped[str] = mapped_column()
+
+    run = relationship("Run")
+    genome = relationship("Genome")
 
 
 class Genome(Base):
@@ -105,9 +111,7 @@ class Genome(Base):
         back_populates="subject",
         primaryjoin="Genome.genome_hash == Comparison.subject_hash",
     )
-    runs = relationship(
-        "Run", secondary="runs_genomes", back_populates="genomes", lazy="dynamic"
-    )
+    runs = relationship("Run", secondary="runs_genomes", lazy="dynamic", viewonly=True)
 
     def __repr__(self) -> str:
         """Return string representation of Genome table object."""
@@ -311,8 +315,11 @@ class Run(Base):
     df_sim_errors: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
     df_hadamard: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
 
+    fasta_hashes: Mapped[list[RunGenomeAssociation]] = relationship(
+        RunGenomeAssociation, viewonly=True, lazy="dynamic"
+    )
     genomes: Mapped[list[Genome]] = relationship(
-        Genome, secondary="runs_genomes", back_populates="runs", lazy="dynamic"
+        Genome, secondary="runs_genomes", viewonly=True, lazy="dynamic"
     )
 
     def comparisons(self) -> Mapped[list[Comparison]]:
@@ -366,7 +373,7 @@ class Run(Base):
 
         The caller must commit the updated Run object to the database explicitly!
         """
-        hashes = sorted(genome.genome_hash for genome in self.genomes)
+        hashes = sorted(association.genome_hash for association in self.fasta_hashes)
         size = len(hashes)
         identity = np.full([size, size], np.nan, float)
         cov_query = np.full([size, size], np.nan, float)
@@ -658,7 +665,7 @@ def add_run(  # noqa: PLR0913
     status: str,
     name: str,
     date: datetime.datetime | None = None,
-    genomes: list[Genome] | None = None,
+    fasta_to_hash: dict[Path, str] | None = None,
 ) -> Run:
     """Add and return a new run table entry.
 
@@ -672,9 +679,22 @@ def add_run(  # noqa: PLR0913
         status=status,
         name=name,
         date=date if date else datetime.datetime.now(tz=datetime.UTC),
-        genomes=genomes if genomes else [],
     )
     session.add(run)
+    if fasta_to_hash:
+        # Using the low-level but faster insert we need the run_id, so must commit now:
+        session.commit()
+        run_id = run.run_id
+        session.execute(
+            insert(RunGenomeAssociation),
+            [
+                # Note /mnt/data/example.fasta becomes just example.fasta
+                # with the path /mnt/data/ recorded in the run itself
+                # (since this is by design shared for all FASTA in a run)
+                {"run_id": run_id, "fasta_filename": filename.name, "genome_hash": md5}
+                for filename, md5 in fasta_to_hash.items()
+            ],
+        )
     session.commit()
     return run
 

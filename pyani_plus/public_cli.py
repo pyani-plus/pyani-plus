@@ -38,9 +38,7 @@ from rich.console import Console
 from rich.progress import Progress
 from rich.table import Table
 from rich.text import Text
-from sqlalchemy import insert
 from sqlalchemy.exc import NoResultFound
-from sqlalchemy.orm import Session
 
 from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, db_orm, tools
 from pyani_plus.methods import method_anib, method_anim, method_fastani
@@ -123,46 +121,6 @@ app = typer.Typer(
 )
 
 
-def record_genomes(
-    session: Session, run: db_orm.Run, fasta_names: list[Path]
-) -> dict[Path, str]:
-    """Compute the MD5 of the FASTA files and record them against this run.
-
-    Returns a dict mapping filenames to MD5 checksums.
-    """
-    # Reuse existing genome entries and/or log new ones
-    n = len(fasta_names)
-    filename_to_md5 = {}
-    hashes = set()
-    with Progress(*PROGRESS_BAR_COLUMNS) as progress:
-        for filename in progress.track(fasta_names, description="Indexing FASTAs"):
-            md5 = file_md5sum(filename)
-            filename_to_md5[filename] = md5
-            if md5 in hashes:
-                # This avoids hitting IntegrityError UNIQUE constraint failed
-                dups = "\n" + "\n".join(
-                    sorted({str(k) for k, v in filename_to_md5.items() if v == md5})
-                )
-                msg = f"ERROR - Multiple genomes with same MD5 checksum {md5}:{dups}"
-                sys.exit(msg)
-            hashes.add(md5)
-            db_orm.db_genome(session, filename, md5, create=True)
-
-    # Will now update the runs_genomes linker table, but did not scale
-    # well via runs.genomes = [list of genome ORM objects]
-    # We could update the runs_genomes incrementally, or in batches?
-    run_id = run.run_id
-    session.execute(
-        insert(db_orm.RunGenomeAssociation),
-        [{"run_id": run_id, "genome_hash": md5} for md5 in hashes],
-    )
-    del hashes
-    run.status = "Setup"
-    session.commit()
-    print(f"Run setup with {n} genomes in database")
-    return filename_to_md5
-
-
 def run_method(  # noqa: PLR0913
     executor: ToolExecutor,
     database: Path,
@@ -180,14 +138,8 @@ def run_method(  # noqa: PLR0913
 ) -> int:
     """Run the snakemake workflow for given method and log run to database."""
     fasta_names = check_fasta(fasta)
-    workflow_name = f"snakemake_{method.lower()}.smk"
-    params: dict[str, object] = {k: str(v) for k, v in binaries.items()}
-    params["fragsize"] = fragsize
-    params["mode"] = mode
-    params["kmersize"] = kmersize
-    params["minmatch"] = minmatch
 
-    # We should have caught all the obvious failures above,
+    # We should have caught all the obvious failures earlier,
     # including missing inputs or missing external tools.
     # Can now start talking to the DB.
     session = db_orm.connect_to_db(database)
@@ -205,6 +157,24 @@ def run_method(  # noqa: PLR0913
         create=True,
     )
 
+    n = len(fasta_names)
+    filename_to_md5 = {}
+    hashes = set()
+    with Progress(*PROGRESS_BAR_COLUMNS) as progress:
+        for filename in progress.track(fasta_names, description="Indexing FASTAs"):
+            md5 = file_md5sum(filename)
+            filename_to_md5[filename] = md5
+            if md5 in hashes:
+                # This avoids hitting IntegrityError UNIQUE constraint failed
+                dups = "\n" + "\n".join(
+                    sorted({str(k) for k, v in filename_to_md5.items() if v == md5})
+                )
+                msg = f"ERROR - Multiple genomes with same MD5 checksum {md5}:{dups}"
+                sys.exit(msg)
+            hashes.add(md5)
+            db_orm.db_genome(session, filename, md5, create=True)
+
+    # New run
     run = db_orm.add_run(
         session,
         config,
@@ -213,13 +183,27 @@ def run_method(  # noqa: PLR0913
         status="Initialising",
         name=name,
         date=None,
-        genomes=[],
+        fasta_to_hash=filename_to_md5,
     )
-    run_id = run.run_id
+    session.commit()  # Redundant?
+    print(f"Run setup with {n} genomes in database")
 
-    n = len(fasta_names)
-    filename_to_md5 = record_genomes(session, run, fasta_names)
-    del fasta_names
+    run_id = run.run_id
+    configuration = run.configuration
+    workflow_name = f"snakemake_{configuration.method.lower()}.smk"
+    params: dict[str, object] = {
+        # Paths etc - see also outdir below
+        "indir": Path(run.fasta_directory).resolve(),  # must be absolute
+        "db": Path(database).resolve(),  # must be absolute
+        "cores": available_cores(),  # should make configurable
+        # Method settings:
+        "fragsize": configuration.fragsize,
+        "mode": configuration.mode,
+        "kmersize": configuration.kmersize,
+        "minmatch": configuration.minmatch,
+    }
+    params.update({k: str(v) for k, v in binaries.items()})
+    del configuration
 
     done = run.comparisons().count()
     if done == n**2:
@@ -241,6 +225,7 @@ def run_method(  # noqa: PLR0913
         ) as tmp:
             work_path = Path(tmp) / "working"
             out_path = Path(tmp) / "output"
+            params["outdir"] = out_path.resolve()
             targets = [
                 out_path / f"{query.stem}_vs_{subject.stem}{target_extension}"
                 for query in filename_to_md5
@@ -248,11 +233,6 @@ def run_method(  # noqa: PLR0913
                 if (filename_to_md5[query], filename_to_md5[subject]) not in done_hashes
             ]
             del done_hashes
-            # Must all inputs be in one place? Symlinks?
-            params["indir"] = fasta.resolve()  # must be absolute
-            params["outdir"] = work_path.resolve()
-            params["db"] = Path(database).resolve()  # must be absolute
-            params["cores"] = available_cores()  # should make configurable
             run_snakemake_with_progress_bar(
                 executor,
                 workflow_name,

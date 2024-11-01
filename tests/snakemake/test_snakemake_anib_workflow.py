@@ -196,8 +196,6 @@ def test_snakemake_rule_blastn(  # noqa: PLR0913
         program=blastn_tool.exe_path.stem,
         version=blastn_tool.version,
         fragsize=config_anib_args["fragsize"],
-        kmersize=None,
-        minmatch=None,
         create_db=False,
     )
     compare_matrices(db, dir_anib_results)

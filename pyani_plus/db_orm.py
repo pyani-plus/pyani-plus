@@ -143,7 +143,7 @@ class Configuration(Base):
             "program",
             "version",
             "fragsize",
-            "maxmatch",
+            "mode",
             "kmersize",
             "minmatch",
         ),
@@ -170,7 +170,7 @@ class Configuration(Base):
     program: Mapped[str] = mapped_column()
     version: Mapped[str] = mapped_column()
     fragsize: Mapped[int | None] = mapped_column()  # in fastANI this is fragLength
-    maxmatch: Mapped[bool | None] = mapped_column()  # in fastANi this is Null
+    mode: Mapped[str | None] = mapped_column()  # this is "mum" or "maxmatch" in ANIm
     kmersize: Mapped[int | None] = mapped_column()
     minmatch: Mapped[float | None] = mapped_column()
 
@@ -179,7 +179,7 @@ class Configuration(Base):
         return (
             f"Configuration(configuration_id={self.configuration_id},"
             f" program={self.program!r}, version={self.version!r},"
-            f" fragsize={self.fragsize}, maxmatch={self.maxmatch},"
+            f" fragsize={self.fragsize}, mode={self.mode!r},"
             f" kmersize={self.kmersize}, minmatch={self.minmatch})"
         )
 
@@ -246,7 +246,7 @@ class Comparison(Base):
         return (
             f"Query: {self.query_hash}, Subject: {self.subject_hash}, "
             f"%ID={self.identity}, ({self.configuration.program} {self.configuration.version}), "
-            f"FragSize: {self.configuration.fragsize}, MaxMatch: {self.configuration.maxmatch}, "
+            f"FragSize: {self.configuration.fragsize}, Mode: {self.configuration.mode}, "
             f"KmerSize: {self.configuration.kmersize}, MinMatch: {self.configuration.minmatch}"
         )
 
@@ -519,7 +519,7 @@ def db_configuration(  # noqa: PLR0913
     program: str,
     version: str,
     fragsize: int | None = None,
-    maxmatch: bool | None = None,
+    mode: str | None = None,
     kmersize: int | None = None,
     minmatch: float | None = None,
     *,
@@ -565,7 +565,7 @@ def db_configuration(  # noqa: PLR0913
         .where(Configuration.program == program)
         .where(Configuration.version == version)
         .where(Configuration.fragsize == fragsize)
-        .where(Configuration.maxmatch == maxmatch)
+        .where(Configuration.mode == mode)
         .where(Configuration.kmersize == kmersize)
         .where(Configuration.minmatch == minmatch)
         .one_or_none()
@@ -579,7 +579,7 @@ def db_configuration(  # noqa: PLR0913
             program=program,
             version=version,
             fragsize=fragsize,
-            maxmatch=maxmatch,
+            mode=mode,
             kmersize=kmersize,
             minmatch=minmatch,
         )

@@ -43,7 +43,7 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
 from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, db_orm, tools
-from pyani_plus.methods import method_anib, method_fastani
+from pyani_plus.methods import method_anib, method_anim, method_fastani
 from pyani_plus.utils import available_cores, check_db, check_fasta, file_md5sum
 from pyani_plus.workflows import ToolExecutor, run_snakemake_with_progress_bar
 
@@ -101,6 +101,13 @@ OPT_ARG_TYPE_MINMATCH = Annotated[
         rich_help_panel="Method parameters",
         min=0.0,
         max=1.0,
+    ),
+]
+OPT_ARG_TYPE_ANIM_MODE = Annotated[
+    method_anim.EnumModeANIm,
+    typer.Option(
+        help="Nucmer mode for ANIm",
+        rich_help_panel="Method parameters",
     ),
 ]
 OPT_ARG_TYPE_CREATE_DB = Annotated[
@@ -167,7 +174,7 @@ def run_method(  # noqa: PLR0913
     binaries: dict[str, Path],
     *,
     fragsize: int | None = None,
-    maxmatch: bool | None = None,
+    mode: str | None = None,
     kmersize: int | None = None,
     minmatch: float | None = None,
 ) -> int:
@@ -176,7 +183,7 @@ def run_method(  # noqa: PLR0913
     workflow_name = f"snakemake_{method.lower()}.smk"
     params: dict[str, object] = {k: str(v) for k, v in binaries.items()}
     params["fragsize"] = fragsize
-    params["maxmatch"] = maxmatch
+    params["mode"] = mode
     params["kmersize"] = kmersize
     params["minmatch"] = minmatch
 
@@ -192,7 +199,7 @@ def run_method(  # noqa: PLR0913
         tool.exe_path.stem,
         tool.version,
         fragsize,
-        maxmatch,
+        mode,
         kmersize,
         minmatch,
         create=True,
@@ -276,13 +283,15 @@ def run_method(  # noqa: PLR0913
 
 
 @app.command(rich_help_panel="ANI methods")
-def anim(
+def anim(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
     name: REQ_ARG_TYPE_RUN_NAME,
     *,
-    # Does not use fragsize, maxmatch, kmersize, or minmatch
+    # Does not use fragsize, kmersize, or minmatch
+    # The mode here is not optional - must pick one!
+    mode: OPT_ARG_TYPE_ANIM_MODE = method_anim.MODE,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
@@ -304,6 +313,7 @@ def anim(
         target_extension,
         tool,
         binaries,
+        mode=mode.value,  # turn the enum into a string
     )
 
 
@@ -314,7 +324,7 @@ def dnadiff(
     # These are for the run table:
     name: REQ_ARG_TYPE_RUN_NAME,
     *,
-    # Does not use fragsize, maxmatch, kmersize, or minmatch
+    # Does not use fragsize, mode, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
@@ -352,7 +362,7 @@ def anib(  # noqa: PLR0913
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
     *,
-    # Does not use maxmatch, kmersize, or minmatch
+    # Does not use mode, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
@@ -391,7 +401,7 @@ def fastani(  # noqa: PLR0913
     *,
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_fastani.FRAG_LEN,
-    # Does not use maxmatch
+    # Does not use mode
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
     minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,

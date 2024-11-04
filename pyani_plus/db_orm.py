@@ -27,7 +27,9 @@ Python objects.
 """
 
 import datetime
+import os
 import platform
+from collections.abc import Callable
 from io import StringIO
 from pathlib import Path
 
@@ -35,7 +37,9 @@ import numpy as np
 import pandas as pd
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 from sqlalchemy import (
+    Dialect,
     ForeignKey,
+    String,
     UniqueConstraint,
     create_engine,
     insert,
@@ -48,9 +52,43 @@ from sqlalchemy.orm import (
     aliased,
     mapped_column,
     object_session,
+    registry,
     relationship,
     sessionmaker,
 )
+from sqlalchemy.types import TypeDecorator
+
+
+class PathLike(TypeDecorator):
+    """Allows mapping an `os.PathLike` object to an `sqlalchemy.String`.
+
+    This can be used with `pathlib.Path` and other subclasses, as long
+    as they can be turned into strings.
+    """
+
+    impl = String
+
+    def __init__(self, factory: Callable[[str], os.PathLike]) -> None:
+        """Create a sqlalchemy mapping between Python paths and SQL strings."""
+        super().__init__()
+        self.factory = factory
+
+    def process_bind_param(
+        self,
+        value: os.PathLike | None,
+        dialect: Dialect,  # noqa: ARG002
+    ) -> str | None:
+        """Convert an `os.PathLike` value to a string for the database."""
+        # What if the value is bytes not a string?
+        return os.fspath(value) if value else None
+
+    def process_result_value(
+        self,
+        value: str | None,
+        dialect: Dialect,  # noqa: ARG002
+    ) -> os.PathLike | None:
+        """Restore a string from the database to an `os.Pathlike`."""
+        return None if value is None else self.factory(value)
 
 
 class Base(DeclarativeBase):
@@ -59,6 +97,8 @@ class Base(DeclarativeBase):
     See the SQLAlchemy 2.0 documentation. This is expected to be
     compatible with type checkers like mypy.
     """
+
+    registry = registry(type_annotation_map={Path: PathLike(Path)})
 
 
 class RunGenomeAssociation(Base):
@@ -97,7 +137,7 @@ class Genome(Base):
     __tablename__ = "genomes"
 
     genome_hash: Mapped[str] = mapped_column(primary_key=True)
-    path: Mapped[str] = mapped_column()
+    path: Mapped[Path] = mapped_column()
     length: Mapped[int] = mapped_column()  # total length of all the sequences
     description: Mapped[str] = mapped_column()
 
@@ -305,7 +345,7 @@ class Run(Base):
     )
 
     cmdline: Mapped[str] = mapped_column()
-    fasta_directory: Mapped[str] = mapped_column()  # can't use Mapped[Path] (yet)
+    fasta_directory: Mapped[Path] = mapped_column()
     date: Mapped[datetime.datetime] = mapped_column()
     status: Mapped[str] = mapped_column()
     name: Mapped[str] = mapped_column()
@@ -597,7 +637,7 @@ def db_configuration(  # noqa: PLR0913
 
 
 def db_genome(
-    session: Session, fasta_filename: Path | str, md5: str, *, create: bool = False
+    session: Session, fasta_filename: Path, md5: str, *, create: bool = False
 ) -> Genome:
     """Return a genome table entry, or add and return it if not already there.
 
@@ -634,14 +674,14 @@ def db_genome(
 
     length = 0
     description = None
-    with Path(fasta_filename).open() as handle:
+    with fasta_filename.open() as handle:
         for title, seq in SimpleFastaParser(handle):
             length += len(seq)
             if description is None:
                 description = title  # Just use first entry
     genome = Genome(
         genome_hash=md5,
-        path=str(fasta_filename),
+        path=fasta_filename,
         length=length,
         description=description,
     )
@@ -675,7 +715,7 @@ def add_run(  # noqa: PLR0913
     run = Run(
         configuration_id=configuration.configuration_id,
         cmdline=cmdline,
-        fasta_directory=str(fasta_directory),
+        fasta_directory=fasta_directory,
         status=status,
         name=name,
         date=date if date else datetime.datetime.now(tz=datetime.UTC),

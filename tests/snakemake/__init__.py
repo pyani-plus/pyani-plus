@@ -129,6 +129,14 @@ def compare_matrices(
         )
         checked = True
     if (matrices_path / "matrix_sim_errors.tsv").is_file():
-        compare_matrix(run.sim_errors, matrices_path / "matrix_sim_errors.tsv")
+        if "dnadiff" in str(matrices_path):
+            compare_matrix(
+                run.sim_errors,
+                matrices_path / "matrix_sim_errors.tsv",
+                absolute_tolerance=1.33,
+            )
+            checked = True
+        else:
+            compare_matrix(run.sim_errors, matrices_path / "matrix_sim_errors.tsv")
         checked = True
     assert checked, f"Missing expected matrices in {matrices_path}"

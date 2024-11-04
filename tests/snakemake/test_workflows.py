@@ -32,7 +32,11 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus.workflows import check_input_stems
+from pyani_plus.workflows import (
+    ToolExecutor,
+    check_input_stems,
+    run_snakemake_with_progress_bar,
+)
 
 
 def test_input_stems(
@@ -64,3 +68,17 @@ def test_duplicate_stems(
     msg = f"Duplicated stems found for {sorted(stems)}. Please investigate."
     with pytest.raises(ValueError, match=re.escape(msg)):
         check_input_stems(str(dup_input_dir))
+
+
+def test_progress_bar_error() -> None:
+    """Verify expected error message without database or run-in."""
+    msg = "Both database and run_id are required with show_progress_bar=True"
+    with pytest.raises(ValueError, match=re.escape(msg)):
+        run_snakemake_with_progress_bar(
+            ToolExecutor.slurm,
+            "some_workflow.smk",
+            [Path("/mnt/shared/answer.tsv")],
+            {},
+            Path(),
+            show_progress_bar=True,
+        )

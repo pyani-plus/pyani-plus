@@ -49,7 +49,7 @@ rule delta:
     shell:
         """
         {params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} \
-            --maxmatch {input.genomeB} {input.genomeA} 2> {output}.log
+            --maxmatch {input.genomeB} {input.genomeA} > {output}.log 2>&1
         """
 
 

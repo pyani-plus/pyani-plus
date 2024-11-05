@@ -27,34 +27,24 @@ new analysis (which can build on existing comparisons if the same DB is
 used), and reporting on a finished analysis (exporting tables and plots).
 """
 
-import multiprocessing
 import sys
 import tempfile
 from pathlib import Path
-from time import sleep
 from typing import Annotated
 
 import pandas as pd
 import typer
 from rich.console import Console
-from rich.progress import (
-    BarColumn,
-    MofNCompleteColumn,
-    Progress,
-    TaskProgressColumn,
-    TextColumn,
-    TimeElapsedColumn,
-)
+from rich.progress import Progress
 from rich.table import Table
 from rich.text import Text
-from sqlalchemy import insert, text
-from sqlalchemy.exc import NoResultFound, OperationalError
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
-from pyani_plus import FASTA_EXTENSIONS, db_orm, tools
-from pyani_plus.methods import method_anib, method_fastani
-from pyani_plus.utils import available_cores, file_md5sum
-from pyani_plus.workflows import SnakemakeRunner
+from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, db_orm, tools
+from pyani_plus.methods import method_anib, method_anim, method_fastani
+from pyani_plus.utils import available_cores, check_db, check_fasta, file_md5sum
+from pyani_plus.workflows import ToolExecutor, run_snakemake_with_progress_bar
 
 # Reused required command line arguments (which have no default)
 REQ_ARG_TYPE_DATABASE = Annotated[
@@ -112,19 +102,19 @@ OPT_ARG_TYPE_MINMATCH = Annotated[
         max=1.0,
     ),
 ]
+OPT_ARG_TYPE_ANIM_MODE = Annotated[
+    method_anim.EnumModeANIm,
+    typer.Option(
+        help="Nucmer mode for ANIm",
+        rich_help_panel="Method parameters",
+    ),
+]
 OPT_ARG_TYPE_CREATE_DB = Annotated[
     # Listing name(s) explicitly to avoid automatic matching --no-create-db
     bool, typer.Option("--create-db", help="Create database if does not exist")
 ]
-
-progress_columns = [
-    TextColumn("[progress.description]{task.description}"),
-    BarColumn(),
-    TaskProgressColumn(),
-    # Removing TimeRemainingColumn() from defaults, replacing with:
-    TimeElapsedColumn(),
-    # Add this last as have some out of N and some out of N^2:
-    MofNCompleteColumn(),
+OPT_ARG_TYPE_EXECUTOR = Annotated[
+    ToolExecutor, typer.Option(help="How should the internal tools be run?")
 ]
 
 app = typer.Typer(
@@ -132,124 +122,46 @@ app = typer.Typer(
 )
 
 
-def check_db(database: Path | str, create_db: bool) -> None:  # noqa: FBT001
-    """Check DB exists, or using create_db=True."""
-    if database != ":memory:" and not create_db and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist, but not using --create-db"
-        sys.exit(msg)
-
-
-def check_fasta(fasta: Path) -> list[Path]:
-    """Check fasta is a directory and return list of FASTA files in it."""
-    if not fasta.is_dir():
-        msg = f"ERROR: FASTA input {fasta} is not a directory"
-        sys.exit(msg)
-
-    fasta_names: list[Path] = []
-    for pattern in FASTA_EXTENSIONS:
-        fasta_names.extend(fasta.glob("*" + pattern))
-    if not fasta_names:
-        msg = f"ERROR: No FASTA input genomes under {fasta} with extensions {', '.join(FASTA_EXTENSIONS)}"
-        sys.exit(msg)
-
-    return fasta_names
-
-
-def progress_bar_via_db_comparisons(
-    database: Path, run_id: int, interval: float = 1.0
-) -> None:
-    """Show a progress bar based on monitoring the DB entries.
-
-    Will only self-terminate once all the run's comparisons are
-    in the database! Up to the caller to terminate it early.
-    """
-    session = db_orm.connect_to_db(database)
-    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-
-    already_done = run.comparisons().count()
-    total = run.genomes.count() ** 2 - already_done
-
-    done = 0
-    old_db_version = -1
-    with Progress(*progress_columns) as progress:
-        task = progress.add_task("Comparing pairs", total=total)
-        while done < total:
-            sleep(interval)
-            # Have there been any DB changes?
-            try:
-                db_version = (
-                    session.connection().execute(text("PRAGMA data_version;")).one()[0]
-                )
-            except OperationalError:
-                # Probably another process is updating the DB, try again soon
-                continue
-            if old_db_version == db_version:
-                # No changes, check again soon
-                continue
-            old_db_version = db_version
-            new = run.comparisons().count() - already_done - done
-            progress.update(task, advance=new)
-            done += new
-    session.close()
-
-
-def run_snakemake_with_progress_bar(  # noqa: PLR0913
-    workflow_name: str,
+def start_and_run_method(  # noqa: PLR0913
+    executor: ToolExecutor,
     database: Path,
-    run_id: int,
-    targets: list[Path],
-    params: dict,
-    working_directory: Path,
-    interval: float = 0.5,
-) -> None:
-    """Run snakemake with a progress bar."""
-    runner = SnakemakeRunner(workflow_name)
-    # All rest replaces one line, runner.run_workflow(targets, params, workdir=working_directory)
+    name: str,
+    method: str,
+    fasta: Path,
+    target_extension: str,
+    tool: tools.ExternalToolData,
+    binaries: dict[str, Path],
+    *,
+    fragsize: int | None = None,
+    mode: str | None = None,
+    kmersize: int | None = None,
+    minmatch: float | None = None,
+) -> int:
+    """Run the snakemake workflow for given method and log run to database."""
+    fasta_names = check_fasta(fasta)
 
-    # As of Python 3.8 onwards, the default on macOS ("Darwin") is "spawn"
-    # As of Python 3.12, the default of "fork" on Linux triggers a deprecation warning.
-    # This should match the defaults on Python 3.14 onwards.
-    # Note mypy currently can't handle this dynamic situation, their issue #8603
-    p = multiprocessing.get_context(  # type:ignore [attr-defined]
-        "spawn" if sys.platform == "darwin" else "forkserver"
-    ).Process(
-        target=progress_bar_via_db_comparisons,
-        args=(
-            database,
-            run_id,
-            interval,
-        ),
+    # We should have caught all the obvious failures earlier,
+    # including missing inputs or missing external tools.
+    # Can now start talking to the DB.
+    session = db_orm.connect_to_db(database)
+
+    # Reuse existing config, or log a new one
+    config = db_orm.db_configuration(
+        session,
+        method,
+        tool.exe_path.stem,
+        tool.version,
+        fragsize,
+        mode,
+        kmersize,
+        minmatch,
+        create=True,
     )
-    p.start()
 
-    # Call slurm!
-    try:
-        runner.run_workflow(targets, params, workdir=working_directory)
-    except Exception as err:  # noqa: BLE001
-        p.terminate()
-        # Ensure traceback starts on a new line after interrupted progress bar
-        print()
-        raise err from None
-
-    if p.is_alive():
-        # Should have finished, but perhaps final update is pending...
-        sleep(interval)
-        p.terminate()
-    p.join()
-
-
-def record_genomes(
-    session: Session, run: db_orm.Run, fasta_names: list[Path]
-) -> dict[Path, str]:
-    """Compute the MD5 of the FASTA files and record them against this run.
-
-    Returns a dict mapping filenames to MD5 checksums.
-    """
-    # Reuse existing genome entries and/or log new ones
     n = len(fasta_names)
     filename_to_md5 = {}
     hashes = set()
-    with Progress(*progress_columns) as progress:
+    with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         for filename in progress.track(fasta_names, description="Indexing FASTAs"):
             md5 = file_md5sum(filename)
             filename_to_md5[filename] = md5
@@ -263,73 +175,60 @@ def record_genomes(
             hashes.add(md5)
             db_orm.db_genome(session, filename, md5, create=True)
 
-    # Will now update the runs_genomes linker table, but did not scale
-    # well via runs.genomes = [list of genome ORM objects]
-    # We could update the runs_genomes incrementally, or in batches?
-    run_id = run.run_id
-    session.execute(
-        insert(db_orm.RunGenomeAssociation),
-        [{"run_id": run_id, "genome_hash": md5} for md5 in hashes],
-    )
-    del hashes
-    run.status = "Setup"
-    session.commit()
-    print(f"Run setup with {n} genomes in database")
-    return filename_to_md5
-
-
-def run_method(  # noqa: PLR0913
-    database: Path,
-    name: str,
-    method: str,
-    fasta: Path,
-    target_extension: str,
-    tool: tools.ExternalToolData,
-    fragsize: int | None,
-    maxmatch: bool | None,
-    kmersize: int | None,
-    minmatch: float | None,
-    params: dict[str, object],
-) -> int:
-    """Run the snakemake workflow for given method and log run to database."""
-    fasta_names = check_fasta(fasta)
-
-    workflow_name = f"snakemake_{method.lower()}.smk"
-
-    # We should have caught all the obvious failures above,
-    # including missing inputs or missing external tools.
-    # Can now start talking to the DB.
-    session = db_orm.connect_to_db(database)
-
-    # Reuse existing config, or log a new one
-    config = db_orm.db_configuration(
-        session,
-        method,
-        tool.exe_path.stem,
-        tool.version,
-        fragsize,
-        maxmatch,
-        kmersize,
-        minmatch,
-        create=True,
-    )
-
+    # New run
     run = db_orm.add_run(
         session,
         config,
         cmdline=" ".join(sys.argv),
+        fasta_directory=fasta,
         status="Initialising",
         name=name,
         date=None,
-        genomes=[],
+        fasta_to_hash=filename_to_md5,
     )
-    run_id = run.run_id
+    session.commit()  # Redundant?
+    print(f"Run setup with {n} genomes in database")
 
-    n = len(fasta_names)
-    filename_to_md5 = record_genomes(session, run, fasta_names)
-    del fasta_names
+    return run_method(
+        executor,
+        filename_to_md5,
+        database,
+        session,
+        run,
+        target_extension,
+        binaries,
+    )
+
+
+def run_method(  # noqa: PLR0913
+    executor: ToolExecutor,
+    filename_to_md5: dict[Path, str],
+    database: Path,
+    session: Session,
+    run: db_orm.Run,
+    target_extension: str,
+    binaries: dict[str, Path],
+) -> int:
+    """Run the snakemake workflow for given method and log run to database."""
+    run_id = run.run_id
+    configuration = run.configuration
+    workflow_name = f"snakemake_{configuration.method.lower()}.smk"
+    params: dict[str, object] = {
+        # Paths etc - see also outdir below
+        "indir": Path(run.fasta_directory).resolve(),  # must be absolute
+        "db": Path(database).resolve(),  # must be absolute
+        "cores": available_cores(),  # should make configurable
+        # Method settings:
+        "fragsize": configuration.fragsize,
+        "mode": configuration.mode,
+        "kmersize": configuration.kmersize,
+        "minmatch": configuration.minmatch,
+    }
+    params.update({k: str(v) for k, v in binaries.items()})
+    del configuration
 
     done = run.comparisons().count()
+    n = len(filename_to_md5)
     if done == n**2:
         print(f"Database already has all {n}x{n}={n**2} comparisons")
     else:
@@ -337,12 +236,22 @@ def run_method(  # noqa: PLR0913
             f"Database already has {done} of {n}x{n}={n**2} comparisons, {n**2 - done} needed"
         )
         done_hashes = {(_.query_hash, _.subject_hash) for _ in run.comparisons()}
+        run.status = "Running"
+        session.commit()
         session.close()  # Reduce chance of DB locking
+        del run
 
         # Run snakemake wrapper
-        with tempfile.TemporaryDirectory(prefix="pyani-plus_") as tmp:
-            tmp_path = Path(tmp) / "working"
+        # With a cluster-based running like SLURM, the location of the working and
+        # output directories must be viewable from all the worker nodes too.
+        # i.e. Can't use a temp directory on the head node.
+        # We might want to make this explicitly configurable, e.g. to /mnt/scratch/
+        with tempfile.TemporaryDirectory(
+            prefix="pyani-plus_", dir=None if executor.value == "local" else "."
+        ) as tmp:
+            work_path = Path(tmp) / "working"
             out_path = Path(tmp) / "output"
+            params["outdir"] = out_path.resolve()
             targets = [
                 out_path / f"{query.stem}_vs_{subject.stem}{target_extension}"
                 for query in filename_to_md5
@@ -350,18 +259,15 @@ def run_method(  # noqa: PLR0913
                 if (filename_to_md5[query], filename_to_md5[subject]) not in done_hashes
             ]
             del done_hashes
-            # Must all inputs be in one place? Symlinks?
-            params["indir"] = fasta.resolve()  # must be absolute
-            params["outdir"] = out_path.resolve()
-            params["db"] = Path(database).resolve()  # must be absolute
-            params["cores"] = available_cores()  # should make configurable
             run_snakemake_with_progress_bar(
+                executor,
                 workflow_name,
-                Path(database),
-                run_id,
                 targets,
                 params,
-                tmp_path,
+                work_path,
+                show_progress_bar=True,
+                database=Path(database),
+                run_id=run_id,
             )
 
         # Reconnect to the DB
@@ -376,46 +282,43 @@ def run_method(  # noqa: PLR0913
     run.cache_comparisons()  # will this needs a progress bar too with large n?
     run.status = "Done"
     session.commit()
+    print(f"Completed run-id {run_id} with {n} genomes in database {database}")
     session.close()
-    print(
-        f"Logged new run-id {run_id} for method {method} with {n} genomes to database {database}"
-    )
     return 0
 
 
 @app.command(rich_help_panel="ANI methods")
-def anim(
+def anim(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
     name: REQ_ARG_TYPE_RUN_NAME,
     *,
-    # Does not use fragsize, maxmatch, kmersize, or minmatch
+    # Does not use fragsize, kmersize, or minmatch
+    # The mode here is not optional - must pick one!
+    mode: OPT_ARG_TYPE_ANIM_MODE = method_anim.MODE,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
 
     target_extension = ".filter"
     tool = tools.get_nucmer()
-    params = {
+    binaries = {
         "nucmer": tool.exe_path,
         "delta_filter": tools.get_delta_filter().exe_path,
-        "mode": "mum",
     }
-    fragsize = maxmatch = kmersize = minmatch = None
-    return run_method(
+    return start_and_run_method(
+        executor,
         database,
         name,
         "ANIm",
         fasta,
         target_extension,
         tool,
-        fragsize,
-        maxmatch,
-        kmersize,
-        minmatch,
-        params,
+        binaries,
+        mode=mode.value,  # turn the enum into a string
     )
 
 
@@ -426,8 +329,9 @@ def dnadiff(
     # These are for the run table:
     name: REQ_ARG_TYPE_RUN_NAME,
     *,
-    # Does not use fragsize, maxmatch, kmersize, or minmatch
+    # Does not use fragsize, mode, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -436,30 +340,26 @@ def dnadiff(
     # We don't actually call the tool dnadiff (which has its own version),
     # rather we call nucmer, delta-filter, show-diff and show-coords from MUMmer
     tool = tools.get_nucmer()
-    params: dict[str, object] = {
+    binaries = {
         "nucmer": tool.exe_path,
         "delta_filter": tools.get_delta_filter().exe_path,
         "show_diff": tools.get_show_diff().exe_path,
         "show_coords": tools.get_show_coords().exe_path,
     }
-    fragsize = maxmatch = kmersize = minmatch = None
-    return run_method(
+    return start_and_run_method(
+        executor,
         database,
         name,
         "dnadiff",
         fasta,
         target_extension,
         tool,
-        fragsize,
-        maxmatch,
-        kmersize,
-        minmatch,
-        params,
+        binaries,
     )
 
 
 @app.command(rich_help_panel="ANI methods")
-def anib(
+def anib(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
@@ -467,8 +367,9 @@ def anib(
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
     *,
-    # Does not use maxmatch, kmersize, or minmatch
+    # Does not use mode, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
     """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -479,24 +380,20 @@ def anib(
     if tool.version != alt.version:
         msg = f"ERROR: blastn {tool.version} vs makeblastdb {alt.version}"
         sys.exit(msg)
-    params = {
+    binaries = {
         "blastn": tool.exe_path,
         "makeblastdb": alt.exe_path,
-        "fragLen": fragsize,
     }
-    maxmatch = kmersize = minmatch = None
-    return run_method(
+    return start_and_run_method(
+        executor,
         database,
         name,
         "ANIb",
         fasta,
         target_extension,
         tool,
-        fragsize,
-        maxmatch,
-        kmersize,
-        minmatch,
-        params,
+        binaries,
+        fragsize=fragsize,
     )
 
 
@@ -509,35 +406,169 @@ def fastani(  # noqa: PLR0913
     *,
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_fastani.FRAG_LEN,
-    # Does not use maxmatch
+    # Does not use mode
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
     minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
 
     target_extension = ".fastani"
     tool = tools.get_fastani()
-    params = {
+    binaries = {
         "fastani": tool.exe_path,
-        "fragLen": fragsize,
-        "kmerSize": kmersize,
-        "minFrac": minmatch,
     }
-    maxmatch = None
-    return run_method(
+    return start_and_run_method(
+        executor,
         database,
         name,
         "fastANI",
         fasta,
         target_extension,
         tool,
-        fragsize,
-        maxmatch,
-        kmersize,
-        minmatch,
-        params,
+        binaries,
+        fragsize=fragsize,
+        kmersize=kmersize,
+        minmatch=minmatch,
+    )
+
+
+@app.command()
+def resume(  # noqa: C901, PLR0912, PLR0915
+    database: REQ_ARG_TYPE_DATABASE,
+    *,
+    run_id: Annotated[
+        int | None,
+        typer.Option(help="Which run to resume (defaults to most recent)"),
+    ] = None,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+) -> int:
+    """Resume any (paritual) run already logged in the database.
+
+    If the run was already complete, this should have no effect.
+
+    Any missing pairwise comparisons will be computed, and the the old
+    run will be marked as complete.
+
+    If the version of the underlying tool has changed, this will abort
+    as the original run cannot be completed.
+    """
+    if database == ":memory:" or not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+
+    session = db_orm.connect_to_db(database)
+    if run_id is None:
+        runs = session.query(db_orm.Run)
+        count = runs.count()
+        if count == 1:
+            run = runs.one()
+            run_id = run.run_id
+            print(f"INFO: Resuming run-id {run_id}, the only run in the {database}")
+        elif count:
+            run = runs.order_by(db_orm.Run.run_id.desc()).first()
+            run_id = run.run_id
+            print(f"INFO: Resuming run-id {run_id}, the latest run in the {database}")
+        else:
+            msg = f"ERROR: Database {database} contains no runs."
+            sys.exit(msg)
+    else:
+        try:
+            run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+        except NoResultFound:
+            msg = (
+                f"ERROR: Database {database} has no run-id {run_id}."
+                " Use the list-runs command for more information."
+            )
+            sys.exit(msg)
+        print(f"INFO: Resuming run-id {run_id} in the {database}")
+
+    config = run.configuration
+    print(
+        f"INFO: This is a {config.method} run on {run.genomes.count()} genomes, "
+        f"using {config.program} version {config.version}"
+    )
+    if not run.genomes.count():
+        msg = f"ERROR: No genomes recorded for run-id {run_id}, cannot resume."
+        sys.exit(msg)
+
+    # The params dict has two kinds of entries,
+    # - tool paths, which ought to be handled more neatly
+    # - config entries, which ought to be named consistently and done centrally
+    match config.method:
+        case "fastANI":
+            tool = tools.get_fastani()
+            binaries = {
+                "fastani": tool.exe_path,
+            }
+            target_extension = ".fastani"
+        case "ANIm":
+            tool = tools.get_nucmer()
+            binaries = {
+                "nucmer": tool.exe_path,
+            }
+            target_extension = ".filter"
+        case "dnadiff":
+            tool = tools.get_nucmer()
+            binaries = {
+                "nucmer": tool.exe_path,
+                "delta_filter": tools.get_delta_filter().exe_path,
+                "show_diff": tools.get_show_diff().exe_path,
+                "show_coords": tools.get_show_coords().exe_path,
+            }
+            target_extension = ".qdiff"
+        case "ANIb":
+            tool = tools.get_blastn()
+            binaries = {
+                "blastn": tool.exe_path,
+                "makeblastdb": tools.get_makeblastdb().exe_path,
+            }
+            target_extension = ".tsv"
+        case _:
+            msg = f"ERROR: Unknown method {config.method} for run-id {run_id} in {database}"
+            sys.exit(msg)
+    if tool.exe_path.stem != config.program or tool.version != config.version:
+        msg = (
+            f"ERROR: We have {tool.exe_path.stem} version {tool.version}, but"
+            f" run-id {run_id} used {config.program} version {config.version} instead."
+        )
+        sys.exit(msg)
+    del tool
+
+    # Now we need to check the fasta files in the directory
+    # against those included in the run...
+    fasta = Path(run.fasta_directory)
+    if not fasta.is_dir():
+        msg = f"ERROR: run-id {run_id} used input folder {fasta}, but that is not a directory (now)."
+        sys.exit(msg)
+
+    # Recombine the fasta directory name from the runs table with the plain filename from
+    # the run-genome linking table
+    filename_to_md5 = {
+        fasta / link.fasta_filename: link.genome_hash for link in run.fasta_hashes
+    }
+    for filename in filename_to_md5:
+        if not filename.is_file():
+            msg = (
+                f"ERROR: run-id {run_id} used {filename} with MD5 {filename_to_md5[filename]}"
+                f" but this FASTA file no longer exists"
+            )
+            sys.exit(msg)
+
+    # Resuming
+    run.status = "Resuming"
+    session.commit()
+
+    return run_method(
+        executor,
+        filename_to_md5,
+        database,
+        session,
+        run,
+        target_extension,
+        binaries,
     )
 
 

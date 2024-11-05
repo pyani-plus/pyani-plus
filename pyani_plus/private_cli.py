@@ -35,20 +35,26 @@ from rich.progress import track
 from pyani_plus import db_orm, tools
 from pyani_plus.methods import method_anib, method_anim, method_dnadiff, method_fastani
 from pyani_plus.public_cli import (
+    OPT_ARG_TYPE_ANIM_MODE,
     OPT_ARG_TYPE_CREATE_DB,
     OPT_ARG_TYPE_FRAGSIZE,
     OPT_ARG_TYPE_KMERSIZE,
     OPT_ARG_TYPE_MINMATCH,
     REQ_ARG_TYPE_DATABASE,
+    REQ_ARG_TYPE_FASTA_DIR,
     REQ_ARG_TYPE_OUTDIR,
     REQ_ARG_TYPE_RUN_NAME,
 )
-from pyani_plus.utils import file_md5sum
+from pyani_plus.utils import check_fasta, file_md5sum
 
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 
+OPT_ARG_TYPE_QUIET = Annotated[
+    # Listing name(s) explicitly to avoid automatic matching --no-quiet
+    bool, typer.Option("--quiet", help="Suppress any output except if fails")
+]
 REQ_ARG_TYPE_FASTA_FILES = Annotated[
     list[Path],
     typer.Argument(
@@ -99,8 +105,11 @@ NONE_ARG_TYPE_FRAGSIZE = Annotated[
         min=1,
     ),
 ]
-NONE_ARG_TYPE_MAXMATCH = Annotated[
-    bool | None, typer.Option(help="Comparison method max-match")
+NONE_ARG_TYPE_MODE = Annotated[
+    str | None,
+    typer.Option(
+        help="Comparison method specific mode", rich_help_panel="Method parameters"
+    ),
 ]
 NONE_ARG_TYPE_KMERSIZE = Annotated[
     int | None,
@@ -127,7 +136,7 @@ def log_configuration(  # noqa: PLR0913
     version: REQ_ARG_TYPE_VERSION,
     *,
     fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
-    maxmatch: NONE_ARG_TYPE_MAXMATCH = None,
+    mode: NONE_ARG_TYPE_MODE = None,
     kmersize: NONE_ARG_TYPE_KMERSIZE = None,
     minmatch: NONE_ARG_TYPE_MINMATCH = None,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
@@ -148,7 +157,7 @@ def log_configuration(  # noqa: PLR0913
         program=program,
         version=version,
         fragsize=fragsize,
-        maxmatch=maxmatch,
+        mode=mode,
         kmersize=kmersize,
         minmatch=minmatch,
         create=True,
@@ -193,7 +202,7 @@ def log_genome(
 
 @app.command(rich_help_panel="Low-level logging")
 def log_run(  # noqa: PLR0913
-    fasta: REQ_ARG_TYPE_FASTA_FILES,
+    fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
     cmdline: Annotated[str, typer.Option(help="Run command line", show_default=False)],
@@ -205,7 +214,7 @@ def log_run(  # noqa: PLR0913
     version: REQ_ARG_TYPE_VERSION,
     *,
     fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
-    maxmatch: NONE_ARG_TYPE_MAXMATCH = None,
+    mode: NONE_ARG_TYPE_MODE = None,
     kmersize: NONE_ARG_TYPE_KMERSIZE = None,
     minmatch: NONE_ARG_TYPE_MINMATCH = None,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
@@ -230,21 +239,30 @@ def log_run(  # noqa: PLR0913
         program=program,
         version=version,
         fragsize=fragsize,
-        maxmatch=maxmatch,
+        mode=mode,
         kmersize=kmersize,
         minmatch=minmatch,
         create=True,
     )
 
-    genomes = []
-    if fasta:
+    fasta_to_hash = {}
+    fasta_names = check_fasta(fasta)
+    if fasta_names:
         # Reuse existing genome entries and/or log new ones
-        for filename in track(fasta, description="Processing..."):
+        for filename in track(fasta_names, description="Processing..."):
             md5 = file_md5sum(filename)
-            genomes.append(db_orm.db_genome(session, filename, md5, create=True))
+            fasta_to_hash[filename] = md5
+            db_orm.db_genome(session, filename, md5, create=True)
 
     run = db_orm.add_run(
-        session, config, cmdline, status, name, date=None, genomes=genomes
+        session,
+        config,
+        cmdline,
+        fasta,
+        status,
+        name,
+        date=None,
+        fasta_to_hash=fasta_to_hash,
     )
     run.cache_comparisons()
     run_id = run.run_id
@@ -280,7 +298,7 @@ def log_comparison(  # noqa: PLR0913
     version: REQ_ARG_TYPE_VERSION,
     *,
     fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
-    maxmatch: NONE_ARG_TYPE_MAXMATCH = None,
+    mode: NONE_ARG_TYPE_MODE = None,
     kmersize: NONE_ARG_TYPE_KMERSIZE = None,
     minmatch: NONE_ARG_TYPE_MINMATCH = None,
     # Optional comparison table entries
@@ -302,7 +320,7 @@ def log_comparison(  # noqa: PLR0913
         program=program,
         version=version,
         fragsize=fragsize,
-        maxmatch=maxmatch,
+        mode=mode,
         kmersize=kmersize,
         minmatch=minmatch,
         create=False,
@@ -331,7 +349,7 @@ def log_comparison(  # noqa: PLR0913
 
 
 # Ought we switch the command line arguments here to match fastANI naming?
-# Note this omits maxmatch
+# Note this omits mode
 @app.command(rich_help_panel="Method specific logging")
 def log_fastani(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
@@ -348,6 +366,8 @@ def log_fastani(  # noqa: PLR0913
             exists=True,
         ),
     ],
+    *,
+    quiet: OPT_ARG_TYPE_QUIET = False,
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_fastani.FRAG_LEN,
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
@@ -388,7 +408,8 @@ def log_fastani(  # noqa: PLR0913
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging fastANI comparison to {database}")
+    if not quiet:
+        print(f"Logging fastANI comparison to {database}")
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
@@ -397,7 +418,6 @@ def log_fastani(  # noqa: PLR0913
         program=fastani_tool.exe_path.stem,
         version=fastani_tool.version,
         fragsize=fragsize,  # aka --fragLen
-        maxmatch=None,
         kmersize=kmersize,  # aka --k
         minmatch=minmatch,  # aka --minFraction
         create=False,
@@ -427,7 +447,9 @@ def log_fastani(  # noqa: PLR0913
 def fragment_fasta(
     fasta: REQ_ARG_TYPE_FASTA_FILES,
     outdir: REQ_ARG_TYPE_OUTDIR,
+    *,
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
+    quiet: OPT_ARG_TYPE_QUIET = False,
 ) -> int:
     """Fragment FASTA files into subsequences of up to the given size.
 
@@ -438,12 +460,13 @@ def fragment_fasta(
     if not outdir.is_dir():
         sys.exit(f"ERROR: outdir {outdir} should be a directory")
     fragmented_files = method_anib.fragment_fasta_files(fasta, outdir, fragsize)
-    print(f"Fragmented {len(fragmented_files)} files")
+    if not quiet:
+        print(f"Fragmented {len(fragmented_files)} files")
     return 0
 
 
 @app.command(rich_help_panel="Method specific logging")
-def log_anim(
+def log_anim(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
@@ -457,6 +480,10 @@ def log_anim(
             exists=True,
         ),
     ],
+    *,
+    # Don't use any of fragsize, kmersize, minmatch (configuration table entries)
+    mode: OPT_ARG_TYPE_ANIM_MODE = method_anim.MODE,
+    quiet: OPT_ARG_TYPE_QUIET = False,
     # Don't use any of fragsize, maxmatch, kmersize, minmatch (configuration table entries)
 ) -> int:
     """Log single ANIm pairwise comparison (with nucmer) to database.
@@ -485,7 +512,8 @@ def log_anim(
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging ANIm to {database}")
+    if not quiet:
+        print(f"Logging ANIm to {database}")
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
@@ -493,10 +521,7 @@ def log_anim(
         method="ANIm",
         program=nucmer_tool.exe_path.stem,
         version=nucmer_tool.version,
-        fragsize=None,
-        maxmatch=None,
-        kmersize=None,
-        minmatch=None,
+        mode=mode,
         create=False,
     )
 
@@ -523,9 +548,9 @@ def log_anim(
     return 0
 
 
-# Note this omits kmersize, minmatch, maxmatch
+# Note this omits kmersize, minmatch, mode
 @app.command(rich_help_panel="Method specific logging")
-def log_anib(
+def log_anib(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
@@ -539,6 +564,8 @@ def log_anib(
             exists=True,
         ),
     ],
+    *,
+    quiet: OPT_ARG_TYPE_QUIET = False,
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
 ) -> int:
@@ -565,7 +592,8 @@ def log_anib(
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging ANIb comparison to {database}")
+    if not quiet:
+        print(f"Logging ANIb comparison to {database}")
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
@@ -574,9 +602,6 @@ def log_anib(
         program=blastn_tool.exe_path.stem,
         version=blastn_tool.version,
         fragsize=fragsize,
-        maxmatch=None,
-        kmersize=None,
-        minmatch=None,
         create=False,
     )
 
@@ -604,7 +629,7 @@ def log_anib(
 
 
 @app.command(rich_help_panel="Method specific logging")
-def log_dnadiff(
+def log_dnadiff(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
@@ -627,6 +652,8 @@ def log_dnadiff(
             exists=True,
         ),
     ],
+    *,
+    quiet: OPT_ARG_TYPE_QUIET = False,
     # Should we add --maxmatch (nucmer) and -m (deltafilter) parameters?
     # These are default parameters used in workflows
 ) -> int:
@@ -671,7 +698,8 @@ def log_dnadiff(
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging dnadiff to {database}")
+    if not quiet:
+        print(f"Logging dnadiff to {database}")
     session = db_orm.connect_to_db(database)
 
     config = db_orm.db_configuration(
@@ -679,10 +707,6 @@ def log_dnadiff(
         method="dnadiff",
         program=tool.exe_path.stem,
         version=tool.version,
-        fragsize=None,
-        maxmatch=None,
-        kmersize=None,
-        minmatch=None,
         create=False,
     )
 
@@ -698,7 +722,7 @@ def log_dnadiff(
         subject_hash=subject_md5,
         identity=identity,
         aln_length=aligned_bases_with_gaps - gap_lengths,
-        sim_errors=None,  # Leaving this as None for now (How should we calculate this?)
+        sim_errors=round((aligned_bases_with_gaps - gap_lengths) * (1 - identity)),
         cov_query=(aligned_bases_with_gaps - gap_lengths) / query.length,
         cov_subject=None,  # Leaving this as None for now (need rdiff files to calculate this)
     )

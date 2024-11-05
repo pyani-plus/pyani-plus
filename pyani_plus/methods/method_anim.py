@@ -41,9 +41,20 @@ percentage (of whole genome) for each pairwise comparison.
 """
 
 from collections import defaultdict
+from enum import Enum
 from pathlib import Path
 
 import intervaltree  # type: ignore  # noqa: PGH003
+
+
+class EnumModeANIm(str, Enum):
+    """Enum for the --mode command line argument passed to ANIm."""
+
+    mum = "mum"  # default
+    maxmatch = "maxmatch"
+
+
+MODE = EnumModeANIm.mum  # constant for CLI default
 
 
 def get_aligned_bases_count(aligned_regions: dict) -> int:

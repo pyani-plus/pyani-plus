@@ -112,7 +112,7 @@ def test_log_run(tmp_path: str) -> None:
             cmdline="pyani_plus run ...",
             name="Guess Run",
             status="Completed",
-            fasta=[],  # list
+            fasta=Path("/does/not/exist/"),
             # Config
             method="guessing",
             program="guestimate",
@@ -123,6 +123,27 @@ def test_log_run(tmp_path: str) -> None:
             create_db=False,
         )
 
+    with pytest.raises(SystemExit, match="ERROR: No FASTA input genomes under"):
+        private_cli.log_run(
+            database=tmp_db,
+            # Run
+            cmdline="pyani_plus run ...",
+            name="Guess Run",
+            status="Completed",
+            fasta=tmp_path,
+            # Config
+            method="guessing",
+            program="guestimate",
+            version="0.1.2beta3",
+            fragsize=100,
+            kmersize=51,
+            # Misc
+            create_db=True,
+        )
+
+    with (Path(tmp_path) / "example.fasta").open("w") as handle:
+        handle.write(">Tiny\nACGTACGTTA\n")
+
     # This time create it
     private_cli.log_run(
         database=tmp_db,
@@ -130,7 +151,7 @@ def test_log_run(tmp_path: str) -> None:
         cmdline="pyani_plus run ...",
         name="Guess Run",
         status="Completed",
-        fasta=[],  # list
+        fasta=tmp_path,
         # Config
         method="guessing",
         program="guestimate",
@@ -283,7 +304,7 @@ def test_log_comparison_serial(tmp_path: str, input_genomes_tiny: Path) -> None:
         cmdline="pyani_plus run ...",
         name="Guess Run",
         status="Completed",
-        fasta=fasta,  # list
+        fasta=input_genomes_tiny,
         # Config
         method="guessing",
         program="guestimate",
@@ -375,7 +396,7 @@ def test_log_comparison_parallel(tmp_path: str, input_genomes_tiny: Path) -> Non
         cmdline="pyani_plus run ...",
         name="Guess Run",
         status="Completed",
-        fasta=fasta,  # list
+        fasta=input_genomes_tiny,
         # Config
         method="guessing",
         program="guestimate",

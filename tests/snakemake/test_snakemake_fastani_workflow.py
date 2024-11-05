@@ -35,7 +35,11 @@ import pytest
 
 from pyani_plus.private_cli import log_configuration, log_genome, log_run
 from pyani_plus.tools import get_fastani
-from pyani_plus.workflows import SnakemakeRunner, check_input_stems
+from pyani_plus.workflows import (
+    ToolExecutor,
+    check_input_stems,
+    run_snakemake_with_progress_bar,
+)
 
 from . import compare_matrices
 
@@ -52,11 +56,11 @@ def config_fastani_args(
         "db": Path(tmp_path) / "db.slqite",
         "fastani": get_fastani().exe_path,
         "outdir": fastani_targets_outdir,
-        "indir": str(input_genomes_tiny),
+        "indir": input_genomes_tiny,
         "cores": snakemake_cores,
-        "fragLen": 3000,
-        "kmerSize": 16,
-        "minFrac": 0.2,
+        "fragsize": 3000,
+        "kmersize": 16,
+        "minmatch": 0.2,
     }
 
 
@@ -111,9 +115,9 @@ def test_snakemake_rule_fastani(  # noqa: PLR0913
         method="fastANI",
         program=fastani_tool.exe_path.stem,
         version=fastani_tool.version,
-        fragsize=config_fastani_args["fragLen"],
-        kmersize=config_fastani_args["kmerSize"],
-        minmatch=config_fastani_args["minFrac"],
+        fragsize=config_fastani_args["fragsize"],
+        kmersize=config_fastani_args["kmersize"],
+        minmatch=config_fastani_args["minmatch"],
         create_db=True,
     )
     # Record the FASTA files in the genomes table _before_ call snakemake
@@ -124,9 +128,14 @@ def test_snakemake_rule_fastani(  # noqa: PLR0913
     assert db.is_file()
 
     # Run snakemake wrapper
-    runner = SnakemakeRunner("snakemake_fastani.smk")
-
-    runner.run_workflow(fastani_targets, config_fastani_args, workdir=Path(tmp_path))
+    run_snakemake_with_progress_bar(
+        executor=ToolExecutor.local,
+        workflow_name="snakemake_fastani.smk",
+        targets=fastani_targets,
+        params=config_fastani_args,
+        working_directory=Path(tmp_path),
+        show_progress_bar=False,
+    )
 
     # Check output against target fixtures
     for fname in fastani_targets:
@@ -136,7 +145,7 @@ def test_snakemake_rule_fastani(  # noqa: PLR0913
         )
 
     log_run(
-        fasta=input_fasta,
+        fasta=config_fastani_args["indir"],
         database=db,
         status="Complete",
         name="Test case",
@@ -144,9 +153,9 @@ def test_snakemake_rule_fastani(  # noqa: PLR0913
         method="fastANI",
         program=fastani_tool.exe_path.stem,
         version=fastani_tool.version,
-        fragsize=config_fastani_args["fragLen"],
-        kmersize=config_fastani_args["kmerSize"],
-        minmatch=config_fastani_args["minFrac"],
+        fragsize=config_fastani_args["fragsize"],
+        kmersize=config_fastani_args["kmersize"],
+        minmatch=config_fastani_args["minmatch"],
         create_db=False,
     )
     compare_matrices(db, fastani_matrices)
@@ -169,7 +178,7 @@ def test_snakemake_duplicate_stems(
     dup_input_dir = Path(tmp_path) / "duplicated_stems"
     dup_input_dir.mkdir()
     stems = set()
-    for sequence in Path(config_fastani_args["indir"]).glob("*.f*"):
+    for sequence in config_fastani_args["indir"].glob("*.f*"):
         # For every input FASTA file, make two versions - XXX.fasta and XXX.fna
         os.symlink(sequence, dup_input_dir / (sequence.stem + ".fasta"))
         os.symlink(sequence, dup_input_dir / (sequence.stem + ".fna"))
@@ -178,8 +187,12 @@ def test_snakemake_duplicate_stems(
     dup_config["indir"] = dup_input_dir
     msg = f"Duplicated stems found for {sorted(stems)}. Please investigate."
 
-    # Run snakemake wrapper
-    runner = SnakemakeRunner("snakemake_fastani.smk")
-
     with pytest.raises(ValueError, match=re.escape(msg)):
-        runner.run_workflow(fastani_targets, dup_config, workdir=Path(tmp_path))
+        run_snakemake_with_progress_bar(
+            executor=ToolExecutor.local,
+            workflow_name="snakemake_fastani.smk",
+            targets=fastani_targets,
+            params=dup_config,
+            working_directory=Path(tmp_path),
+            show_progress_bar=False,
+        )

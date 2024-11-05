@@ -38,9 +38,9 @@ rule fastani:
         db=config["db"],
         fastani=config["fastani"],
         indir=config["indir"],
-        fragLen=config["fragLen"],
-        kmerSize=config["kmerSize"],
-        minFrac=config["minFrac"],
+        fragsize=config["fragsize"],
+        kmersize=config["kmersize"],
+        minmatch=config["minmatch"],
     input:
         genomeA=get_genomeA,
         genomeB=get_genomeB,
@@ -48,11 +48,11 @@ rule fastani:
         "{outdir}/{genomeA}_vs_{genomeB}.fastani",
     shell:
         """
-        chronic {params.fastani} -q {input.genomeA} -r {input.genomeB} \
-            -o {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.fastani \
-            --fragLen {params.fragLen} -k {params.kmerSize} --minFraction {params.minFrac} &&
-        chronic .pyani-plus-private-cli log-fastani --database {params.db} \
+        {params.fastani} -q {input.genomeA} -r {input.genomeB} \
+            -o {output} --fragLen {params.fragsize} -k {params.kmersize} \
+            --minFraction {params.minmatch} > {output}.log 2>&1 &&
+        .pyani-plus-private-cli log-fastani --quiet --database {params.db} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
             --fastani {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.fastani \
-            --fragsize {params.fragLen} --kmersize {params.kmerSize} --minmatch {params.minFrac}
+            --fragsize {params.fragsize} --kmersize {params.kmersize} --minmatch {params.minmatch}
         """

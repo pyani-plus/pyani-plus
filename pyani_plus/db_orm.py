@@ -38,6 +38,7 @@ from sqlalchemy import (
     ForeignKey,
     UniqueConstraint,
     create_engine,
+    insert,
 )
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import (
@@ -68,6 +69,11 @@ class RunGenomeAssociation(Base):
         ForeignKey("genomes.genome_hash"), primary_key=True
     )
     run_id: Mapped[int] = mapped_column(ForeignKey("runs.run_id"), primary_key=True)
+    # Just filename, no containing directory - that's in the associated run table entry
+    fasta_filename: Mapped[str] = mapped_column()
+
+    run = relationship("Run")
+    genome = relationship("Genome")
 
 
 class Genome(Base):
@@ -105,9 +111,7 @@ class Genome(Base):
         back_populates="subject",
         primaryjoin="Genome.genome_hash == Comparison.subject_hash",
     )
-    runs = relationship(
-        "Run", secondary="runs_genomes", back_populates="genomes", lazy="dynamic"
-    )
+    runs = relationship("Run", secondary="runs_genomes", lazy="dynamic", viewonly=True)
 
     def __repr__(self) -> str:
         """Return string representation of Genome table object."""
@@ -143,7 +147,7 @@ class Configuration(Base):
             "program",
             "version",
             "fragsize",
-            "maxmatch",
+            "mode",
             "kmersize",
             "minmatch",
         ),
@@ -170,7 +174,7 @@ class Configuration(Base):
     program: Mapped[str] = mapped_column()
     version: Mapped[str] = mapped_column()
     fragsize: Mapped[int | None] = mapped_column()  # in fastANI this is fragLength
-    maxmatch: Mapped[bool | None] = mapped_column()  # in fastANi this is Null
+    mode: Mapped[str | None] = mapped_column()  # this is "mum" or "maxmatch" in ANIm
     kmersize: Mapped[int | None] = mapped_column()
     minmatch: Mapped[float | None] = mapped_column()
 
@@ -179,7 +183,7 @@ class Configuration(Base):
         return (
             f"Configuration(configuration_id={self.configuration_id},"
             f" program={self.program!r}, version={self.version!r},"
-            f" fragsize={self.fragsize}, maxmatch={self.maxmatch},"
+            f" fragsize={self.fragsize}, mode={self.mode!r},"
             f" kmersize={self.kmersize}, minmatch={self.minmatch})"
         )
 
@@ -246,7 +250,7 @@ class Comparison(Base):
         return (
             f"Query: {self.query_hash}, Subject: {self.subject_hash}, "
             f"%ID={self.identity}, ({self.configuration.program} {self.configuration.version}), "
-            f"FragSize: {self.configuration.fragsize}, MaxMatch: {self.configuration.maxmatch}, "
+            f"FragSize: {self.configuration.fragsize}, Mode: {self.configuration.mode}, "
             f"KmerSize: {self.configuration.kmersize}, MinMatch: {self.configuration.minmatch}"
         )
 
@@ -301,6 +305,7 @@ class Run(Base):
     )
 
     cmdline: Mapped[str] = mapped_column()
+    fasta_directory: Mapped[str] = mapped_column()  # can't use Mapped[Path] (yet)
     date: Mapped[datetime.datetime] = mapped_column()
     status: Mapped[str] = mapped_column()
     name: Mapped[str] = mapped_column()
@@ -310,8 +315,11 @@ class Run(Base):
     df_sim_errors: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
     df_hadamard: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
 
+    fasta_hashes: Mapped[list[RunGenomeAssociation]] = relationship(
+        RunGenomeAssociation, viewonly=True, lazy="dynamic"
+    )
     genomes: Mapped[list[Genome]] = relationship(
-        Genome, secondary="runs_genomes", back_populates="runs", lazy="dynamic"
+        Genome, secondary="runs_genomes", viewonly=True, lazy="dynamic"
     )
 
     def comparisons(self) -> Mapped[list[Comparison]]:
@@ -365,7 +373,7 @@ class Run(Base):
 
         The caller must commit the updated Run object to the database explicitly!
         """
-        hashes = sorted(genome.genome_hash for genome in self.genomes)
+        hashes = sorted(association.genome_hash for association in self.fasta_hashes)
         size = len(hashes)
         identity = np.full([size, size], np.nan, float)
         cov_query = np.full([size, size], np.nan, float)
@@ -519,7 +527,7 @@ def db_configuration(  # noqa: PLR0913
     program: str,
     version: str,
     fragsize: int | None = None,
-    maxmatch: bool | None = None,
+    mode: str | None = None,
     kmersize: int | None = None,
     minmatch: float | None = None,
     *,
@@ -565,7 +573,7 @@ def db_configuration(  # noqa: PLR0913
         .where(Configuration.program == program)
         .where(Configuration.version == version)
         .where(Configuration.fragsize == fragsize)
-        .where(Configuration.maxmatch == maxmatch)
+        .where(Configuration.mode == mode)
         .where(Configuration.kmersize == kmersize)
         .where(Configuration.minmatch == minmatch)
         .one_or_none()
@@ -579,7 +587,7 @@ def db_configuration(  # noqa: PLR0913
             program=program,
             version=version,
             fragsize=fragsize,
-            maxmatch=maxmatch,
+            mode=mode,
             kmersize=kmersize,
             minmatch=minmatch,
         )
@@ -653,10 +661,11 @@ def add_run(  # noqa: PLR0913
     session: Session,
     configuration: Configuration,
     cmdline: str,
+    fasta_directory: Path,
     status: str,
     name: str,
     date: datetime.datetime | None = None,
-    genomes: list[Genome] | None = None,
+    fasta_to_hash: dict[Path, str] | None = None,
 ) -> Run:
     """Add and return a new run table entry.
 
@@ -666,12 +675,26 @@ def add_run(  # noqa: PLR0913
     run = Run(
         configuration_id=configuration.configuration_id,
         cmdline=cmdline,
+        fasta_directory=str(fasta_directory),
         status=status,
         name=name,
         date=date if date else datetime.datetime.now(tz=datetime.UTC),
-        genomes=genomes if genomes else [],
     )
     session.add(run)
+    if fasta_to_hash:
+        # Using the low-level but faster insert we need the run_id, so must commit now:
+        session.commit()
+        run_id = run.run_id
+        session.execute(
+            insert(RunGenomeAssociation),
+            [
+                # Note /mnt/data/example.fasta becomes just example.fasta
+                # with the path /mnt/data/ recorded in the run itself
+                # (since this is by design shared for all FASTA in a run)
+                {"run_id": run_id, "fasta_filename": filename.name, "genome_hash": md5}
+                for filename, md5 in fasta_to_hash.items()
+            ],
+        )
     session.commit()
     return run
 

@@ -38,7 +38,11 @@ from pyani_plus.tools import (
     get_show_coords,
     get_show_diff,
 )
-from pyani_plus.workflows import SnakemakeRunner, check_input_stems
+from pyani_plus.workflows import (
+    ToolExecutor,
+    check_input_stems,
+    run_snakemake_with_progress_bar,
+)
 
 from . import compare_matrices
 
@@ -123,8 +127,14 @@ def test_snakemake_rule_delta(
     config["outdir"] = dnadiff_nucmer_targets_delta_outdir
 
     # Run snakemake wrapper
-    runner = SnakemakeRunner("snakemake_dnadiff.smk")
-    runner.run_workflow(dnadiff_nucmer_targets_delta, config, workdir=Path(tmp_path))
+    run_snakemake_with_progress_bar(
+        executor=ToolExecutor.local,
+        workflow_name="snakemake_dnadiff.smk",
+        targets=dnadiff_nucmer_targets_delta,
+        params=config,
+        working_directory=Path(tmp_path),
+        show_progress_bar=False,
+    )
 
     # Check output against target fixtures
     for fname in dnadiff_nucmer_targets_delta:
@@ -159,8 +169,14 @@ def test_snakemake_rule_filter(
     config["outdir"] = dnadiff_nucmer_targets_filter_outdir
 
     # Run snakemake wrapper
-    runner = SnakemakeRunner("snakemake_dnadiff.smk")
-    runner.run_workflow(dnadiff_nucmer_targets_filter, config, workdir=Path(tmp_path))
+    run_snakemake_with_progress_bar(
+        executor=ToolExecutor.local,
+        workflow_name="snakemake_dnadiff.smk",
+        targets=dnadiff_nucmer_targets_filter,
+        params=config,
+        working_directory=Path(tmp_path),
+        show_progress_bar=False,
+    )
 
     # Check output against target fixtures
     for fname in dnadiff_nucmer_targets_filter:
@@ -203,7 +219,7 @@ def test_snakemake_rule_show_diff_and_coords(  # noqa: PLR0913
         program=nucmer_tool.exe_path.stem,
         version=nucmer_tool.version,  # used as a proxy for MUMmer suite
         fragsize=None,
-        maxmatch=None,
+        mode=None,
         kmersize=None,
         minmatch=None,
         create_db=True,
@@ -220,8 +236,14 @@ def test_snakemake_rule_show_diff_and_coords(  # noqa: PLR0913
     config["outdir"] = dnadiff_targets_showdiff_outdir
 
     # Run snakemake wrapper
-    runner = SnakemakeRunner("snakemake_dnadiff.smk")
-    runner.run_workflow(dnadiff_targets_showdiff, config, workdir=Path(tmp_path))
+    run_snakemake_with_progress_bar(
+        executor=ToolExecutor.local,
+        workflow_name="snakemake_dnadiff.smk",
+        targets=dnadiff_targets_showdiff,
+        params=config,
+        working_directory=Path(tmp_path),
+        show_progress_bar=False,
+    )
 
     # Check output against target fixtures
     for fname in dnadiff_targets_showdiff:
@@ -232,7 +254,7 @@ def test_snakemake_rule_show_diff_and_coords(  # noqa: PLR0913
         )
 
     log_run(
-        fasta=config_dnadiff_args["indir"].glob("*.f*"),
+        fasta=config_dnadiff_args["indir"],
         database=db,
         status="Complete",
         name="Test case",
@@ -241,7 +263,7 @@ def test_snakemake_rule_show_diff_and_coords(  # noqa: PLR0913
         program=nucmer_tool.exe_path.stem,
         version=nucmer_tool.version,
         fragsize=None,
-        maxmatch=None,
+        mode=None,
         kmersize=None,
         minmatch=None,
         create_db=False,
@@ -282,7 +304,7 @@ def test_snakemake_rule_show_coords(  # noqa: PLR0913
         program=nucmer_tool.exe_path.stem,
         version=nucmer_tool.version,  # used as a proxy for MUMer suite
         fragsize=None,
-        maxmatch=None,
+        mode=None,
         kmersize=None,
         minmatch=None,
         create_db=True,
@@ -298,8 +320,14 @@ def test_snakemake_rule_show_coords(  # noqa: PLR0913
     config["outdir"] = dnadiff_targets_showcoords_outdir
 
     # Run snakemake wrapper
-    runner = SnakemakeRunner("snakemake_dnadiff.smk")
-    runner.run_workflow(dnadiff_targets_showcoords, config, workdir=Path(tmp_path))
+    run_snakemake_with_progress_bar(
+        executor=ToolExecutor.local,
+        workflow_name="snakemake_dnadiff.smk",
+        targets=dnadiff_targets_showcoords,
+        params=config,
+        working_directory=Path(tmp_path),
+        show_progress_bar=False,
+    )
 
     # Check output against target fixtures
     for fname in dnadiff_targets_showcoords:
@@ -310,7 +338,7 @@ def test_snakemake_rule_show_coords(  # noqa: PLR0913
         )
 
     log_run(
-        fasta=config_dnadiff_args["indir"].glob("*.f*"),
+        fasta=config_dnadiff_args["indir"],
         database=db,
         status="Complete",
         name="Test case",
@@ -319,7 +347,7 @@ def test_snakemake_rule_show_coords(  # noqa: PLR0913
         program=nucmer_tool.exe_path.stem,
         version=nucmer_tool.version,  # used as a proxy for MUMmer suite
         fragsize=None,
-        maxmatch=None,
+        mode=None,
         kmersize=None,
         minmatch=None,
         create_db=False,

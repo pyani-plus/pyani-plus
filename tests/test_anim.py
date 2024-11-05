@@ -235,6 +235,7 @@ def test_logging_anim(
         method="ANIm",
         program=tool.exe_path.stem,
         version=tool.version,
+        mode=method_anim.MODE,
         create_db=True,
     )
     private_cli.log_genome(

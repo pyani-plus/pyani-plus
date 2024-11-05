@@ -47,7 +47,10 @@ rule delta:
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.delta",
     shell:
-        "chronic {params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} --maxmatch {input.genomeB} {input.genomeA}"
+        """
+        {params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} \
+            --maxmatch {input.genomeB} {input.genomeA} > {output}.log 2>&1
+        """
 
 
 # The filter rule runs delta-filter wrapper for nucmer
@@ -85,7 +88,7 @@ rule show_diff_and_coords:
         """
         {params.show_diff} -qH {input.deltafilter} > {output.qdiff} &&
         {params.show_coords} -rclTH {input.deltafilter} > {output.mcoords} &&
-        chronic .pyani-plus-private-cli log-dnadiff --database {params.db} \
+        .pyani-plus-private-cli log-dnadiff --quiet --database {params.db} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
             --mcoords {output.mcoords} --qdiff {output.qdiff}
         """

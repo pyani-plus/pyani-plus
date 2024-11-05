@@ -66,7 +66,7 @@ def test_make_and_populate_comparisons(tmp_path: str) -> None:
         program="guestimate",
         version="v0.1.2beta3",
         fragsize=100,
-        maxmatch=True,
+        mode="RNG",
         kmersize=17,
         minmatch=0.3,
     )
@@ -74,7 +74,7 @@ def test_make_and_populate_comparisons(tmp_path: str) -> None:
     assert repr(config) == (
         "Configuration(configuration_id=None,"
         " program='guestimate', version='v0.1.2beta3',"
-        " fragsize=100, maxmatch=True, kmersize=17, minmatch=0.3)"
+        " fragsize=100, mode='RNG', kmersize=17, minmatch=0.3)"
     )
     session.add(config)
     assert config.configuration_id is None
@@ -135,7 +135,7 @@ def test_make_and_populate_comparisons(tmp_path: str) -> None:
         assert str(comparison) == (
             f"Query: {comparison.query_hash}, Subject: {comparison.subject_hash},"
             " %ID=0.96, (guestimate v0.1.2beta3), "
-            "FragSize: 100, MaxMatch: True, KmerSize: 17, MinMatch: 0.3"
+            "FragSize: 100, Mode: RNG, KmerSize: 17, MinMatch: 0.3"
         )
 
         # Check the configuration object attribute:
@@ -192,7 +192,7 @@ def test_make_and_populate_runs(tmp_path: str) -> None:
     assert repr(config) == (
         "Configuration(configuration_id=None,"
         " program='guestimate', version='v0.1.2beta3',"
-        " fragsize=1000, maxmatch=None, kmersize=31, minmatch=None)"
+        " fragsize=1000, mode=None, kmersize=31, minmatch=None)"
     )
     session.add(config)
     assert config.configuration_id is None
@@ -203,6 +203,7 @@ def test_make_and_populate_runs(tmp_path: str) -> None:
         configuration_id=config.configuration_id,
         name="Test One",
         cmdline="pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite",
+        fasta_directory="../my-genomes/",
         date=datetime.date(2024, 9, 3),
         status="Pending",
     )
@@ -232,6 +233,7 @@ def test_make_and_populate_runs(tmp_path: str) -> None:
         configuration_id=config.configuration_id,
         name="Test Two",
         cmdline="pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite",
+        fasta_directory="../my-genomes/",
         date=datetime.date(2024, 9, 4),
         status="Pending",
     )
@@ -280,7 +282,7 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
     assert repr(config) == (
         "Configuration(configuration_id=None,"
         " program='guestimate', version='v0.1.2beta3',"
-        " fragsize=1000, maxmatch=None, kmersize=31, minmatch=None)"
+        " fragsize=1000, mode=None, kmersize=31, minmatch=None)"
     )
     session.add(config)
     session.commit()
@@ -289,6 +291,7 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
         configuration_id=config.configuration_id,
         name="Empty",
         cmdline="pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite",
+        fasta_directory="../my-genomes/",
         date=datetime.date(2023, 12, 25),
         status="Aborted",
     )
@@ -304,6 +307,7 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
         configuration_id=config.configuration_id,
         name="Test Run",
         cmdline="pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite",
+        fasta_directory="../my-genomes/",
         date=datetime.date(2023, 12, 25),
         status="Complete",
     )
@@ -332,9 +336,16 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
             f"Genome(genome_hash={md5!r}, path='../my-genomes/{name}.fasta',"
             f" length={len(seq)}, description='{name}')"
         )
-        if name[-1] in ("A", "T"):
-            genome.runs.append(run)  # setup the link to the runs table
         session.add(genome)
+        if name[-1] in ("A", "T"):
+            # Don't know the run_id until the run is committed
+            session.add(
+                db_orm.RunGenomeAssociation(
+                    run=run,
+                    genome_hash=md5,
+                    fasta_filename=f"{name}.fasta",  # no path here, just filename
+                )
+            )
 
     for a in hashes:
         for b in hashes:
@@ -495,7 +506,7 @@ def test_add_config(tmp_path: str) -> None:
     assert repr(config) == (
         "Configuration(configuration_id=1,"
         " program='guestimate', version='v0.1.2beta3',"
-        " fragsize=100, maxmatch=None, kmersize=17, minmatch=None)"
+        " fragsize=100, mode=None, kmersize=17, minmatch=None)"
     )
 
     # Trying to add the exact same values should return the existing entry:
@@ -550,22 +561,21 @@ def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
     assert repr(config) == (
         "Configuration(configuration_id=1,"
         " program='guestimate', version='v0.1.2beta3',"
-        " fragsize=1000, maxmatch=None, kmersize=31, minmatch=None)"
+        " fragsize=1000, mode=None, kmersize=31, minmatch=None)"
     )
 
-    hashes = {}
-    genomes = []
-    for fasta in input_genomes_tiny.glob("*.f*"):
-        md5 = file_md5sum(fasta)
-        genome = db_orm.db_genome(session, fasta, md5, create=True)
-        hashes[md5] = fasta
-        genomes.append(genome)
+    fasta_to_hash = {}
+    for fasta_filename in input_genomes_tiny.glob("*.f*"):
+        md5 = file_md5sum(fasta_filename)
+        db_orm.db_genome(session, fasta_filename, md5, create=True)
+        fasta_to_hash[fasta_filename] = md5
 
     run = db_orm.add_run(
         session,
         configuration=config,
-        genomes=genomes,
+        fasta_to_hash=fasta_to_hash,
         status="Started",
+        fasta_directory=Path("/mnt/shared/genomes/"),
         name="Guess Run",
         date=None,
         cmdline="pyani_plus run --method guestimate --fasta blah blah",
@@ -576,13 +586,13 @@ def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
         "cmdline='pyani_plus run --method guestimate --fasta blah blah', "
         f"date={now!r}, status='Started', name='Guess Run', ...)"
     )
-    assert run.genomes.count() == len(hashes)
+    assert run.genomes.count() == len(fasta_to_hash)
     assert run.comparisons().count() == 0  # not logged yet
 
     # At this point in a real run we would start parallel worker jobs
     # to compute the comparisons (possible spread over a cluster):
-    for a in hashes:
-        for b in hashes:
+    for a in fasta_to_hash.values():
+        for b in fasta_to_hash.values():
             db_orm.db_comparison(
                 session,
                 config.configuration_id,
@@ -595,7 +605,7 @@ def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
             )
 
     # Now that all the comparisons are in the DB, can collate and cache matrices
-    assert run.comparisons().count() == len(hashes) ** 2
+    assert run.comparisons().count() == len(fasta_to_hash) ** 2
     run.cache_comparisons()
     run.status = "Complete"
     session.commit()

@@ -35,7 +35,11 @@ import pytest
 
 from pyani_plus.private_cli import log_configuration, log_genome, log_run
 from pyani_plus.tools import get_blastn, get_makeblastdb
-from pyani_plus.workflows import SnakemakeRunner, check_input_stems
+from pyani_plus.workflows import (
+    ToolExecutor,
+    check_input_stems,
+    run_snakemake_with_progress_bar,
+)
 
 from . import compare_matrices
 
@@ -59,7 +63,7 @@ def config_anib_args(
         "outdir": anib_targets_outdir,
         "indir": input_genomes_tiny,
         "cores": snakemake_cores,
-        "fragLen": "1020",
+        "fragsize": "1020",
     }
 
 
@@ -75,9 +79,13 @@ def test_snakemake_rule_fragments(
     shutil.rmtree(anib_targets_outdir, ignore_errors=True)
 
     # Run snakemake wrapper
-    runner = SnakemakeRunner("snakemake_anib.smk")
-    runner.run_workflow(
-        anib_targets_fragments, config_anib_args, workdir=Path(tmp_path)
+    run_snakemake_with_progress_bar(
+        executor=ToolExecutor.local,
+        workflow_name="snakemake_anib.smk",
+        targets=anib_targets_fragments,
+        params=config_anib_args,
+        working_directory=Path(tmp_path),
+        show_progress_bar=False,
     )
 
     # Check output against target fixtures
@@ -112,8 +120,14 @@ def test_snakemake_rule_blastdb(
     shutil.rmtree(anib_targets_outdir, ignore_errors=True)
 
     # Run snakemake wrapper
-    runner = SnakemakeRunner("snakemake_anib.smk")
-    runner.run_workflow(anib_targets_blastdb, config_anib_args, workdir=Path(tmp_path))
+    run_snakemake_with_progress_bar(
+        executor=ToolExecutor.local,
+        workflow_name="snakemake_anib.smk",
+        targets=anib_targets_blastdb,
+        params=config_anib_args,
+        working_directory=Path(tmp_path),
+        show_progress_bar=False,
+    )
 
     # Check output against target fixtures
     for fname in anib_targets_blastdb:
@@ -145,7 +159,7 @@ def test_snakemake_rule_blastn(  # noqa: PLR0913
         method="ANIb",
         program=blastn_tool.exe_path.stem,
         version=blastn_tool.version,
-        fragsize=config_anib_args["fragLen"],
+        fragsize=config_anib_args["fragsize"],
         create_db=True,
     )
     # Record the FASTA files in the genomes table _before_ call snakemake
@@ -156,8 +170,14 @@ def test_snakemake_rule_blastn(  # noqa: PLR0913
     assert db.is_file()
 
     # Run snakemake wrapper
-    runner = SnakemakeRunner("snakemake_anib.smk")
-    runner.run_workflow(anib_targets_blastn, config_anib_args, workdir=Path(tmp_path))
+    run_snakemake_with_progress_bar(
+        executor=ToolExecutor.local,
+        workflow_name="snakemake_anib.smk",
+        targets=anib_targets_blastn,
+        params=config_anib_args,
+        working_directory=Path(tmp_path),
+        show_progress_bar=False,
+    )
 
     # Check output against target fixtures
     for fname in anib_targets_blastn:
@@ -167,7 +187,7 @@ def test_snakemake_rule_blastn(  # noqa: PLR0913
         assert filecmp.cmp(fname, anib_blastn / fname.name)
 
     log_run(
-        fasta=config_anib_args["indir"].glob("*.f*"),
+        fasta=config_anib_args["indir"],
         database=db,
         status="Complete",
         name="Test case",
@@ -175,9 +195,7 @@ def test_snakemake_rule_blastn(  # noqa: PLR0913
         method="ANIb",
         program=blastn_tool.exe_path.stem,
         version=blastn_tool.version,
-        fragsize=config_anib_args["fragLen"],
-        kmersize=None,
-        minmatch=None,
+        fragsize=config_anib_args["fragsize"],
         create_db=False,
     )
     compare_matrices(db, dir_anib_results)

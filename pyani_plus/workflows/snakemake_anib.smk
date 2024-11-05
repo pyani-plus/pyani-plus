@@ -37,7 +37,7 @@ def get_genomeB(wildcards):
 # Should we put use fragment size in the filename?
 rule fragment:
     params:
-        fragLen=config["fragLen"],
+        fragsize=config["fragsize"],
         indir=config["indir"],
         outdir=config["outdir"],
     input:
@@ -45,7 +45,7 @@ rule fragment:
     output:
         "{outdir}/{genomeA}-fragments.fna",
     shell:
-        "chronic .pyani-plus-private-cli fragment-fasta --outdir {wildcards.outdir} --fragsize {params.fragLen} {input.genomeA}"
+        ".pyani-plus-private-cli fragment-fasta --quiet --outdir {wildcards.outdir} --fragsize {params.fragsize} {input.genomeA}"
 
 
 # The nucleotide database of the FASTA file is used for the ANIb reference.
@@ -62,7 +62,11 @@ rule blastdb:
     output:
         "{outdir}/{genomeB}.njs",
     shell:
-        "chronic {params.makeblastdb} -in {input.genomeB} -input_type fasta -dbtype nucl -title {wildcards.genomeB} -out {wildcards.outdir}/{wildcards.genomeB}"
+        """
+        {params.makeblastdb} -in {input.genomeB} -input_type fasta -dbtype nucl \
+            -title {wildcards.genomeB} -out {wildcards.outdir}/{wildcards.genomeB} \
+            > {wildcards.outdir}/{wildcards.genomeB}.log
+        """
 
 
 # For ANIb query the fragments FASTA from genomeA against a BLAST DB of genomeB.
@@ -70,7 +74,7 @@ rule blastn:
     params:
         db=config["db"],
         blastn=config["blastn"],
-        fragLen=config["fragLen"],
+        fragsize=config["fragsize"],
         indir=config["indir"],
         outdir=config["outdir"],
     input:
@@ -82,13 +86,13 @@ rule blastn:
         "{outdir}/{genomeA}_vs_{genomeB}.tsv",
     shell:
         """
-        chronic {params.blastn} -query {wildcards.outdir}/{wildcards.genomeA}-fragments.fna \
+        {params.blastn} -query {wildcards.outdir}/{wildcards.genomeA}-fragments.fna \
             -db {wildcards.outdir}/{wildcards.genomeB} -out {output} -task blastn \
             -outfmt '6 qseqid sseqid length mismatch pident nident qlen slen \
                      qstart qend sstart send positive ppos gaps' \
-            -xdrop_gap_final 150 -dust no -evalue 1e-15 -max_target_seqs 1 &&
-        chronic .pyani-plus-private-cli log-anib --database {params.db} \
+            -xdrop_gap_final 150 -dust no -evalue 1e-15 > {output}.log &&
+        .pyani-plus-private-cli log-anib --quiet --database {params.db} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
             --blastn {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.tsv \
-            --fragsize {params.fragLen}
+            --fragsize {params.fragsize}
         """

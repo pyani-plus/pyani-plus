@@ -36,6 +36,7 @@ import pandas as pd
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 from sqlalchemy import (
     ForeignKey,
+    MetaData,
     UniqueConstraint,
     create_engine,
     insert,
@@ -59,6 +60,19 @@ class Base(DeclarativeBase):
     See the SQLAlchemy 2.0 documentation. This is expected to be
     compatible with type checkers like mypy.
     """
+
+    # The DB schema migration tool alembic recommends naming all the
+    # constraints explicitly to facilitate reproducible changes. See
+    # https://alembic.sqlalchemy.org/en/latest/naming.html
+    metadata = MetaData(
+        naming_convention={
+            "ix": "ix_%(column_0_label)s",
+            "uq": "uq_%(table_name)s_%(column_0_name)s",
+            "ck": "ck_%(table_name)s_`%(constraint_name)s`",
+            "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+            "pk": "pk_%(table_name)s",
+        }
+    )
 
 
 class RunGenomeAssociation(Base):

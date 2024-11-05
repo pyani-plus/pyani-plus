@@ -647,7 +647,7 @@ def db_genome(
 
     >>> session = connect_to_db(":memory:")
     >>> from pyani_plus.utils import file_md5sum
-    >>> fasta = "tests/fixtures/viral_example/OP073605.fasta"
+    >>> fasta = Path("tests/fixtures/viral_example/OP073605.fasta")
     >>> genome = db_genome(session, fasta, file_md5sum(fasta), create=True)
     >>> genome.genome_hash
     '5584c7029328dc48d33f95f0a78f7e57'

@@ -38,7 +38,7 @@ rule sketch:
     params:
         indir=config["indir"],
         outdir=config["outdir"],
-        scaled=config["scaled"],
+        extra=config["extra"],  # This will consist of either `scaled=X` or `num=X`.
         kmer=config["kmer"],
     input:
         genomeA=get_genomeA,
@@ -46,12 +46,13 @@ rule sketch:
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.sig",
     shell:
-        "sourmash sketch dna -p 'k={params.kmer},scaled={params.scaled}' {input.genomeB} {input.genomeA} -o {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.sig"
+        "sourmash sketch dna -p 'k={params.kmer},{params.extra}' {input.genomeB} {input.genomeA} -o {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.sig"
 
 
 rule compare:
     params:
         outdir=config["outdir"],
+        mode=config["mode"],
     input:
         "{outdir}/{genomeA}_vs_{genomeB}.sig",
         genomeA=get_genomeA,
@@ -59,4 +60,4 @@ rule compare:
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.csv",
     shell:
-        "sourmash compare {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.sig --csv {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.csv --estimate-ani --max-containment"
+        "sourmash compare {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.sig --csv {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.csv --estimate-ani --{params.mode}"

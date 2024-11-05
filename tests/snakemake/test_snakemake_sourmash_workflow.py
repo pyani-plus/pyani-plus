@@ -49,8 +49,9 @@ def config_sourmash_args(
         # "outdir": ... is dynamic
         "indir": input_genomes_tiny,
         "cores": snakemake_cores,
-        "scaled": 300,
+        "extra": "scaled=300",
         "kmer": 31,
+        "mode": "max-containment",
     }
 
 

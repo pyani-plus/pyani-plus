@@ -56,9 +56,6 @@ REQ_ARG_TYPE_DATABASE = Annotated[
         file_okay=True,
     ),
 ]
-REQ_ARG_TYPE_RUN_NAME = Annotated[
-    str, typer.Option(help="Run name", show_default=False)
-]
 REQ_ARG_TYPE_OUTDIR = Annotated[
     Path,
     typer.Option(
@@ -78,6 +75,13 @@ REQ_ARG_TYPE_FASTA_DIR = Annotated[
 ]
 
 # Reused optional command line arguments (defined with a default):
+OPT_ARG_TYPE_RUN_NAME = Annotated[
+    # Using None to mean the dynamic default value here:
+    str | None,
+    typer.Option(
+        help="Run name. Default is 'N genomes using METHOD'.", show_default=False
+    ),
+]
 OPT_ARG_TYPE_FRAGSIZE = Annotated[
     int,
     typer.Option(
@@ -125,7 +129,7 @@ app = typer.Typer(
 def start_and_run_method(  # noqa: PLR0913
     executor: ToolExecutor,
     database: Path,
-    name: str,
+    name: str | None,
     method: str,
     fasta: Path,
     target_extension: str,
@@ -182,7 +186,7 @@ def start_and_run_method(  # noqa: PLR0913
         cmdline=" ".join(sys.argv),
         fasta_directory=fasta,
         status="Initialising",
-        name=name,
+        name=f"{len(filename_to_md5)} genomes using {method}" if name is None else name,
         date=None,
         fasta_to_hash=filename_to_md5,
     )
@@ -291,9 +295,9 @@ def run_method(  # noqa: PLR0913
 def anim(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
-    # These are for the run table:
-    name: REQ_ARG_TYPE_RUN_NAME,
     *,
+    # These are for the run table:
+    name: OPT_ARG_TYPE_RUN_NAME = None,
     # Does not use fragsize, kmersize, or minmatch
     # The mode here is not optional - must pick one!
     mode: OPT_ARG_TYPE_ANIM_MODE = method_anim.MODE,
@@ -326,9 +330,9 @@ def anim(  # noqa: PLR0913
 def dnadiff(
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
-    # These are for the run table:
-    name: REQ_ARG_TYPE_RUN_NAME,
     *,
+    # These are for the run table:
+    name: OPT_ARG_TYPE_RUN_NAME = None,
     # Does not use fragsize, mode, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
@@ -363,10 +367,10 @@ def anib(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
-    name: REQ_ARG_TYPE_RUN_NAME,
+    *,
+    name: OPT_ARG_TYPE_RUN_NAME = None,
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
-    *,
     # Does not use mode, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
@@ -401,9 +405,9 @@ def anib(  # noqa: PLR0913
 def fastani(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
-    # These are for the run table:
-    name: REQ_ARG_TYPE_RUN_NAME,
     *,
+    # These are for the run table:
+    name: OPT_ARG_TYPE_RUN_NAME = None,
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_fastani.FRAG_LEN,
     # Does not use mode

@@ -43,7 +43,6 @@ from pyani_plus.public_cli import (
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
     REQ_ARG_TYPE_OUTDIR,
-    REQ_ARG_TYPE_RUN_NAME,
 )
 from pyani_plus.utils import check_fasta, file_md5sum
 
@@ -54,6 +53,9 @@ app = typer.Typer(
 OPT_ARG_TYPE_QUIET = Annotated[
     # Listing name(s) explicitly to avoid automatic matching --no-quiet
     bool, typer.Option("--quiet", help="Suppress any output except if fails")
+]
+REQ_ARG_TYPE_RUN_NAME = Annotated[
+    str, typer.Option(help="Run name", show_default=False)
 ]
 REQ_ARG_TYPE_FASTA_FILES = Annotated[
     list[Path],

@@ -297,9 +297,8 @@ def test_dnadiff(
     """Check dnadiff run (default settings)."""
     out = Path(tmp_path)
     tmp_db = out / "example.sqlite"
-    public_cli.dnadiff(
-        database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=True
-    )
+    # Leaving out name, so can check the default worked
+    public_cli.dnadiff(database=tmp_db, fasta=input_genomes_tiny, create_db=True)
     public_cli.export_run(database=tmp_db, outdir=out)
     # Fuzzy, 0.9963 from dnadiff tool != 0.9962661747 from our code
     compare_matrix_files(
@@ -307,6 +306,10 @@ def test_dnadiff(
         out / "dnadiff_identity.tsv",
         atol=5e-5,
     )
+    session = db_orm.connect_to_db(tmp_db)
+    run = session.query(db_orm.Run).one()
+    assert run.name == "3 genomes using dnadiff"
+    session.close()
 
 
 def test_anib(tmp_path: str, input_genomes_tiny: Path, dir_anib_results: Path) -> None:

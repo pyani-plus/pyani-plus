@@ -52,7 +52,7 @@ fixtures:
 # When the tests complete, the coverage output will be opened in a browser
 # See also pyproject.toml setting addopts which adds --doctest-modules etc
 test:
-	@python -m pytest -n auto --cov-report=html --cov=pyani_plus -v tests/ && open htmlcov/index.html
+	@python -m pytest -n auto --cov-report=html --cov=pyani_plus -v && open htmlcov/index.html
 
 # Clean up test output
 clean_test:

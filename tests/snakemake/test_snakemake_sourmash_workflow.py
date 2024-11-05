@@ -27,6 +27,7 @@ pytest -v or make test
 """
 
 import json
+import re
 import shutil  # We need this for filesystem operations
 from pathlib import Path
 
@@ -54,29 +55,29 @@ def config_sourmash_args(
 
 
 def compare_sourmash_sig_files(
-    file1: Path, file2: Path, key_to_exclude: str = "filename"
+    file1: Path, file2: Path, key_to_modify: str = "filename"
 ) -> bool:
-    """Compare two .sig files, excluding filename ifnormation.
+    """Compare two .sig files, considering only the stem in the filename field.
 
     Return True if they are the same or False if they are different.
     """
 
-    def remove_key(data: dict, key_to_remove: str) -> dict:
-        """Remove the specified key (file) from a JSON-like structure (dict or list).
+    def keep_stem(data: dict) -> dict:
+        """Only consider stem in .sig files.
 
-        This is because sourmash provides the full path for input genomes in .sig files,
-        which will differ when comparing target files with those generated during workflow run.
+        Keep only the last part after the last '/' in the filename field.
         """
         if isinstance(data, dict):  # If the data is a dictionary
-            # Remove the key if it exists in the dictionary
-            data.pop(key_to_remove, None)
-            # Call remove_key on each value in the dictionary
+            if key_to_modify in data:
+                # Consider only the last part after the last '/'.
+                data["filename"] = re.sub(r".*/", "", data[key_to_modify])
+            # Call keep_stem on each value in the dictionary
             for value in data.values():
-                remove_key(value, key_to_remove)
+                keep_stem(value)
         elif isinstance(data, list):  # If the data is a list
-            # Call remove_key on each item in the list
+            # Call keep_stem on each item in the list
             for item in data:
-                remove_key(item, key_to_remove)
+                keep_stem(item)
 
         return data
 
@@ -88,9 +89,9 @@ def compare_sourmash_sig_files(
     with Path.open(file2) as f2:
         data2 = json.load(f2)
 
-    # Remove the specified key from both loaded sig files
-    cleaned_data1 = remove_key(data1, key_to_exclude)
-    cleaned_data2 = remove_key(data2, key_to_exclude)
+    # Keep only stem from both loaded sig files
+    cleaned_data1 = keep_stem(data1)
+    cleaned_data2 = keep_stem(data2)
 
     # Compare the cleaned .sig data and return True if they are identical, False if different
     return cleaned_data1 == cleaned_data2

@@ -36,7 +36,10 @@ import pandas as pd
 # Required to support pytest automated testing
 import pytest
 
-from pyani_plus.workflows import SnakemakeRunner
+from pyani_plus.workflows import (
+    ToolExecutor,
+    run_snakemake_with_progress_bar,
+)
 
 
 @pytest.fixture
@@ -136,8 +139,15 @@ def test_snakemake_sketch_rule(
     config["outdir"] = sourmash_targets_signature_outdir
 
     # Run snakemake wrapper
-    runner = SnakemakeRunner("snakemake_sourmash.smk")
-    runner.run_workflow(sourmash_targets_sig, config, workdir=Path(tmp_path))
+    # Run snakemake wrapper
+    run_snakemake_with_progress_bar(
+        executor=ToolExecutor.local,
+        workflow_name="snakemake_sourmash.smk",
+        targets=sourmash_targets_sig,
+        params=config,
+        working_directory=Path(tmp_path),
+        show_progress_bar=False,
+    )
 
     # Check output against target fixtures
     for fname in sourmash_targets_sig:
@@ -174,8 +184,14 @@ def test_snakemake_compare_rule(
     config["outdir"] = sourmash_targets_compare_outdir
 
     # Run snakemake wrapper
-    runner = SnakemakeRunner("snakemake_sourmash.smk")
-    runner.run_workflow(sourmash_target_ani, config, workdir=Path(tmp_path))
+    run_snakemake_with_progress_bar(
+        executor=ToolExecutor.local,
+        workflow_name="snakemake_sourmash.smk",
+        targets=sourmash_target_ani,
+        params=config,
+        working_directory=Path(tmp_path),
+        show_progress_bar=False,
+    )
 
     # Check output against target fixtures
     for fname in sourmash_target_ani:

@@ -118,24 +118,23 @@ def parse_mcoords(mcoords_file: Path) -> tuple[float, int]:
         names=[f"col_{_}" for _ in range(13)],
     )
 
-    sum_identity = 0
+    sum_identity = 0.0  # should be an int, but we can only estimate it
     sum_alignment_lengths = 0
-    avg_identity = float(0)
-    seen_ref_seq = []
+    seen_ref_seq = set()
     aligned_bases_with_gaps = 0
 
     # Calculate average nucleotide identity
     for _index, row in mcoords.iterrows():
-        sum_identity += (row["col_6"] / 100) * (row["col_4"] + row["col_5"])
-        sum_alignment_lengths += row["col_4"] + row["col_5"]
-        avg_identity = sum_identity / sum_alignment_lengths
+        row_length = int(row["col_4"]) + int(row["col_5"])
+        sum_identity += float(row["col_6"]) * row_length / 100
+        sum_alignment_lengths += row_length
 
         # Get number of aligned bases with gaps
         if row["col_12"] not in seen_ref_seq:
-            aligned_bases_with_gaps += row["col_8"]
-            seen_ref_seq.append(row["col_12"])
+            aligned_bases_with_gaps += int(row["col_8"])
+            seen_ref_seq.add(row["col_12"])
 
-    return (avg_identity, aligned_bases_with_gaps)
+    return (sum_identity / sum_alignment_lengths, aligned_bases_with_gaps)
 
 
 def parse_qdiff(qdiff_file: Path) -> int:

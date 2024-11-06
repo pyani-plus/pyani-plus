@@ -1,0 +1,3 @@
+#!/bin/bash
+# This is a dummy test script for version checking
+echo "sourmash 1.0.0"

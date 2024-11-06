@@ -327,3 +327,62 @@ def dnadiff_targets_showcoords(dnadiff_targets_showcoords_outdir: Path) -> list[
 def input_genomes_tiny() -> Path:
     """Path to small set of two viral input genomes."""
     return FIXTUREPATH / "viral_example"
+
+
+# TARGET SIG INDIR
+@pytest.fixture
+def sourmash_targets_sig_indir() -> Path:
+    """Directory containing sourmash signature target files."""
+    return FIXTUREPATH / "sourmash" / "targets" / "signatures"
+
+
+@pytest.fixture
+def sourmash_targets_compare_indir() -> Path:
+    """Directory containing sourmash compare target files."""
+    return FIXTUREPATH / "sourmash" / "targets" / "compare"
+
+
+@pytest.fixture
+def sourmash_targets_signature_outdir(tmp_path: str) -> Path:
+    """Output directory for sourmash sketch_dna snakemake tests.
+
+    This path indicates the location to which sourmash should write
+    its output files during sourmash testing
+    """
+    return Path(tmp_path).resolve() / "sourmash_sketch_output"
+
+
+@pytest.fixture
+def sourmash_targets_compare_outdir(tmp_path: str) -> Path:
+    """Output directory for sourmash sketch_dna snakemake tests.
+
+    This path indicates the location to which sourmash should write
+    its output files during sourmash testing
+    """
+    return Path(tmp_path).resolve() / "sourmash_compare_output"
+
+
+@pytest.fixture
+def sourmash_targets_sig(sourmash_targets_signature_outdir: Path) -> list[Path]:
+    """Target files for sourmash sketch tests.
+
+    These are paths to the output files we want to generate using
+    sourmash sketch. We aim to ask sourmash sketch to generate a set of
+    .sig files that could later be processed to obtain ANI values
+    """
+    reference_paths = (FIXTUREPATH / "sourmash" / "targets" / "signatures").glob(
+        "*.sig"
+    )
+    return [sourmash_targets_signature_outdir / _.name for _ in reference_paths]
+
+
+@pytest.fixture
+def sourmash_target_ani(sourmash_targets_compare_outdir: Path) -> list[Path]:
+    """Target files for sourmash ani estimation tests.
+
+    These are paths to the output files we want to generate using
+    sourmash sketch. We aim to ask sourmash sketch to generate a set of
+    .sig files that could later be processed to obtain ANI values
+    """
+    reference_paths = (FIXTUREPATH / "sourmash" / "targets" / "compare").glob("*.csv")
+    return [sourmash_targets_compare_outdir / _.name for _ in reference_paths]

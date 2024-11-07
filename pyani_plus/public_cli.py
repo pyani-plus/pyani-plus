@@ -42,7 +42,7 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
 from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, db_orm, tools
-from pyani_plus.methods import method_anib, method_anim, method_fastani
+from pyani_plus.methods import method_anib, method_anim, method_fastani, method_sourmash
 from pyani_plus.utils import available_cores, check_db, check_fasta, file_md5sum
 from pyani_plus.workflows import ToolExecutor, run_snakemake_with_progress_bar
 
@@ -109,6 +109,24 @@ OPT_ARG_TYPE_ANIM_MODE = Annotated[
         rich_help_panel="Method parameters",
     ),
 ]
+OPT_ARG_TYPE_SOURMASH_MODE = Annotated[
+    method_sourmash.EnumModeSourmash,
+    typer.Option(
+        help="Compare mode for sourmash",
+        rich_help_panel="Method parameters",
+    ),
+]
+# Extra argument for sourmash
+OPT_ARG_EXTRA = Annotated[
+    str,
+    typer.Option(
+        help="""Specify either `scaled=X` or `num=X` as an extra argument: \n
+                    - scaled=X  sets the compression ratio \n
+                    - num=X     sets the maximum number of hashes \n
+                    Note: These options are mutually exclusive and cannot be used together.""",
+        rich_help_panel="Method parameters",
+    ),
+]
 OPT_ARG_TYPE_CREATE_DB = Annotated[
     # Listing name(s) explicitly to avoid automatic matching --no-create-db
     bool, typer.Option("--create-db", help="Create database if does not exist")
@@ -136,6 +154,7 @@ def start_and_run_method(  # noqa: PLR0913
     mode: str | None = None,
     kmersize: int | None = None,
     minmatch: float | None = None,
+    extra: str | None = None,
 ) -> int:
     """Run the snakemake workflow for given method and log run to database."""
     fasta_names = check_fasta(fasta)
@@ -155,6 +174,7 @@ def start_and_run_method(  # noqa: PLR0913
         mode,
         kmersize,
         minmatch,
+        extra,
         create=True,
     )
 
@@ -223,6 +243,7 @@ def run_method(  # noqa: PLR0913
         "mode": configuration.mode,
         "kmersize": configuration.kmersize,
         "minmatch": configuration.minmatch,
+        "extra": configuration.extra,
     }
     params.update({k: str(v) for k, v in binaries.items()})
     del configuration
@@ -432,6 +453,43 @@ def fastani(  # noqa: PLR0913
         fragsize=fragsize,
         kmersize=kmersize,
         minmatch=minmatch,
+    )
+
+
+@app.command(rich_help_panel="ANI methods")
+def sourmash(  # noqa: PLR0913
+    fasta: REQ_ARG_TYPE_FASTA_DIR,
+    database: REQ_ARG_TYPE_DATABASE,
+    # These are for the run table:
+    name: REQ_ARG_TYPE_RUN_NAME,
+    *,
+    # The mode here is not optional - must pick one!
+    mode: OPT_ARG_TYPE_SOURMASH_MODE = method_sourmash.MODE,
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    extra: OPT_ARG_EXTRA = method_sourmash.EXTRA,
+    kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
+) -> int:
+    """Execute sourmash calculations, logged to a pyANI-plus SQLite3 database."""
+    check_db(database, create_db)
+
+    target_extension = ".csv"
+    tool = tools.get_sourmash()
+    binaries = {
+        "sourmash": tool.exe_path,
+    }
+    return start_and_run_method(
+        executor,
+        database,
+        name,
+        "sourmash",
+        fasta,
+        target_extension,
+        tool,
+        binaries,
+        mode=mode.value,  # turn the enum into a string
+        extra=extra,
+        kmersize=kmersize,
     )
 
 

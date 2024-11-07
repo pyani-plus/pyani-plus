@@ -22,9 +22,22 @@
 """Code to implement the sourmash Average Nucleotide Identity (ANI) method."""
 
 # Set Up
+from enum import Enum
 from pathlib import Path
 
 import pandas as pd
+
+
+class EnumModeSourmash(str, Enum):
+    """Enum for the --mode command line argument passed to sourmash."""
+
+    max_containment = "max-containment"  # default
+    containment = "containment"
+
+
+MODE = EnumModeSourmash.max_containment  # constant for CLI default
+EXTRA = "scaled=300"  # Not default for testing purposes only (for now)
+KMER_SIZE = 31  # default
 
 
 def parse_compare(compare_file: Path) -> float:

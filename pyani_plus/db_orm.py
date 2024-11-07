@@ -150,6 +150,7 @@ class Configuration(Base):
             "mode",
             "kmersize",
             "minmatch",
+            "extra",
         ),
     )
 
@@ -177,6 +178,7 @@ class Configuration(Base):
     mode: Mapped[str | None] = mapped_column()  # this is "mum" or "maxmatch" in ANIm
     kmersize: Mapped[int | None] = mapped_column()
     minmatch: Mapped[float | None] = mapped_column()
+    extra: Mapped[str | None] = mapped_column()
 
     def __repr__(self) -> str:
         """Return string representation of Configuration table object."""
@@ -223,7 +225,7 @@ class Comparison(Base):
     # The results of the comparison
     identity: Mapped[float] = mapped_column()
     # in fastANI this is matchedfrags * fragLength:
-    aln_length: Mapped[int] = mapped_column()
+    aln_length: Mapped[int | None] = mapped_column()
     # in fastANI this is allfrags - matchedfrags
     sim_errors: Mapped[int | None] = mapped_column()
     # in fastANI this is matchedfrags/allfrags
@@ -530,6 +532,7 @@ def db_configuration(  # noqa: PLR0913
     mode: str | None = None,
     kmersize: int | None = None,
     minmatch: float | None = None,
+    extra: str | None = None,
     *,
     create: bool = False,
 ) -> Configuration:
@@ -576,6 +579,7 @@ def db_configuration(  # noqa: PLR0913
         .where(Configuration.mode == mode)
         .where(Configuration.kmersize == kmersize)
         .where(Configuration.minmatch == minmatch)
+        .where(Configuration.extra == extra)
         .one_or_none()
     )
     if config is None:
@@ -590,6 +594,7 @@ def db_configuration(  # noqa: PLR0913
             mode=mode,
             kmersize=kmersize,
             minmatch=minmatch,
+            extra=extra,
         )
         session.add(config)
         session.commit()
@@ -705,7 +710,7 @@ def db_comparison(  # noqa: PLR0913
     query_hash: str,
     subject_hash: str,
     identity: float,
-    aln_length: int,
+    aln_length: int | None = None,
     sim_errors: int | None = None,
     cov_query: float | None = None,
     cov_subject: float | None = None,

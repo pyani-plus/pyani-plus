@@ -39,18 +39,19 @@ rule sketch:
         indir=config["indir"],
         outdir=config["outdir"],
         extra=config["extra"],  # This will consist of either `scaled=X` or `num=X`.
-        kmer=config["kmer"],
+        kmersize=config["kmersize"],
     input:
         genomeA=get_genomeA,
         genomeB=get_genomeB,
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.sig",
     shell:
-        "sourmash sketch dna -p 'k={params.kmer},{params.extra}' {input.genomeB} {input.genomeA} -o {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.sig"
+        "sourmash sketch dna -p 'k={params.kmersize},{params.extra}' {input.genomeB} {input.genomeA} -o {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.sig"
 
 
 rule compare:
     params:
+        db=config["db"],
         outdir=config["outdir"],
         mode=config["mode"],
     input:
@@ -60,4 +61,10 @@ rule compare:
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.csv",
     shell:
-        "sourmash compare {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.sig --csv {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.csv --estimate-ani --{params.mode}"
+        """
+        sourmash compare {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.sig --csv {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.csv --estimate-ani --{params.mode} &&
+        .pyani-plus-private-cli log-sourmash --quiet --database {params.db} \
+            --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
+            --compare {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.csv \
+            --mode {params.mode}
+        """

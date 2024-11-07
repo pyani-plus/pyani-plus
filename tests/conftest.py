@@ -386,3 +386,9 @@ def sourmash_target_ani(sourmash_targets_compare_outdir: Path) -> list[Path]:
     """
     reference_paths = (FIXTUREPATH / "sourmash" / "targets" / "compare").glob("*.csv")
     return [sourmash_targets_compare_outdir / _.name for _ in reference_paths]
+
+
+@pytest.fixture
+def dir_sourmash_results() -> Path:
+    """Directory containing sourmash matrices."""
+    return FIXTUREPATH / "sourmash" / "matrices"

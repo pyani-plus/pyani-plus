@@ -36,24 +36,31 @@ import pandas as pd
 # Required to support pytest automated testing
 import pytest
 
+from pyani_plus.private_cli import log_configuration, log_genome, log_run
+from pyani_plus.tools import get_sourmash
 from pyani_plus.workflows import (
     ToolExecutor,
+    check_input_stems,
     run_snakemake_with_progress_bar,
 )
+
+from . import compare_matrices
 
 
 @pytest.fixture
 def config_sourmash_args(
     input_genomes_tiny: Path,
     snakemake_cores: int,
+    tmp_path: str,
 ) -> dict:
     """Return configuration settings for testing snakemake sourmash rules."""
     return {
+        "db": Path(tmp_path) / "db.sqlite",
         # "outdir": ... is dynamic
         "indir": input_genomes_tiny,
         "cores": snakemake_cores,
         "extra": "scaled=300",
-        "kmer": 31,
+        "kmersize": 31,
         "mode": "max-containment",
     }
 
@@ -159,11 +166,12 @@ def test_snakemake_sketch_rule(
         )
 
 
-def test_snakemake_compare_rule(
+def test_snakemake_compare_rule(  # noqa: PLR0913
     sourmash_targets_compare_outdir: Path,
     sourmash_target_ani: list[str],
     config_sourmash_args: dict,
     sourmash_targets_compare_indir: Path,
+    dir_sourmash_results: Path,
     tmp_path: str,
 ) -> None:
     """Test sourmash compare snakemake wrapper.
@@ -183,6 +191,30 @@ def test_snakemake_compare_rule(
     config = config_sourmash_args.copy()
     config["outdir"] = sourmash_targets_compare_outdir
 
+    # Assuming this will match but worker nodes might have a different version
+    sourmash_tool = get_sourmash()
+
+    # Setup minimal test DB
+    db = config_sourmash_args["db"]
+    assert not db.is_file()
+    log_configuration(
+        database=db,
+        method="sourmash",
+        program=sourmash_tool.exe_path.stem,
+        version=sourmash_tool.version,
+        mode=config_sourmash_args["mode"],
+        kmersize=config_sourmash_args["kmersize"],
+        extra=config_sourmash_args["extra"],
+        create_db=True,
+    )
+
+    # Record the FASTA files in the genomes table _before_ call snakemake
+    log_genome(
+        database=db,
+        fasta=list(check_input_stems(config_sourmash_args["indir"]).values()),
+    )
+    assert db.is_file()
+
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
@@ -201,3 +233,19 @@ def test_snakemake_compare_rule(
             sourmash_targets_compare_outdir / Path(fname).name,
             sourmash_targets_compare_indir / Path(fname).name,
         )
+
+    log_run(
+        fasta=config_sourmash_args["indir"],
+        database=db,
+        status="Complete",
+        name="Test case",
+        cmdline="pyani-plus sourmash --database ... blah blah blah",
+        method="sourmash",
+        program=sourmash_tool.exe_path.stem,
+        version=sourmash_tool.version,
+        mode=config_sourmash_args["mode"],
+        kmersize=config_sourmash_args["kmersize"],
+        extra=config_sourmash_args["extra"],
+        create_db=False,
+    )
+    compare_matrices(db, dir_sourmash_results)

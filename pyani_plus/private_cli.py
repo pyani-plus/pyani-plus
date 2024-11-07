@@ -33,13 +33,21 @@ import typer
 from rich.progress import track
 
 from pyani_plus import db_orm, tools
-from pyani_plus.methods import method_anib, method_anim, method_dnadiff, method_fastani
+from pyani_plus.methods import (
+    method_anib,
+    method_anim,
+    method_dnadiff,
+    method_fastani,
+    method_sourmash,
+)
 from pyani_plus.public_cli import (
+    OPT_ARG_EXTRA,
     OPT_ARG_TYPE_ANIM_MODE,
     OPT_ARG_TYPE_CREATE_DB,
     OPT_ARG_TYPE_FRAGSIZE,
     OPT_ARG_TYPE_KMERSIZE,
     OPT_ARG_TYPE_MINMATCH,
+    OPT_ARG_TYPE_SOURMASH_MODE,
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
     REQ_ARG_TYPE_OUTDIR,
@@ -126,6 +134,12 @@ NONE_ARG_TYPE_MINMATCH = Annotated[
         max=1.0,
     ),
 ]
+NONE_ARG_TYPE_EXTRA = Annotated[
+    str | None,
+    typer.Option(
+        help="Comparison method specific mode", rich_help_panel="Method parameters"
+    ),
+]
 
 
 @app.command(rich_help_panel="Low-level logging")
@@ -139,6 +153,7 @@ def log_configuration(  # noqa: PLR0913
     mode: NONE_ARG_TYPE_MODE = None,
     kmersize: NONE_ARG_TYPE_KMERSIZE = None,
     minmatch: NONE_ARG_TYPE_MINMATCH = None,
+    extra: NONE_ARG_TYPE_EXTRA = None,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
 ) -> int:
     """Log a specific method configuration to database.
@@ -160,6 +175,7 @@ def log_configuration(  # noqa: PLR0913
         mode=mode,
         kmersize=kmersize,
         minmatch=minmatch,
+        extra=extra,
         create=True,
     )
     session.commit()  # should be redundant
@@ -216,6 +232,7 @@ def log_run(  # noqa: PLR0913
     fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
     mode: NONE_ARG_TYPE_MODE = None,
     kmersize: NONE_ARG_TYPE_KMERSIZE = None,
+    extra: NONE_ARG_TYPE_EXTRA = None,
     minmatch: NONE_ARG_TYPE_MINMATCH = None,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
 ) -> int:
@@ -242,6 +259,7 @@ def log_run(  # noqa: PLR0913
         mode=mode,
         kmersize=kmersize,
         minmatch=minmatch,
+        extra=extra,
         create=True,
     )
 
@@ -301,6 +319,7 @@ def log_comparison(  # noqa: PLR0913
     mode: NONE_ARG_TYPE_MODE = None,
     kmersize: NONE_ARG_TYPE_KMERSIZE = None,
     minmatch: NONE_ARG_TYPE_MINMATCH = None,
+    extra: NONE_ARG_TYPE_EXTRA = None,
     # Optional comparison table entries
     sim_errors: Annotated[int | None, typer.Option(help="Alignment length")] = None,
     cov_query: Annotated[float | None, typer.Option(help="Alignment length")] = None,
@@ -323,6 +342,7 @@ def log_comparison(  # noqa: PLR0913
         mode=mode,
         kmersize=kmersize,
         minmatch=minmatch,
+        extra=extra,
         create=False,
     )
 
@@ -725,6 +745,89 @@ def log_dnadiff(  # noqa: PLR0913
         sim_errors=round((aligned_bases_with_gaps - gap_lengths) * (1 - identity)),
         cov_query=(aligned_bases_with_gaps - gap_lengths) / query.length,
         cov_subject=None,  # Leaving this as None for now (need rdiff files to calculate this)
+    )
+
+    session.commit()
+    return 0
+
+
+@app.command(rich_help_panel="Method specific logging")
+def log_sourmash(  # noqa: PLR0913
+    database: REQ_ARG_TYPE_DATABASE,
+    # These are for the comparison table
+    query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
+    subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
+    compare: Annotated[
+        Path,
+        typer.Option(
+            help="Path to fastANI output file",
+            show_default=False,
+            dir_okay=False,
+            file_okay=True,
+            exists=True,
+        ),
+    ],
+    *,
+    quiet: OPT_ARG_TYPE_QUIET = False,
+    # # Don't use any of fragsize, minmatch (configuration table entries)
+    mode: OPT_ARG_TYPE_SOURMASH_MODE = method_sourmash.MODE,
+    kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
+    extra: OPT_ARG_EXTRA = method_sourmash.EXTRA,
+    # Don't use any of fragsize, maxmatch, minmatch (configuration table entries)
+) -> int:
+    """Log single sourmash pairwise comparison to database.
+
+    The associated configuration and genome entries must already exist.
+    """
+    # Assuming this will match as expect this script to be called right
+    # after the computation has finished (on the same machine)
+    sourmash_tool = tools.get_sourmash()
+
+    identity = method_sourmash.parse_compare(compare)
+
+    used_query, used_subject = compare.stem.split("_vs_")
+    if used_query != query_fasta.stem:
+        sys.exit(
+            f"ERROR: Given --query-fasta {query_fasta} but query in sourmash compare filename was {used_query}"
+        )
+    if used_subject != subject_fasta.stem:
+        sys.exit(
+            f"ERROR: Given --subject-fasta {subject_fasta} but subject in sourmash compare filename was {used_subject}"
+        )
+
+    if database != ":memory:" and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+
+    if not quiet:
+        print(f"Logging sourmash to {database}")
+    session = db_orm.connect_to_db(database)
+
+    config = db_orm.db_configuration(
+        session,
+        method="sourmash",
+        program=sourmash_tool.exe_path.stem,
+        version=sourmash_tool.version,
+        mode=mode,
+        kmersize=kmersize,
+        extra=extra,
+        create=False,
+    )
+
+    query_md5 = file_md5sum(query_fasta)
+    subject_md5 = file_md5sum(subject_fasta)
+
+    db_orm.db_comparison(
+        session,
+        configuration_id=config.configuration_id,
+        query_hash=query_md5,
+        subject_hash=subject_md5,
+        identity=identity,
+        # Question: We need to discuss how to calculate or report the below values.
+        aln_length=None,
+        sim_errors=None,
+        cov_query=None,
+        cov_subject=None,
     )
 
     session.commit()

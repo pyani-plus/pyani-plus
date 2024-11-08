@@ -23,12 +23,12 @@
 # THE SOFTWARE.
 """Generate target matrices for pyani-plus sourmash tests.
 
-This script can be run with ``./generate_target_anim_files.py`` in the
+This script can be run with ``./generate_target_sourmash_matrices.py`` in the
 script's directory, or from the project root directory via ``make fixtures``.
 It will regenerate and potentially modify test input files under the
 fixtures directory.
 
-This script generates target matrices for dnadiff method comparisons from
+This script generates target matrices for sourmash method comparisons from
 sourmash compare .csv files.
 """
 

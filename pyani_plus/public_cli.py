@@ -116,17 +116,22 @@ OPT_ARG_TYPE_SOURMASH_MODE = Annotated[
         rich_help_panel="Method parameters",
     ),
 ]
-# Extra argument for sourmash
-OPT_ARG_EXTRA = Annotated[
-    str,
+OPT_ARG_TYPE_SOURMASH_SCALED = Annotated[
+    int,
     typer.Option(
-        help="""Specify either `scaled=X` or `num=X` as an extra argument: \n
-                    - scaled=X  sets the compression ratio \n
-                    - num=X     sets the maximum number of hashes \n
-                    Note: These options are mutually exclusive and cannot be used together.""",
-        rich_help_panel="Method parameters",
+        help="Sets the compression ratio", rich_help_panel="Method parameters", min=1
     ),
 ]
+OPT_ARG_TYPE_SOURMASH_NUM = Annotated[
+    int | None,
+    typer.Option(
+        help="""sets the maximum number of hashes \n
+            Note: num  and scaled options are mutually exclusive and cannot be used together.""",
+        rich_help_panel="Method parameters",
+        min=1,
+    ),
+]
+
 OPT_ARG_TYPE_CREATE_DB = Annotated[
     # Listing name(s) explicitly to avoid automatic matching --no-create-db
     bool, typer.Option("--create-db", help="Create database if does not exist")
@@ -467,10 +472,12 @@ def sourmash(  # noqa: PLR0913
     mode: OPT_ARG_TYPE_SOURMASH_MODE = method_sourmash.MODE,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
-    extra: OPT_ARG_EXTRA = method_sourmash.EXTRA,
+    scaled: OPT_ARG_TYPE_SOURMASH_SCALED = method_sourmash.SCALED,  # 1000
+    num: OPT_ARG_TYPE_SOURMASH_NUM = None,  # will override scaled if used
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
 ) -> int:
     """Execute sourmash calculations, logged to a pyANI-plus SQLite3 database."""
+    extra = f"num={num}" if num is not None else f"scaled={scaled}"
     check_db(database, create_db)
 
     target_extension = ".csv"
@@ -487,7 +494,7 @@ def sourmash(  # noqa: PLR0913
         target_extension,
         tool,
         binaries,
-        mode=mode.value,  # turn the enum into a string
+        mode=mode,  # turn the enum into a string
         extra=extra,
         kmersize=kmersize,
     )

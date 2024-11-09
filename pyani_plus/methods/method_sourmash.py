@@ -36,7 +36,7 @@ class EnumModeSourmash(str, Enum):
 
 
 MODE = EnumModeSourmash.max_containment  # constant for CLI default
-EXTRA = "scaled=300"  # Not default for testing purposes only (for now)
+SCALED = 300  # Not default for testing purposes only (for now)
 KMER_SIZE = 31  # default
 
 

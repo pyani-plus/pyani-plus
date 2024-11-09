@@ -59,7 +59,6 @@ def config_sourmash_args(
         # "outdir": ... is dynamic
         "indir": input_genomes_tiny,
         "cores": snakemake_cores,
-        "extra": "scaled=300",
         "kmersize": 31,
         "mode": "max-containment",
     }
@@ -144,7 +143,7 @@ def test_snakemake_sketch_rule(
 
     config = config_sourmash_args.copy()
     config["outdir"] = sourmash_targets_signature_outdir
-
+    config["extra"] = "scaled=300"
     # Run snakemake wrapper
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
@@ -190,21 +189,22 @@ def test_snakemake_compare_rule(  # noqa: PLR0913
 
     config = config_sourmash_args.copy()
     config["outdir"] = sourmash_targets_compare_outdir
+    config["extra"] = "scaled=300"
 
     # Assuming this will match but worker nodes might have a different version
     sourmash_tool = get_sourmash()
 
     # Setup minimal test DB
-    db = config_sourmash_args["db"]
+    db = config["db"]
     assert not db.is_file()
     log_configuration(
         database=db,
         method="sourmash",
         program=sourmash_tool.exe_path.stem,
         version=sourmash_tool.version,
-        mode=config_sourmash_args["mode"],
-        kmersize=config_sourmash_args["kmersize"],
-        extra=config_sourmash_args["extra"],
+        mode=config["mode"],
+        kmersize=config["kmersize"],
+        extra=config["extra"],
         create_db=True,
     )
 
@@ -243,9 +243,9 @@ def test_snakemake_compare_rule(  # noqa: PLR0913
         method="sourmash",
         program=sourmash_tool.exe_path.stem,
         version=sourmash_tool.version,
-        mode=config_sourmash_args["mode"],
-        kmersize=config_sourmash_args["kmersize"],
-        extra=config_sourmash_args["extra"],
+        mode=config["mode"],
+        kmersize=config["kmersize"],
+        extra=config["extra"],
         create_db=False,
     )
     compare_matrices(db, dir_sourmash_results)

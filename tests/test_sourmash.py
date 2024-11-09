@@ -123,7 +123,7 @@ def test_logging_sourmash(
         version=tool.version,
         mode=method_sourmash.MODE,
         kmersize=method_sourmash.KMER_SIZE,
-        extra=method_sourmash.EXTRA,
+        extra="scaled=" + str(method_sourmash.SCALED),
         create_db=True,
     )
     private_cli.log_genome(

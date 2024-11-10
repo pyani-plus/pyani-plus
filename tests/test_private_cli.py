@@ -36,7 +36,7 @@ import pytest
 from pyani_plus import db_orm, private_cli
 
 
-def test_log_configuration(tmp_path: str) -> None:
+def test_log_configuration(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
     """Confirm can create a new empty database via log-configuration."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
@@ -62,6 +62,8 @@ def test_log_configuration(tmp_path: str) -> None:
         kmersize=51,
         create_db=True,
     )
+    output = capsys.readouterr().out
+    assert output.endswith("Configuration identifier 1\n")
 
     # This time should already be a DB there
     private_cli.log_configuration(
@@ -73,6 +75,8 @@ def test_log_configuration(tmp_path: str) -> None:
         kmersize=31,
         create_db=False,
     )
+    output = capsys.readouterr().out
+    assert output.endswith("Configuration identifier 2\n")
 
     tmp_db.unlink()
 
@@ -100,7 +104,7 @@ def test_log_genome(tmp_path: str, input_genomes_tiny: Path) -> None:
     )
 
 
-def test_log_run(tmp_path: str) -> None:
+def test_log_run(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
     """Confirm can create a new empty DB via log-run."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
@@ -161,6 +165,8 @@ def test_log_run(tmp_path: str) -> None:
         # Misc
         create_db=True,
     )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
 
     tmp_db.unlink()
 
@@ -188,7 +194,9 @@ def test_log_comparison_no_db(tmp_path: str, input_genomes_tiny: Path) -> None:
         )
 
 
-def test_log_comparison_duplicate(tmp_path: str, input_genomes_tiny: Path) -> None:
+def test_log_comparison_duplicate(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
     """Confirm no error logging comparison twice."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
@@ -202,6 +210,8 @@ def test_log_comparison_duplicate(tmp_path: str, input_genomes_tiny: Path) -> No
         kmersize=51,
         create_db=True,
     )
+    output = capsys.readouterr().out
+    assert output.endswith("Configuration identifier 1\n")
 
     private_cli.log_genome(
         database=tmp_db,
@@ -252,7 +262,9 @@ def test_log_comparison_duplicate(tmp_path: str, input_genomes_tiny: Path) -> No
     tmp_db.unlink()
 
 
-def test_log_comparison_serial(tmp_path: str, input_genomes_tiny: Path) -> None:
+def test_log_comparison_serial(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
     """Confirm can create a mock DB using log-comparison etc. sequentially."""
     tmp_db = Path(tmp_path) / "serial.sqlite"
     assert not tmp_db.is_file()
@@ -266,6 +278,8 @@ def test_log_comparison_serial(tmp_path: str, input_genomes_tiny: Path) -> None:
         kmersize=51,
         create_db=True,
     )
+    output = capsys.readouterr().out
+    assert output.endswith("Configuration identifier 1\n")
 
     fasta = list(input_genomes_tiny.glob("*.fna"))  # subset of folder
     private_cli.log_genome(
@@ -314,12 +328,16 @@ def test_log_comparison_serial(tmp_path: str, input_genomes_tiny: Path) -> None:
         # Misc
         create_db=False,
     )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
 
     session = db_orm.connect_to_db(tmp_db)
     assert session.query(db_orm.Comparison).count() == len(fasta) ** 2
 
 
-def test_log_comparison_parallel(tmp_path: str, input_genomes_tiny: Path) -> None:
+def test_log_comparison_parallel(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
     """Confirm can create a mock DB using log-comparison etc. in parallel."""
     tmp_db = Path(tmp_path) / "parallel.sqlite"
     assert not tmp_db.is_file()
@@ -333,6 +351,8 @@ def test_log_comparison_parallel(tmp_path: str, input_genomes_tiny: Path) -> Non
         kmersize=51,
         create_db=True,
     )
+    output = capsys.readouterr().out
+    assert output.endswith("Configuration identifier 1\n")
 
     fasta = list(input_genomes_tiny.glob("*.f*"))
     # Avoid implicit fork, should match the defaults on Python 3.14 onwards:
@@ -406,6 +426,8 @@ def test_log_comparison_parallel(tmp_path: str, input_genomes_tiny: Path) -> Non
         # Misc
         create_db=False,
     )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
 
     session = db_orm.connect_to_db(tmp_db)
     assert session.query(db_orm.Comparison).count() == len(fasta) ** 2

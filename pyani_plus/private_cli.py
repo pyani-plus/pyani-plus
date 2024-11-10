@@ -47,8 +47,6 @@ from pyani_plus.public_cli import (
     OPT_ARG_TYPE_KMERSIZE,
     OPT_ARG_TYPE_MINMATCH,
     OPT_ARG_TYPE_SOURMASH_MODE,
-    OPT_ARG_TYPE_SOURMASH_NUM,
-    OPT_ARG_TYPE_SOURMASH_SCALED,
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
     REQ_ARG_TYPE_OUTDIR,
@@ -773,16 +771,13 @@ def log_sourmash(  # noqa: PLR0913
     # # Don't use any of fragsize, minmatch (configuration table entries)
     mode: OPT_ARG_TYPE_SOURMASH_MODE = method_sourmash.MODE,
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
-    scaled: OPT_ARG_TYPE_SOURMASH_SCALED = method_sourmash.SCALED,  # 1000
-    num: OPT_ARG_TYPE_SOURMASH_NUM = None,  # will override scaled if used
+    extra: NONE_ARG_TYPE_EXTRA = f"scaled={method_sourmash.SCALED}",
     # Don't use any of fragsize, maxmatch, minmatch (configuration table entries)
 ) -> int:
     """Log single sourmash pairwise comparison to database.
 
     The associated configuration and genome entries must already exist.
     """
-    extra = f"num={num}" if num is not None else f"scaled={scaled}"
-
     # Assuming this will match as expect this script to be called right
     # after the computation has finished (on the same machine)
     sourmash_tool = tools.get_sourmash()
@@ -812,7 +807,7 @@ def log_sourmash(  # noqa: PLR0913
         method="sourmash",
         program=sourmash_tool.exe_path.stem,
         version=sourmash_tool.version,
-        mode=mode,
+        mode=mode.value,  # turn enum into string
         kmersize=kmersize,
         extra=extra,
         create=False,

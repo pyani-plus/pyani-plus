@@ -61,6 +61,7 @@ def config_sourmash_args(
         "cores": snakemake_cores,
         "kmersize": 31,
         "mode": "max-containment",
+        "extra": "scaled=300",  # default scaled=1000 not suitable for the 3 viruses
     }
 
 
@@ -143,8 +144,7 @@ def test_snakemake_sketch_rule(
 
     config = config_sourmash_args.copy()
     config["outdir"] = sourmash_targets_signature_outdir
-    config["extra"] = "scaled=300"
-    # Run snakemake wrapper
+
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
@@ -189,7 +189,6 @@ def test_snakemake_compare_rule(  # noqa: PLR0913
 
     config = config_sourmash_args.copy()
     config["outdir"] = sourmash_targets_compare_outdir
-    config["extra"] = "scaled=300"
 
     # Assuming this will match but worker nodes might have a different version
     sourmash_tool = get_sourmash()

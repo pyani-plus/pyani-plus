@@ -340,11 +340,15 @@ def test_fastani(
 def test_sourmash(
     tmp_path: str, input_genomes_tiny: Path, dir_sourmash_results: Path
 ) -> None:
-    """Check sourmash run (default settings)."""
+    """Check sourmash run (default settings except scaled=300)."""
     out = Path(tmp_path)
     tmp_db = out / "example.sqlite"
     public_cli.sourmash(
-        database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=True
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Test Run",
+        scaled=300,
+        create_db=True,
     )
     public_cli.export_run(database=tmp_db, outdir=out)
     compare_matrix_files(

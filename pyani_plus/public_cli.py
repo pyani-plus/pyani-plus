@@ -242,6 +242,7 @@ def run_method(  # noqa: PLR0913
         # Paths etc - see also outdir below
         "indir": Path(run.fasta_directory).resolve(),  # must be absolute
         "db": Path(database).resolve(),  # must be absolute
+        "run_id": run_id,
         "cores": available_cores(),  # should make configurable
         # Method settings:
         "fragsize": configuration.fragsize,

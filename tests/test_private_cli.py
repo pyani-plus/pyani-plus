@@ -179,15 +179,35 @@ def test_log_comparison_no_db(tmp_path: str, input_genomes_tiny: Path) -> None:
     with pytest.raises(SystemExit, match="does not exist"):
         private_cli.log_comparison(
             database=tmp_db,
+            config_id=1,
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             identity=0.96,
             aln_length=12345,
-            method="guessing",
-            program="guestimate",
-            version="0.1.2beta3",
-            fragsize=100,
-            kmersize=51,
+            sim_errors=1,
+            cov_query=0.98,
+            cov_subject=0.98,
+        )
+
+
+def test_log_comparison_no_config(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Confirm log-comparison fails if config is missing."""
+    tmp_db = Path(tmp_path) / "empty.sqlite"
+    assert not tmp_db.is_file()
+    session = db_orm.connect_to_db(tmp_db)
+    session.commit()
+    session.close()
+
+    with pytest.raises(
+        SystemExit, match="empty.sqlite does not contain configuration_id=1"
+    ):
+        private_cli.log_comparison(
+            database=tmp_db,
+            config_id=1,
+            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+            identity=0.96,
+            aln_length=12345,
             sim_errors=1,
             cov_query=0.98,
             cov_subject=0.98,
@@ -223,15 +243,11 @@ def test_log_comparison_duplicate(
 
     private_cli.log_comparison(
         database=tmp_db,
+        config_id=1,
         query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
         subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
         identity=0.96,
         aln_length=12345,
-        method="guessing",
-        program="guestimate",
-        version="0.1.2beta3",
-        fragsize=100,
-        kmersize=51,
         sim_errors=1,
         cov_query=0.98,
         cov_subject=0.98,
@@ -239,15 +255,11 @@ def test_log_comparison_duplicate(
 
     private_cli.log_comparison(
         database=tmp_db,
+        config_id=1,
         query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
         subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
         identity=0.955,  # different!
         aln_length=12345,
-        method="guessing",
-        program="guestimate",
-        version="0.1.2beta3",
-        fragsize=100,
-        kmersize=51,
         sim_errors=1,
         cov_query=0.98,
         cov_subject=0.98,
@@ -295,15 +307,11 @@ def test_log_comparison_serial(
         for subject in fasta:
             private_cli.log_comparison(
                 database=tmp_db,
+                config_id=1,
                 query_fasta=query,
                 subject_fasta=subject,
                 identity=1.0 if query == subject else 0.96,
                 aln_length=12345,
-                method="guessing",
-                program="guestimate",
-                version="0.1.2beta3",
-                fragsize=100,
-                kmersize=51,
                 sim_errors=1,
                 cov_query=0.98,
                 cov_subject=0.98,
@@ -381,15 +389,11 @@ def test_log_comparison_parallel(
     tasks = [
         {
             "database": tmp_db,
+            "config_id": 1,
             "query_fasta": query,
             "subject_fasta": subject,
             "identity": 1.0 if query == subject else 0.96,
             "aln_length": 12345,
-            "method": "guessing",
-            "program": "guestimate",
-            "version": "0.1.2beta3",
-            "fragsize": 100,
-            "kmersize": 51,
             "sim_errors": 1,
             "cov_query": 0.98,
             "cov_subject": 0.98,

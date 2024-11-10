@@ -58,6 +58,7 @@ def test_missing_db(
     with pytest.raises(SystemExit, match="does not exist"):
         private_cli.log_sourmash(
             database=tmp_db,
+            run_id=1,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
@@ -82,6 +83,7 @@ def test_bad_query_or_subject(
     ):
         private_cli.log_sourmash(
             database=tmp_db,
+            run_id=1,
             query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             compare=sourmash_targets_compare_indir
@@ -97,6 +99,7 @@ def test_bad_query_or_subject(
     ):
         private_cli.log_sourmash(
             database=tmp_db,
+            run_id=1,
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             compare=sourmash_targets_compare_indir
@@ -105,6 +108,7 @@ def test_bad_query_or_subject(
 
 
 def test_logging_sourmash(
+    capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
     sourmash_targets_compare_indir: Path,
@@ -116,8 +120,12 @@ def test_logging_sourmash(
 
     tool = tools.get_sourmash()
 
-    private_cli.log_configuration(
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
         database=tmp_db,
+        cmdline="pyani-plus sourmash ...",
+        status="Testing",
+        name="Testing log_sourmash",
         method="sourmash",
         program=tool.exe_path.stem,
         version=tool.version,
@@ -126,16 +134,12 @@ def test_logging_sourmash(
         extra="scaled=" + str(method_sourmash.SCALED),
         create_db=True,
     )
-    private_cli.log_genome(
-        database=tmp_db,
-        fasta=[
-            input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            input_genomes_tiny / "MGV-GENOME-0266457.fna",
-        ],
-    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
 
     private_cli.log_sourmash(
         database=tmp_db,
+        run_id=1,
         query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
         subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
         compare=sourmash_targets_compare_indir

@@ -107,6 +107,7 @@ def test_missing_db(tmp_path: str, input_genomes_tiny: Path, anib_blastn: Path) 
     with pytest.raises(SystemExit, match="does not exist"):
         private_cli.log_anib(
             database=tmp_db,
+            run_id=1,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
@@ -130,6 +131,7 @@ def test_bad_query_or_subject(
     ):
         private_cli.log_anib(
             database=tmp_db,
+            run_id=1,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
@@ -145,6 +147,7 @@ def test_bad_query_or_subject(
     ):
         private_cli.log_anib(
             database=tmp_db,
+            run_id=1,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
@@ -153,7 +156,11 @@ def test_bad_query_or_subject(
 
 
 def test_logging_anib(
-    tmp_path: str, input_genomes_tiny: Path, anib_blastn: Path, dir_anib_results: Path
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    anib_blastn: Path,
+    dir_anib_results: Path,
 ) -> None:
     """Check can log a ANIb comparison to DB."""
     tmp_db = Path(tmp_path) / "new.sqlite"
@@ -161,24 +168,24 @@ def test_logging_anib(
 
     tool = tools.get_blastn()
 
-    private_cli.log_configuration(
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
         database=tmp_db,
+        cmdline="pyani-plus anib ...",
+        status="Testing",
+        name="Testing logging_anib",
         method="ANIb",
         program=tool.exe_path.stem,
         version=tool.version,
         fragsize=method_anib.FRAGSIZE,  # will be used by default in log_anib
         create_db=True,
     )
-    private_cli.log_genome(
-        database=tmp_db,
-        fasta=[
-            input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            input_genomes_tiny / "MGV-GENOME-0266457.fna",
-        ],
-    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
 
     private_cli.log_anib(
         database=tmp_db,
+        run_id=1,
         # These are for the comparison table
         query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
         subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",

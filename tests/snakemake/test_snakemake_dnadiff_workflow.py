@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus.private_cli import log_configuration, log_genome, log_run
+from pyani_plus.private_cli import log_run
 from pyani_plus.tools import (
     get_delta_filter,
     get_nucmer,
@@ -40,7 +40,6 @@ from pyani_plus.tools import (
 )
 from pyani_plus.workflows import (
     ToolExecutor,
-    check_input_stems,
     run_snakemake_with_progress_bar,
 )
 
@@ -60,6 +59,7 @@ def config_dnadiff_args(
     """
     return {
         "db": Path(tmp_path) / "db.sqlite",
+        "run_id": 1,  # by construction
         "nucmer": get_nucmer().exe_path,
         "delta_filter": get_delta_filter().exe_path,
         "show_coords": get_show_coords().exe_path,
@@ -187,6 +187,7 @@ def test_snakemake_rule_filter(
 
 
 def test_snakemake_rule_show_diff_and_coords(  # noqa: PLR0913
+    capsys: pytest.CaptureFixture[str],
     dnadiff_targets_showdiff: list[str],
     dnadiff_targets_showdiff_indir: Path,
     dnadiff_targets_showdiff_outdir: Path,
@@ -213,24 +214,24 @@ def test_snakemake_rule_show_diff_and_coords(  # noqa: PLR0913
     # Setup minimal test DB
     db = config_dnadiff_args["db"]
     assert not db.is_file()
-    log_configuration(
+    log_run(
+        fasta=config_dnadiff_args["indir"],
         database=db,
+        status="Testing",
+        name="Test case",
+        cmdline="pyani-plus dnadiff --database ... blah blah blah",
         method="dnadiff",
         program=nucmer_tool.exe_path.stem,
-        version=nucmer_tool.version,  # used as a proxy for MUMmer suite
+        version=nucmer_tool.version,
         fragsize=None,
         mode=None,
         kmersize=None,
         minmatch=None,
         create_db=True,
     )
-
-    # Record the FASTA files in the genomes table _before_ call snakemake
-    log_genome(
-        database=db,
-        fasta=list(check_input_stems(config_dnadiff_args["indir"]).values()),
-    )
     assert db.is_file()
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
 
     config = config_dnadiff_args.copy()
     config["outdir"] = dnadiff_targets_showdiff_outdir
@@ -252,22 +253,6 @@ def test_snakemake_rule_show_diff_and_coords(  # noqa: PLR0913
             dnadiff_targets_showdiff_outdir / fname,
             skip=0,
         )
-
-    log_run(
-        fasta=config_dnadiff_args["indir"],
-        database=db,
-        status="Complete",
-        name="Test case",
-        cmdline="pyani-plus dnadiff --database ... blah blah blah",
-        method="dnadiff",
-        program=nucmer_tool.exe_path.stem,
-        version=nucmer_tool.version,
-        fragsize=None,
-        mode=None,
-        kmersize=None,
-        minmatch=None,
-        create_db=False,
-    )
     compare_matrices(db, dir_dnadiff_matrices, absolute_tolerance=5e-5)
 
 
@@ -298,21 +283,20 @@ def test_snakemake_rule_show_coords(  # noqa: PLR0913
     # Setup minimal test DB
     db = config_dnadiff_args["db"]
     assert not db.is_file()
-    log_configuration(
+    log_run(
+        fasta=config_dnadiff_args["indir"],
         database=db,
+        status="Testing",
+        name="Test case",
+        cmdline="pyani-plus dnadiff --database ... blah blah blah",
         method="dnadiff",
         program=nucmer_tool.exe_path.stem,
-        version=nucmer_tool.version,  # used as a proxy for MUMer suite
+        version=nucmer_tool.version,  # used as a proxy for MUMmer suite
         fragsize=None,
         mode=None,
         kmersize=None,
         minmatch=None,
         create_db=True,
-    )
-    # Record the FASTA files in the genomes table _before_ call snakemake
-    log_genome(
-        database=db,
-        fasta=list(check_input_stems(config_dnadiff_args["indir"]).values()),
     )
     assert db.is_file()
 
@@ -336,20 +320,4 @@ def test_snakemake_rule_show_coords(  # noqa: PLR0913
             dnadiff_targets_showcoords_outdir / fname,
             skip=0,
         )
-
-    log_run(
-        fasta=config_dnadiff_args["indir"],
-        database=db,
-        status="Complete",
-        name="Test case",
-        cmdline="pyani-plus dnadiff --database ... blah blah blah",
-        method="dnadiff",
-        program=nucmer_tool.exe_path.stem,
-        version=nucmer_tool.version,  # used as a proxy for MUMmer suite
-        fragsize=None,
-        mode=None,
-        kmersize=None,
-        minmatch=None,
-        create_db=False,
-    )
     compare_matrices(db, dir_dnadiff_matrices, absolute_tolerance=5e-5)

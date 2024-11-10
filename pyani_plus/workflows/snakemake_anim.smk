@@ -62,6 +62,7 @@ rule delta:
 rule filter:
     params:
         db=config["db"],
+        run_id=config["run_id"],
         mode=config["mode"],
         delta_filter=config["delta_filter"],
         outdir=config["outdir"],
@@ -76,8 +77,8 @@ rule filter:
         {params.delta_filter} \
             -1 {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.delta \
              > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter &&
-        .pyani-plus-private-cli log-anim --quiet --database {params.db} \
+        .pyani-plus-private-cli log-anim --quiet \
+            --database {params.db} --run-id {params.run_id} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
-            --deltafilter {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter \
-            --mode {params.mode}
+            --deltafilter {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter
         """

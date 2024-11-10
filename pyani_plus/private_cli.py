@@ -31,8 +31,9 @@ from typing import Annotated
 
 import typer
 from rich.progress import Progress
+from sqlalchemy.orm import Session
 
-from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
+from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm
 from pyani_plus.methods import (
     method_anib,
     method_anim,
@@ -41,12 +42,8 @@ from pyani_plus.methods import (
     method_sourmash,
 )
 from pyani_plus.public_cli import (
-    OPT_ARG_TYPE_ANIM_MODE,
     OPT_ARG_TYPE_CREATE_DB,
     OPT_ARG_TYPE_FRAGSIZE,
-    OPT_ARG_TYPE_KMERSIZE,
-    OPT_ARG_TYPE_MINMATCH,
-    OPT_ARG_TYPE_SOURMASH_MODE,
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
     REQ_ARG_TYPE_OUTDIR,
@@ -58,6 +55,14 @@ app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 
+REQ_ARG_TYPE_RUN_ID = Annotated[
+    int,
+    typer.Option(help="Database run ID", show_default=False),
+]
+REQ_ARG_TYPE_CONFIG_ID = Annotated[
+    int,
+    typer.Option(help="Database configuration ID", show_default=False),
+]
 OPT_ARG_TYPE_QUIET = Annotated[
     # Listing name(s) explicitly to avoid automatic matching --no-quiet
     bool, typer.Option("--quiet", help="Suppress any output except if fails")
@@ -139,6 +144,28 @@ NONE_ARG_TYPE_EXTRA = Annotated[
         help="Comparison method specific mode", rich_help_panel="Method parameters"
     ),
 ]
+
+
+def _lookup_run_query_subject(
+    session: Session, run_id: int, query_fasta: Path, subject_fasta: Path
+) -> tuple[db_orm.Run, str, str]:
+    """Find run row in ORM, and lookup MD5 of query and subject FASTA files."""
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+    query_md5 = (
+        session.query(db_orm.RunGenomeAssociation)
+        .where(db_orm.RunGenomeAssociation.run_id == run_id)
+        .where(db_orm.RunGenomeAssociation.fasta_filename == query_fasta.name)
+        .one()
+        .genome_hash
+    )
+    subject_md5 = (
+        session.query(db_orm.RunGenomeAssociation)
+        .where(db_orm.RunGenomeAssociation.run_id == run_id)
+        .where(db_orm.RunGenomeAssociation.fasta_filename == subject_fasta.name)
+        .one()
+        .genome_hash
+    )
+    return run, query_md5, subject_md5
 
 
 @app.command(rich_help_panel="Low-level logging")
@@ -299,6 +326,7 @@ def log_run(  # noqa: PLR0913
 def log_comparison(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
+    config_id: REQ_ARG_TYPE_CONFIG_ID,
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     identity: Annotated[
@@ -313,16 +341,7 @@ def log_comparison(  # noqa: PLR0913
     aln_length: Annotated[
         int, typer.Option(help="Alignment length", show_default=False)
     ],
-    # These are all for the configuration table:
-    method: REQ_ARG_TYPE_METHOD,
-    program: REQ_ARG_TYPE_PROGRAM,
-    version: REQ_ARG_TYPE_VERSION,
     *,
-    fragsize: NONE_ARG_TYPE_FRAGSIZE = None,
-    mode: NONE_ARG_TYPE_MODE = None,
-    kmersize: NONE_ARG_TYPE_KMERSIZE = None,
-    minmatch: NONE_ARG_TYPE_MINMATCH = None,
-    extra: NONE_ARG_TYPE_EXTRA = None,
     # Optional comparison table entries
     sim_errors: Annotated[int | None, typer.Option(help="Alignment length")] = None,
     cov_query: Annotated[float | None, typer.Option(help="Alignment length")] = None,
@@ -335,19 +354,14 @@ def log_comparison(  # noqa: PLR0913
 
     print(f"Logging comparison to {database}")
     session = db_orm.connect_to_db(database)
-
-    config = db_orm.db_configuration(
-        session=session,
-        method=method,
-        program=program,
-        version=version,
-        fragsize=fragsize,
-        mode=mode,
-        kmersize=kmersize,
-        minmatch=minmatch,
-        extra=extra,
-        create=False,
-    )
+    # Give a better error message that if adding comparison fails:
+    if (
+        not session.query(db_orm.Configuration)
+        .where(db_orm.Configuration.configuration_id == config_id)
+        .count()
+    ):
+        msg = f"ERROR - {database} does not contain configuration_id={config_id}"
+        sys.exit(msg)
 
     query_md5 = file_md5sum(query_fasta)
     db_orm.db_genome(session, query_fasta, query_md5)
@@ -357,7 +371,7 @@ def log_comparison(  # noqa: PLR0913
 
     db_orm.db_comparison(
         session,
-        configuration_id=config.configuration_id,
+        configuration_id=config_id,
         query_hash=query_md5,
         subject_hash=subject_md5,
         identity=identity,
@@ -377,6 +391,7 @@ def log_comparison(  # noqa: PLR0913
 def log_fastani(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
+    run_id: REQ_ARG_TYPE_RUN_ID,
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     fastani: Annotated[
@@ -391,19 +406,11 @@ def log_fastani(  # noqa: PLR0913
     ],
     *,
     quiet: OPT_ARG_TYPE_QUIET = False,
-    # These are all for the configuration table:
-    fragsize: OPT_ARG_TYPE_FRAGSIZE = method_fastani.FRAG_LEN,
-    kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
-    minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
 ) -> int:
     """Log single fastANI pairwise comparison to database.
 
     The associated configuration and genome entries must already exist.
     """
-    # Assuming this will match as expect this script to be called right
-    # after the computation has finished (on the same machine)
-    fastani_tool = tools.get_fastani()
-
     used_query, used_subject = fastani.stem.split("_vs_")
     if used_query != query_fasta.stem:
         sys.exit(
@@ -435,28 +442,18 @@ def log_fastani(  # noqa: PLR0913
         print(f"Logging fastANI comparison to {database}")
     session = db_orm.connect_to_db(database)
 
-    config = db_orm.db_configuration(
-        session,
-        method="fastANI",
-        program=fastani_tool.exe_path.stem,
-        version=fastani_tool.version,
-        fragsize=fragsize,  # aka --fragLen
-        kmersize=kmersize,  # aka --k
-        minmatch=minmatch,  # aka --minFraction
-        create=False,
+    run, query_md5, subject_md5 = _lookup_run_query_subject(
+        session, run_id, query_fasta, subject_fasta
     )
-
-    query_md5 = file_md5sum(query_fasta)
-    subject_md5 = file_md5sum(subject_fasta)
-
-    # We assume both genomes have been recorded, if not this will fail:
     db_orm.db_comparison(
         session,
-        configuration_id=config.configuration_id,
+        configuration_id=run.configuration_id,
         query_hash=query_md5,
         subject_hash=subject_md5,
         identity=identity,
-        aln_length=round(fragsize * orthologous_matches),  # proxy value,
+        aln_length=round(
+            run.configuration.fragsize * orthologous_matches
+        ),  # proxy value,
         sim_errors=fragments - orthologous_matches,  # proxy value, not bp,
         cov_query=float(orthologous_matches) / fragments,  # an approximation,
         cov_subject=None,
@@ -492,6 +489,7 @@ def fragment_fasta(
 def log_anim(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
+    run_id: REQ_ARG_TYPE_RUN_ID,
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     deltafilter: Annotated[
@@ -504,8 +502,6 @@ def log_anim(  # noqa: PLR0913
         ),
     ],
     *,
-    # Don't use any of fragsize, kmersize, minmatch (configuration table entries)
-    mode: OPT_ARG_TYPE_ANIM_MODE = method_anim.MODE,
     quiet: OPT_ARG_TYPE_QUIET = False,
     # Don't use any of fragsize, maxmatch, kmersize, minmatch (configuration table entries)
 ) -> int:
@@ -513,10 +509,6 @@ def log_anim(  # noqa: PLR0913
 
     The associated configuration and genome entries must already exist.
     """
-    # Assuming this will match as expect this script to be called right
-    # after the computation has finished (on the same machine)
-    nucmer_tool = tools.get_nucmer()
-
     query_aligned_bases, subject_aligned_bases, identity, sim_errors = (
         method_anim.parse_delta(deltafilter)
     )
@@ -538,18 +530,9 @@ def log_anim(  # noqa: PLR0913
     if not quiet:
         print(f"Logging ANIm to {database}")
     session = db_orm.connect_to_db(database)
-
-    config = db_orm.db_configuration(
-        session,
-        method="ANIm",
-        program=nucmer_tool.exe_path.stem,
-        version=nucmer_tool.version,
-        mode=mode,
-        create=False,
+    run, query_md5, subject_md5 = _lookup_run_query_subject(
+        session, run_id, query_fasta, subject_fasta
     )
-
-    query_md5 = file_md5sum(query_fasta)
-    subject_md5 = file_md5sum(subject_fasta)
 
     # Need genome lengths for coverage:
     query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
@@ -557,7 +540,7 @@ def log_anim(  # noqa: PLR0913
 
     db_orm.db_comparison(
         session,
-        configuration_id=config.configuration_id,
+        configuration_id=run.configuration_id,
         query_hash=query_md5,
         subject_hash=subject_md5,
         identity=identity,
@@ -576,6 +559,7 @@ def log_anim(  # noqa: PLR0913
 def log_anib(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
+    run_id: REQ_ARG_TYPE_RUN_ID,
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     blastn: Annotated[
@@ -589,17 +573,11 @@ def log_anib(  # noqa: PLR0913
     ],
     *,
     quiet: OPT_ARG_TYPE_QUIET = False,
-    # These are all for the configuration table:
-    fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
 ) -> int:
     """Log single ANIb pairwise comparison (with blastn) to database.
 
     The associated configuration and genome entries must already exist.
     """
-    # Assuming this will match as expect this script to be called right
-    # after the computation has finished (on the same machine)
-    blastn_tool = tools.get_blastn()
-
     identity, aln_length, sim_errors = method_anib.parse_blastn_file(blastn)
     used_query, used_subject = blastn.stem.split("_vs_")
     if used_query != query_fasta.stem:
@@ -618,18 +596,9 @@ def log_anib(  # noqa: PLR0913
     if not quiet:
         print(f"Logging ANIb comparison to {database}")
     session = db_orm.connect_to_db(database)
-
-    config = db_orm.db_configuration(
-        session,
-        method="ANIb",
-        program=blastn_tool.exe_path.stem,
-        version=blastn_tool.version,
-        fragsize=fragsize,
-        create=False,
+    run, query_md5, subject_md5 = _lookup_run_query_subject(
+        session, run_id, query_fasta, subject_fasta
     )
-
-    query_md5 = file_md5sum(query_fasta)
-    subject_md5 = file_md5sum(subject_fasta)
 
     # Need genome lengths for coverage (fragmented FASTA irrelevant):
     query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
@@ -637,7 +606,7 @@ def log_anib(  # noqa: PLR0913
 
     db_orm.db_comparison(
         session,
-        configuration_id=config.configuration_id,
+        configuration_id=run.configuration_id,
         query_hash=query_md5,
         subject_hash=subject_md5,
         identity=identity,
@@ -655,6 +624,7 @@ def log_anib(  # noqa: PLR0913
 def log_dnadiff(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
+    run_id: REQ_ARG_TYPE_RUN_ID,
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     mcoords: Annotated[
@@ -677,19 +647,11 @@ def log_dnadiff(  # noqa: PLR0913
     ],
     *,
     quiet: OPT_ARG_TYPE_QUIET = False,
-    # Should we add --maxmatch (nucmer) and -m (deltafilter) parameters?
-    # These are default parameters used in workflows
 ) -> int:
     """Log single dnadiff pairwise comparison (with nucmer) to database.
 
     The associated configuration and genome entries must already exist.
     """
-    # Assuming this will match as expect this script to be called right
-    # after the computation has finished (on the same machine)
-    # We don't actually call the tool dnadiff (which has its own version),
-    # rather we call nucmer, delta-filter, show-diff and show-coords from mumer
-    tool = tools.get_nucmer()
-
     identity, aligned_bases_with_gaps = method_dnadiff.parse_mcoords(mcoords)
     gap_lengths = method_dnadiff.parse_qdiff(qdiff)
 
@@ -724,23 +686,15 @@ def log_dnadiff(  # noqa: PLR0913
     if not quiet:
         print(f"Logging dnadiff to {database}")
     session = db_orm.connect_to_db(database)
-
-    config = db_orm.db_configuration(
-        session,
-        method="dnadiff",
-        program=tool.exe_path.stem,
-        version=tool.version,
-        create=False,
+    run, query_md5, subject_md5 = _lookup_run_query_subject(
+        session, run_id, query_fasta, subject_fasta
     )
-
-    query_md5 = file_md5sum(query_fasta)
-    subject_md5 = file_md5sum(subject_fasta)
 
     query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
 
     db_orm.db_comparison(
         session,
-        configuration_id=config.configuration_id,
+        configuration_id=run.configuration_id,
         query_hash=query_md5,
         subject_hash=subject_md5,
         identity=identity,
@@ -758,6 +712,7 @@ def log_dnadiff(  # noqa: PLR0913
 def log_sourmash(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
+    run_id: REQ_ARG_TYPE_RUN_ID,
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     compare: Annotated[
@@ -772,22 +727,11 @@ def log_sourmash(  # noqa: PLR0913
     ],
     *,
     quiet: OPT_ARG_TYPE_QUIET = False,
-    # # Don't use any of fragsize, minmatch (configuration table entries)
-    mode: OPT_ARG_TYPE_SOURMASH_MODE = method_sourmash.MODE,
-    kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
-    extra: NONE_ARG_TYPE_EXTRA = f"scaled={method_sourmash.SCALED}",
-    # Don't use any of fragsize, maxmatch, minmatch (configuration table entries)
 ) -> int:
     """Log single sourmash pairwise comparison to database.
 
     The associated configuration and genome entries must already exist.
     """
-    # Assuming this will match as expect this script to be called right
-    # after the computation has finished (on the same machine)
-    sourmash_tool = tools.get_sourmash()
-
-    identity = method_sourmash.parse_compare(compare)
-
     used_query, used_subject = compare.stem.split("_vs_")
     if used_query != query_fasta.stem:
         sys.exit(
@@ -798,6 +742,8 @@ def log_sourmash(  # noqa: PLR0913
             f"ERROR: Given --subject-fasta {subject_fasta} but subject in sourmash compare filename was {used_subject}"
         )
 
+    identity = method_sourmash.parse_compare(compare)
+
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
@@ -805,24 +751,13 @@ def log_sourmash(  # noqa: PLR0913
     if not quiet:
         print(f"Logging sourmash to {database}")
     session = db_orm.connect_to_db(database)
-
-    config = db_orm.db_configuration(
-        session,
-        method="sourmash",
-        program=sourmash_tool.exe_path.stem,
-        version=sourmash_tool.version,
-        mode=mode.value,  # turn enum into string
-        kmersize=kmersize,
-        extra=extra,
-        create=False,
+    run, query_md5, subject_md5 = _lookup_run_query_subject(
+        session, run_id, query_fasta, subject_fasta
     )
-
-    query_md5 = file_md5sum(query_fasta)
-    subject_md5 = file_md5sum(subject_fasta)
 
     db_orm.db_comparison(
         session,
-        configuration_id=config.configuration_id,
+        configuration_id=run.configuration_id,
         query_hash=query_md5,
         subject_hash=subject_md5,
         identity=identity,

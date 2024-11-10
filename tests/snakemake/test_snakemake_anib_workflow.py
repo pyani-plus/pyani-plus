@@ -33,11 +33,10 @@ from pathlib import Path
 # Required to support pytest automated testing
 import pytest
 
-from pyani_plus.private_cli import log_configuration, log_genome, log_run
+from pyani_plus.private_cli import log_run
 from pyani_plus.tools import get_blastn, get_makeblastdb
 from pyani_plus.workflows import (
     ToolExecutor,
-    check_input_stems,
     run_snakemake_with_progress_bar,
 )
 
@@ -58,6 +57,7 @@ def config_anib_args(
     """
     return {
         "db": Path(tmp_path) / "db.sqlite",
+        "run_id": 1,  # by construction
         "blastn": get_blastn().exe_path,
         "makeblastdb": get_makeblastdb().exe_path,
         "outdir": anib_targets_outdir,
@@ -154,18 +154,17 @@ def test_snakemake_rule_blastn(  # noqa: PLR0913
     # Setup minimal test DB
     db = config_anib_args["db"]
     assert not db.is_file()
-    log_configuration(
+    log_run(
+        fasta=config_anib_args["indir"],
         database=db,
+        status="Testing",
+        name="Test case",
+        cmdline="blah blah blah",
         method="ANIb",
         program=blastn_tool.exe_path.stem,
         version=blastn_tool.version,
         fragsize=config_anib_args["fragsize"],
         create_db=True,
-    )
-    # Record the FASTA files in the genomes table _before_ call snakemake
-    log_genome(
-        database=db,
-        fasta=list(check_input_stems(config_anib_args["indir"]).values()),
     )
     assert db.is_file()
 
@@ -185,17 +184,4 @@ def test_snakemake_rule_blastn(  # noqa: PLR0913
         assert Path(fname).is_file()
         assert (anib_blastn / fname.name).is_file()
         assert filecmp.cmp(fname, anib_blastn / fname.name)
-
-    log_run(
-        fasta=config_anib_args["indir"],
-        database=db,
-        status="Complete",
-        name="Test case",
-        cmdline="blah blah blah",
-        method="ANIb",
-        program=blastn_tool.exe_path.stem,
-        version=blastn_tool.version,
-        fragsize=config_anib_args["fragsize"],
-        create_db=False,
-    )
     compare_matrices(db, dir_anib_results)

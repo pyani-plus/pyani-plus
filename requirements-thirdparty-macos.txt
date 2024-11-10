@@ -1,4 +1,4 @@
 blast
 fastani
 mummer=3.23
-sourmash>=4.8.11
+sourmash-minimal>=4.8.11

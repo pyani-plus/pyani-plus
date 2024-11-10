@@ -29,6 +29,14 @@ distribute*
 # Issue development subdirectories
 issue_*/
 
+# Local snakemake-profile directories
+snakemake-profile-*/
+
+# Local test databases
+*.db
+*.sqlite
+*.sqlite3
+
 # Test coverage output
 cover/
 htmlcov/

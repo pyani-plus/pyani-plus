@@ -364,7 +364,7 @@ class Run(Base):
             .where(run_subjt.run_id == self.run_id)
         )
 
-    def cache_comparisons(self) -> pd.DataFrame:
+    def cache_comparisons(self) -> None:
         """Collect and cache all-vs-all score matrices for the run.
 
         If the run has N genomes, should have an N by N matrix of all the pairwise

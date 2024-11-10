@@ -477,7 +477,6 @@ def sourmash(  # noqa: PLR0913
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
 ) -> int:
     """Execute sourmash calculations, logged to a pyANI-plus SQLite3 database."""
-    extra = f"num={num}" if num is not None else f"scaled={scaled}"
     check_db(database, create_db)
 
     target_extension = ".csv"
@@ -494,9 +493,9 @@ def sourmash(  # noqa: PLR0913
         target_extension,
         tool,
         binaries,
-        mode=mode,  # turn the enum into a string
-        extra=extra,
+        mode=mode.value,  # turn the enum into a string
         kmersize=kmersize,
+        extra=f"scaled={scaled}" if num is None else f"num={num}",
     )
 
 

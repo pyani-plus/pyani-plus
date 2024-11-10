@@ -146,11 +146,13 @@ def test_logging_sourmash(
     session = db_orm.connect_to_db(tmp_db)
     assert session.query(db_orm.Comparison).count() == 1
     comp = session.query(db_orm.Comparison).one()
-    query = "689d3fd6881db36b5e08329cf23cecdd"  # MGV-GENOME-0264574.fas
-    subject = "78975d5144a1cd12e98898d573cf6536"  # MGV-GENOME-0266457.fna
     pytest.approx(
         comp.identity,
-        get_matrix_entry(dir_sourmash_results / "matrix_identity.tsv", query, subject),
+        get_matrix_entry(
+            dir_sourmash_results / "matrix_identity.tsv",
+            comp.query_hash,
+            comp.subject_hash,
+        ),
     )
     session.close()
     tmp_db.unlink()

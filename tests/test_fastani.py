@@ -62,16 +62,13 @@ def test_bad_query_or_subject(
     ):
         private_cli.log_fastani(
             database=":memory:",
+            run_id=1,
             # These are for the comparison table
             query_fasta=input_genomes_tiny
             / "MGV-GENOME-0266457.fna",  # should be MGV-GENOME-0264574.fas
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             fastani=fastani_targets_indir
             / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.fastani",
-            # These are all for the configuration table:
-            fragsize=1000,
-            kmersize=51,
-            minmatch=0.9,
         )
     # Second, subject filename mismatch:
     with pytest.raises(
@@ -83,16 +80,13 @@ def test_bad_query_or_subject(
     ):
         private_cli.log_fastani(
             database=":memory:",
+            run_id=1,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny
             / "MGV-GENOME-0264574.fas",  # should be MGV-GENOME-0266457.fna",
             fastani=fastani_targets_indir
             / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.fastani",
-            # These are all for the configuration table:
-            fragsize=1000,
-            kmersize=51,
-            minmatch=0.9,
         )
     # Now a good filename, but bad contents (flipped query and subject)
     fake_file = Path(tmp_path) / "MGV-GENOME-0266457_vs_MGV-GENOME-0264574.fastani"
@@ -108,14 +102,11 @@ def test_bad_query_or_subject(
     ):
         private_cli.log_fastani(
             database=":memory:",
+            run_id=1,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             fastani=fake_file,
-            # These are all for the configuration table:
-            fragsize=1000,
-            kmersize=51,
-            minmatch=0.9,
         )
     # Again good filename, but bad contents (wrong subject)
     fake_file = Path(tmp_path) / "MGV-GENOME-0264574_vs_MGV-GENOME-0264574.fastani"
@@ -131,14 +122,11 @@ def test_bad_query_or_subject(
     ):
         private_cli.log_fastani(
             database=":memory:",
+            run_id=1,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             fastani=fake_file,
-            # These are all for the configuration table:
-            fragsize=1000,
-            kmersize=51,
-            minmatch=0.9,
         )
 
 
@@ -152,19 +140,17 @@ def test_missing_db(
     with pytest.raises(SystemExit, match="does not exist"):
         private_cli.log_fastani(
             database=tmp_db,
+            run_id=1,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             fastani=fastani_targets_indir
             / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.fastani",
-            # These are all for the configuration table:
-            fragsize=1000,
-            kmersize=51,
-            minmatch=0.9,
         )
 
 
 def test_logging_fastani(
+    capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
     fastani_targets_indir: Path,
@@ -176,8 +162,12 @@ def test_logging_fastani(
 
     tool = tools.get_fastani()
 
-    private_cli.log_configuration(
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
         database=tmp_db,
+        cmdline="pyani-plus fastani ...",
+        status="Testing",
+        name="Testing log_fastani",
         method="fastANI",
         program=tool.exe_path.stem,
         version=tool.version,
@@ -186,25 +176,17 @@ def test_logging_fastani(
         minmatch=0.9,
         create_db=True,
     )
-    private_cli.log_genome(
-        database=tmp_db,
-        fasta=[
-            input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            input_genomes_tiny / "MGV-GENOME-0266457.fna",
-        ],
-    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
 
     private_cli.log_fastani(
         database=tmp_db,
+        run_id=1,
         # These are for the comparison table
         query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
         subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
         fastani=fastani_targets_indir
         / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.fastani",
-        # These are all for the configuration table:
-        fragsize=1000,
-        kmersize=51,
-        minmatch=0.9,
     )
 
     # Check the recorded comparison values

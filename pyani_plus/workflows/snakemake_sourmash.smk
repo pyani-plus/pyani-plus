@@ -52,6 +52,7 @@ rule sketch:
 rule compare:
     params:
         db=config["db"],
+        run_id=config["run_id"],
         outdir=config["outdir"],
         mode=config["mode"],
         kmersize=config["kmersize"],
@@ -66,8 +67,8 @@ rule compare:
         """
         sourmash compare --quiet --csv {output} --estimate-ani --{params.mode} \
             {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.sig &&
-        .pyani-plus-private-cli log-sourmash --quiet --database {params.db} \
+        .pyani-plus-private-cli log-sourmash --quiet \
+            --database {params.db} --run-id {params.run_id} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
-            --mode {params.mode} --kmersize {params.kmersize} --extra {params.extra} \
             --compare {output}
         """

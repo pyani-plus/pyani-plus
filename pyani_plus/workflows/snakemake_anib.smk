@@ -73,6 +73,7 @@ rule blastdb:
 rule blastn:
     params:
         db=config["db"],
+        run_id=config["run_id"],
         blastn=config["blastn"],
         fragsize=config["fragsize"],
         indir=config["indir"],
@@ -91,8 +92,8 @@ rule blastn:
             -outfmt '6 qseqid sseqid length mismatch pident nident qlen slen \
                      qstart qend sstart send positive ppos gaps' \
             -xdrop_gap_final 150 -dust no -evalue 1e-15 > {output}.log &&
-        .pyani-plus-private-cli log-anib --quiet --database {params.db} \
+        .pyani-plus-private-cli log-anib --quiet \
+            --database {params.db} --run-id {params.run_id} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
-            --blastn {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.tsv \
-            --fragsize {params.fragsize}
+            --blastn {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.tsv
         """

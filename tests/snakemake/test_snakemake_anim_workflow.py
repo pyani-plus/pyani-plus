@@ -32,11 +32,10 @@ from pathlib import Path
 # Required to support pytest automated testing
 import pytest
 
-from pyani_plus.private_cli import log_configuration, log_genome, log_run
+from pyani_plus.private_cli import log_run
 from pyani_plus.tools import get_delta_filter, get_nucmer
 from pyani_plus.workflows import (
     ToolExecutor,
-    check_input_stems,
     run_snakemake_with_progress_bar,
 )
 
@@ -56,6 +55,7 @@ def config_anim_args(
     """
     return {
         "db": Path(tmp_path) / "db.sqlite",
+        "run_id": 1,  # by construction
         "nucmer": get_nucmer().exe_path,
         "delta_filter": get_delta_filter().exe_path,
         # "outdir": ... is dynamic
@@ -113,18 +113,17 @@ def test_snakemake_rule_filter(  # noqa: PLR0913
     # Setup minimal test DB
     db = config_anim_args["db"]
     assert not db.is_file()
-    log_configuration(
+    log_run(
+        fasta=config_anim_args["indir"],
         database=db,
+        status="Testing",
+        name="Test case",
+        cmdline="pyani-plus anib --database ... blah blah blah",
         method="ANIm",
         program=nucmer_tool.exe_path.stem,
         version=nucmer_tool.version,
         mode=config_anim_args["mode"],
         create_db=True,
-    )
-    # Record the FASTA files in the genomes table _before_ call snakemake
-    log_genome(
-        database=db,
-        fasta=list(check_input_stems(config_anim_args["indir"]).values()),
     )
     assert db.is_file()
 
@@ -149,19 +148,6 @@ def test_snakemake_rule_filter(  # noqa: PLR0913
             anim_nucmer_targets_filter_indir / fname,
             anim_nucmer_targets_filter_outdir / fname,
         )
-
-    log_run(
-        fasta=config_anim_args["indir"],
-        database=db,
-        status="Complete",
-        name="Test case",
-        cmdline="pyani-plus anib --database ... blah blah blah",
-        method="ANIm",
-        program=nucmer_tool.exe_path.stem,
-        version=nucmer_tool.version,
-        mode=config_anim_args["mode"],
-        create_db=False,
-    )
     compare_matrices(db, dir_anim_results)
 
 

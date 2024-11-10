@@ -33,11 +33,10 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus.private_cli import log_configuration, log_genome, log_run
+from pyani_plus.private_cli import log_run
 from pyani_plus.tools import get_fastani
 from pyani_plus.workflows import (
     ToolExecutor,
-    check_input_stems,
     run_snakemake_with_progress_bar,
 )
 
@@ -54,6 +53,7 @@ def config_fastani_args(
     """Return configuration settings for testing snakemake fastANI rule."""
     return {
         "db": Path(tmp_path) / "db.slqite",
+        "run_id": 1,  # by construction
         "fastani": get_fastani().exe_path,
         "outdir": fastani_targets_outdir,
         "indir": input_genomes_tiny,
@@ -87,6 +87,7 @@ def compare_fastani_files(file1: Path, file2: Path) -> bool:
 
 
 def test_snakemake_rule_fastani(  # noqa: PLR0913
+    capsys: pytest.CaptureFixture[str],
     fastani_targets: list[str],
     fastani_targets_outdir: Path,
     config_fastani_args: dict,
@@ -102,16 +103,18 @@ def test_snakemake_rule_fastani(  # noqa: PLR0913
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(fastani_targets_outdir, ignore_errors=True)
 
-    input_fasta = list(check_input_stems(config_fastani_args["indir"]).values())
-
     # Assuming this will match but worker nodes might have a different version
     fastani_tool = get_fastani()
 
     # Setup minimal test DB
     db = config_fastani_args["db"]
     assert not db.is_file()
-    log_configuration(
+    log_run(
+        fasta=config_fastani_args["indir"],
         database=db,
+        status="Testing",
+        name="Test case",
+        cmdline="blah blah blah",
         method="fastANI",
         program=fastani_tool.exe_path.stem,
         version=fastani_tool.version,
@@ -120,12 +123,9 @@ def test_snakemake_rule_fastani(  # noqa: PLR0913
         minmatch=config_fastani_args["minmatch"],
         create_db=True,
     )
-    # Record the FASTA files in the genomes table _before_ call snakemake
-    log_genome(
-        database=db,
-        fasta=input_fasta,
-    )
     assert db.is_file()
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
 
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
@@ -144,20 +144,6 @@ def test_snakemake_rule_fastani(  # noqa: PLR0913
             fastani_targets_outdir / fname,
         )
 
-    log_run(
-        fasta=config_fastani_args["indir"],
-        database=db,
-        status="Complete",
-        name="Test case",
-        cmdline="blah blah blah",
-        method="fastANI",
-        program=fastani_tool.exe_path.stem,
-        version=fastani_tool.version,
-        fragsize=config_fastani_args["fragsize"],
-        kmersize=config_fastani_args["kmersize"],
-        minmatch=config_fastani_args["minmatch"],
-        create_db=False,
-    )
     compare_matrices(db, fastani_matrices)
 
 

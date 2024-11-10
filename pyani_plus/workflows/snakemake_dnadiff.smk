@@ -74,6 +74,7 @@ rule filter:
 rule show_diff_and_coords:
     params:
         db=config["db"],
+        run_id=config["run_id"],
         show_diff=config["show_diff"],
         show_coords=config["show_coords"],
         outdir=config["outdir"],
@@ -88,7 +89,8 @@ rule show_diff_and_coords:
         """
         {params.show_diff} -qH {input.deltafilter} > {output.qdiff} &&
         {params.show_coords} -rclTH {input.deltafilter} > {output.mcoords} &&
-        .pyani-plus-private-cli log-dnadiff --quiet --database {params.db} \
+        .pyani-plus-private-cli log-dnadiff --quiet \
+            --database {params.db} --run-id {params.run_id} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
             --mcoords {output.mcoords} --qdiff {output.qdiff}
         """

@@ -36,11 +36,10 @@ import pandas as pd
 # Required to support pytest automated testing
 import pytest
 
-from pyani_plus.private_cli import log_configuration, log_genome, log_run
+from pyani_plus.private_cli import log_run
 from pyani_plus.tools import get_sourmash
 from pyani_plus.workflows import (
     ToolExecutor,
-    check_input_stems,
     run_snakemake_with_progress_bar,
 )
 
@@ -56,6 +55,7 @@ def config_sourmash_args(
     """Return configuration settings for testing snakemake sourmash rules."""
     return {
         "db": Path(tmp_path) / "db.sqlite",
+        "run_id": 1,  # by construction
         # "outdir": ... is dynamic
         "indir": input_genomes_tiny,
         "cores": snakemake_cores,
@@ -166,6 +166,7 @@ def test_snakemake_sketch_rule(
 
 
 def test_snakemake_compare_rule(  # noqa: PLR0913
+    capsys: pytest.CaptureFixture[str],
     sourmash_targets_compare_outdir: Path,
     sourmash_target_ani: list[str],
     config_sourmash_args: dict,
@@ -196,8 +197,12 @@ def test_snakemake_compare_rule(  # noqa: PLR0913
     # Setup minimal test DB
     db = config["db"]
     assert not db.is_file()
-    log_configuration(
+    log_run(
+        fasta=config_sourmash_args["indir"],
         database=db,
+        cmdline="pyani-plus sourmash ...",
+        status="Testing",
+        name="Testing sourmash",
         method="sourmash",
         program=sourmash_tool.exe_path.stem,
         version=sourmash_tool.version,
@@ -206,13 +211,9 @@ def test_snakemake_compare_rule(  # noqa: PLR0913
         extra=config["extra"],
         create_db=True,
     )
-
-    # Record the FASTA files in the genomes table _before_ call snakemake
-    log_genome(
-        database=db,
-        fasta=list(check_input_stems(config_sourmash_args["indir"]).values()),
-    )
     assert db.is_file()
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
 
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
@@ -232,19 +233,4 @@ def test_snakemake_compare_rule(  # noqa: PLR0913
             sourmash_targets_compare_outdir / Path(fname).name,
             sourmash_targets_compare_indir / Path(fname).name,
         )
-
-    log_run(
-        fasta=config_sourmash_args["indir"],
-        database=db,
-        status="Complete",
-        name="Test case",
-        cmdline="pyani-plus sourmash --database ... blah blah blah",
-        method="sourmash",
-        program=sourmash_tool.exe_path.stem,
-        version=sourmash_tool.version,
-        mode=config["mode"],
-        kmersize=config["kmersize"],
-        extra=config["extra"],
-        create_db=False,
-    )
     compare_matrices(db, dir_sourmash_results)

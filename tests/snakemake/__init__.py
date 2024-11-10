@@ -99,7 +99,7 @@ def compare_matrices(
     assert (
         run.comparisons().count() == n**2
     ), f"Expected {n}²={n**2} comparisons, not {run.comparisons().count()}"
-
+    run.cache_comparisons()  # could be all NaN if constructed in steps
     assert run.identities is not None
     assert matrices_path.is_dir()
 

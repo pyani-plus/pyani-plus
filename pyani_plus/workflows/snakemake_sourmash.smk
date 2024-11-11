@@ -42,11 +42,10 @@ rule sketch:
         kmersize=config["kmersize"],
     input:
         genomeA=get_genomeA,
-        genomeB=get_genomeB,
     output:
-        "{outdir}/{genomeA}_vs_{genomeB}.sig",
+        "{outdir}/{genomeA}.sig",
     shell:
-        "sourmash sketch dna -p 'k={params.kmersize},{params.extra}' {input.genomeB} {input.genomeA} -o {output} > {output}.log 2>&1"
+        "sourmash sketch dna -p 'k={params.kmersize},{params.extra}' {input} -o {output} > {output}.log 2>&1"
 
 
 rule compare:
@@ -58,7 +57,8 @@ rule compare:
         kmersize=config["kmersize"],
         extra=config["extra"],  # This will consist of either `scaled=X` or `num=X`.
     input:
-        "{outdir}/{genomeA}_vs_{genomeB}.sig",
+        "{outdir}/{genomeA}.sig",
+        "{outdir}/{genomeB}.sig",
         genomeA=get_genomeA,
         genomeB=get_genomeB,
     output:
@@ -66,7 +66,8 @@ rule compare:
     shell:
         """
         sourmash compare --quiet --csv {output} --estimate-ani --{params.mode} \
-            {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.sig &&
+            {wildcards.outdir}/{wildcards.genomeA}.sig \
+            {wildcards.outdir}/{wildcards.genomeB}.sig &&
         .pyani-plus-private-cli log-sourmash --quiet \
             --database {params.db} --run-id {params.run_id} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \

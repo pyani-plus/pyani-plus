@@ -54,6 +54,7 @@ rule compare:
         db=config["db"],
         outdir=config["outdir"],
         mode=config["mode"],
+        kmersize=config["kmersize"],
         extra=config["extra"],  # This will consist of either `scaled=X` or `num=X`.
     input:
         "{outdir}/{genomeA}_vs_{genomeB}.sig",
@@ -67,5 +68,5 @@ rule compare:
         .pyani-plus-private-cli log-sourmash --quiet --database {params.db} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
             --compare {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.csv \
-            --mode {params.mode} --extra {params.extra}
+            --mode {params.mode} --kmersize {params.kmersize} --extra {params.extra}
         """

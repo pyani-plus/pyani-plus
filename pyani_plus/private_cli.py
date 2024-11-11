@@ -30,9 +30,9 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.progress import track
+from rich.progress import Progress
 
-from pyani_plus import db_orm, tools
+from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
 from pyani_plus.methods import (
     method_anib,
     method_anim,
@@ -204,10 +204,11 @@ def log_genome(
 
     file_total = 0
     if fasta:
-        for filename in track(fasta, description="Processing..."):
-            file_total += 1
-            md5 = file_md5sum(filename)
-            db_orm.db_genome(session, filename, md5, create=True)
+        with Progress(*PROGRESS_BAR_COLUMNS) as progress:
+            for filename in progress.track(fasta, description="Processing..."):
+                file_total += 1
+                md5 = file_md5sum(filename)
+                db_orm.db_genome(session, filename, md5, create=True)
     session.commit()
     session.close()
     print(f"Processed {file_total} FASTA files")
@@ -266,10 +267,11 @@ def log_run(  # noqa: PLR0913
     fasta_names = check_fasta(fasta)
     if fasta_names:
         # Reuse existing genome entries and/or log new ones
-        for filename in track(fasta_names, description="Processing..."):
-            md5 = file_md5sum(filename)
-            fasta_to_hash[filename] = md5
-            db_orm.db_genome(session, filename, md5, create=True)
+        with Progress(*PROGRESS_BAR_COLUMNS) as progress:
+            for filename in progress.track(fasta_names, description="Processing..."):
+                md5 = file_md5sum(filename)
+                fasta_to_hash[filename] = md5
+                db_orm.db_genome(session, filename, md5, create=True)
 
     run = db_orm.add_run(
         session,

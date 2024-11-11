@@ -33,7 +33,7 @@ import typer
 from rich.progress import Progress
 from sqlalchemy.orm import Session
 
-from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm
+from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
 from pyani_plus.methods import (
     method_anib,
     method_anim,
@@ -166,6 +166,22 @@ def _lookup_run_query_subject(
         .genome_hash
     )
     return run, query_md5, subject_md5
+
+
+def _check_tool_version(
+    tool: tools.ExternalToolData, configuration: db_orm.Configuration
+) -> None:
+    """Confirm the tool and version matches the given configuration."""
+    if (
+        configuration.program != tool.exe_path.stem
+        or configuration.version != tool.version
+    ):
+        msg = (
+            "ERROR: Run configuration was"
+            f" {configuration.program} {configuration.version}"
+            f" but we have {tool.exe_path.stem} {tool.version}"
+        )
+        sys.exit(msg)
 
 
 @app.command(rich_help_panel="Low-level logging")
@@ -435,6 +451,8 @@ def log_fastani(  # noqa: PLR0913
         msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
         sys.exit(msg)
 
+    _check_tool_version(tools.get_fastani(), run.configuration)
+
     used_query_path, used_subject_path, identity, orthologous_matches, fragments = (
         method_fastani.parse_fastani_file(fastani)
     )
@@ -536,6 +554,8 @@ def log_anim(  # noqa: PLR0913
         msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
         sys.exit(msg)
 
+    _check_tool_version(tools.get_nucmer(), run.configuration)
+
     # Need genome lengths for coverage:
     query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
     subject = db_orm.db_genome(session, subject_fasta, subject_md5, create=False)
@@ -607,6 +627,8 @@ def log_anib(  # noqa: PLR0913
     if run.configuration.method != "ANIb":
         msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
         sys.exit(msg)
+
+    _check_tool_version(tools.get_blastn(), run.configuration)
 
     # Need genome lengths for coverage (fragmented FASTA irrelevant):
     query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
@@ -700,6 +722,8 @@ def log_dnadiff(  # noqa: PLR0913
         msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
         sys.exit(msg)
 
+    _check_tool_version(tools.get_nucmer(), run.configuration)
+
     query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
 
     identity, aligned_bases_with_gaps = method_dnadiff.parse_mcoords(mcoords)
@@ -768,6 +792,8 @@ def log_sourmash(  # noqa: PLR0913
     if run.configuration.method != "sourmash":
         msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
         sys.exit(msg)
+
+    _check_tool_version(tools.get_sourmash(), run.configuration)
 
     identity = method_sourmash.parse_compare(compare)
 

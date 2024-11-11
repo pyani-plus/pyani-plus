@@ -107,6 +107,47 @@ def test_bad_query_or_subject(
         )
 
 
+def test_logging_wrong_version(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    sourmash_targets_compare_indir: Path,
+) -> None:
+    """Check mismatched sourmash version fails."""
+    tmp_db = Path(tmp_path) / "new.sqlite"
+    assert not tmp_db.is_file()
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus sourmash ...",
+        status="Testing",
+        name="Testing log_sourmash",
+        method="sourmash",
+        program="sourmash",
+        version="42",
+        mode=method_sourmash.MODE,
+        kmersize=method_sourmash.KMER_SIZE,
+        extra="scaled=" + str(method_sourmash.SCALED),
+        create_db=True,
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Run configuration was sourmash 42 but we have sourmash 4.",
+    ):
+        private_cli.log_sourmash(
+            database=tmp_db,
+            run_id=1,
+            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
+            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
+            compare=sourmash_targets_compare_indir
+            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.csv",
+        )
+
+
 def test_logging_sourmash(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,

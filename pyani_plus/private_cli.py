@@ -283,7 +283,9 @@ def log_run(  # noqa: PLR0913
         date=None,
         fasta_to_hash=fasta_to_hash,
     )
-    run.cache_comparisons()
+    # No point caching empty matrices, even partial ones is debatable
+    if run.comparisons().count() == len(fasta_to_hash) ** 2:
+        run.cache_comparisons()
     run_id = run.run_id
 
     session.commit()

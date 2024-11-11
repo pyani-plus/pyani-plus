@@ -49,9 +49,9 @@ def test_empty_path() -> None:
 
 
 def test_bad_query_or_subject(
-    input_genomes_tiny: Path, fastani_targets_indir: Path, tmp_path: str
+    input_genomes_tiny: Path, fastani_targets_indir: Path
 ) -> None:
-    """Mismatch between query or subject FASTA in fastANI output and commandline."""
+    """Mismatch between query or subject FASTA in fastANI output filename."""
     # First, query filename mismatch:
     with pytest.raises(
         SystemExit,
@@ -88,6 +88,35 @@ def test_bad_query_or_subject(
             fastani=fastani_targets_indir
             / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.fastani",
         )
+
+
+def test_bad_query_or_subject_in_file(
+    capsys: pytest.CaptureFixture[str],
+    input_genomes_tiny: Path,
+    fastani_targets_indir: Path,
+    tmp_path: str,
+) -> None:
+    """Mismatch between query or subject FASTA in fastANI output."""
+    tmp_db = Path(tmp_path) / "bad-names.sqlite"
+    assert not tmp_db.is_file()
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus fastani ...",
+        status="Testing",
+        name="Testing log_fastani",
+        method="fastANI",
+        program="fastANI",
+        version="42",
+        fragsize=1000,
+        kmersize=51,
+        minmatch=0.9,
+        create_db=True,
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
+
     # Now a good filename, but bad contents (flipped query and subject)
     fake_file = Path(tmp_path) / "MGV-GENOME-0266457_vs_MGV-GENOME-0264574.fastani"
     fake_file.symlink_to(
@@ -101,7 +130,7 @@ def test_bad_query_or_subject(
         ),
     ):
         private_cli.log_fastani(
-            database=":memory:",
+            database=tmp_db,
             run_id=1,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
@@ -121,7 +150,7 @@ def test_bad_query_or_subject(
         ),
     ):
         private_cli.log_fastani(
-            database=":memory:",
+            database=tmp_db,
             run_id=1,
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",

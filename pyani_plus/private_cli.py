@@ -421,6 +421,20 @@ def log_fastani(  # noqa: PLR0913
             f"ERROR: Given --subject-fasta {subject_fasta} but subject in fastANI filename was {used_subject}"
         )
 
+    if database != ":memory:" and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+
+    if not quiet:
+        print(f"Logging fastANI comparison to {database}")
+    session = db_orm.connect_to_db(database)
+    run, query_md5, subject_md5 = _lookup_run_query_subject(
+        session, run_id, query_fasta, subject_fasta
+    )
+    if run.configuration.method != "fastANI":
+        msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
+        sys.exit(msg)
+
     used_query_path, used_subject_path, identity, orthologous_matches, fragments = (
         method_fastani.parse_fastani_file(fastani)
     )
@@ -434,17 +448,6 @@ def log_fastani(  # noqa: PLR0913
             f"ERROR: Given --subject-fasta {subject_fasta} but subject in fastANI file contents was {used_subject_path}"
         )
 
-    if database != ":memory:" and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
-
-    if not quiet:
-        print(f"Logging fastANI comparison to {database}")
-    session = db_orm.connect_to_db(database)
-
-    run, query_md5, subject_md5 = _lookup_run_query_subject(
-        session, run_id, query_fasta, subject_fasta
-    )
     db_orm.db_comparison(
         session,
         configuration_id=run.configuration_id,
@@ -509,10 +512,6 @@ def log_anim(  # noqa: PLR0913
 
     The associated configuration and genome entries must already exist.
     """
-    query_aligned_bases, subject_aligned_bases, identity, sim_errors = (
-        method_anim.parse_delta(deltafilter)
-    )
-
     used_query, used_subject = deltafilter.stem.split("_vs_")
     if used_query != query_fasta.stem:
         sys.exit(
@@ -533,10 +532,17 @@ def log_anim(  # noqa: PLR0913
     run, query_md5, subject_md5 = _lookup_run_query_subject(
         session, run_id, query_fasta, subject_fasta
     )
+    if run.configuration.method != "ANIm":
+        msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
+        sys.exit(msg)
 
     # Need genome lengths for coverage:
     query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
     subject = db_orm.db_genome(session, subject_fasta, subject_md5, create=False)
+
+    query_aligned_bases, subject_aligned_bases, identity, sim_errors = (
+        method_anim.parse_delta(deltafilter)
+    )
 
     db_orm.db_comparison(
         session,
@@ -578,7 +584,6 @@ def log_anib(  # noqa: PLR0913
 
     The associated configuration and genome entries must already exist.
     """
-    identity, aln_length, sim_errors = method_anib.parse_blastn_file(blastn)
     used_query, used_subject = blastn.stem.split("_vs_")
     if used_query != query_fasta.stem:
         sys.exit(
@@ -599,10 +604,15 @@ def log_anib(  # noqa: PLR0913
     run, query_md5, subject_md5 = _lookup_run_query_subject(
         session, run_id, query_fasta, subject_fasta
     )
+    if run.configuration.method != "ANIb":
+        msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
+        sys.exit(msg)
 
     # Need genome lengths for coverage (fragmented FASTA irrelevant):
     query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
     subject = db_orm.db_genome(session, subject_fasta, subject_md5, create=False)
+
+    identity, aln_length, sim_errors = method_anib.parse_blastn_file(blastn)
 
     db_orm.db_comparison(
         session,
@@ -652,9 +662,6 @@ def log_dnadiff(  # noqa: PLR0913
 
     The associated configuration and genome entries must already exist.
     """
-    identity, aligned_bases_with_gaps = method_dnadiff.parse_mcoords(mcoords)
-    gap_lengths = method_dnadiff.parse_qdiff(qdiff)
-
     # As with other methods, we need to verify that the provided query/subject sequences
     # match those used to generate the mcoords and qdiff files.
     # Checking if the query and subject used to generate mcoords files match those for
@@ -689,8 +696,14 @@ def log_dnadiff(  # noqa: PLR0913
     run, query_md5, subject_md5 = _lookup_run_query_subject(
         session, run_id, query_fasta, subject_fasta
     )
+    if run.configuration.method != "dnadiff":
+        msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
+        sys.exit(msg)
 
     query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
+
+    identity, aligned_bases_with_gaps = method_dnadiff.parse_mcoords(mcoords)
+    gap_lengths = method_dnadiff.parse_qdiff(qdiff)
 
     db_orm.db_comparison(
         session,
@@ -742,8 +755,6 @@ def log_sourmash(  # noqa: PLR0913
             f"ERROR: Given --subject-fasta {subject_fasta} but subject in sourmash compare filename was {used_subject}"
         )
 
-    identity = method_sourmash.parse_compare(compare)
-
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
@@ -754,6 +765,11 @@ def log_sourmash(  # noqa: PLR0913
     run, query_md5, subject_md5 = _lookup_run_query_subject(
         session, run_id, query_fasta, subject_fasta
     )
+    if run.configuration.method != "sourmash":
+        msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
+        sys.exit(msg)
+
+    identity = method_sourmash.parse_compare(compare)
 
     db_orm.db_comparison(
         session,

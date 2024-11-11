@@ -64,7 +64,8 @@ rule compare:
         "{outdir}/{genomeA}_vs_{genomeB}.csv",
     shell:
         """
-        sourmash compare {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.sig --csv {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.csv --estimate-ani --{params.mode} &&
+        sourmash compare --quiet --csv {output} --estimate-ani --{params.mode} \
+            {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.sig &&
         .pyani-plus-private-cli log-sourmash --quiet --database {params.db} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
             --compare {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.csv \

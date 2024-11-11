@@ -186,7 +186,8 @@ class Configuration(Base):
             f"Configuration(configuration_id={self.configuration_id},"
             f" program={self.program!r}, version={self.version!r},"
             f" fragsize={self.fragsize}, mode={self.mode!r},"
-            f" kmersize={self.kmersize}, minmatch={self.minmatch})"
+            f" kmersize={self.kmersize}, minmatch={self.minmatch},"
+            f" extra={self.extra!r})"
         )
 
 

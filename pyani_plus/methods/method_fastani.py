@@ -21,7 +21,12 @@
 # THE SOFTWARE.
 """Code to wrap the fastANI average nucleotide identity method."""
 
+import platform
+import subprocess
+import sys
 from pathlib import Path
+
+from pyani_plus import db_orm, tools
 
 KMER_SIZE = 16  # Default fastANI k-mer size (max 16)
 FRAG_LEN = 3000  # Default fastANI fragment length, mapped to our --fragsize
@@ -30,7 +35,17 @@ MAX_RATIO_DIFF = 10.0  # Default fastANI maximum ratio difference
 
 
 def parse_fastani_file(filename: Path) -> tuple[Path, Path, float, int, int]:
-    """Parse a single-line fastANI output file extracting key fields as a tuple.
+    """Parse a single-line fastANI output file extracting key fields as a tuple."""
+    with filename.open() as handle:
+        line = handle.readline()
+    if not line:  # No file content; either run failed or no detectable similarity
+        msg = f"Input file {filename} is empty"
+        raise ValueError(msg)
+    return parse_fastani_data(line)
+
+
+def parse_fastani_data(text: str) -> tuple[Path, Path, float, int, int]:
+    """Parse a single-line fastANI output, extracting key fields as a tuple.
 
     Return (ref genome, query genome, ANI estimate, orthologous matches,
     sequence fragments) tuple.
@@ -47,15 +62,72 @@ def parse_fastani_file(filename: Path) -> tuple[Path, Path, float, int, int]:
     fastANI *can* produce multi-line output, if a list of query/reference
     files is given to it.
     """
-    with filename.open() as handle:
-        line = handle.readline().strip().split()
-    if not line:  # No file content; either run failed or no detectable similarity
-        msg = f"Input file {filename} is empty"
-        raise ValueError(msg)
+    line = text.strip().split()
     return (
         Path(line[0]),
         Path(line[1]),
         0.01 * float(line[2]),
         int(line[3]),
         int(line[4]),
+    )
+
+
+def compute_pairwise_ani(  # noqa: PLR0913
+    uname: platform.uname_result,
+    config: db_orm.Configuration,
+    query_hash: str,
+    query_fasta: Path,
+    subject_hash: str,
+    subject_fasta: Path,
+    cache: Path,  # noqa: ARG001
+) -> db_orm.Comparison:
+    """Run a single fastANI comparison."""
+    proc = subprocess.run(
+        [
+            str(tools.get_fastani().exe_path),
+            "-q",
+            query_fasta,
+            "-r",
+            subject_fasta,
+            "-o",
+            "/dev/stdout",
+            "--fragLen",
+            str(config.fragsize),
+            "-k",
+            str(config.kmersize),
+            "--minFraction",
+            str(config.minmatch),
+        ],
+        capture_output=True,
+        check=True,
+        text=True,
+    )
+    if not proc.stdout:
+        msg = f"ERROR: No output from fastANI\n{proc.stderr}"
+        sys.exit(msg)
+    used_query_path, used_subject_path, identity, orthologous_matches, fragments = (
+        parse_fastani_data(proc.stdout)
+    )
+    # Allow for variation in the folder part of the filenames (e.g. relative paths)
+    if used_query_path.stem != query_fasta.stem:
+        sys.exit(
+            f"ERROR: Given --query-fasta {query_fasta} but query in fastANI file contents was {used_query_path}"
+        )
+    if used_subject_path.stem != subject_fasta.stem:
+        sys.exit(
+            f"ERROR: Given --subject-fasta {subject_fasta} but subject in fastANI file contents was {used_subject_path}"
+        )
+
+    return db_orm.Comparison(
+        configuration_id=config.configuration_id,
+        query_hash=query_hash,
+        subject_hash=subject_hash,
+        identity=identity,
+        aln_length=round(config.fragsize * orthologous_matches),  # proxy value,
+        sim_errors=fragments - orthologous_matches,  # proxy value, not bp,
+        cov_query=float(orthologous_matches) / fragments,  # an approximation,
+        cov_subject=None,
+        uname_system=uname.system,
+        uname_release=uname.release,
+        uname_machine=uname.machine,
     )

@@ -21,11 +21,15 @@
 # THE SOFTWARE.
 """Code to implement the sourmash Average Nucleotide Identity (ANI) method."""
 
-# Set Up
+import platform
+import subprocess
+import sys
 from enum import Enum
 from pathlib import Path
 
 import pandas as pd
+
+from pyani_plus import db_orm, tools
 
 
 class EnumModeSourmash(str, Enum):
@@ -70,3 +74,68 @@ def parse_compare(compare_file: Path) -> float:
     )
 
     return compare_results.iloc[0, -1]
+
+
+def compute_pairwise_ani(  # noqa: PLR0913
+    uname: platform.uname_result,
+    config: db_orm.Configuration,
+    query_hash: str,
+    query_fasta: Path,
+    subject_hash: str,
+    subject_fasta: Path,
+    cache: Path,
+) -> db_orm.Comparison:
+    """Run a single sourmash comparison."""
+    tool = tools.get_sourmash()
+    signature_file = cache / f"{query_hash}_vs_{subject_hash}.sig"
+    subprocess.check_call(
+        [
+            str(tool.exe_path),
+            "sketch",
+            "dna",
+            "-p",
+            f"k={config.kmersize},{config.extra}",
+            str(query_fasta),
+            str(subject_fasta),
+            "-o",
+            str(signature_file),
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if not signature_file.is_file():
+        msg = f"ERROR: Missing sourmash signature file {signature_file}"
+        sys.exit(msg)
+    proc = subprocess.run(
+        [
+            str(tool.exe_path),
+            "compare",
+            str(signature_file),
+            "--estimate-ani",
+            f"--{config.mode}",
+            "--quiet",
+            "--csv",
+            "/dev/stdout",
+        ],
+        capture_output=True,
+        check=True,
+        text=True,
+    )
+    if not proc.stdout:
+        msg = f"ERROR: No output from sourmash\n{proc.stderr}"
+        sys.exit(msg)
+
+    identity = float(proc.stdout.split("\n")[1].split(",")[1])
+    if not (0.0 <= identity <= 1.0):
+        msg = f"ERROR: Could not parse sourmash CSV output:\n{proc.stdout}"
+        sys.exit(msg)
+
+    return db_orm.Comparison(
+        configuration_id=config.configuration_id,
+        query_hash=query_hash,
+        subject_hash=subject_hash,
+        identity=identity,
+        uname_system=uname.system,
+        uname_release=uname.release,
+        uname_machine=uname.machine,
+    )

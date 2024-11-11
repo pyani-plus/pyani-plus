@@ -25,7 +25,10 @@ The commands defined here are intended to be used from within pyANI-plus via
 snakemake, for example from worker nodes, to log results to the database.
 """
 
+import importlib
+import platform
 import sys
+from itertools import product
 from pathlib import Path
 from typing import Annotated
 
@@ -139,6 +142,103 @@ NONE_ARG_TYPE_EXTRA = Annotated[
         help="Comparison method specific mode", rich_help_panel="Method parameters"
     ),
 ]
+
+
+@app.command(rich_help_panel="Main")
+def compute(  # noqa: C901
+    database: REQ_ARG_TYPE_DATABASE,
+    run_id: Annotated[
+        int | None,
+        typer.Option(help="Which run to resume", show_default=False),
+    ],
+    parts: Annotated[
+        int,
+        typer.Option(
+            help=(
+                "How many workers, or how many parts,"
+                " is the computation to be split between?"
+            ),
+            min=1,
+        ),
+    ] = 1,
+    task: Annotated[
+        int,
+        typer.Option(
+            help=(
+                "Given the computation is broken into parts, which one to compute?"
+                " Should be between 0 and number of parts."
+            ),
+            min=0,
+        ),
+    ] = 0,
+    *,
+    quiet: OPT_ARG_TYPE_QUIET = False,
+) -> int:
+    """Compute the ANI values for a run already defined in the database.
+
+    If you set parts equal to the number of genomes, this will make each
+    row of the database into a task (i.e. all vs a single subject FASTA).
+    """
+    if not (0 <= task <= parts):
+        msg = f"ERROR: Expect task in range 0 to {parts}, got {task}"
+        sys.exit(msg)
+    if task == parts:
+        # This is to accommodate some flexibility in array job numbering
+        task = 0
+    if database != ":memory:" and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+    uname = platform.uname()
+    session = db_orm.connect_to_db(database)
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+    n = run.genomes.count()
+    done = run.comparisons().count()
+    if not quiet:
+        print(f"Run already has {done}/{n**2}={n}² pairwise values")
+    if done == n**2:
+        return 0
+    fasta_dir = Path(run.fasta_directory)
+    config = run.configuration
+    method = config.method
+    module = importlib.import_module(f"pyani_plus.methods.method_{method.lower()}")
+
+    hashes = {
+        _.genome_hash: _.fasta_filename
+        for _ in run.fasta_hashes.order_by(db_orm.RunGenomeAssociation.genome_hash)
+    }
+
+    for index, (query_md5, subject_md5) in enumerate(product(hashes, hashes)):
+        if index % parts != task:
+            if not quiet:
+                print(f"Skipping {query_md5} vs {subject_md5} as not requested")
+            continue
+        if bool(
+            session.query(db_orm.Comparison)
+            .where(db_orm.Comparison.configuration_id == config.configuration_id)
+            .where(db_orm.Comparison.query_hash == query_md5)
+            .where(db_orm.Comparison.subject_hash == subject_md5)
+            .count()
+        ):
+            if not quiet:
+                print(f"Skipping {query_md5} vs {subject_md5} as already in DB")
+            continue
+        # Actually do the computation!
+        if not quiet:
+            print(f"Computing {query_md5} vs {subject_md5} now...")
+        session.add(
+            module.compute_pairwise_ani(
+                uname,
+                config,
+                query_md5,
+                fasta_dir / hashes[query_md5],
+                subject_md5,
+                fasta_dir / hashes[subject_md5],
+                # will need to be networked for cluster...
+                Path("/tmp"),  # noqa: S108
+            )
+        )
+        session.commit()
+    return 0
 
 
 @app.command(rich_help_panel="Low-level logging")

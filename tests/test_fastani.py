@@ -100,6 +100,7 @@ def test_bad_query_or_subject_in_file(
     tmp_db = Path(tmp_path) / "bad-names.sqlite"
     assert not tmp_db.is_file()
 
+    tool = tools.get_fastani()
     private_cli.log_run(
         fasta=input_genomes_tiny,
         database=tmp_db,
@@ -107,8 +108,8 @@ def test_bad_query_or_subject_in_file(
         status="Testing",
         name="Testing log_fastani",
         method="fastANI",
-        program="fastANI",
-        version="42",
+        program=tool.exe_path.stem,
+        version=tool.version,
         fragsize=1000,
         kmersize=51,
         minmatch=0.9,

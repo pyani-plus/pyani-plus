@@ -66,8 +66,7 @@ for file in COMPARE_DIR.glob("*.csv"):
 sourmash = get_sourmash()
 print(f"Using nucmer {sourmash.version} at {sourmash.exe_path}")
 
-for genomes in comparisons:
-    stem = "_vs_".join(genomes)
+for genome in inputs.values():
     subprocess.run(
         [
             sourmash.exe_path,
@@ -75,19 +74,21 @@ for genomes in comparisons:
             "dna",
             "-p",
             "k=31,scaled=300",
-            inputs[genomes[1]],
-            inputs[genomes[0]],
+            genome,
             "-o",
-            SIGNATURE_DIR / (stem + ".sig"),
+            SIGNATURE_DIR / (genome.stem + ".sig"),
         ],
         check=True,
     )
 
+for genomes in comparisons:
+    sigs = [SIGNATURE_DIR / (stem + ".sig") for stem in genomes]
+    stem = "_vs_".join(genomes)
     subprocess.run(
         [
             sourmash.exe_path,
             "compare",
-            SIGNATURE_DIR / (stem + ".sig"),
+            *sigs,
             "--csv",
             COMPARE_DIR / (stem + ".csv"),
             "--estimate-ani",

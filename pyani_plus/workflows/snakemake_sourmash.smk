@@ -68,6 +68,6 @@ rule compare:
             {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.sig &&
         .pyani-plus-private-cli log-sourmash --quiet --database {params.db} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
-            --compare {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.csv \
-            --mode {params.mode} --kmersize {params.kmersize} --extra {params.extra}
+            --mode {params.mode} --kmersize {params.kmersize} --extra {params.extra} \
+            --compare {output}
         """

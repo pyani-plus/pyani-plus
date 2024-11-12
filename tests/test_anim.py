@@ -153,7 +153,7 @@ def test_delta_parsing(anim_nucmer_targets_filter_indir: Path) -> None:
         222,
     )
 
-    with pytest.raises(ValueError, match="Empty delta file from nucmer, /dev/null"):
+    with pytest.raises(ValueError, match="Empty delta file from nucmer"):
         method_anim.parse_delta(Path("/dev/null"))
 
 

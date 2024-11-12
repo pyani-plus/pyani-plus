@@ -40,11 +40,19 @@ counts, average nucleotide identity (ANI) percentages, and minimum aligned
 percentage (of whole genome) for each pairwise comparison.
 """
 
+import platform
+import subprocess
+import sys
+import tempfile
 from collections import defaultdict
 from enum import Enum
+from io import StringIO
 from pathlib import Path
+from typing import TextIO
 
 import intervaltree  # type: ignore  # noqa: PGH003
+
+from pyani_plus import db_orm, tools
 
 
 class EnumModeANIm(str, Enum):
@@ -80,6 +88,13 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
     """Return (reference alignment length, query alignment length, average identity, similarity errors).
 
     :param filename: Path to the input .delta file
+    """
+    with filename.open() as handle:
+        return parse_delta_handle(handle)
+
+
+def parse_delta_handle(handle: TextIO) -> tuple[int, int, float, int]:
+    """Return (reference alignment length, query alignment length, average identity, similarity errors).
 
     Calculates similarity errors and the aligned lengths for reference
     and query and average nucleotide identity, and returns the cumulative
@@ -144,9 +159,9 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
     weighted_identical_bases = 0  # Hold a count of weighted identical bases
 
     # Ideally we wouldn't read the whole file into memory at once...
-    lines = [_.strip().split() for _ in filename.open("r").readlines()]
+    lines = [_.strip().split() for _ in handle]
     if not lines:
-        msg = f"Empty delta file from nucmer, {filename}"
+        msg = "Empty delta file from nucmer"
         raise ValueError(msg)
     for line in lines:
         if line[0] == "NUCMER":  # Skip headers
@@ -184,4 +199,64 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
         get_aligned_bases_count(regions_ref),
         avrg_identity,
         sim_error,
+    )
+
+
+def compute_pairwise_ani(  # noqa: PLR0913
+    uname: platform.uname_result,
+    config: db_orm.Configuration,
+    query_hash: str,
+    query_fasta: Path,
+    query_length: int,
+    subject_hash: str,
+    subject_fasta: Path,
+    subject_length: int,
+    cache: Path,  # noqa: ARG001
+) -> db_orm.Comparison:
+    """Run a single ANIm comparison."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        delta_prefix = tmp_path / f"{query_hash}_vs_{subject_hash}"
+        subprocess.check_call(
+            [
+                str(tools.get_nucmer().exe_path),
+                "-p",
+                delta_prefix,
+                f"--{config.mode}",
+                subject_fasta,
+                query_fasta,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        proc = subprocess.run(
+            [
+                str(tools.get_delta_filter().exe_path),
+                "-1",
+                delta_prefix.with_suffix(".delta"),
+            ],
+            capture_output=True,
+            check=True,
+            text=True,
+        )
+        if not proc.stdout:
+            msg = f"ERROR: No output from delta-filter\n{proc.stderr}"
+            sys.exit(msg)
+
+    query_aligned_bases, subject_aligned_bases, identity, sim_errors = (
+        parse_delta_handle(StringIO(proc.stdout))
+    )
+
+    return db_orm.Comparison(
+        configuration_id=config.configuration_id,
+        query_hash=query_hash,
+        subject_hash=subject_hash,
+        identity=identity,
+        aln_length=query_aligned_bases,
+        sim_errors=sim_errors,
+        cov_query=float(query_aligned_bases) / query_length,
+        cov_subject=float(subject_aligned_bases) / subject_length,
+        uname_system=uname.system,
+        uname_release=uname.release,
+        uname_machine=uname.machine,
     )

@@ -37,6 +37,23 @@ from pyani_plus.methods import method_sourmash
 from . import get_matrix_entry
 
 
+def test_parser_with_bad_self_vs_self(tmp_path: str) -> None:
+    """Check self-vs-self is one in sourmash compare parser."""
+    mock_csv = Path(tmp_path) / "faked.csv"
+    with mock_csv.open("w") as handle:
+        handle.write("A.fasta,B.fasta\n")
+        handle.write("1.0,0.99\n")
+        handle.write("0.99,NaN\n")
+    mock_dict = {"A.fasta": "AAAAAA", "B.fasta": "BBBBBB"}
+    parser = method_sourmash.parse_sourmash_compare_csv(mock_csv, mock_dict)
+    assert next(parser) == ("AAAAAA", "AAAAAA", 1.0)
+    assert next(parser) == ("AAAAAA", "BBBBBB", 0.99)
+    with pytest.raises(
+        ValueError, match="Expected sourmash BBBBBB vs self to be one, not NaN"
+    ):
+        next(parser)
+
+
 def test_missing_db(tmp_path: str, sourmash_targets_compare_indir: Path) -> None:
     """Check expected error when DB does not exist."""
     tmp_db = Path(tmp_path) / "new.sqlite"

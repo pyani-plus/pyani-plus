@@ -789,7 +789,10 @@ def log_sourmash(
     config_id = run.configuration.configuration_id
     filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
 
-    # Now do a bulk import...
+    # Now do a bulk import... but must skip any pre-existing entries
+    # otherwise would hit sqlite3.IntegrityError for breaking uniqueness!
+    # Repeating those calculations is a waste, but a performance trade off
+    pre_existing = {(comp.query_hash, comp.subject_hash) for comp in run.comparisons()}
     session.execute(
         insert(db_orm.Comparison),
         [
@@ -807,6 +810,7 @@ def log_sourmash(
                 subject_hash,
                 identity,
             ) in method_sourmash.parse_sourmash_compare_csv(compare, filename_to_hash)
+            if (query_hash, subject_hash) not in pre_existing
         ],
     )
 

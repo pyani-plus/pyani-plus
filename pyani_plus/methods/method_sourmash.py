@@ -24,6 +24,7 @@
 import platform
 import subprocess
 import sys
+from collections.abc import Iterator
 from enum import Enum
 from pathlib import Path
 
@@ -42,6 +43,43 @@ class EnumModeSourmash(str, Enum):
 MODE = EnumModeSourmash.max_containment  # constant for CLI default
 SCALED = 1000
 KMER_SIZE = 31  # default
+
+
+def prepare_genomes(run: db_orm.Run, cache: Path) -> Iterator[str]:
+    """Build the sourmatch sketch signatures in the given directory.
+
+    Yields the FASTA hashes as the databases completed for use with a progress bar.
+    """
+    config = run.configuration
+    if not config.kmersize:
+        msg = f"ERROR: sourmash requires a k-mer size, default is {KMER_SIZE}"
+        sys.exit(msg)
+    if not config.extra:
+        msg = f"ERROR: sourmash requires scaled or num, default is scaled={SCALED}"
+        sys.exit(msg)
+    tool = tools.get_sourmash()
+    fasta_dir = Path(run.fasta_directory)
+    for entry in run.fasta_hashes:
+        fasta_filename = fasta_dir / entry.fasta_filename
+        sig_filename = (
+            cache / f"{entry.genome_hash}_k={config.kmersize}_{config.extra}.sig"
+        )
+        if not sig_filename.is_file():
+            subprocess.check_call(
+                [
+                    str(tool.exe_path),
+                    "sketch",
+                    "dna",
+                    "-p",
+                    f"k={config.kmersize},{config.extra}",
+                    fasta_filename,
+                    "-o",
+                    sig_filename,
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+        yield entry
 
 
 def parse_compare(compare_file: Path) -> float:
@@ -80,37 +118,21 @@ def compute_pairwise_ani(  # noqa: PLR0913
     uname: platform.uname_result,
     config: db_orm.Configuration,
     query_hash: str,
-    query_fasta: Path,
+    query_fasta: Path,  # noqa: ARG001
+    query_length: int,  # noqa: ARG001
     subject_hash: str,
-    subject_fasta: Path,
+    subject_fasta: Path,  # noqa: ARG001
+    subject_length: int,  # noqa: ARG001
     cache: Path,
 ) -> db_orm.Comparison:
     """Run a single sourmash comparison."""
     tool = tools.get_sourmash()
-    signature_file = cache / f"{query_hash}_vs_{subject_hash}.sig"
-    subprocess.check_call(
-        [
-            str(tool.exe_path),
-            "sketch",
-            "dna",
-            "-p",
-            f"k={config.kmersize},{config.extra}",
-            str(query_fasta),
-            str(subject_fasta),
-            "-o",
-            str(signature_file),
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if not signature_file.is_file():
-        msg = f"ERROR: Missing sourmash signature file {signature_file}"
-        sys.exit(msg)
     proc = subprocess.run(
         [
             str(tool.exe_path),
             "compare",
-            str(signature_file),
+            str(cache / f"{query_hash}_k={config.kmersize}_{config.extra}.sig"),
+            str(cache / f"{subject_hash}_k={config.kmersize}_{config.extra}.sig"),
             "--estimate-ani",
             f"--{config.mode}",
             "--quiet",

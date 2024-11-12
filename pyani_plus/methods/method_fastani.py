@@ -77,8 +77,10 @@ def compute_pairwise_ani(  # noqa: PLR0913
     config: db_orm.Configuration,
     query_hash: str,
     query_fasta: Path,
+    query_length: int,  # noqa: ARG001
     subject_hash: str,
     subject_fasta: Path,
+    subject_length: int,  # noqa: ARG001
     cache: Path,  # noqa: ARG001
 ) -> db_orm.Comparison:
     """Run a single fastANI comparison."""

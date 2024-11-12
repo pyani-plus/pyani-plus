@@ -32,9 +32,17 @@ BLAST for the N^2 pairwise combinations. This is done with here three snakemake
 rules.
 """
 
+import platform
+import subprocess
+import sys
+from collections.abc import Iterator
+from io import StringIO
 from pathlib import Path
+from typing import TextIO
 
 from Bio.SeqIO.FastaIO import SimpleFastaParser
+
+from pyani_plus import db_orm, tools
 
 FRAGSIZE = 1020  # Default ANIb fragment size
 MIN_COVERAGE = 0.7
@@ -46,6 +54,64 @@ BLAST_COLUMNS = (
     "qseqid sseqid length mismatch pident nident"
     " qlen slen qstart qend sstart send positive ppos gaps"
 ).split()
+
+
+def prepare_genomes(run: db_orm.Run, cache: Path) -> Iterator[str]:
+    """Build the BLAST databases in the given directory.
+
+    Yields the FASTA hashes as the databases completed for use with a progress bar.
+    """
+    tool = tools.get_makeblastdb()
+    config = run.configuration
+    if not config.fragsize:
+        msg = f"ERROR: ANIb requires a fragment size, default is {FRAGSIZE}"
+        sys.exit(msg)
+    fasta_dir = Path(run.fasta_directory)
+    for entry in run.fasta_hashes:
+        fasta_filename = fasta_dir / entry.fasta_filename
+        frag_filename = cache / f"{entry.genome_hash}_fragments_{config.fragsize}.fna"
+        if not (cache / (Path(entry.fasta_filename).stem + ".njs")).is_file():
+            subprocess.check_call(
+                [
+                    str(tool.exe_path),
+                    "-in",
+                    fasta_filename,
+                    "-input_type",
+                    "fasta",
+                    "-dbtype",
+                    "nucl",
+                    "-title",
+                    fasta_filename.stem,
+                    "-out",
+                    cache / entry.genome_hash,
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+        if not frag_filename.is_file():
+            fragment_fasta_file(fasta_filename, frag_filename, config.fragsize)
+        yield entry
+
+
+def fragment_fasta_file(
+    in_filename: Path, frag_filename: Path, fragsize: int = FRAGSIZE
+) -> None:
+    """Fragment FASTA files into subsequences of up to the given size."""
+    with in_filename.open() as in_handle, frag_filename.open("w") as out_handle:
+        count = 0
+        for title, seq in SimpleFastaParser(in_handle):
+            index = 0
+            while index < len(seq):
+                count += 1
+                fragment = seq[index : index + fragsize]
+                out_handle.write(f">frag{count:05d} {title}\n")
+                # Now line wrap at 60 chars
+                for i in range(0, len(fragment), 60):
+                    out_handle.write(fragment[i : i + 60] + "\n")
+                index += fragsize
+    if not count:
+        msg = f"No sequences found in {in_filename}"
+        raise ValueError(msg)
 
 
 def fragment_fasta_files(
@@ -60,32 +126,24 @@ def fragment_fasta_files(
 
     Returns a list of the output fragmented FASTA files.
     """
-    fragmented_files = []
+    answer = []
     for filename in fasta:
         if not isinstance(filename, Path):
             msg = f"Expected a Path object in list of FASTA files, got {filename!r}"
             raise TypeError(msg)
         frag_filename = outdir / (filename.stem + "-fragments.fna")
-        with filename.open() as in_handle, frag_filename.open("w") as out_handle:
-            count = 0
-            for title, seq in SimpleFastaParser(in_handle):
-                index = 0
-                while index < len(seq):
-                    count += 1
-                    fragment = seq[index : index + fragsize]
-                    out_handle.write(f">frag{count:05d} {title}\n")
-                    # Now line wrap at 60 chars
-                    for i in range(0, len(fragment), 60):
-                        out_handle.write(fragment[i : i + 60] + "\n")
-                    index += fragsize
-        if not count:
-            msg = f"No sequences found in {filename}"
-            raise ValueError(msg)
-        fragmented_files.append(frag_filename)
-    return fragmented_files
+        fragment_fasta_file(filename, frag_filename, fragsize)
+        answer.append(frag_filename)
+    return answer
 
 
 def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
+    """Extract the ANI etc from a blastn output file using the ANIb method."""
+    with blastn.open() as handle:
+        return parse_blastn_handle(handle)
+
+
+def parse_blastn_handle(handle: TextIO) -> tuple[float, int, int]:
     """Extract the ANI etc from a blastn output file using the ANIb method.
 
     Parses the BLAST tabular output file, taking only rows with a query coverage
@@ -98,7 +156,7 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
     >>> fname = (
     ...     "tests/fixtures/anib/blastn/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv"
     ... )
-    >>> identity, length, sim_errors = parse_blastn_file(Path(fname))
+    >>> identity, length, sim_errors = parse_blastn_handle(Path(fname).open())
     >>> print(
     ...     f"Identity {100*identity:0.1f}% over length {length} with {sim_errors} errors"
     ... )
@@ -109,7 +167,7 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
     >>> fname = (
     ...     "tests/fixtures/anib/blastn/MGV-GENOME-0264574_vs_MGV-GENOME-0264574.tsv"
     ... )
-    >>> identity, length, sim_errors = parse_blastn_file(Path(fname))
+    >>> identity, length, sim_errors = parse_blastn_handle(Path(fname).open())
     >>> print(
     ...     f"Identity {100*identity:0.1f}% over length {length} with {sim_errors} errors"
     ... )
@@ -120,41 +178,36 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
     all_pid: list[float] = []
 
     prev_query = ""
-    with blastn.open() as handle:
-        for line in handle:
-            fields = line.rstrip("\n").split("\t")
-            if len(fields) != len(BLAST_COLUMNS):
-                msg = (
-                    f"Found {len(fields)} columns in {blastn}, not {len(BLAST_COLUMNS)}"
-                )
-                raise ValueError(msg)
-            if not fields[0].startswith("frag"):
-                msg = (
-                    f"BLAST output should be using fragmented queries, not {fields[0]}"
-                )
-                raise ValueError(msg)
-            values = dict(zip(BLAST_COLUMNS, fields, strict=False))
-            blast_alnlen = int(values["length"])
-            blast_gaps = int(values["gaps"])
-            ani_alnlen = blast_alnlen - blast_gaps
-            blast_mismatch = int(values["mismatch"])
-            ani_alnids = ani_alnlen - blast_mismatch
-            ani_query_coverage = ani_alnlen / int(values["qlen"])
-            # Can't use float(values["pident"])/100, this is relative to alignment length
-            ani_pid = ani_alnids / int(values["qlen"])
+    for line in handle:
+        fields = line.rstrip("\n").split("\t")
+        if len(fields) != len(BLAST_COLUMNS):
+            msg = f"Found {len(fields)} columns in blastn output, not {len(BLAST_COLUMNS)}"
+            raise ValueError(msg)
+        if not fields[0].startswith("frag"):
+            msg = f"BLAST output should be using fragmented queries, not {fields[0]}"
+            raise ValueError(msg)
+        values = dict(zip(BLAST_COLUMNS, fields, strict=False))
+        blast_alnlen = int(values["length"])
+        blast_gaps = int(values["gaps"])
+        ani_alnlen = blast_alnlen - blast_gaps
+        blast_mismatch = int(values["mismatch"])
+        ani_alnids = ani_alnlen - blast_mismatch
+        ani_query_coverage = ani_alnlen / int(values["qlen"])
+        # Can't use float(values["pident"])/100, this is relative to alignment length
+        ani_pid = ani_alnids / int(values["qlen"])
 
-            # Now apply filters - should these be parameters?
-            # And if there are multiple hits for this query, take first (best) one
-            if (
-                ani_query_coverage > MIN_COVERAGE
-                and ani_pid > MIN_IDENTITY
-                and prev_query != fields[0]
-            ):
-                total_aln_length += ani_alnlen
-                total_sim_errors += blast_mismatch + blast_gaps
-                # Not using ani_pid but BLAST's pident - see note below:
-                all_pid.append(float(values["pident"]) / 100)
-                prev_query = fields[0]  # to detect multiple hits for a query
+        # Now apply filters - should these be parameters?
+        # And if there are multiple hits for this query, take first (best) one
+        if (
+            ani_query_coverage > MIN_COVERAGE
+            and ani_pid > MIN_IDENTITY
+            and prev_query != fields[0]
+        ):
+            total_aln_length += ani_alnlen
+            total_sim_errors += blast_mismatch + blast_gaps
+            # Not using ani_pid but BLAST's pident - see note below:
+            all_pid.append(float(values["pident"]) / 100)
+            prev_query = fields[0]  # to detect multiple hits for a query
     # NOTE: Could warn about empty BLAST file using if prev_query is None:
 
     # NOTE: We report the mean of blastn's pident for concordance with JSpecies
@@ -166,4 +219,64 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
         sum(all_pid) / len(all_pid) if all_pid else 0,
         total_aln_length,
         total_sim_errors,
+    )
+
+
+def compute_pairwise_ani(  # noqa: PLR0913
+    uname: platform.uname_result,
+    config: db_orm.Configuration,
+    query_hash: str,
+    query_fasta: Path,  # noqa: ARG001
+    query_length: int,
+    subject_hash: str,
+    subject_fasta: Path,  # noqa: ARG001
+    subject_length: int,
+    cache: Path,
+) -> db_orm.Comparison:
+    """Run a single ANIb comparison."""
+    if not config.fragsize:
+        msg = f"ERROR: ANIb requires a fragment size, default is {FRAGSIZE}"
+        sys.exit(msg)
+    tool = tools.get_blastn()
+    proc = subprocess.run(
+        [
+            str(tool.exe_path),
+            "-query",
+            cache / f"{query_hash}_fragments_{config.fragsize}.fna",
+            "-db",
+            cache / subject_hash,
+            "-task",
+            "blastn",
+            "-outfmt",
+            "6 " + " ".join(BLAST_COLUMNS),
+            "-xdrop_gap_final",
+            "150",
+            "-dust",
+            "no",
+            "-evalue",
+            "1e-15",
+        ],
+        capture_output=True,
+        check=True,
+        text=True,
+    )
+
+    if not proc.stdout:
+        msg = f"ERROR: No output from blastn\n{proc.stderr}"
+        sys.exit(msg)
+
+    identity, aln_length, sim_errors = parse_blastn_handle(StringIO(proc.stdout))
+
+    return db_orm.Comparison(
+        configuration_id=config.configuration_id,
+        query_hash=query_hash,
+        subject_hash=subject_hash,
+        identity=identity,
+        aln_length=aln_length,
+        sim_errors=sim_errors,
+        cov_query=float(aln_length) / query_length,
+        cov_subject=float(aln_length) / subject_length,
+        uname_system=uname.system,
+        uname_release=uname.release,
+        uname_machine=uname.machine,
     )

@@ -61,6 +61,18 @@ app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 
+REQ_ARG_TYPE_CACHE = Annotated[
+    Path,
+    typer.Option(
+        help="Cache location (visible to cluster workers)",
+        metavar="DIRECTORY",
+        exists=True,
+        dir_okay=True,
+        file_okay=False,
+    ),
+]
+
+
 OPT_ARG_TYPE_QUIET = Annotated[
     # Listing name(s) explicitly to avoid automatic matching --no-quiet
     bool, typer.Option("--quiet", help="Suppress any output except if fails")
@@ -145,12 +157,60 @@ NONE_ARG_TYPE_EXTRA = Annotated[
 
 
 @app.command(rich_help_panel="Main")
-def compute(  # noqa: C901
+def prepare(
+    database: REQ_ARG_TYPE_DATABASE,
+    run_id: Annotated[
+        int | None,
+        typer.Option(help="Which run to prepare", show_default=False),
+    ],
+    cache: REQ_ARG_TYPE_CACHE = Path(".cache/"),
+    *,
+    quiet: OPT_ARG_TYPE_QUIET = False,
+) -> int:
+    """Prepare any intermediate files prior to computing the ANI values.
+
+    This requires you already have a run defined in the database, and would
+    be followed by running the private CLI ``compute`` command.
+    """
+    # Should this be splittable for running on the cluster? I assume most
+    # cases this is IO bound rather than CPU bound so is this helpful?
+    if database != ":memory:" and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+    session = db_orm.connect_to_db(database)
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+    n = run.genomes.count()
+    done = run.comparisons().count()
+    if done == n**2:
+        if not quiet:
+            print(
+                f"Skipping preparation, run already has all {n**2}={n}² pairwise values"
+            )
+        return 0
+    config = run.configuration
+    method = config.method
+    module = importlib.import_module(f"pyani_plus.methods.method_{method.lower()}")
+    if not hasattr(module, "prepare_genomes"):
+        sys.stderr.write(f"No per-genome preparation required for {method}\n")
+        return 0
+    with Progress(*PROGRESS_BAR_COLUMNS) as progress:
+        for _ in progress.track(
+            module.prepare_genomes(run, cache),
+            description="Processing...  ",  # spaces to match "Indexing FASTAs" etc
+            total=n,
+        ):
+            pass
+    return 0
+
+
+@app.command(rich_help_panel="Main")
+def compute(  # noqa: C901, PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     run_id: Annotated[
         int | None,
         typer.Option(help="Which run to resume", show_default=False),
     ],
+    cache: REQ_ARG_TYPE_CACHE = Path(".cache/"),
     parts: Annotated[
         int,
         typer.Option(
@@ -175,6 +235,10 @@ def compute(  # noqa: C901
     quiet: OPT_ARG_TYPE_QUIET = False,
 ) -> int:
     """Compute the ANI values for a run already defined in the database.
+
+    For some methods you must first have run the private CLI ``prepare``
+    command, e.g. for ANIb this builds BLAST databases, or for sourmash
+    this builds signature sketches.
 
     If you set parts equal to the number of genomes, this will make each
     row of the database into a task (i.e. all vs a single subject FASTA).
@@ -225,16 +289,27 @@ def compute(  # noqa: C901
         # Actually do the computation!
         if not quiet:
             print(f"Computing {query_md5} vs {subject_md5} now...")
+        query = (
+            session.query(db_orm.Genome)
+            .where(db_orm.Genome.genome_hash == query_md5)
+            .one()
+        )
+        subject = (
+            session.query(db_orm.Genome)
+            .where(db_orm.Genome.genome_hash == subject_md5)
+            .one()
+        )
         session.add(
             module.compute_pairwise_ani(
                 uname,
                 config,
                 query_md5,
                 fasta_dir / hashes[query_md5],
+                query.length,
                 subject_md5,
                 fasta_dir / hashes[subject_md5],
-                # will need to be networked for cluster...
-                Path("/tmp"),  # noqa: S108
+                subject.length,
+                cache,
             )
         )
         session.commit()

@@ -63,6 +63,8 @@ def parse_sourmash_compare_csv(
         for row, query in enumerate(hashes):
             values = handle.readline().rstrip("\n").split(",")
             if values[row] != "1.0":
+                # This could happen due to a bug in sourmash, or a glitch in the
+                # parser if we're not looking at the matrix element we think we are?
                 msg = f"Expected sourmash {query} vs self to be one, not {values[row]}"
                 raise ValueError(msg)
             for col, ani in enumerate(values):

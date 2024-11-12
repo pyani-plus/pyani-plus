@@ -763,7 +763,7 @@ def log_sourmash(  # noqa: PLR0913
     compare: Annotated[
         Path,
         typer.Option(
-            help="Path to fastANI output file",
+            help="Path to sourmash compare CSV output file",
             show_default=False,
             dir_okay=False,
             file_okay=True,

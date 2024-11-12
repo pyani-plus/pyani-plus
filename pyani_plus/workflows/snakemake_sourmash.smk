@@ -57,20 +57,16 @@ rule compare:
         kmersize=config["kmersize"],
         extra=config["extra"],  # This will consist of either `scaled=X` or `num=X`.
     input:
-        "{outdir}/{genomeA}.sig",
-        "{outdir}/{genomeB}.sig",
-        genomeA=get_genomeA,
-        genomeB=get_genomeB,
+        expand("{{outdir}}/{genome}.sig", genome=sorted(indir_files)),
     output:
-        "{outdir}/{genomeA}_vs_{genomeB}.csv",
+        # e.g. sourmash_max-containment_k=31_scaled=300.csv
+        #"{outdir}/sourmash_{params.mode}_k={params.kmersize}_{params.extra}.csv",
+        "{outdir}/sourmash.csv",
     shell:
         """
-        sourmash compare --quiet --csv {output} \
-            --estimate-ani --{params.mode} -k {params.kmersize} \
-            {wildcards.outdir}/{wildcards.genomeA}.sig
-            {wildcards.outdir}/{wildcards.genomeB}.sig &&
+        sourmash compare --quiet --csv {output} --estimate-ani \
+            --{params.mode} -k {params.kmersize} {input} &&
         .pyani-plus-private-cli log-sourmash --quiet \
             --database {params.db} --run-id {params.run_id} \
-            --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
             --compare {output}
         """

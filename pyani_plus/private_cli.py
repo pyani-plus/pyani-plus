@@ -25,12 +25,14 @@ The commands defined here are intended to be used from within pyANI-plus via
 snakemake, for example from worker nodes, to log results to the database.
 """
 
+import platform
 import sys
 from pathlib import Path
 from typing import Annotated
 
 import typer
 from rich.progress import Progress
+from sqlalchemy import insert
 from sqlalchemy.orm import Session
 
 from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
@@ -748,16 +750,13 @@ def log_dnadiff(  # noqa: PLR0913
 
 
 @app.command(rich_help_panel="Method specific logging")
-def log_sourmash(  # noqa: PLR0913
+def log_sourmash(
     database: REQ_ARG_TYPE_DATABASE,
-    # These are for the comparison table
     run_id: REQ_ARG_TYPE_RUN_ID,
-    query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
-    subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     compare: Annotated[
         Path,
         typer.Option(
-            help="Path to sourmash compare CSV output file",
+            help="Sourmash compare all-vs-all CSV output file",
             show_default=False,
             dir_okay=False,
             file_okay=True,
@@ -767,49 +766,48 @@ def log_sourmash(  # noqa: PLR0913
     *,
     quiet: OPT_ARG_TYPE_QUIET = False,
 ) -> int:
-    """Log single sourmash pairwise comparison to database.
-
-    The associated configuration and genome entries must already exist.
-    """
-    used_query, used_subject = compare.stem.split("_vs_")
-    if used_query != query_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --query-fasta {query_fasta} but query in sourmash compare filename was {used_query}"
-        )
-    if used_subject != subject_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but subject in sourmash compare filename was {used_subject}"
-        )
-
+    """Log an all-vs-all sourmash pairwise comparison to database."""
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
+    uname = platform.uname()
+    uname_system = uname.system
+    uname_release = uname.release
+    uname_machine = uname.machine
+
     if not quiet:
         print(f"Logging sourmash to {database}")
     session = db_orm.connect_to_db(database)
-    run, query_md5, subject_md5 = _lookup_run_query_subject(
-        session, run_id, query_fasta, subject_fasta
-    )
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
     if run.configuration.method != "sourmash":
         msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
         sys.exit(msg)
 
     _check_tool_version(tools.get_sourmash(), run.configuration)
 
-    identity = method_sourmash.parse_compare(compare)
+    config_id = run.configuration.configuration_id
+    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
 
-    db_orm.db_comparison(
-        session,
-        configuration_id=run.configuration_id,
-        query_hash=query_md5,
-        subject_hash=subject_md5,
-        identity=identity,
-        # Question: We need to discuss how to calculate or report the below values.
-        aln_length=None,
-        sim_errors=None,
-        cov_query=None,
-        cov_subject=None,
+    # Now do a bulk import...
+    session.execute(
+        insert(db_orm.Comparison),
+        [
+            {
+                "query_hash": query_hash,
+                "subject_hash": subject_hash,
+                "identity": identity,
+                "configuration_id": config_id,
+                "uname_system": uname_system,
+                "uname_release": uname_release,
+                "uname_machine": uname_machine,
+            }
+            for (
+                query_hash,
+                subject_hash,
+                identity,
+            ) in method_sourmash.parse_sourmash_compare_csv(compare, filename_to_hash)
+        ],
     )
 
     session.commit()

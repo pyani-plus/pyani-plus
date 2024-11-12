@@ -22,6 +22,8 @@
 """Code to implement the sourmash Average Nucleotide Identity (ANI) method."""
 
 # Set Up
+import sys
+from collections.abc import Iterator
 from enum import Enum
 from pathlib import Path
 
@@ -38,6 +40,35 @@ class EnumModeSourmash(str, Enum):
 MODE = EnumModeSourmash.max_containment  # constant for CLI default
 SCALED = 1000
 KMER_SIZE = 31  # default
+
+
+def parse_sourmash_compare_csv(
+    compare_file: Path, filename_to_hash: dict[str, str]
+) -> Iterator[tuple[str, str, float]]:
+    """Parse sourmash copare all-vs-all CSV output.
+
+    Returns tuples of (query_hash, subject_hash, estimated ANI).
+    """
+    with compare_file.open() as handle:
+        headers = handle.readline().rstrip("\n").split(",")
+        if len(headers) != len(filename_to_hash):
+            msg = (
+                "Expected sourmash compare CSV to have"
+                f" {len(filename_to_hash)} columns, not {len(headers)}"
+            )
+            sys.exit(msg)
+        try:
+            hashes = [filename_to_hash[Path(_).name] for _ in headers]
+        except KeyError as err:
+            msg = f"CSV file {compare_file} contained reference to {err!s} which is not in the run"
+            sys.exit(msg)
+        for row, query in enumerate(hashes):
+            values = handle.readline().rstrip("\n").split(",")
+            if values[row] != "1.0":
+                msg = f"Expected sourmash {query} vs self to be one, not {values[row]}"
+                raise ValueError(msg)
+            for col, ani in enumerate(values):
+                yield query, hashes[col], float(ani)
 
 
 def parse_compare(compare_file: Path) -> float:

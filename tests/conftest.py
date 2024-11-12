@@ -377,15 +377,9 @@ def sourmash_targets_sig(sourmash_targets_signature_outdir: Path) -> list[Path]:
 
 
 @pytest.fixture
-def sourmash_target_ani(sourmash_targets_compare_outdir: Path) -> list[Path]:
-    """Target files for sourmash ani estimation tests.
-
-    These are paths to the output files we want to generate using
-    sourmash sketch. We aim to ask sourmash sketch to generate a set of
-    .sig files that could later be processed to obtain ANI values
-    """
-    reference_paths = (FIXTUREPATH / "sourmash" / "targets" / "compare").glob("*.csv")
-    return [sourmash_targets_compare_outdir / _.name for _ in reference_paths]
+def sourmash_target_all_vs_all_ani() -> list[Path]:
+    """Target file for sourmash ani estimation tests."""
+    return [FIXTUREPATH / "sourmash" / "targets" / "compare" / "sourmash.csv"]
 
 
 @pytest.fixture

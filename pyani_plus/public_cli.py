@@ -580,6 +580,8 @@ def resume(  # noqa: C901, PLR0912, PLR0915
     # The params dict has two kinds of entries,
     # - tool paths, which ought to be handled more neatly
     # - config entries, which ought to be named consistently and done centrally
+    targets = []  # mostly unused
+    target_extension: str | None = None  # set for most methods
     match config.method:
         case "fastANI":
             tool = tools.get_fastani()
@@ -610,6 +612,13 @@ def resume(  # noqa: C901, PLR0912, PLR0915
                 "makeblastdb": tools.get_makeblastdb().exe_path,
             }
             target_extension = ".tsv"
+        case "sourmash":
+            tool = tools.get_sourmash()
+            binaries = {
+                "sourmash": tool.exe_path,
+            }
+            targets = ["sourmash.csv"]
+            target_extension = None
         case _:
             msg = f"ERROR: Unknown method {config.method} for run-id {run_id} in {database}"
             sys.exit(msg)
@@ -651,7 +660,7 @@ def resume(  # noqa: C901, PLR0912, PLR0915
         database,
         session,
         run,
-        [],  # not doing sourmash yet which does have an all-vs-all target
+        targets,
         target_extension,
         binaries,
     )

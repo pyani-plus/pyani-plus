@@ -27,8 +27,6 @@ from collections.abc import Iterator
 from enum import Enum
 from pathlib import Path
 
-import pandas as pd
-
 
 class EnumModeSourmash(str, Enum):
     """Enum for the --mode command line argument passed to sourmash."""
@@ -69,35 +67,3 @@ def parse_sourmash_compare_csv(
                 raise ValueError(msg)
             for col, ani in enumerate(values):
                 yield query, hashes[col], float(ani)
-
-
-def parse_compare(compare_file: Path) -> float:
-    """Parse sourmash compare .csv output extracting estimated ANI as float.
-
-    :param compare_file: Path to the compare_file.
-
-    Extracts the ANI estimate (which we return in the range 0 to 1).
-
-    Assumes all sourmash comparisons are pairwise, involving one query and
-    one reference file. The sourmash compare file should contain a DataFrame
-    with two rows and two columns, e.g.:
-
-        genome_1.fna    genome_2.fas
-        1.000000        0.997901
-        0.997901        1.000000
-
-    To extract the estimated ANI value, we call `df.iloc[0, -1]`
-    to obtain the top right corner value.
-
-    Since sourmash *can* produce multi-comparison output when given a list
-    of .sig files, it may be necessary to parse the file by extracting
-    the upper triangle of values from the sourmash compare output using
-    the `np.triu` function.
-    """
-    compare_results = pd.read_csv(
-        Path(compare_file),
-        sep=",",
-        index_col=False,
-    )
-
-    return compare_results.iloc[0, -1]

@@ -168,10 +168,9 @@ def test_snakemake_sketch_rule(
 def test_snakemake_compare_rule(  # noqa: PLR0913
     capsys: pytest.CaptureFixture[str],
     sourmash_targets_compare_outdir: Path,
-    sourmash_target_ani: list[str],
     config_sourmash_args: dict,
-    sourmash_targets_compare_indir: Path,
     dir_sourmash_results: Path,
+    sourmash_targets_compare_indir: Path,
     tmp_path: str,
 ) -> None:
     """Test sourmash compare snakemake wrapper.
@@ -219,18 +218,16 @@ def test_snakemake_compare_rule(  # noqa: PLR0913
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
         workflow_name="snakemake_sourmash.smk",
-        targets=sourmash_target_ani,
+        targets=[sourmash_targets_compare_outdir / "sourmash.csv"],
         params=config,
         working_directory=Path(tmp_path),
         show_progress_bar=False,
     )
 
-    # Check output against target fixtures
-    for fname in sourmash_target_ani:
-        assert Path(fname).suffix == ".csv", fname
-        assert Path(fname).is_file()
-        assert compare_sourmash_ani_files(
-            sourmash_targets_compare_outdir / Path(fname).name,
-            sourmash_targets_compare_indir / Path(fname).name,
-        )
+    # Check output against target fixture
+    assert compare_sourmash_ani_files(
+        sourmash_targets_compare_outdir / "sourmash.csv",
+        sourmash_targets_compare_indir / "sourmash.csv",
+    )
+
     compare_matrices(db, dir_sourmash_results)

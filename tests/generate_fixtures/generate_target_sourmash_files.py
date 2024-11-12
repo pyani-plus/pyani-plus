@@ -81,6 +81,23 @@ for genome in inputs.values():
         check=True,
     )
 
+subprocess.run(
+    [
+        sourmash.exe_path,
+        "compare",
+        *sorted(SIGNATURE_DIR.glob("*.sig")),
+        "--csv",
+        COMPARE_DIR / "sourmash.csv",
+        "--estimate-ani",
+        "--max-containment",
+        "-k=31",
+    ],
+    check=True,
+)
+
+
+# We don't really need all the pairwise comparisons now, but a
+# few are used in our test cases...
 for genomes in comparisons:
     sigs = [SIGNATURE_DIR / (stem + ".sig") for stem in genomes]
     stem = "_vs_".join(genomes)
@@ -93,6 +110,7 @@ for genomes in comparisons:
             COMPARE_DIR / (stem + ".csv"),
             "--estimate-ani",
             "--max-containment",
+            "-k=31",
         ],
         check=True,
     )

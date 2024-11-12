@@ -155,7 +155,8 @@ def start_and_run_method(  # noqa: PLR0913
     name: str | None,
     method: str,
     fasta: Path,
-    target_extension: str,
+    targets: list[str],  # filenames without paths
+    target_extension: str | None,
     tool: tools.ExternalToolData,
     binaries: dict[str, Path],
     *,
@@ -224,6 +225,7 @@ def start_and_run_method(  # noqa: PLR0913
         database,
         session,
         run,
+        targets,
         target_extension,
         binaries,
     )
@@ -235,7 +237,8 @@ def run_method(  # noqa: PLR0913
     database: Path,
     session: Session,
     run: db_orm.Run,
-    target_extension: str,
+    targets: list[str],  # filenames without paths
+    target_extension: str | None,
     binaries: dict[str, Path],
 ) -> int:
     """Run the snakemake workflow for given method and log run to database."""
@@ -283,17 +286,20 @@ def run_method(  # noqa: PLR0913
             work_path = Path(tmp) / "working"
             out_path = Path(tmp) / "output"
             params["outdir"] = out_path.resolve()
-            targets = [
-                out_path / f"{query.stem}_vs_{subject.stem}{target_extension}"
-                for query in filename_to_md5
-                for subject in filename_to_md5
-                if (filename_to_md5[query], filename_to_md5[subject]) not in done_hashes
-            ]
+            target_paths = [out_path / _ for _ in targets]
+            if target_extension:
+                target_paths.extend(
+                    out_path / f"{query.stem}_vs_{subject.stem}{target_extension}"
+                    for query in filename_to_md5
+                    for subject in filename_to_md5
+                    if (filename_to_md5[query], filename_to_md5[subject])
+                    not in done_hashes
+                )
             del done_hashes
             run_snakemake_with_progress_bar(
                 executor,
                 workflow_name,
-                targets,
+                target_paths,
                 params,
                 work_path,
                 show_progress_bar=True,
@@ -346,6 +352,7 @@ def anim(  # noqa: PLR0913
         name,
         "ANIm",
         fasta,
+        [],
         target_extension,
         tool,
         binaries,
@@ -383,6 +390,7 @@ def dnadiff(
         name,
         "dnadiff",
         fasta,
+        [],
         target_extension,
         tool,
         binaries,
@@ -421,6 +429,7 @@ def anib(  # noqa: PLR0913
         name,
         "ANIb",
         fasta,
+        [],
         target_extension,
         tool,
         binaries,
@@ -457,6 +466,7 @@ def fastani(  # noqa: PLR0913
         name,
         "fastANI",
         fasta,
+        [],
         target_extension,
         tool,
         binaries,
@@ -485,23 +495,26 @@ def sourmash(  # noqa: PLR0913
     """Execute sourmash calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
 
-    target_extension = ".csv"
     tool = tools.get_sourmash()
     binaries = {
         "sourmash": tool.exe_path,
     }
+    extra = f"scaled={scaled}" if num is None else f"num={num}"
     return start_and_run_method(
         executor,
         database,
         name,
         "sourmash",
         fasta,
-        target_extension,
+        # Can we do e.g. sourmash_max-containment_k=31_scaled=300.csv
+        # using [f"sourmash_{mode.value}_k={kmersize}_{extra}.csv"] ?
+        ["sourmash.csv"],
+        None,  # no pairwise targets
         tool,
         binaries,
         mode=mode.value,  # turn the enum into a string
         kmersize=kmersize,
-        extra=f"scaled={scaled}" if num is None else f"num={num}",
+        extra=extra,
     )
 
 
@@ -638,6 +651,7 @@ def resume(  # noqa: C901, PLR0912, PLR0915
         database,
         session,
         run,
+        [],  # not doing sourmash yet which does have an all-vs-all target
         target_extension,
         binaries,
     )

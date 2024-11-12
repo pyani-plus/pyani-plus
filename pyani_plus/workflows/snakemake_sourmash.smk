@@ -46,7 +46,7 @@ rule sketch:
     output:
         "{outdir}/{genomeA}_vs_{genomeB}.sig",
     shell:
-        "sourmash sketch dna -p 'k={params.kmersize},{params.extra}' {input.genomeB} {input.genomeA} -o {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.sig"
+        "sourmash sketch dna -p 'k={params.kmersize},{params.extra}' {input.genomeB} {input.genomeA} -o {output} > {output}.log 2>&1"
 
 
 rule compare:

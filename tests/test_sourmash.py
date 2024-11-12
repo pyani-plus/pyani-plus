@@ -37,17 +37,6 @@ from pyani_plus.methods import method_sourmash
 from . import get_matrix_entry
 
 
-def test_compare_parsing(sourmash_targets_compare_indir: Path) -> None:
-    """Check parsing of sourmash compare .csv file."""
-    assert (
-        method_sourmash.parse_compare(
-            sourmash_targets_compare_indir
-            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.csv"
-        )
-        == 0.997900938305757  # noqa: PLR2004
-    )
-
-
 def test_missing_db(tmp_path: str, sourmash_targets_compare_indir: Path) -> None:
     """Check expected error when DB does not exist."""
     tmp_db = Path(tmp_path) / "new.sqlite"

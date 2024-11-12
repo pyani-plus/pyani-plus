@@ -572,6 +572,7 @@ def resume(  # noqa: C901, PLR0912, PLR0915
             tool = tools.get_nucmer()
             binaries = {
                 "nucmer": tool.exe_path,
+                "delta_filter": tools.get_delta_filter().exe_path,
             }
             target_extension = ".filter"
         case "dnadiff":

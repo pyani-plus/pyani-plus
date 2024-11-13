@@ -181,7 +181,10 @@ def prepare(
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
     session = db_orm.connect_to_db(database)
-    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one_or_none()
+    if run is None:
+        msg = f"ERROR: Database {database} has no run-id {run_id}."
+        sys.exit(msg)
     n = run.genomes.count()
     done = run.comparisons().count()
     if done == n**2:
@@ -192,7 +195,11 @@ def prepare(
         return 0
     config = run.configuration
     method = config.method
-    module = importlib.import_module(f"pyani_plus.methods.method_{method.lower()}")
+    try:
+        module = importlib.import_module(f"pyani_plus.methods.method_{method.lower()}")
+    except ModuleNotFoundError:
+        msg = f"ERROR: Unknown method {method}, check tool version?"
+        sys.exit(msg)
     if not hasattr(module, "prepare_genomes"):
         sys.stderr.write(f"No per-genome preparation required for {method}\n")
         return 0
@@ -262,17 +269,25 @@ def compute(  # noqa: C901, PLR0912, PLR0913
         sys.exit(msg)
     uname = platform.uname()
     session = db_orm.connect_to_db(database)
-    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one_or_none()
+    if run is None:
+        msg = f"ERROR: Database {database} has no run-id {run_id}."
+        sys.exit(msg)
     n = run.genomes.count()
     done = run.comparisons().count()
+    if done == n**2:
+        print(f"Skipping compute, run already has all {n**2}={n}² pairwise values")
+        return 0
     if not quiet:
         print(f"Run already has {done}/{n**2}={n}² pairwise values")
-    if done == n**2:
-        return 0
     fasta_dir = Path(run.fasta_directory)
     config = run.configuration
     method = config.method
-    module = importlib.import_module(f"pyani_plus.methods.method_{method.lower()}")
+    try:
+        module = importlib.import_module(f"pyani_plus.methods.method_{method.lower()}")
+    except ModuleNotFoundError:
+        msg = f"ERROR: Unknown method {method}, check tool version?"
+        sys.exit(msg)
 
     if cache is None:
         cache = Path(f".cache/{method}/")

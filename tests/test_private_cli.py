@@ -33,7 +33,7 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus import db_orm, private_cli
+from pyani_plus import db_orm, private_cli, utils
 
 
 def test_log_configuration(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
@@ -467,3 +467,138 @@ def test_fragment_fasta_bad_args(tmp_path: str, input_genomes_tiny: Path) -> Non
         match="Expected a Path object in list of FASTA files, got 'some/example.fasta'",
     ):
         private_cli.fragment_fasta(["some/example.fasta"], out_dir)
+
+
+def test_prepare_compute_no_db() -> None:
+    """Confirm prepare and compute fail if DB is missing."""
+    with pytest.raises(SystemExit, match="does not exist"):
+        private_cli.prepare(database=Path("/does/not/exist"), run_id=1)
+    with pytest.raises(SystemExit, match="does not exist"):
+        private_cli.compute(database=Path("/does/not/exist"), run_id=1)
+
+
+def test_prepare_compute_empty_db(tmp_path: str) -> None:
+    """Confirm prepare and compute fail if run is missing."""
+    tmp_db = Path(tmp_path) / "empty.sqlite"
+    tmp_db.touch()
+    with pytest.raises(
+        SystemExit, match="ERROR: Database .*/empty.sqlite has no run-id 1."
+    ):
+        private_cli.prepare(database=tmp_db, run_id=1)
+    with pytest.raises(
+        SystemExit, match="ERROR: Database .*/empty.sqlite has no run-id 1."
+    ):
+        private_cli.compute(database=tmp_db, run_id=1)
+
+
+def test_prepare_compute_done(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
+    """Confirm prepare and compute exit gracefully if run is done."""
+    tmp_db = Path(tmp_path) / "done.db"
+    session = db_orm.connect_to_db(tmp_db)
+    config = db_orm.db_configuration(
+        session,
+        "guessing",
+        "guestimator",
+        "1.2.3",
+        create=True,
+    )
+
+    fasta_to_hash = {
+        filename: utils.file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+
+    # Record 9 of the possible 9 comparisons:
+    genomes = list(fasta_to_hash.values())
+    for query_hash in genomes:
+        for subject_hash in genomes:
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query_hash,
+                subject_hash,
+                1.0 if query_hash is subject_hash else 0.99,
+                12345,
+            )
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani guessing ...",
+        fasta_directory=input_genomes_tiny,
+        status="Done",
+        name="A complete mock run",
+        fasta_to_hash=fasta_to_hash,
+    )
+    session.close()
+
+    msg = "Skipping preparation, run already has all 9=3² pairwise values"
+    private_cli.prepare(database=tmp_db, run_id=1)
+    assert msg in capsys.readouterr().out
+
+    msg = "Skipping compute, run already has all 9=3² pairwise values"
+    private_cli.compute(database=tmp_db, run_id=1)
+    assert msg in capsys.readouterr().out
+
+
+def test_prepare_compute_errors(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Confirm prepare and compute part handling."""
+    tmp_db = Path(tmp_path) / "done.db"
+    session = db_orm.connect_to_db(tmp_db)
+    config = db_orm.db_configuration(
+        session,
+        "guessing",
+        "guestimator",
+        "1.2.3",
+        create=True,
+    )
+
+    fasta_to_hash = {
+        filename: utils.file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+
+    # Record 8 of the possible 9 comparisons:
+    genomes = list(fasta_to_hash.values())
+    for query_hash in genomes:
+        for subject_hash in genomes:
+            if query_hash == genomes[1] and subject_hash == genomes[2]:
+                continue
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query_hash,
+                subject_hash,
+                1.0 if query_hash is subject_hash else 0.99,
+                12345,
+            )
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani guessing ...",
+        fasta_directory=input_genomes_tiny,
+        status="Partial",
+        name="A near-complete mock run",
+        fasta_to_hash=fasta_to_hash,
+    )
+    session.close()
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Unknown method guessing, check tool version"
+    ):
+        private_cli.prepare(database=tmp_db, run_id=1)
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Unknown method guessing, check tool version"
+    ):
+        private_cli.compute(database=tmp_db, run_id=1, task=2, parts=2)
+
+    with pytest.raises(SystemExit, match="ERROR: Expect task in range 0 to 1, got 2"):
+        private_cli.compute(database=tmp_db, run_id=1, task=2, parts=1)

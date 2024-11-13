@@ -29,6 +29,8 @@ used), and reporting on a finished analysis (exporting tables and plots).
 
 import sys
 import tempfile
+from multiprocessing import TimeoutError
+from multiprocessing.pool import Pool
 from pathlib import Path
 from typing import Annotated
 
@@ -41,7 +43,7 @@ from rich.text import Text
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
-from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, db_orm, tools
+from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, db_orm, tools, utils
 from pyani_plus.methods import method_anib, method_anim, method_fastani, method_sourmash
 from pyani_plus.utils import available_cores, check_db, check_fasta, file_md5sum
 from pyani_plus.workflows import ToolExecutor, run_snakemake_with_progress_bar
@@ -225,7 +227,7 @@ def start_and_run_method(  # noqa: PLR0913
     )
 
 
-def run_method(  # noqa: PLR0913
+def run_method(  # noqa: PLR0913, PLR0915
     executor: ToolExecutor,
     filename_to_md5: dict[Path, str],
     database: Path,
@@ -268,9 +270,58 @@ def run_method(  # noqa: PLR0913
         from pyani_plus import private_cli
 
         private_cli.prepare(database, run_id)
-        # Now call several of this with multiprocessing:
-        private_cli.compute(database, run_id, quiet=False)
+        # Now call several of private_cli.compute(database, run_id, quiet=False) in a pool!
+
+        # We have n genomes, and n^2 comparisons, versus some number k of cores.
+        # In general n (100s) will be larger than the number of cores (10s).
+        # Could split the job into k parts, and give one to each core, which would
+        # be fine *if* the parts all took about the same amount of time. That would
+        # not be true when the matrix is already partly complete (e.g. a resumed job)
+        # So, just split the job into n<k parts, and let the pool deal with them
         done = run.comparisons().count()
+        print(
+            f"Starting, currently have {done} of {n}x{n}={n**2} comparisons, {n**2 - done} needed"
+        )
+        workers = min(n, utils.available_cores())
+        print(f"Starting pool of {workers} workers for {n} parts")
+        failures = 0
+        with Pool(processes=workers) as pool:
+            jobs = [
+                # May need to add callbacks to log details of any failure?
+                pool.apply_async(
+                    func=private_cli.compute,
+                    args=(database, run_id),
+                    kwds={"cache": None, "task": i, "parts": n, "quiet": True},
+                )
+                for i in range(n)
+            ]
+            pool.close()  # won't add any more
+            print(f"Started pool of {workers} workers for {n} jobs")
+            import time
+
+            while jobs:
+                time.sleep(1)
+                running = []
+                for job in jobs:
+                    try:
+                        return_code = job.get(0)
+                    except TimeoutError:
+                        running.append(job)
+                    else:
+                        print(f"Task finished, {return_code=}")
+                        if return_code:
+                            failures += 1
+                jobs = running
+                done = run.comparisons().count()
+                print(
+                    f"Running, currently have {done} of {n}x{n}={n**2} comparisons, {n**2 - done} needed"
+                )
+            print("All jobs finished")
+        print(f"Pool closed, {failures=}")
+        done = run.comparisons().count()
+        print(
+            f"Finished, currently have {done} of {n}x{n}={n**2} comparisons, {n**2 - done} needed"
+        )
     else:
         print(
             f"Database already has {done} of {n}²={n**2} comparisons, {n**2 - done} needed"

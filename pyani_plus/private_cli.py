@@ -62,11 +62,14 @@ app = typer.Typer(
 )
 
 REQ_ARG_TYPE_CACHE = Annotated[
-    Path,
+    Path | None,
     typer.Option(
-        help="Cache location (visible to cluster workers)",
+        help=(
+            "Cache location (must be visible to cluster workers)."
+            " Default .cache/<method>"
+        ),
         metavar="DIRECTORY",
-        exists=True,
+        # Not requiring this exists, not all methods use a cache
         dir_okay=True,
         file_okay=False,
     ),
@@ -163,7 +166,7 @@ def prepare(
         int | None,
         typer.Option(help="Which run to prepare", show_default=False),
     ],
-    cache: REQ_ARG_TYPE_CACHE = Path(".cache/"),
+    cache: REQ_ARG_TYPE_CACHE = None,
     *,
     quiet: OPT_ARG_TYPE_QUIET = False,
 ) -> int:
@@ -193,6 +196,11 @@ def prepare(
     if not hasattr(module, "prepare_genomes"):
         sys.stderr.write(f"No per-genome preparation required for {method}\n")
         return 0
+
+    if cache is None:
+        cache = Path(f".cache/{method}/")
+        cache.mkdir(parents=True, exist_ok=True)
+
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         for _ in progress.track(
             module.prepare_genomes(run, cache),
@@ -204,13 +212,13 @@ def prepare(
 
 
 @app.command(rich_help_panel="Main")
-def compute(  # noqa: C901, PLR0913
+def compute(  # noqa: C901, PLR0912, PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     run_id: Annotated[
         int | None,
         typer.Option(help="Which run to resume", show_default=False),
     ],
-    cache: REQ_ARG_TYPE_CACHE = Path(".cache/"),
+    cache: REQ_ARG_TYPE_CACHE = None,
     parts: Annotated[
         int,
         typer.Option(
@@ -265,6 +273,12 @@ def compute(  # noqa: C901, PLR0913
     config = run.configuration
     method = config.method
     module = importlib.import_module(f"pyani_plus.methods.method_{method.lower()}")
+
+    if cache is None:
+        cache = Path(f".cache/{method}/")
+    if hasattr(module, "prepare_genomes") and not cache.is_dir():
+        msg = f"ERROR: {method} needs prepared files but cache {cache} directory does not exist"
+        sys.exit(msg)
 
     hashes = {
         _.genome_hash: _.fasta_filename

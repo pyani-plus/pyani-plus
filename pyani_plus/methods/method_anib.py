@@ -38,7 +38,7 @@ import sys
 from collections.abc import Iterator
 from io import StringIO
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO
 
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 
@@ -280,3 +280,80 @@ def compute_pairwise_ani(  # noqa: PLR0913
         uname_release=uname.release,
         uname_machine=uname.machine,
     )
+
+
+def compute_subject_ani(  # noqa: PLR0913
+    run: db_orm.Run,
+    subject_hash: str,
+    subject_fasta: Path,  # noqa: ARG001
+    subject_length: int,
+    cache: Path,
+    *,
+    batch_size: int = 1,  # noqa: ARG001
+) -> Iterator[list[dict[str, Any]]]:
+    """Run all vs subject ANIb comparisons (i.e. one column of the matrix).
+
+    This is just a wrapper as we don each combination one at a time, returning
+    batches of just one comparison.
+    """
+    fragsize = run.configuration.fragsize
+    if not fragsize:
+        msg = f"ERROR: ANIb requires a fragment size, default is {FRAGSIZE}"
+        sys.exit(msg)
+    tool = tools.get_blastn()
+    outfmt = "6 " + " ".join(BLAST_COLUMNS)
+
+    done_queries = {
+        comp.query_hash
+        for comp in run.comparisons().where(
+            db_orm.Comparison.subject_hash == subject_hash
+        )
+    }
+
+    wanted_queries = {
+        _.genome_hash: _.length
+        for _ in run.genomes
+        if _.genome_hash not in done_queries
+    }
+
+    for query_hash, query_length in wanted_queries.items():
+        proc = subprocess.run(
+            [
+                str(tool.exe_path),
+                "-query",
+                cache / f"{query_hash}_fragments_{fragsize}.fna",
+                "-db",
+                cache / subject_hash,
+                "-task",
+                "blastn",
+                "-outfmt",
+                outfmt,
+                "-xdrop_gap_final",
+                "150",
+                "-dust",
+                "no",
+                "-evalue",
+                "1e-15",
+            ],
+            capture_output=True,
+            check=True,
+            text=True,
+        )
+
+        if not proc.stdout:
+            msg = f"ERROR: No output from blastn\n{proc.args}\n{proc.stderr}"
+            sys.exit(msg)
+
+        identity, aln_length, sim_errors = parse_blastn_handle(StringIO(proc.stdout))
+
+        yield [
+            {
+                "query_hash": query_hash,
+                "subject_hash": subject_hash,
+                "identity": identity,
+                "aln_length": aln_length,
+                "sim_errors": sim_errors,
+                "cov_query": float(aln_length) / query_length,
+                "cov_subject": float(aln_length) / subject_length,
+            }
+        ]

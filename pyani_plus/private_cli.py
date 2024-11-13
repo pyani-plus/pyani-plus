@@ -312,33 +312,39 @@ def compute(  # noqa: C901, PLR0912, PLR0913, PLR0915
         for index, subject_md5 in enumerate(hashes):
             if index % parts != task:
                 continue  # not requested
-            # Bulk import a batch at once...
+            # Bulk import each batch at once...
             configuration_id = run.configuration_id
+            subject = (
+                session.query(db_orm.Genome)
+                .where(db_orm.Genome.genome_hash == subject_md5)
+                .one()
+            )
             if not quiet:
                 print(f"Starting all vs {subject_md5} ANI")
-            session.execute(
-                insert(db_orm.Comparison),
-                [
-                    {
-                        "configuration_id": configuration_id,
-                        "uname_system": uname.system,
-                        "uname_release": uname.release,
-                        "uname_machine": uname.machine,
-                        # The rest are from the computation via **values
-                        **values,
-                    }
-                    for values in module.compute_subject_ani(
-                        run,
-                        subject_md5,
-                        fasta_dir / hashes[subject_md5],
-                        # subject.length,
-                        cache,
-                    )
-                ],
-            )
-            session.commit()
-            if not quiet:
-                print(f"Logged all vs {subject_md5} ANI")
+            for batch in module.compute_subject_ani(
+                run,
+                subject_md5,
+                fasta_dir / hashes[subject_md5],
+                subject.length,
+                cache,
+            ):
+                session.execute(
+                    insert(db_orm.Comparison),
+                    [
+                        {
+                            "configuration_id": configuration_id,
+                            "uname_system": uname.system,
+                            "uname_release": uname.release,
+                            "uname_machine": uname.machine,
+                            # The rest are from the computation via **values
+                            **values,
+                        }
+                        for values in batch
+                    ],
+                )
+                session.commit()
+                if not quiet:
+                    print(f"Logged {len(batch)} vs {subject_md5} {method} ANI")
         return 0
 
     # Fall back on by matrix element

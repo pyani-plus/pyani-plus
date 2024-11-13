@@ -21,12 +21,14 @@
 # THE SOFTWARE.
 """Code to wrap the fastANI average nucleotide identity method."""
 
+import itertools
 import platform
 import subprocess
 import sys
 import tempfile
-from collections.abc import Iterable
+from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 from pyani_plus import db_orm, tools
 
@@ -137,14 +139,23 @@ def compute_pairwise_ani(  # noqa: PLR0913
     )
 
 
-def compute_subject_ani(
+def compute_subject_ani(  # noqa: PLR0913
     run: db_orm.Run,
     subject_hash: str,
     subject_fasta: Path,
-    # subject_length: int,
+    subject_length: int,  # noqa: ARG001
     cache: Path,  # noqa: ARG001
-) -> Iterable[dict]:
-    """Run all vs subject fastANI comparisons (i.e. one column of the matrix)."""
+    *,
+    batch_size: int = 50,
+) -> Iterator[list[dict[str, Any]]]:
+    """Run all vs subject fastANI comparisons (i.e. one column of the matrix).
+
+    Sadly fastANI does not write the TSV output incrementally as it completes each
+    pair-wise combination. Rather, we get all the results at once at the end. This
+    means even if we parse stdout we can't return results incrementally.
+
+    We therefore break this up into batches of 50 queries at a time.
+    """
     config = run.configuration
     fragsize = config.fragsize
 
@@ -160,12 +171,12 @@ def compute_subject_ani(
         if _.genome_hash not in done_queries
     }
 
-    if wanted_queries:
+    for query_batch in itertools.batched(wanted_queries, batch_size):
         with tempfile.NamedTemporaryFile(
             "w", suffix=".txt", delete=False
         ) as query_list_file:
             fasta_dir = Path(run.fasta_directory)
-            for fasta in sorted(wanted_queries):
+            for fasta in sorted(query_batch):
                 query_list_file.write(f"{fasta_dir / fasta}\n")
             query_list_file.close()
 
@@ -197,10 +208,11 @@ def compute_subject_ani(
             if not proc.stdout:
                 msg = f"ERROR: No output from fastANI\n{proc.stderr}"
                 sys.exit(msg)
+        comps = []
         for line in proc.stdout.rstrip().split("\n"):
             parts = line.split("\t")
             q = Path(parts[0]).name
-            if q not in wanted_queries:
+            if q not in query_batch:
                 sys.exit(f"ERROR: Query {q} in fastANI file contents not expected")
 
             if parts[1] != str(subject_fasta):
@@ -213,12 +225,17 @@ def compute_subject_ani(
             orthologous_matches = int(parts[3])
             fragments = int(parts[4])
 
-            yield {
-                "query_hash": wanted_queries[q],
-                "subject_hash": subject_hash,
-                "identity": identity,
-                "aln_length": round(fragsize * orthologous_matches),  # proxy value,
-                "sim_errors": fragments - orthologous_matches,  # proxy value, not bp,
-                "cov_query": float(orthologous_matches) / fragments,  # approximation
-                "cov_subject": None,
-            }
+            comps.append(
+                {
+                    "query_hash": wanted_queries[q],
+                    "subject_hash": subject_hash,
+                    "identity": identity,
+                    "aln_length": round(fragsize * orthologous_matches),  # proxy value,
+                    "sim_errors": fragments
+                    - orthologous_matches,  # proxy value, not bp,
+                    "cov_query": float(orthologous_matches)
+                    / fragments,  # approximation
+                    "cov_subject": None,
+                }
+            )
+        yield comps

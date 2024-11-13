@@ -138,13 +138,12 @@ def compute_pairwise_ani(  # noqa: PLR0913
 
 
 def compute_subject_ani(
-    uname: platform.uname_result,
     run: db_orm.Run,
     subject_hash: str,
     subject_fasta: Path,
     # subject_length: int,
     cache: Path,  # noqa: ARG001
-) -> Iterable[db_orm.Comparison]:
+) -> Iterable[dict]:
     """Run all vs subject fastANI comparisons (i.e. one column of the matrix)."""
     config = run.configuration
     fragsize = config.fragsize
@@ -214,16 +213,12 @@ def compute_subject_ani(
             orthologous_matches = int(parts[3])
             fragments = int(parts[4])
 
-            yield db_orm.Comparison(
-                configuration_id=run.configuration_id,
-                query_hash=wanted_queries[q],
-                subject_hash=subject_hash,
-                identity=identity,
-                aln_length=round(fragsize * orthologous_matches),  # proxy value,
-                sim_errors=fragments - orthologous_matches,  # proxy value, not bp,
-                cov_query=float(orthologous_matches) / fragments,  # an approximation,
-                cov_subject=None,
-                uname_system=uname.system,
-                uname_release=uname.release,
-                uname_machine=uname.machine,
-            )
+            yield {
+                "query_hash": wanted_queries[q],
+                "subject_hash": subject_hash,
+                "identity": identity,
+                "aln_length": round(fragsize * orthologous_matches),  # proxy value,
+                "sim_errors": fragments - orthologous_matches,  # proxy value, not bp,
+                "cov_query": float(orthologous_matches) / fragments,  # approximation
+                "cov_subject": None,
+            }

@@ -101,19 +101,26 @@ where the alignment sum for a single alignments is calculated as:
 QRY + REF alignment length (col_4 + col_5).
 """  # noqa: E501
 
-# Set Up
+import platform
+import subprocess
+import sys
+import tempfile
+from io import StringIO
 from pathlib import Path
+from typing import TextIO
 
 import pandas as pd
 
+from pyani_plus import db_orm, tools
 
-def parse_mcoords(mcoords_file: Path) -> tuple[float, int]:
+
+def parse_mcoords(mcoords_file: Path | TextIO) -> tuple[float, int]:
     """Parse mcoords file and return avg ID% and number of aligned bases with gaps (QRY).
 
-    :parama mcoords_file: Path to the mcoords_file
+    :parama mcoords_file: Path or handle to the mcoords_file
     """
     mcoords = pd.read_csv(
-        Path(mcoords_file),
+        mcoords_file,
         sep="\t",
         names=[f"col_{_}" for _ in range(13)],
     )
@@ -137,13 +144,13 @@ def parse_mcoords(mcoords_file: Path) -> tuple[float, int]:
     return (sum_identity / sum_alignment_lengths, aligned_bases_with_gaps)
 
 
-def parse_qdiff(qdiff_file: Path) -> int:
+def parse_qdiff(qdiff_file: Path | TextIO) -> int:
     """Parse qdiff and return number of gaps in the QRY alignment.
 
-    :param qdiff_file: Path to the qdiff file
+    :param qdiff_file: Path or handle to the qdiff file
     """
     qdiff = pd.read_csv(
-        Path(qdiff_file),
+        qdiff_file,
         sep="\t",
         names=[f"col_{_}" for _ in range(7)],
     )
@@ -155,3 +162,98 @@ def parse_qdiff(qdiff_file: Path) -> int:
             gap_lengths += gap
 
     return gap_lengths
+
+
+def compute_pairwise_ani(  # noqa: PLR0913
+    uname: platform.uname_result,
+    config: db_orm.Configuration,
+    query_hash: str,
+    query_fasta: Path,
+    query_length: int,
+    subject_hash: str,
+    subject_fasta: Path,
+    subject_length: int,  # noqa: ARG001
+    cache: Path,  # noqa: ARG001
+) -> db_orm.Comparison:
+    """Run a single dnadiff comparison."""
+    with tempfile.TemporaryDirectory() as tmp:
+        intermediate_prefix = Path(tmp) / f"{query_hash}_vs_{subject_hash}"
+        # Run nucmer, making .delta file
+        subprocess.check_call(
+            [
+                str(tools.get_nucmer().exe_path),
+                "-p",
+                intermediate_prefix,
+                "--maxmatch",
+                subject_fasta,
+                query_fasta,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        # Run delta-filter, making .filter file
+        proc = subprocess.run(
+            [
+                str(tools.get_delta_filter().exe_path),
+                "-m",
+                intermediate_prefix.with_suffix(".delta"),
+            ],
+            capture_output=True,
+            check=True,
+            text=True,
+        )
+        # Can legitimately be no output!
+        if not proc.stdout:
+            msg = f"ERROR: No output from delta-filter\n{proc.args}\n{proc.stderr}"
+            sys.exit(msg)
+        delta_filter_file = intermediate_prefix.with_suffix(".filter")
+        with delta_filter_file.open("w") as handle:
+            handle.write(proc.stdout)
+
+        # Run show-diff, making .qdiff file
+        proc = subprocess.run(
+            [
+                str(tools.get_show_diff().exe_path),
+                "-qH",
+                delta_filter_file,
+            ],
+            capture_output=True,
+            check=True,
+            text=True,
+        )
+        # Can legitimately be no output!
+        qdiff = proc.stdout
+
+        # Run show-coords, making .mcoords file
+        proc = subprocess.run(
+            [
+                str(tools.get_show_coords().exe_path),
+                "-rclTH",
+                delta_filter_file,
+            ],
+            capture_output=True,
+            check=True,
+            text=True,
+        )
+        if not proc.stdout:
+            msg = f"ERROR: No output from show-coords\n{proc.args}\n{proc.stderr}"
+            sys.exit(msg)
+        mcoords = proc.stdout
+
+    identity, aligned_bases_with_gaps = parse_mcoords(StringIO(mcoords))
+    gap_lengths = parse_qdiff(StringIO(qdiff))
+
+    return db_orm.Comparison(
+        configuration_id=config.configuration_id,
+        query_hash=query_hash,
+        subject_hash=subject_hash,
+        identity=identity,
+        aln_length=aligned_bases_with_gaps - gap_lengths,
+        sim_errors=round((aligned_bases_with_gaps - gap_lengths) * (1 - identity)),
+        cov_query=(aligned_bases_with_gaps - gap_lengths) / query_length,
+        cov_subject=None,  # Leaving this as None for now (need rdiff files to calculate this)
+        uname_system=uname.system,
+        uname_release=uname.release,
+        uname_machine=uname.machine,
+    )

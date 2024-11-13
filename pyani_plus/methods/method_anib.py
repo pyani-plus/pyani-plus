@@ -262,7 +262,7 @@ def compute_pairwise_ani(  # noqa: PLR0913
     )
 
     if not proc.stdout:
-        msg = f"ERROR: No output from blastn\n{proc.stderr}"
+        msg = f"ERROR: No output from blastn\n{proc.args}\n{proc.stderr}"
         sys.exit(msg)
 
     identity, aln_length, sim_errors = parse_blastn_handle(StringIO(proc.stdout))

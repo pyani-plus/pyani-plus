@@ -257,6 +257,20 @@ def run_method(  # noqa: PLR0913
     n = len(filename_to_md5)
     if done == n**2:
         print(f"Database already has all {n}²={n**2} comparisons")
+    elif executor.value == "local":
+        # Hackery to try out the non-snakemake code, single threaded for now:
+        print(
+            f"Database already has {done} of {n}²={n**2} comparisons, {n**2 - done} needed"
+        )
+        run.status = "Running"
+        session.commit()
+
+        from pyani_plus import private_cli
+
+        private_cli.prepare(database, run_id)
+        # Now call several of this with multiprocessing:
+        private_cli.compute(database, run_id, quiet=False)
+        done = run.comparisons().count()
     else:
         print(
             f"Database already has {done} of {n}²={n**2} comparisons, {n**2 - done} needed"

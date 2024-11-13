@@ -306,6 +306,28 @@ def compute(  # noqa: C901, PLR0912, PLR0913, PLR0915
         for _ in run.fasta_hashes.order_by(db_orm.RunGenomeAssociation.genome_hash)
     }
 
+    # Try by matrix column
+    if hasattr(module, "compute_subject_ani"):
+        for index, subject_md5 in enumerate(hashes):
+            if index % parts != task:
+                continue  # not requested
+            for comp in module.compute_subject_ani(
+                uname,
+                run,
+                subject_md5,
+                fasta_dir / hashes[subject_md5],
+                # subject.length,
+                cache,
+            ):
+                session.add(comp)
+                session.commit()
+                if not quiet:
+                    print(
+                        f"Logged {comp.query_hash} vs {subject_md5} ANI {comp.identity}"
+                    )
+        return 0
+
+    # Fall back on by matrix element
     for index, (query_md5, subject_md5) in enumerate(product(hashes, hashes)):
         if index % parts != task:
             continue  # not requested

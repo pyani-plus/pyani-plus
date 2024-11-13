@@ -24,6 +24,8 @@
 import platform
 import subprocess
 import sys
+import tempfile
+from collections.abc import Iterable
 from pathlib import Path
 
 from pyani_plus import db_orm, tools
@@ -133,3 +135,95 @@ def compute_pairwise_ani(  # noqa: PLR0913
         uname_release=uname.release,
         uname_machine=uname.machine,
     )
+
+
+def compute_subject_ani(
+    uname: platform.uname_result,
+    run: db_orm.Run,
+    subject_hash: str,
+    subject_fasta: Path,
+    # subject_length: int,
+    cache: Path,  # noqa: ARG001
+) -> Iterable[db_orm.Comparison]:
+    """Run all vs subject fastANI comparisons (i.e. one column of the matrix)."""
+    config = run.configuration
+    fragsize = config.fragsize
+
+    done_queries = {
+        comp.query_hash
+        for comp in run.comparisons().where(
+            db_orm.Comparison.subject_hash == subject_hash
+        )
+    }
+    wanted_queries = {
+        _.fasta_filename: _.genome_hash
+        for _ in run.fasta_hashes
+        if _.genome_hash not in done_queries
+    }
+
+    if wanted_queries:
+        with tempfile.NamedTemporaryFile(
+            "w", suffix=".txt", delete=False
+        ) as query_list_file:
+            fasta_dir = Path(run.fasta_directory)
+            for fasta in sorted(wanted_queries):
+                query_list_file.write(f"{fasta_dir / fasta}\n")
+            query_list_file.close()
+
+            # From experimenting at the command line, fastANI 1.33 does NOT
+            # output the results incrementally - it waits until the end.
+            # So there is no benefit to parsing stdout while waiting.
+            # Sadly this means no results for a while, and then all at once.
+            # But it is faster.
+            proc = subprocess.run(
+                [
+                    str(tools.get_fastani().exe_path),
+                    "--ql",
+                    query_list_file.name,
+                    "-r",
+                    subject_fasta,
+                    "-o",
+                    "/dev/stdout",
+                    "--fragLen",
+                    str(fragsize),
+                    "-k",
+                    str(config.kmersize),
+                    "--minFraction",
+                    str(config.minmatch),
+                ],
+                capture_output=True,
+                check=True,
+                text=True,
+            )
+            if not proc.stdout:
+                msg = f"ERROR: No output from fastANI\n{proc.stderr}"
+                sys.exit(msg)
+        for line in proc.stdout.rstrip().split("\n"):
+            parts = line.split("\t")
+            q = Path(parts[0]).name
+            if q not in wanted_queries:
+                sys.exit(f"ERROR: Query {q} in fastANI file contents not expected")
+
+            if parts[1] != str(subject_fasta):
+                sys.exit(
+                    f"ERROR: Given --subject-fasta {subject_fasta} but subject"
+                    f" in fastANI file contents was {parts[1]}"
+                )
+
+            identity = 0.01 * float(parts[2])
+            orthologous_matches = int(parts[3])
+            fragments = int(parts[4])
+
+            yield db_orm.Comparison(
+                configuration_id=run.configuration_id,
+                query_hash=wanted_queries[q],
+                subject_hash=subject_hash,
+                identity=identity,
+                aln_length=round(fragsize * orthologous_matches),  # proxy value,
+                sim_errors=fragments - orthologous_matches,  # proxy value, not bp,
+                cov_query=float(orthologous_matches) / fragments,  # an approximation,
+                cov_subject=None,
+                uname_system=uname.system,
+                uname_release=uname.release,
+                uname_machine=uname.machine,
+            )

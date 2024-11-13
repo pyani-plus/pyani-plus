@@ -222,12 +222,13 @@ def prepare(
 
 
 @app.command(rich_help_panel="Main")
-def compute(  # noqa: C901, PLR0912, PLR0913
+def compute(  # noqa: C901, PLR0912, PLR0913, PLR0915
     database: REQ_ARG_TYPE_DATABASE,
     run_id: Annotated[
         int | None,
         typer.Option(help="Which run to resume", show_default=False),
     ],
+    *,
     cache: REQ_ARG_TYPE_CACHE = None,
     parts: Annotated[
         int,
@@ -249,7 +250,6 @@ def compute(  # noqa: C901, PLR0912, PLR0913
             min=0,
         ),
     ] = 0,
-    *,
     quiet: OPT_ARG_TYPE_QUIET = False,
 ) -> int:
     """Compute the ANI values for a run already defined in the database.
@@ -305,9 +305,7 @@ def compute(  # noqa: C901, PLR0912, PLR0913
 
     for index, (query_md5, subject_md5) in enumerate(product(hashes, hashes)):
         if index % parts != task:
-            if not quiet:
-                print(f"Skipping {query_md5} vs {subject_md5} as not requested")
-            continue
+            continue  # not requested
         if bool(
             session.query(db_orm.Comparison)
             .where(db_orm.Comparison.configuration_id == config.configuration_id)
@@ -331,20 +329,22 @@ def compute(  # noqa: C901, PLR0912, PLR0913
             .where(db_orm.Genome.genome_hash == subject_md5)
             .one()
         )
-        session.add(
-            module.compute_pairwise_ani(
-                uname,
-                config,
-                query_md5,
-                fasta_dir / hashes[query_md5],
-                query.length,
-                subject_md5,
-                fasta_dir / hashes[subject_md5],
-                subject.length,
-                cache,
-            )
+        comp = module.compute_pairwise_ani(
+            uname,
+            config,
+            query_md5,
+            fasta_dir / hashes[query_md5],
+            query.length,
+            subject_md5,
+            fasta_dir / hashes[subject_md5],
+            subject.length,
+            cache,
         )
+        session.add(comp)
         session.commit()
+        if not quiet:
+            print(f"Logged {query_md5} vs {subject_md5} ANI {comp.identity}")
+        del comp
     return 0
 
 

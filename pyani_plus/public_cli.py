@@ -29,10 +29,7 @@ used), and reporting on a finished analysis (exporting tables and plots).
 
 import sys
 import tempfile
-from multiprocessing import TimeoutError
-from multiprocessing.pool import Pool
 from pathlib import Path
-from time import sleep
 from typing import Annotated
 
 import pandas as pd
@@ -44,7 +41,7 @@ from rich.text import Text
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
-from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, db_orm, tools, utils
+from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, db_orm, tools
 from pyani_plus.methods import method_anib, method_anim, method_fastani, method_sourmash
 from pyani_plus.utils import available_cores, check_db, check_fasta, file_md5sum
 from pyani_plus.workflows import ToolExecutor, run_snakemake_with_progress_bar
@@ -228,7 +225,7 @@ def start_and_run_method(  # noqa: PLR0913
     )
 
 
-def run_method(  # noqa: C901, PLR0912, PLR0913, PLR0915
+def run_method(  # noqa: PLR0913
     executor: ToolExecutor,
     filename_to_md5: dict[Path, str],
     database: Path,
@@ -272,65 +269,8 @@ def run_method(  # noqa: C901, PLR0912, PLR0913, PLR0915
 
         private_cli.prepare(database, run_id)
         # Now call several of private_cli.compute(database, run_id, quiet=False) in a pool!
-
-        already_done = done
-        done = 0
-        total = n**2 - already_done  # i.e. missing matrix elements at start
-        with Progress(*PROGRESS_BAR_COLUMNS) as progress:
-            task = progress.add_task("Comparing pairs", total=total)
-            # We have n genomes, and n^2 comparisons, versus some number k of cores.
-            # In general n (100s) will be larger than the number of cores (10s).
-            # Could split the job into k parts, and give one to each core, which would
-            # be fine *if* the parts all took about the same amount of time. That would
-            # not be true when the matrix is already partly complete (e.g. a resumed job)
-            # So, just split the job into n<k parts, and let the pool deal with them
-            k = utils.available_cores()
-            if total <= k:
-                # Enough cores to use one for each matrix element
-                parts = total
-            elif n < k:
-                # By row would leave some cores idle, so again do by element
-                parts = total
-            else:
-                # Split by genome (i.e. rows of the matrix), fewer but larger jobs
-                parts = n
-            workers = min(parts, utils.available_cores())
-            failures = 0
-            with Pool(processes=workers) as pool:
-                jobs = [
-                    # May need to add callbacks to log details of any failure?
-                    pool.apply_async(
-                        func=private_cli.compute,
-                        args=(database, run_id),
-                        kwds={"cache": None, "task": i, "parts": parts, "quiet": True},
-                    )
-                    for i in range(parts)
-                ]
-                pool.close()  # won't add any more
-
-                while jobs:
-                    sleep(1)
-                    running = []
-                    for job in jobs:
-                        try:
-                            return_code = job.get(0)
-                        except TimeoutError:
-                            running.append(job)
-                        else:
-                            # Task finished, but was it OK?
-                            if return_code:
-                                failures += 1
-                    jobs = running
-                    new = run.comparisons().count() - already_done - done
-                    progress.update(task, advance=new)
-                    done += new
+        private_cli.compute_many(database, run_id, threads=None, parts=1, task=0)
         done = run.comparisons().count()
-        if failures:
-            msg = (
-                f"{failures} child job(s) failed, currently have {done}"
-                f" of {n}²={n**2} comparisons, {n**2 - done} needed"
-            )
-            sys.exit(msg)
     else:
         print(
             f"Database already has {done} of {n}²={n**2} comparisons, {n**2 - done} needed"

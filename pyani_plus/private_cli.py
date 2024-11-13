@@ -29,13 +29,16 @@ import importlib
 import platform
 import sys
 from itertools import product
+from multiprocessing import TimeoutError
+from multiprocessing.pool import Pool
 from pathlib import Path
+from time import sleep
 from typing import Annotated
 
 import typer
 from rich.progress import Progress
 
-from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
+from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools, utils
 from pyani_plus.methods import (
     method_anib,
     method_anim,
@@ -345,6 +348,125 @@ def compute(  # noqa: C901, PLR0912, PLR0913, PLR0915
         if not quiet:
             print(f"Logged {query_md5} vs {subject_md5} ANI {comp.identity}")
         del comp
+    return 0
+
+
+@app.command(rich_help_panel="Main")
+def compute_many(  # noqa: PLR0913
+    database: REQ_ARG_TYPE_DATABASE,
+    run_id: Annotated[
+        int | None,
+        typer.Option(help="Which run to resume", show_default=False),
+    ],
+    threads: Annotated[
+        int | None,
+        typer.Option(
+            help="Number of worker threads (default and max is all available)",
+            show_default=False,
+            min=1,
+        ),
+    ],
+    *,
+    cache: REQ_ARG_TYPE_CACHE = None,
+    parts: Annotated[
+        int,
+        typer.Option(
+            help=(
+                "How many workers, or how many parts,"
+                " is the computation to be split between?"
+            ),
+            min=1,
+        ),
+    ] = 1,
+    task: Annotated[
+        int,
+        typer.Option(
+            help=(
+                "Given the computation is broken into parts, which one to compute?"
+                " Should be between 0 and number of parts."
+            ),
+            min=0,
+        ),
+    ] = 0,
+) -> int:
+    """Compute the ANI values for a run already defined in the database.
+
+    This is a multi-threading wrapper around the compute command. For this
+    to be useful, there must be sufficient ANI calculations assigned with
+    parts and task that they can be further split between cores locally.
+
+    This will display a progress bar.
+
+    As an example, suppose you have a 100x100 matrix to compute, thus 10000
+    individual ANI scores to compute. You subject this to an HPC cluster as
+    an array job with 100 parts, each with 4 cores, meaning 100*4 = 400 worker
+    threads in all.
+
+    The HPC runs ``pyani-plus compute-many --parts 100 --task i`` where *i* ranges
+    from 1 to 100 (or 0 to 99). Each of those jobs spawns 4 worker threads using
+    ``pyani-plus compute --parts 100*4 --task i*4+j`` where k is 0, 1, 2, or 3.
+    """
+    session = db_orm.connect_to_db(database)
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one_or_none()
+    if run is None:
+        msg = f"ERROR: Database {database} has no run-id {run_id}."
+        sys.exit(msg)
+    n = run.genomes.count()
+    already_done = run.comparisons().count()
+    if already_done == n**2:
+        print(f"Skipping compute, run already has all {n**2}={n}² pairwise values")
+        return 0
+
+    threads = (
+        min(threads, utils.available_cores())
+        if threads and threads > 0
+        else utils.available_cores()
+    )
+
+    done = 0
+    total = n**2 - already_done  # i.e. missing matrix elements at start
+    with Progress(*PROGRESS_BAR_COLUMNS) as progress:
+        task = progress.add_task("Comparing pairs", total=total)
+        failures = 0
+        with Pool(processes=threads) as pool:
+            jobs = [
+                # May need to add callbacks to log details of any failure?
+                pool.apply_async(
+                    func=compute,
+                    args=(database, run_id),
+                    kwds={
+                        "cache": cache,
+                        "task": task * threads + i,
+                        "parts": parts * threads,
+                        "quiet": True,
+                    },
+                )
+                for i in range(threads)
+            ]
+            pool.close()  # won't add any more
+            while jobs:
+                sleep(1)
+                running = []
+                for job in jobs:
+                    try:
+                        return_code = job.get(0)
+                    except TimeoutError:
+                        running.append(job)
+                    else:
+                        # Task finished, but was it OK?
+                        if return_code:
+                            failures += 1
+                jobs = running
+                new = run.comparisons().count() - already_done - done
+                progress.update(task, advance=new)
+                done += new
+    done = run.comparisons().count()
+    if failures:
+        msg = (
+            f"{failures} child job(s) failed, currently have {done}"
+            f" of {n}²={n**2} comparisons, {n**2 - done} needed"
+        )
+        sys.exit(msg)
     return 0
 
 

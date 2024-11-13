@@ -528,7 +528,7 @@ def test_prepare_compute_done(
     db_orm.add_run(
         session,
         config,
-        cmdline="pyani guessing ...",
+        cmdline="pyani-plus guessing ...",
         fasta_directory=input_genomes_tiny,
         status="Done",
         name="A complete mock run",
@@ -582,7 +582,7 @@ def test_prepare_compute_errors(tmp_path: str, input_genomes_tiny: Path) -> None
     db_orm.add_run(
         session,
         config,
-        cmdline="pyani guessing ...",
+        cmdline="pyani-plus guessing ...",
         fasta_directory=input_genomes_tiny,
         status="Partial",
         name="A near-complete mock run",

@@ -207,6 +207,9 @@ def prepare(
     if cache is None:
         cache = Path(f".cache/{method}/")
         cache.mkdir(parents=True, exist_ok=True)
+    elif not cache.is_dir():
+        msg = f"ERROR: Specified cache directory {cache} does not exist"
+        sys.exit(msg)
 
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         for _ in progress.track(

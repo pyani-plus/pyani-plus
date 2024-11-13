@@ -26,14 +26,17 @@ These tests are intended to be run from the repository root using:
 pytest -v
 """
 
+import platform
 from pathlib import Path
 
 import pytest
 
-from pyani_plus import db_orm, private_cli, tools
+from pyani_plus import db_orm, private_cli, tools, utils
 from pyani_plus.methods import method_anib
 
 from . import get_matrix_entry
+
+DUMMY_ALIGN_LEN = 12345
 
 
 def test_bad_path(tmp_path: str) -> None:
@@ -206,3 +209,114 @@ def test_logging_anib(
     )
     session.close()
     tmp_db.unlink()
+
+
+def test_prepare_compute_anib(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
+    """Confirm prepare and compute with ANIb."""
+    tmp_db = Path(tmp_path) / "done.db"
+    cache = Path(tmp_path) / "cache"
+    tool = tools.get_blastn()
+    session = db_orm.connect_to_db(tmp_db)
+    config = db_orm.db_configuration(
+        session,
+        "ANIb",
+        tool.exe_path.stem,
+        tool.version,
+        create=True,
+    )
+
+    fasta_to_hash = {
+        filename: utils.file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+
+    uname = platform.uname()
+    for query in fasta_to_hash.values():
+        for subject in fasta_to_hash.values():
+            if query == subject:
+                continue  # omit the diagonal
+            session.add(
+                db_orm.Comparison(
+                    configuration_id=config.configuration_id,
+                    query_hash=query,
+                    subject_hash=subject,
+                    identity=0.96,
+                    aln_length=DUMMY_ALIGN_LEN,
+                    uname_machine=uname.machine,
+                    uname_system=uname.system,
+                    uname_release=uname.release,
+                )
+            )
+    session.commit()
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani-plus anib ...",
+        fasta_directory=input_genomes_tiny,
+        status="Pending",
+        name="An initially partial mock run",
+        fasta_to_hash=fasta_to_hash,
+    )
+    session.close()
+    assert session.query(db_orm.Comparison).count() == 6  # noqa: PLR2004
+
+    # First with no cache,
+    assert not cache.is_dir()
+    with pytest.raises(
+        SystemExit,
+        match=f"ERROR: Specified cache directory {cache} does not exist",
+    ):
+        private_cli.prepare(database=tmp_db, run_id=1, cache=cache)
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: ANIb needs prepared files but cache /.*/cache directory does not exist",
+    ):
+        private_cli.compute(database=tmp_db, run_id=1, cache=cache)
+
+    # Now with empty cache,
+    cache.mkdir()
+
+    # Now run prepare to add BLAST DB to the cache, but configuration broken:
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: ANIb requires a fragment size, default is 1020",
+    ):
+        private_cli.prepare(database=tmp_db, run_id=1, cache=cache)
+
+    # Let's fix the fragsize config
+    config = session.query(db_orm.Configuration).one()
+    config.fragsize = 1000
+    session.commit()
+
+    # Now the prepare step should work (and make all three DBs),
+    private_cli.prepare(database=tmp_db, run_id=1, cache=cache)
+    assert len(list(cache.glob("*.njs"))) == 3  # noqa: PLR2004
+    output = capsys.readouterr().out
+    assert output.startswith("Run already has 6/9=3² pairwise values\nProcessing...")
+    assert output.endswith(" 3/3\n")
+
+    # And now this should work too, note will accept task=0 or N to mean same.
+    # This should fill in one of the missing self-vs-self values only
+    private_cli.compute(database=tmp_db, run_id=1, cache=cache, task=9, parts=9)
+    assert session.query(db_orm.Comparison).count() == 7  # noqa: PLR2004
+    output = capsys.readouterr().out
+    assert output.startswith("Run already has 6/9=3² pairwise values\n")
+
+    private_cli.compute(database=tmp_db, run_id=1, cache=cache, task=0, parts=9)
+    assert session.query(db_orm.Comparison).count() == 7  # noqa: PLR2004
+    output = capsys.readouterr().out
+    assert output.startswith("Run already has 7/9=3² pairwise values\n")
+
+    # This should fill the matrix (one task so everything)
+    private_cli.compute(
+        database=tmp_db, run_id=1, cache=cache, task=1, parts=1, quiet=True
+    )
+    assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
+    output = capsys.readouterr().out
+    assert not output  # should be empty in quiet mode

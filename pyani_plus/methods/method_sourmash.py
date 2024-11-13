@@ -126,6 +126,9 @@ def compute_pairwise_ani(  # noqa: PLR0913
     cache: Path,
 ) -> db_orm.Comparison:
     """Run a single sourmash comparison."""
+    if not config.mode:
+        msg = f"ERROR: sourmash requires mode, default is {MODE.value}"
+        sys.exit(msg)
     tool = tools.get_sourmash()
     proc = subprocess.run(
         [

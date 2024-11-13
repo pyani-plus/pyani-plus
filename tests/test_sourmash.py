@@ -26,12 +26,12 @@ These tests are intended to be run from the repository root using:
 make test
 """
 
-# Required to support pytest automated testing
+import subprocess
 from pathlib import Path
 
 import pytest
 
-from pyani_plus import db_orm, private_cli, tools
+from pyani_plus import db_orm, private_cli, tools, utils
 from pyani_plus.methods import method_sourmash
 
 from . import get_matrix_entry
@@ -156,3 +156,111 @@ def test_logging_sourmash(
     )
     session.close()
     tmp_db.unlink()
+
+
+def test_prepare_compute_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Confirm prepare and compute with sourmash."""
+    tmp_db = Path(tmp_path) / "done.db"
+    cache = Path(tmp_path) / "cache"
+    tool = tools.get_sourmash()
+    session = db_orm.connect_to_db(tmp_db)
+    config = db_orm.db_configuration(
+        session,
+        "sourmash",
+        tool.exe_path.stem,
+        tool.version,
+        create=True,
+    )
+
+    fasta_to_hash = {
+        filename: utils.file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani-plus sourmash ...",
+        fasta_directory=input_genomes_tiny,
+        status="Pending",
+        name="An initially empty mock run",
+        fasta_to_hash=fasta_to_hash,
+    )
+    session.close()
+
+    # First with no cache,
+    assert not cache.is_dir()
+    with pytest.raises(
+        SystemExit,
+        match=f"ERROR: Specified cache directory {cache} does not exist",
+    ):
+        private_cli.prepare(database=tmp_db, run_id=1, cache=cache)
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: sourmash needs prepared files but cache /.*/cache directory does not exist",
+    ):
+        private_cli.compute(database=tmp_db, run_id=1, cache=cache)
+
+    # Now with empty cache,
+    cache.mkdir()
+
+    # Now run prepare to add the sig file to the cache,
+    # but the run configuration is broken
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: sourmash requires a k-mer size, default is 31",
+    ):
+        private_cli.prepare(database=tmp_db, run_id=1, cache=cache)
+
+    # Let's fix the k-mer config
+    config = session.query(db_orm.Configuration).one()
+    config.kmersize = 75
+    session.commit()
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: sourmash requires scaled or num, default is scaled=1000",
+    ):
+        private_cli.prepare(database=tmp_db, run_id=1, cache=cache)
+
+    # Let's fix the extra config
+    config = session.query(db_orm.Configuration).one()
+    config.extra = "scaled=250"  # must be small for virus, test fixures use 300
+    session.commit()
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: sourmash requires mode, default is max-containment",
+    ):
+        private_cli.compute(database=tmp_db, run_id=1, cache=cache)
+
+    # Let's fix the mode config
+    config = session.query(db_orm.Configuration).one()
+    config.mode = "containment"
+    session.commit()
+
+    with pytest.raises(
+        subprocess.CalledProcessError,
+        # This should fail due to missing .sig file
+        # ValueError: Error while reading signature
+        match="Command '.*' returned non-zero exit status 1.",
+    ):
+        private_cli.compute(database=tmp_db, run_id=1, cache=cache)
+
+    # Now the prepare step should work (and make all three .sig files),
+    private_cli.prepare(database=tmp_db, run_id=1, cache=cache)
+    assert len(list(cache.glob("*.sig"))) == 3  # noqa: PLR2004
+
+    # And now this should work too, note will accept task=0 or N to mean same:
+    private_cli.compute(database=tmp_db, run_id=1, cache=cache, task=3, parts=3)
+    assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004
+    private_cli.compute(database=tmp_db, run_id=1, cache=cache, task=0, parts=3)
+    assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004
+
+    private_cli.compute(database=tmp_db, run_id=1, cache=cache, task=1, parts=3)
+    assert session.query(db_orm.Comparison).count() == 6  # noqa: PLR2004
+    private_cli.compute(database=tmp_db, run_id=1, cache=cache, task=2, parts=3)
+    assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004

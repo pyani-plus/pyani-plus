@@ -98,7 +98,7 @@ def compare_matrices(
     n = run.genomes.count()
     assert (
         run.comparisons().count() == n**2
-    ), f"Expected {n}x{n}={n**2} comparisons, not {run.comparisons().count()}"
+    ), f"Expected {n}²={n**2} comparisons, not {run.comparisons().count()}"
 
     assert run.identities is not None
     assert matrices_path.is_dir()

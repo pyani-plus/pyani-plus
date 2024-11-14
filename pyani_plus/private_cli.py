@@ -475,6 +475,100 @@ def log_fastani(
 
 
 @app.command()
+def build_query_list(  # noqa: C901, PLR0913
+    database: REQ_ARG_TYPE_DATABASE,
+    # These are for the comparison table
+    run_id: REQ_ARG_TYPE_RUN_ID,
+    subject: Annotated[
+        str,
+        typer.Option(
+            help="Full-path, filename, filename stem, or hash of subject (reference) FASTA file",
+            show_default=False,
+        ),
+    ],
+    *,
+    include_subject: Annotated[
+        bool,
+        typer.Option(
+            # Listing name explicitly to avoid automatic matching --no-self
+            "--self",
+            help="If output would be empty, include the subject to force at least one output (self vs self).",
+            show_default=False,
+        ),
+    ] = False,
+    fasta: Annotated[
+        Path | None,
+        typer.Option(
+            help="Path to FASTA files (default is as per the database)",
+            show_default=False,
+            exists=True,
+            dir_okay=True,
+            file_okay=False,
+        ),
+    ] = None,
+    quiet: OPT_ARG_TYPE_QUIET = False,
+) -> int:
+    """Output a list of query FASTA files to compare against the given subject.
+
+    This was initially needed for the fastANI wrapper, but could have broader usage.
+    For the given subject (reference) genome, we may have some of the pairwise
+    comparisons already recorded in the database, but others are still pending. This
+    outputs a plain text list of those query genomes.
+
+    Potentially the DB recorded the fasta_directory relative to the original
+    working directory, in which case that cannot be used on a worker node in
+    a temporary working directory. We therefore accept a FASTA input directory.
+
+    Because fastANI gives an error with an empty list, this tool has the option
+    with --self to include the subject filename to avoid an empty list.
+    """
+    session = db_orm.connect_to_db(database)
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+    if subject in hash_to_filename:
+        subject_hash = subject
+    else:
+        name = Path(subject).name
+        stem = Path(subject).stem
+        subject_hash = None
+        for md5, filename in hash_to_filename.items():
+            if name == filename or stem == Path(filename).stem:
+                subject_hash = md5
+        del name, stem
+        if not subject_hash:
+            msg = f"ERROR: Did not recognise {subject!r} as an MD5 hash or filename in run-id {run_id}"
+            sys.exit(msg)
+
+    completed_queries = {
+        comp.query_hash
+        for comp in run.comparisons().where(
+            db_orm.Comparison.subject_hash == subject_hash
+        )
+    }
+    if not quiet:
+        done = len(completed_queries)
+        n = len(hash_to_filename)
+        sys.stderr.write(
+            f"INFO: Have {done} of {n} comparisons for {subject_hash}, {n - done} needed\n"
+        )
+
+    fasta_dir = Path(fasta) if fasta else Path(run.fasta_directory)
+    empty = True
+    for md5, filename in hash_to_filename.items():
+        if md5 not in completed_queries:
+            print(fasta_dir / filename)
+            empty = False
+    if empty:
+        if include_subject:
+            print(fasta_dir / hash_to_filename[subject_hash])
+        if not quiet:
+            sys.stderr.write(
+                f"INFO: Already have all comparisons for subject {subject_hash}\n"
+            )
+    return 0
+
+
+@app.command()
 def fragment_fasta(
     fasta: REQ_ARG_TYPE_FASTA_FILES,
     outdir: REQ_ARG_TYPE_OUTDIR,

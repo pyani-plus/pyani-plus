@@ -29,20 +29,24 @@ def get_genomeB(wildcards):
     return indir_files[wildcards.genomeB]
 
 
-# Just need a file with a single FASTA file per line
-# Ideally this would be generated depending on the reference
-# and contain just those queries we need to compare, not all.
-# Consider use case expanding a DB from N genomes to N+1 genomes.
+# Need a file with a single FASTA file per line, one for each query.
+# This could be all the FASTA files in the input directory, but can
+# be a subset - consider use case expanding a DB from N genomes to
+# N+1 genomes.
 rule genomes_list:
     params:
+        db=config["db"],
+        run_id=config["run_id"],
         indir=config["indir"],
     input:
-        expand("{genome}", genome=sorted(indir_files.values())),
+        genomeB=get_genomeB,
     output:
-        "{outdir}/genome_list.txt",
+        "{outdir}/genome_list_for_{genomeB}.txt",
     shell:
         """
-        ls -1 {input} > {output}
+        .pyani-plus-private-cli build-query-list --quiet --self \
+            --database {params.db} --run-id {params.run_id} \
+            --subject {wildcards.genomeB} --fasta {params.indir} > {output}
         """
 
 
@@ -58,13 +62,13 @@ rule fastani:
         kmersize=config["kmersize"],
         minmatch=config["minmatch"],
     input:
-        "{outdir}/genome_list.txt",
+        queries="{outdir}/genome_list_for_{genomeB}.txt",
         genomeB=get_genomeB,
     output:
         "{outdir}/all_vs_{genomeB}.fastani",
     shell:
         """
-        {params.fastani} --ql {params.outdir}/genome_list.txt -r {input.genomeB} \
+        {params.fastani} --ql "{input.queries}" -r {input.genomeB} \
             -o {output} --fragLen {params.fragsize} -k {params.kmersize} \
             --minFraction {params.minmatch} > {output}.log 2>&1 &&
         .pyani-plus-private-cli log-fastani --quiet \

@@ -589,7 +589,8 @@ def resume(  # noqa: C901, PLR0912, PLR0915
             binaries = {
                 "fastani": tool.exe_path,
             }
-            # Ideally this would be selective, as this will recompute everything:
+            # Ideally this would be selective, as this will recompute every column
+            # (but we minimise this to a self-versus-self as fastANI won't no-op):
             targets = [
                 f"all_vs_{Path(_.fasta_filename).stem}.fastani"
                 for _ in run.fasta_hashes

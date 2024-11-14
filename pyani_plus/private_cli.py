@@ -436,6 +436,11 @@ def log_fastani(
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
+    uname = platform.uname()
+    uname_system = uname.system
+    uname_release = uname.release
+    uname_machine = uname.machine
+
     if not quiet:
         print(f"Logging fastANI comparison to {database}")
     session = db_orm.connect_to_db(database)
@@ -446,29 +451,38 @@ def log_fastani(
 
     _check_tool_version(tools.get_fastani(), run.configuration)
 
+    config_id = run.configuration_id
     filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
 
-    for (
-        query_hash,
-        subject_hash,
-        identity,
-        orthologous_matches,
-        fragments,
-    ) in method_fastani.parse_fastani_file(fastani, filename_to_hash):
-        # Allow for variation in the folder part of the filenames (e.g. relative paths)
-        db_orm.db_comparison(
-            session,
-            configuration_id=run.configuration_id,
-            query_hash=query_hash,
-            subject_hash=subject_hash,
-            identity=identity,
-            aln_length=round(
-                run.configuration.fragsize * orthologous_matches
-            ),  # proxy value,
-            sim_errors=fragments - orthologous_matches,  # proxy value, not bp,
-            cov_query=float(orthologous_matches) / fragments,  # an approximation,
-            cov_subject=None,
-        )
+    # Now do a bulk import... but must skip any pre-existing entries
+    # otherwise would hit sqlite3.IntegrityError for breaking uniqueness!
+    # Do this via the Sqlite3 supported SQL command "INSERT OR IGNORE"
+    # using the dialect's on_conflict_do_nothing method.
+    session.execute(
+        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
+        [
+            {
+                "query_hash": query_hash,
+                "subject_hash": subject_hash,
+                "identity": identity,
+                # Proxy values:
+                "aln_length": round(run.configuration.fragsize * orthologous_matches),
+                "sim_errors": fragments - orthologous_matches,
+                "cov_query": float(orthologous_matches) / fragments,
+                "configuration_id": config_id,
+                "uname_system": uname_system,
+                "uname_release": uname_release,
+                "uname_machine": uname_machine,
+            }
+            for (
+                query_hash,
+                subject_hash,
+                identity,
+                orthologous_matches,
+                fragments,
+            ) in method_fastani.parse_fastani_file(fastani, filename_to_hash)
+        ],
+    )
 
     session.commit()
     return 0

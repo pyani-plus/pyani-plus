@@ -39,130 +39,16 @@ from . import get_matrix_entry
 def test_bad_path() -> None:
     """Confirm giving an empty path etc fails."""
     with pytest.raises(FileNotFoundError, match="No such file or directory:"):
-        parse_fastani_file(Path("/does/not/exist"))
+        list(parse_fastani_file(Path("/does/not/exist"), {}))
 
 
 def test_empty_path() -> None:
     """Confirm giving an empty path etc fails."""
     with pytest.raises(ValueError, match="Input file /dev/null is empty"):
-        parse_fastani_file(Path("/dev/null"))
+        list(parse_fastani_file(Path("/dev/null"), {}))
 
 
-def test_bad_query_or_subject(
-    input_genomes_tiny: Path, fastani_targets_indir: Path
-) -> None:
-    """Mismatch between query or subject FASTA in fastANI output filename."""
-    # First, query filename mismatch:
-    with pytest.raises(
-        SystemExit,
-        match=(
-            "ERROR: Given --query-fasta .*/MGV-GENOME-0266457.fna"
-            " but query in fastANI filename was MGV-GENOME-0264574"
-        ),
-    ):
-        private_cli.log_fastani(
-            database=":memory:",
-            run_id=1,
-            # These are for the comparison table
-            query_fasta=input_genomes_tiny
-            / "MGV-GENOME-0266457.fna",  # should be MGV-GENOME-0264574.fas
-            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            fastani=fastani_targets_indir
-            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.fastani",
-        )
-    # Second, subject filename mismatch:
-    with pytest.raises(
-        SystemExit,
-        match=(
-            "ERROR: Given --subject-fasta .*/MGV-GENOME-0264574.fas"
-            " but subject in fastANI filename was MGV-GENOME-0266457"
-        ),
-    ):
-        private_cli.log_fastani(
-            database=":memory:",
-            run_id=1,
-            # These are for the comparison table
-            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            subject_fasta=input_genomes_tiny
-            / "MGV-GENOME-0264574.fas",  # should be MGV-GENOME-0266457.fna",
-            fastani=fastani_targets_indir
-            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.fastani",
-        )
-
-
-def test_bad_query_or_subject_in_file(
-    capsys: pytest.CaptureFixture[str],
-    input_genomes_tiny: Path,
-    fastani_targets_indir: Path,
-    tmp_path: str,
-) -> None:
-    """Mismatch between query or subject FASTA in fastANI output."""
-    tmp_db = Path(tmp_path) / "bad-names.sqlite"
-    assert not tmp_db.is_file()
-
-    tool = tools.get_fastani()
-    private_cli.log_run(
-        fasta=input_genomes_tiny,
-        database=tmp_db,
-        cmdline="pyani-plus fastani ...",
-        status="Testing",
-        name="Testing log_fastani",
-        method="fastANI",
-        program=tool.exe_path.stem,
-        version=tool.version,
-        fragsize=1000,
-        kmersize=51,
-        minmatch=0.9,
-        create_db=True,
-    )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
-
-    # Now a good filename, but bad contents (flipped query and subject)
-    fake_file = Path(tmp_path) / "MGV-GENOME-0266457_vs_MGV-GENOME-0264574.fastani"
-    fake_file.symlink_to(
-        fastani_targets_indir / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.fastani"
-    )
-    with pytest.raises(
-        SystemExit,
-        match=(
-            "ERROR: Given --query-fasta .*/MGV-GENOME-0266457.fna"
-            " but query in fastANI file contents was .*/MGV-GENOME-0264574.fas"
-        ),
-    ):
-        private_cli.log_fastani(
-            database=tmp_db,
-            run_id=1,
-            # These are for the comparison table
-            query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            fastani=fake_file,
-        )
-    # Again good filename, but bad contents (wrong subject)
-    fake_file = Path(tmp_path) / "MGV-GENOME-0264574_vs_MGV-GENOME-0264574.fastani"
-    fake_file.symlink_to(
-        fastani_targets_indir / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.fastani"
-    )
-    with pytest.raises(
-        SystemExit,
-        match=(
-            "ERROR: Given --subject-fasta .*/MGV-GENOME-0264574.fas"
-            " but subject in fastANI file contents was .*/MGV-GENOME-0266457.fna"
-        ),
-    ):
-        private_cli.log_fastani(
-            database=tmp_db,
-            run_id=1,
-            # These are for the comparison table
-            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            fastani=fake_file,
-        )
-
-
-def test_missing_db(
-    tmp_path: str, input_genomes_tiny: Path, fastani_targets_indir: Path
-) -> None:
+def test_missing_db(tmp_path: str, fastani_targets_indir: Path) -> None:
     """Check expected error when DB does not exist."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
@@ -171,11 +57,7 @@ def test_missing_db(
         private_cli.log_fastani(
             database=tmp_db,
             run_id=1,
-            # These are for the comparison table
-            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            fastani=fastani_targets_indir
-            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.fastani",
+            fastani=fastani_targets_indir / "all_vs_MGV-GENOME-0266457.fastani",
         )
 
 
@@ -212,19 +94,22 @@ def test_logging_fastani(
     private_cli.log_fastani(
         database=tmp_db,
         run_id=1,
-        # These are for the comparison table
-        query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-        subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-        fastani=fastani_targets_indir
-        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.fastani",
+        fastani=fastani_targets_indir / "all_vs_MGV-GENOME-0266457.fastani",
     )
 
     # Check the recorded comparison values
     session = db_orm.connect_to_db(tmp_db)
-    assert session.query(db_orm.Comparison).count() == 1
-    comp = session.query(db_orm.Comparison).one()
+    assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004
     query = "689d3fd6881db36b5e08329cf23cecdd"  # MGV-GENOME-0264574.fas
     subject = "78975d5144a1cd12e98898d573cf6536"  # MGV-GENOME-0266457.fna
+    comp = (
+        session.query(db_orm.Comparison)
+        .where(db_orm.Comparison.query_hash == query)
+        .one()
+    )
+    assert comp.subject_hash == subject
+    assert comp.configuration_id == 1  # by construction
+
     # Using approx to avoid 0.9950140000000001 != 0.995014
     pytest.approx(
         comp.identity,

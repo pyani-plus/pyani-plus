@@ -408,12 +408,10 @@ def log_comparison(  # noqa: PLR0913
 # Ought we switch the command line arguments here to match fastANI naming?
 # Note this omits mode
 @app.command(rich_help_panel="Method specific logging")
-def log_fastani(  # noqa: PLR0913
+def log_fastani(
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
     run_id: REQ_ARG_TYPE_RUN_ID,
-    query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
-    subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     fastani: Annotated[
         Path,
         typer.Option(
@@ -427,20 +425,13 @@ def log_fastani(  # noqa: PLR0913
     *,
     quiet: OPT_ARG_TYPE_QUIET = False,
 ) -> int:
-    """Log single fastANI pairwise comparison to database.
+    """Log fastANI pairwise comparison(s) to database.
 
     The associated configuration and genome entries must already exist.
+    We expect this to be used on a row of the final matrix at a time,
+    that is the output for many query genomes vs a single subject
+    (reference) genome.
     """
-    used_query, used_subject = fastani.stem.split("_vs_")
-    if used_query != query_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --query-fasta {query_fasta} but query in fastANI filename was {used_query}"
-        )
-    if used_subject != subject_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but subject in fastANI filename was {used_subject}"
-        )
-
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
@@ -448,41 +439,36 @@ def log_fastani(  # noqa: PLR0913
     if not quiet:
         print(f"Logging fastANI comparison to {database}")
     session = db_orm.connect_to_db(database)
-    run, query_md5, subject_md5 = _lookup_run_query_subject(
-        session, run_id, query_fasta, subject_fasta
-    )
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
     if run.configuration.method != "fastANI":
         msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
         sys.exit(msg)
 
     _check_tool_version(tools.get_fastani(), run.configuration)
 
-    used_query_path, used_subject_path, identity, orthologous_matches, fragments = (
-        method_fastani.parse_fastani_file(fastani)
-    )
-    # Allow for variation in the folder part of the filenames (e.g. relative paths)
-    if used_query_path.stem != query_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --query-fasta {query_fasta} but query in fastANI file contents was {used_query_path}"
-        )
-    if used_subject_path.stem != subject_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but subject in fastANI file contents was {used_subject_path}"
-        )
+    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
 
-    db_orm.db_comparison(
-        session,
-        configuration_id=run.configuration_id,
-        query_hash=query_md5,
-        subject_hash=subject_md5,
-        identity=identity,
-        aln_length=round(
-            run.configuration.fragsize * orthologous_matches
-        ),  # proxy value,
-        sim_errors=fragments - orthologous_matches,  # proxy value, not bp,
-        cov_query=float(orthologous_matches) / fragments,  # an approximation,
-        cov_subject=None,
-    )
+    for (
+        query_hash,
+        subject_hash,
+        identity,
+        orthologous_matches,
+        fragments,
+    ) in method_fastani.parse_fastani_file(fastani, filename_to_hash):
+        # Allow for variation in the folder part of the filenames (e.g. relative paths)
+        db_orm.db_comparison(
+            session,
+            configuration_id=run.configuration_id,
+            query_hash=query_hash,
+            subject_hash=subject_hash,
+            identity=identity,
+            aln_length=round(
+                run.configuration.fragsize * orthologous_matches
+            ),  # proxy value,
+            sim_errors=fragments - orthologous_matches,  # proxy value, not bp,
+            cov_query=float(orthologous_matches) / fragments,  # an approximation,
+            cov_subject=None,
+        )
 
     session.commit()
     return 0

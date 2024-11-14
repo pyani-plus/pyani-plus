@@ -534,8 +534,6 @@ def test_log_wrong_config(
         private_cli.log_fastani(
             tmp_db,
             run_id=1,
-            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             fastani=faked,
         )
 

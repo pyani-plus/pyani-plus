@@ -455,19 +455,20 @@ def fastani(  # noqa: PLR0913
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
 
-    target_extension = ".fastani"
     tool = tools.get_fastani()
     binaries = {
         "fastani": tool.exe_path,
     }
+    fasta_list = check_fasta(fasta)
+
     return start_and_run_method(
         executor,
         database,
         name,
         "fastANI",
         fasta,
-        [],
-        target_extension,
+        [f"all_vs_{Path(_).stem}.fastani" for _ in fasta_list],
+        None,  # no pairwise targets
         tool,
         binaries,
         fragsize=fragsize,
@@ -588,7 +589,12 @@ def resume(  # noqa: C901, PLR0912, PLR0915
             binaries = {
                 "fastani": tool.exe_path,
             }
-            target_extension = ".fastani"
+            # Ideally this would be selective, as this will recompute everything:
+            targets = [
+                f"all_vs_{Path(_.fasta_filename).stem}.fastani"
+                for _ in run.fasta_hashes
+            ]
+            target_extension = None
         case "ANIm":
             tool = tools.get_nucmer()
             binaries = {

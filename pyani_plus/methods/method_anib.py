@@ -128,10 +128,9 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
                     f"Found {len(fields)} columns in {blastn}, not {len(BLAST_COLUMNS)}"
                 )
                 raise ValueError(msg)
-            if not fields[0].startswith("frag"):
-                msg = (
-                    f"BLAST output should be using fragmented queries, not {fields[0]}"
-                )
+            query = fields[0]
+            if not query.startswith("frag"):
+                msg = f"BLAST output should be using fragmented queries, not {query}"
                 raise ValueError(msg)
             values = dict(zip(BLAST_COLUMNS, fields, strict=False))
             blast_alnlen = int(values["length"])
@@ -148,13 +147,13 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
             if (
                 ani_query_coverage > MIN_COVERAGE
                 and ani_pid > MIN_IDENTITY
-                and prev_query != fields[0]
+                and prev_query != query
             ):
                 total_aln_length += ani_alnlen
                 total_sim_errors += blast_mismatch + blast_gaps
                 # Not using ani_pid but BLAST's pident - see note below:
                 all_pid.append(float(values["pident"]) / 100)
-                prev_query = fields[0]  # to detect multiple hits for a query
+                prev_query = query  # to detect multiple hits for a query
     # NOTE: Could warn about empty BLAST file using if prev_query is None:
 
     # NOTE: We report the mean of blastn's pident for concordance with JSpecies

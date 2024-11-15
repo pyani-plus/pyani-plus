@@ -47,6 +47,13 @@ BLAST_COLUMNS = (
     " qlen slen qstart qend sstart send positive ppos gaps"
 ).split()
 
+# Precompute the column indexes once
+BLAST_COL_QLEN = BLAST_COLUMNS.index("qlen")
+BLAST_COL_LENGTH = BLAST_COLUMNS.index("length")
+BLAST_COL_GAPS = BLAST_COLUMNS.index("gaps")
+BLAST_COL_MISMATCH = BLAST_COLUMNS.index("mismatch")
+BLAST_COL_PIDENT = BLAST_COLUMNS.index("pident")
+
 
 def fragment_fasta_files(
     fasta: list[Path], outdir: Path, fragsize: int = FRAGSIZE
@@ -132,15 +139,14 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
             if not query.startswith("frag"):
                 msg = f"BLAST output should be using fragmented queries, not {query}"
                 raise ValueError(msg)
-            values = dict(zip(BLAST_COLUMNS, fields, strict=False))
-            blast_alnlen = int(values["length"])
-            blast_gaps = int(values["gaps"])
+            blast_alnlen = int(fields[BLAST_COL_LENGTH])
+            blast_gaps = int(fields[BLAST_COL_GAPS])
             ani_alnlen = blast_alnlen - blast_gaps
-            blast_mismatch = int(values["mismatch"])
+            blast_mismatch = int(fields[BLAST_COL_MISMATCH])
             ani_alnids = ani_alnlen - blast_mismatch
-            ani_query_coverage = ani_alnlen / int(values["qlen"])
+            ani_query_coverage = ani_alnlen / int(fields[BLAST_COL_QLEN])
             # Can't use float(values["pident"])/100, this is relative to alignment length
-            ani_pid = ani_alnids / int(values["qlen"])
+            ani_pid = ani_alnids / int(fields[BLAST_COL_QLEN])
 
             # Now apply filters - should these be parameters?
             # And if there are multiple hits for this query, take first (best) one
@@ -152,7 +158,7 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
                 total_aln_length += ani_alnlen
                 total_sim_errors += blast_mismatch + blast_gaps
                 # Not using ani_pid but BLAST's pident - see note below:
-                all_pid.append(float(values["pident"]) / 100)
+                all_pid.append(float(fields[BLAST_COL_PIDENT]) / 100)
                 prev_query = query  # to detect multiple hits for a query
     # NOTE: Could warn about empty BLAST file using if prev_query is None:
 

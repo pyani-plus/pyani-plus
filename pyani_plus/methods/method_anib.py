@@ -122,9 +122,10 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
     ... )
     Identity 100.0% over length 39253 with 0 errors
     """
+    total_pid_100 = 0.0
+    total_count = 0
     total_aln_length = 0
     total_sim_errors = 0
-    all_pid: list[float] = []
 
     prev_query = ""
     with blastn.open() as handle:
@@ -156,7 +157,8 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
                 total_aln_length += ani_alnlen
                 total_sim_errors += blast_mismatch + blast_gaps
                 # Not using ani_pid but BLAST's pident - see note below:
-                all_pid.append(float(fields[BLAST_COL_PIDENT]) / 100)
+                total_pid_100 += float(fields[BLAST_COL_PIDENT])
+                total_count += 1
                 prev_query = query  # to detect multiple hits for a query
     # NOTE: Could warn about empty BLAST file using if prev_query is None:
 
@@ -166,7 +168,7 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
     # are differentially filtered out in JSpecies and here. This is often
     # on the basis of rounding differences (e.g. coverage being close to 70%).
     return (
-        sum(all_pid) / len(all_pid) if all_pid else 0,
+        total_pid_100 / (total_count * 100) if total_count else 0,
         total_aln_length,
         total_sim_errors,
     )

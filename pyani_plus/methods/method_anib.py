@@ -139,14 +139,12 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
             if not query.startswith("frag"):
                 msg = f"BLAST output should be using fragmented queries, not {query}"
                 raise ValueError(msg)
-            blast_alnlen = int(fields[BLAST_COL_LENGTH])
             blast_gaps = int(fields[BLAST_COL_GAPS])
-            ani_alnlen = blast_alnlen - blast_gaps
+            ani_alnlen = int(fields[BLAST_COL_LENGTH]) - blast_gaps
             blast_mismatch = int(fields[BLAST_COL_MISMATCH])
-            ani_alnids = ani_alnlen - blast_mismatch
             ani_query_coverage = ani_alnlen / int(fields[BLAST_COL_QLEN])
             # Can't use float(values["pident"])/100, this is relative to alignment length
-            ani_pid = ani_alnids / int(fields[BLAST_COL_QLEN])
+            ani_pid = (ani_alnlen - blast_mismatch) / int(fields[BLAST_COL_QLEN])
 
             # Now apply filters - should these be parameters?
             # And if there are multiple hits for this query, take first (best) one

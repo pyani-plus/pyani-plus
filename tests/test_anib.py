@@ -86,7 +86,7 @@ def test_parse_blastn(anib_blastn: Path) -> None:
     # total mismatches/gaps:
     assert method_anib.parse_blastn_file(
         anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv"
-    ) == (0.9945938461538463, 39169, 215)
+    ) == (0.9945938461538462, 39169, 215)
     # $ md5sum tests/fixtures/viral_example/*.f*
     # 689d3fd6881db36b5e08329cf23cecdd tests/fixtures/viral_example/MGV-GENOME-0264574.fas
     # 78975d5144a1cd12e98898d573cf6536 tests/fixtures/viral_example/MGV-GENOME-0266457.fna
@@ -96,6 +96,7 @@ def test_parse_blastn(anib_blastn: Path) -> None:
     #
     # Expected matrices from pyani v0.2 give us expected values of:
     # identity 0.9945938461538463, aln_length 39169, sim_errors 215
+    # Note final digit wobble from 3 (old) to 2 (new)
 
 
 def test_missing_db(tmp_path: str, input_genomes_tiny: Path, anib_blastn: Path) -> None:

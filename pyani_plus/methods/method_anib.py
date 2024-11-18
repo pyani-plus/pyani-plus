@@ -47,6 +47,13 @@ BLAST_COLUMNS = (
     " qlen slen qstart qend sstart send positive ppos gaps"
 ).split()
 
+# Precompute the column indexes once
+BLAST_COL_QLEN = BLAST_COLUMNS.index("qlen")
+BLAST_COL_LENGTH = BLAST_COLUMNS.index("length")
+BLAST_COL_GAPS = BLAST_COLUMNS.index("gaps")
+BLAST_COL_MISMATCH = BLAST_COLUMNS.index("mismatch")
+BLAST_COL_PIDENT = BLAST_COLUMNS.index("pident")
+
 
 def fragment_fasta_files(
     fasta: list[Path], outdir: Path, fragsize: int = FRAGSIZE
@@ -115,9 +122,10 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
     ... )
     Identity 100.0% over length 39253 with 0 errors
     """
+    total_pid_100 = 0.0
+    total_count = 0
     total_aln_length = 0
     total_sim_errors = 0
-    all_pid: list[float] = []
 
     prev_query = ""
     with blastn.open() as handle:
@@ -128,33 +136,30 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
                     f"Found {len(fields)} columns in {blastn}, not {len(BLAST_COLUMNS)}"
                 )
                 raise ValueError(msg)
-            if not fields[0].startswith("frag"):
-                msg = (
-                    f"BLAST output should be using fragmented queries, not {fields[0]}"
-                )
+            query = fields[0]
+            if not query.startswith("frag"):
+                msg = f"BLAST output should be using fragmented queries, not {query}"
                 raise ValueError(msg)
-            values = dict(zip(BLAST_COLUMNS, fields, strict=False))
-            blast_alnlen = int(values["length"])
-            blast_gaps = int(values["gaps"])
-            ani_alnlen = blast_alnlen - blast_gaps
-            blast_mismatch = int(values["mismatch"])
-            ani_alnids = ani_alnlen - blast_mismatch
-            ani_query_coverage = ani_alnlen / int(values["qlen"])
+            blast_gaps = int(fields[BLAST_COL_GAPS])
+            ani_alnlen = int(fields[BLAST_COL_LENGTH]) - blast_gaps
+            blast_mismatch = int(fields[BLAST_COL_MISMATCH])
+            ani_query_coverage = ani_alnlen / int(fields[BLAST_COL_QLEN])
             # Can't use float(values["pident"])/100, this is relative to alignment length
-            ani_pid = ani_alnids / int(values["qlen"])
+            ani_pid = (ani_alnlen - blast_mismatch) / int(fields[BLAST_COL_QLEN])
 
             # Now apply filters - should these be parameters?
             # And if there are multiple hits for this query, take first (best) one
             if (
                 ani_query_coverage > MIN_COVERAGE
                 and ani_pid > MIN_IDENTITY
-                and prev_query != fields[0]
+                and prev_query != query
             ):
                 total_aln_length += ani_alnlen
                 total_sim_errors += blast_mismatch + blast_gaps
                 # Not using ani_pid but BLAST's pident - see note below:
-                all_pid.append(float(values["pident"]) / 100)
-                prev_query = fields[0]  # to detect multiple hits for a query
+                total_pid_100 += float(fields[BLAST_COL_PIDENT])
+                total_count += 1
+                prev_query = query  # to detect multiple hits for a query
     # NOTE: Could warn about empty BLAST file using if prev_query is None:
 
     # NOTE: We report the mean of blastn's pident for concordance with JSpecies
@@ -163,7 +168,7 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
     # are differentially filtered out in JSpecies and here. This is often
     # on the basis of rounding differences (e.g. coverage being close to 70%).
     return (
-        sum(all_pid) / len(all_pid) if all_pid else 0,
+        total_pid_100 / (total_count * 100) if total_count else 0,
         total_aln_length,
         total_sim_errors,
     )

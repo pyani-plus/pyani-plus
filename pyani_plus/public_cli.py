@@ -470,9 +470,10 @@ def fastani(  # noqa: PLR0913
 def sourmash(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
-    # These are for the run table:
-    name: REQ_ARG_TYPE_RUN_NAME,
     *,
+    # These are for the run table:
+    name: OPT_ARG_TYPE_RUN_NAME = None,
+    # These are all for the configuration table:
     # The mode here is not optional - must pick one!
     mode: OPT_ARG_TYPE_SOURMASH_MODE = method_sourmash.MODE,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,

@@ -32,54 +32,25 @@ def get_genomeB(wildcards):
     return indir_files[wildcards.genomeB]
 
 
-# The delta rule runs nucmer
+# The rule dnadiff runs nucmer, delta-filter, show-diff and show-coords wrappers to
+# required to replicate the number of AlignedBases, identity and coverage reported
+# by dnadiff.
 # NOTE: We do not need to construct forward and reverse comparisons within this
 # rule. This is done in the context of pyani_plus by specifying target files in
-# the calling code
-rule delta:
-    params:
-        nucmer=config["nucmer"],
-        indir=config["indir"],
-        outdir=config["outdir"],
-    input:
-        genomeA=get_genomeA,
-        genomeB=get_genomeB,
-    output:
-        "{outdir}/{genomeA}_vs_{genomeB}.delta",
-    shell:
-        """
-        {params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} \
-            --maxmatch {input.genomeB} {input.genomeA} > {output}.log 2>&1
-        """
+# the calling code.
 
 
-# The filter rule runs delta-filter wrapper for nucmer
-# NOTE: This rule is used for dnadiff in the context of pyani_plus. The .filter file
-# is used to generate delta-filter files, which are used to replicate AlignedBases.
-rule filter:
-    params:
-        delta_filter=config["delta_filter"],
-    input:
-        "{outdir}/{genomeA}_vs_{genomeB}.delta",
-    output:
-        "{outdir}/{genomeA}_vs_{genomeB}.filter",
-    shell:
-        "{params.delta_filter} -m {input} > {output}"
-
-
-# The rule runs both show-diff and show-coords wrappers for nucmer
-# NOTE: This rule is used for dnadiff in the context of pyani_plus. The .filter file
-# is used to generate both show-diff and show-coords files, which are used to
-# replicate AlignedBases, identity etc.
-rule show_diff_and_coords:
+rule dnadiff:
     params:
         db=config["db"],
         run_id=config["run_id"],
+        nucmer=config["nucmer"],
+        delta_filter=config["delta_filter"],
         show_diff=config["show_diff"],
         show_coords=config["show_coords"],
+        indir=config["indir"],
         outdir=config["outdir"],
     input:
-        deltafilter="{outdir}/{genomeA}_vs_{genomeB}.filter",
         genomeA=get_genomeA,
         genomeB=get_genomeB,
     output:
@@ -87,8 +58,13 @@ rule show_diff_and_coords:
         mcoords="{outdir}/{genomeA}_vs_{genomeB}.mcoords",
     shell:
         """
-        {params.show_diff} -qH {input.deltafilter} > {output.qdiff} &&
-        {params.show_coords} -rclTH {input.deltafilter} > {output.mcoords} &&
+        {params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} \
+            --maxmatch {input.genomeB} {input.genomeA} > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.delta.log 2>&1 &&
+        {params.delta_filter} \
+            -m {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.delta \
+             > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter &&
+        {params.show_diff} -qH {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter > {output.qdiff}
+        {params.show_coords} -rclTH {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter > {output.mcoords} &&
         .pyani-plus-private-cli log-dnadiff --quiet \
             --database {params.db} --run-id {params.run_id} \
             --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \

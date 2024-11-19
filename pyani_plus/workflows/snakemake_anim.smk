@@ -33,47 +33,31 @@ def get_genomeB(wildcards):
     return indir_files[wildcards.genomeB]
 
 
-# The delta rule runs nucmer
+# The ANIm rule runs nucmer and delta-filter
 # NOTE: We do not need to construct forward and reverse comparisons within this
 # rule. This is done in the context of pyani_plus by specifying target files in
-# the calling code
+# the calling code.
 # Here mode will be "mum" (default) or "maxmatch", meaning nucmer --mum etc.
-rule delta:
+# The constant -1 option is used for 1-to-1 alignments in the delta-filter,
+# with no other options available for the end user.
+rule ANIm:
     params:
-        nucmer=config["nucmer"],
+        db=config["db"],
+        run_id=config["run_id"],
         mode=config["mode"],
+        nucmer=config["nucmer"],
+        delta_filter=config["delta_filter"],
         indir=config["indir"],
         outdir=config["outdir"],
     input:
         genomeA=get_genomeA,
         genomeB=get_genomeB,
     output:
-        "{outdir}/{genomeA}_vs_{genomeB}.delta",
-    shell:
-        """
-        {params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} \
-            --{params.mode} {input.genomeB} {input.genomeA} > {output}.log 2>&1
-        """
-
-
-# The filter rule runs delta-filter wrapper for nucmer
-# NOTE: This rule is used for ANIm in the context of pyani_plus. The .filter file
-# is used to calculate ANI values
-rule filter:
-    params:
-        db=config["db"],
-        run_id=config["run_id"],
-        mode=config["mode"],
-        delta_filter=config["delta_filter"],
-        outdir=config["outdir"],
-    input:
-        "{outdir}/{genomeA}_vs_{genomeB}.delta",
-        genomeA=get_genomeA,
-        genomeB=get_genomeB,
-    output:
         "{outdir}/{genomeA}_vs_{genomeB}.filter",
     shell:
         """
+        {params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} \
+            --{params.mode} {input.genomeB} {input.genomeA} > {output}.log 2>&1 &&
         {params.delta_filter} \
             -1 {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.delta \
              > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter &&

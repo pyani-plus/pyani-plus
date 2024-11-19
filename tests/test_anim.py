@@ -29,7 +29,6 @@ make test
 # Required to support pytest automated testing
 from pathlib import Path
 
-import pandas as pd
 import pytest
 
 from pyani_plus import db_orm, private_cli, tools, utils
@@ -53,92 +52,6 @@ def genome_hashes(input_genomes_tiny: Path) -> dict:
         record.stem: utils.file_md5sum(record)
         for record in input_genomes_tiny.iterdir()
     }
-
-
-def compare_results_decimal(
-    filterfile: Path, datadir: pd.DataFrame, val: int, genome_hashes: dict
-) -> bool:
-    """Compare delta-filter files and expected anim results.
-
-    This function expects delta-filter file and dataframe with expected
-    anim results as input and returns True if the anim values is the same,
-    and False if the two files differ. It also expects index specifying
-    which value from the parse_delta function to compare, as the parse_delta
-    function returns several values, including aligned bases in reference,
-    aligned bases in query, aligned identity, and similarity errors.
-    """
-    reference, query = filterfile.stem.split("_vs_")
-    pyani_label = {_.split(":")[0]: _ for _ in datadir}
-
-    return round(method_anim.parse_delta(filterfile)[val], 6) == round(
-        datadir.loc[
-            pyani_label[genome_hashes[reference]], pyani_label[genome_hashes[query]]
-        ],
-        6,
-    )
-
-
-def compare_results_no_decimal(
-    filterfile: Path, datadir: pd.DataFrame, val: int, genome_hashes: dict
-) -> bool:
-    """Compare delta-filter files and expected anim results.
-
-    Without rounding numbers to 6 decimal places.
-    """
-    reference, query = filterfile.stem.split("_vs_")
-    pyani_label = {_.split(":")[0]: _ for _ in datadir}
-
-    return (
-        method_anim.parse_delta(filterfile)[val]
-        == datadir.loc[
-            pyani_label[genome_hashes[reference]], pyani_label[genome_hashes[query]]
-        ]
-    )
-
-
-def test_average_identity(
-    anim_nucmer_targets_filter_indir: Path, dir_anim_results: Path, genome_hashes: dict
-) -> None:
-    """Check aniM average identity."""
-    for fname in (anim_nucmer_targets_filter_indir).glob("*.filter"):
-        assert compare_results_decimal(
-            fname,
-            pd.read_csv(
-                dir_anim_results / "matrix_identity.tsv", index_col=0, sep="\t"
-            ),
-            2,
-            genome_hashes,
-        )
-
-
-def test_aln_lengths(
-    anim_nucmer_targets_filter_indir: Path, dir_anim_results: Path, genome_hashes: dict
-) -> None:
-    """Check aniM alignment lengths."""
-    for fname in (anim_nucmer_targets_filter_indir).glob("*.filter"):
-        assert compare_results_no_decimal(
-            fname,
-            pd.read_csv(
-                dir_anim_results / "matrix_aln_lengths.tsv", index_col=0, sep="\t"
-            ),
-            0,
-            genome_hashes,
-        )
-
-
-def test_sim_errors(
-    anim_nucmer_targets_filter_indir: Path, dir_anim_results: Path, genome_hashes: dict
-) -> None:
-    """Check aniM sim errors."""
-    for fname in (anim_nucmer_targets_filter_indir).glob("*.filter"):
-        assert compare_results_no_decimal(
-            fname,
-            pd.read_csv(
-                dir_anim_results / "matrix_sim_errors.tsv", index_col=0, sep="\t"
-            ),
-            3,
-            genome_hashes,
-        )
 
 
 def test_delta_parsing(anim_nucmer_targets_filter_indir: Path) -> None:

@@ -57,7 +57,8 @@ rule ANIm:
     shell:
         """
         {params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} \
-            --{params.mode} {input.genomeB} {input.genomeA} > {output}.log 2>&1 &&
+            --{params.mode} {input.genomeB} {input.genomeA} \
+            > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}_nucmer.log 2>&1 &&
         {params.delta_filter} \
             -1 {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.delta \
              > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter &&

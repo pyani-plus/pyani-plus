@@ -32,14 +32,12 @@ def get_genomeB(wildcards):
     return indir_files[wildcards.genomeB]
 
 
-# The rule dnadiff runs nucmer, delta-filter, show-diff and show-coords wrappers to
+# The rule dnadiff runs nucmer, delta-filter, show-diff and show-coords wrappers
 # required to replicate the number of AlignedBases, identity and coverage reported
 # by dnadiff.
 # NOTE: We do not need to construct forward and reverse comparisons within this
 # rule. This is done in the context of pyani_plus by specifying target files in
 # the calling code.
-
-
 rule dnadiff:
     params:
         db=config["db"],
@@ -59,7 +57,7 @@ rule dnadiff:
     shell:
         """
         {params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} \
-            --maxmatch {input.genomeB} {input.genomeA} > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.delta.log 2>&1 &&
+            --maxmatch {input.genomeB} {input.genomeA} > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}_nucmer.log 2>&1 &&
         {params.delta_filter} \
             -m {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.delta \
              > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter &&

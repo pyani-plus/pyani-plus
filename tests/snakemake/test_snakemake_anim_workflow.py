@@ -85,7 +85,7 @@ def compare_files_with_skip(file1: Path, file2: Path, skip: int = 1) -> bool:
     return True
 
 
-def test_snakemake_rule_ANIm(  # noqa: N802, PLR0913
+def test_rule_ANIm(  # noqa: N802, PLR0913
     anim_nucmer_targets_filter: list[str],
     anim_nucmer_targets_filter_indir: Path,
     anim_nucmer_targets_filter_outdir: Path,
@@ -93,9 +93,9 @@ def test_snakemake_rule_ANIm(  # noqa: N802, PLR0913
     config_anim_args: dict,
     tmp_path: str,
 ) -> None:
-    """Test nucmer filter snakemake wrapper.
+    """Test rule.
 
-    Checks that the filter rule in the ANIm snakemake wrapper gives the
+    Checks that the ANIm rule in the ANIm snakemake wrapper gives the
     expected output.
 
     If the output directory exists (i.e. the make clean_tests rule has not

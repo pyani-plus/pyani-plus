@@ -199,29 +199,9 @@ def dnadiff_nucmer_targets_filter_indir() -> Path:
 
 
 @pytest.fixture
-def dnadiff_nucmer_targets_filter_outdir(tmp_path: str) -> Path:
-    """Output directory for MUMmer filter snakemake tests.
-
-    This path indicates the location to which MUMmer should write
-    its output files during dnadiff testing
-    """
-    return Path(tmp_path).resolve() / "dnadiff_nucmer_filter_output"
-
-
-@pytest.fixture
 def dnadiff_nucmer_targets_delta_indir() -> Path:
     """Directory containing MUMmer delta snakemake reference files."""
     return FIXTUREPATH / "dnadiff" / "targets" / "delta"
-
-
-@pytest.fixture
-def dnadiff_nucmer_targets_delta_outdir(tmp_path: str) -> Path:
-    """Output directory for MUMmer filter snakemake tests.
-
-    This path indicates the location to which MUMmer should write
-    its output files during dnadiff testing
-    """
-    return Path(tmp_path).resolve() / "dnadiff_nucmer_delta_output"
 
 
 @pytest.fixture
@@ -231,35 +211,25 @@ def dnadiff_targets_showdiff_indir() -> Path:
 
 
 @pytest.fixture
-def dnadiff_targets_showdiff_outdir(tmp_path: str) -> Path:
-    """Output directory for MUMmer filter snakemake tests.
-
-    This path indicates the location to which dnadiff should write
-    its output files during dnadiff testing
-    """
-    return Path(tmp_path).resolve() / "dnadiff_show_diff_output"
-
-
-@pytest.fixture
 def dnadiff_targets_showcoords_indir() -> Path:
     """Directory containing snadiff show_diff snakemake reference files."""
     return FIXTUREPATH / "dnadiff" / "targets" / "show_coords"
 
 
 @pytest.fixture
-def dnadiff_targets_showcoords_outdir(tmp_path: str) -> Path:
+def dnadiff_targets_outdir(tmp_path: str) -> Path:
     """Output directory for MUMmer filter snakemake tests.
 
     This path indicates the location to which dnadiff should write
     its output files during dnadiff testing
     """
-    return Path(tmp_path).resolve() / "dnadiff_show_coords_output"
+    return Path(tmp_path).resolve() / "dnadiff_targets_output"
 
 
 @pytest.fixture
 def dnadiff_nucmer_targets_filter(
-    dnadiff_nucmer_targets_filter_outdir: Path,
-) -> list[str]:
+    dnadiff_targets_outdir: Path,
+) -> list[Path]:
     """Target filter files for dnadiff method tests.
 
     These are paths to the output files we want to generate using
@@ -268,13 +238,13 @@ def dnadiff_nucmer_targets_filter(
     values
     """
     reference_paths = (FIXTUREPATH / "dnadiff" / "targets" / "filter").glob("*.filter")
-    return [dnadiff_nucmer_targets_filter_outdir / _.name for _ in reference_paths]
+    return [dnadiff_targets_outdir / _.name for _ in reference_paths]
 
 
 @pytest.fixture
 def dnadiff_nucmer_targets_delta(
-    dnadiff_nucmer_targets_delta_outdir: Path,
-) -> list[str]:
+    dnadiff_targets_outdir: Path,
+) -> list[Path]:
     """Target delta files for dnadiff method tests.
 
     These are paths to the output files we want to generate using
@@ -282,11 +252,11 @@ def dnadiff_nucmer_targets_delta(
     could later be processed to obtain AlignedBases values
     """
     reference_paths = (FIXTUREPATH / "dnadiff" / "targets" / "delta").glob("*.delta")
-    return [dnadiff_nucmer_targets_delta_outdir / _.name for _ in reference_paths]
+    return [dnadiff_targets_outdir / _.name for _ in reference_paths]
 
 
 @pytest.fixture
-def dnadiff_targets_showdiff(dnadiff_targets_showdiff_outdir: Path) -> list[str]:
+def dnadiff_targets_showdiff(dnadiff_targets_outdir: Path) -> list[Path]:
     """Target qdiff files for dnadiff method tests.
 
     These are paths to the output files we want to generate using
@@ -296,11 +266,11 @@ def dnadiff_targets_showdiff(dnadiff_targets_showdiff_outdir: Path) -> list[str]
     reference_paths = (FIXTUREPATH / "dnadiff" / "targets" / "show_diff").glob(
         "*.qdiff",
     )
-    return [dnadiff_targets_showdiff_outdir / _.name for _ in reference_paths]
+    return [dnadiff_targets_outdir / _.name for _ in reference_paths]
 
 
 @pytest.fixture
-def dnadiff_targets_showcoords(dnadiff_targets_showcoords_outdir: Path) -> list[Path]:
+def dnadiff_targets_showcoords(dnadiff_targets_outdir: Path) -> list[Path]:
     """Target mcoords files for dnadiff method tests.
 
     These are paths to the output files we want to generate using
@@ -310,7 +280,7 @@ def dnadiff_targets_showcoords(dnadiff_targets_showcoords_outdir: Path) -> list[
     reference_paths = (FIXTUREPATH / "dnadiff" / "targets" / "show_coords").glob(
         "*.mcoords",
     )
-    return [dnadiff_targets_showcoords_outdir / _.name for _ in reference_paths]
+    return [dnadiff_targets_outdir / _.name for _ in reference_paths]
 
 
 @pytest.fixture

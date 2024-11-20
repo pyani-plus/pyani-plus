@@ -102,80 +102,16 @@ def compare_show_diff_files(file1: Path, file2: Path) -> bool:
     return True
 
 
-def test_snakemake_rule_show_diff_and_coords(  # noqa: PLR0913
-    capsys: pytest.CaptureFixture[str],
-    dnadiff_targets_showdiff: list[str],
-    dnadiff_targets_showdiff_indir: Path,
-    dnadiff_targets_showdiff_outdir: Path,
-    config_dnadiff_args: dict,
-    dir_dnadiff_matrices: Path,
-    tmp_path: str,
-) -> None:
-    """Test dnadiff show-diff snakemake wrapper.
-
-    Checks that the show_diff_and_coords rule in the dnadiff snakemake wrapper gives the
-    expected show-diff output.
-
-    If the output directory exists (i.e. the make clean_tests rule has not
-    been run), the tests will automatically pass as snakemake will not
-    attempt to re-run the rule. That would prevent us from seeing any
-    introduced bugs, so we force re-running the rule by deleting the
-    output directory before running the tests.
-    """
-    # Remove the output directory to force re-running the snakemake rule
-    shutil.rmtree(dnadiff_targets_showdiff_outdir, ignore_errors=True)
-
-    nucmer_tool = get_nucmer()
-
-    # Setup minimal test DB
-    db = config_dnadiff_args["db"]
-    assert not db.is_file()
-    log_run(
-        fasta=config_dnadiff_args["indir"],
-        database=db,
-        status="Testing",
-        name="Test case",
-        cmdline="pyani-plus dnadiff --database ... blah blah blah",
-        method="dnadiff",
-        program=nucmer_tool.exe_path.stem,
-        version=nucmer_tool.version,
-        fragsize=None,
-        mode=None,
-        kmersize=None,
-        minmatch=None,
-        create_db=True,
-    )
-    assert db.is_file()
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
-
-    config = config_dnadiff_args.copy()
-    config["outdir"] = dnadiff_targets_showdiff_outdir
-
-    # Run snakemake wrapper
-    run_snakemake_with_progress_bar(
-        executor=ToolExecutor.local,
-        workflow_name="snakemake_dnadiff.smk",
-        targets=dnadiff_targets_showdiff,
-        params=config,
-        working_directory=Path(tmp_path),
-        show_progress_bar=False,
-    )
-
-    # Check output against target fixtures
-    for fname in dnadiff_targets_showdiff:
-        assert compare_files_with_skip(
-            dnadiff_targets_showdiff_indir / fname,
-            dnadiff_targets_showdiff_outdir / fname,
-            skip=0,
-        )
-    compare_matrices(db, dir_dnadiff_matrices, absolute_tolerance=5e-5)
-
-
 def test_dnadiff(  # noqa: PLR0913
-    dnadiff_targets_showcoords: list[str],
+    dnadiff_nucmer_targets_delta: list[Path],
+    dnadiff_nucmer_targets_filter: list[Path],
+    dnadiff_targets_showcoords: list[Path],
+    dnadiff_targets_showdiff: list[Path],
+    dnadiff_nucmer_targets_delta_indir: Path,
+    dnadiff_nucmer_targets_filter_indir: Path,
     dnadiff_targets_showcoords_indir: Path,
-    dnadiff_targets_showcoords_outdir: Path,
+    dnadiff_targets_showdiff_indir: Path,
+    dnadiff_targets_outdir: Path,
     config_dnadiff_args: dict,
     dir_dnadiff_matrices: Path,
     tmp_path: str,
@@ -192,7 +128,7 @@ def test_dnadiff(  # noqa: PLR0913
     output directory before running the tests.
     """
     # Remove the output directory to force re-running the snakemake rule
-    shutil.rmtree(dnadiff_targets_showcoords_outdir, ignore_errors=True)
+    shutil.rmtree(dnadiff_targets_outdir, ignore_errors=True)
 
     nucmer_tool = get_nucmer()
 
@@ -217,7 +153,7 @@ def test_dnadiff(  # noqa: PLR0913
     assert db.is_file()
 
     config = config_dnadiff_args.copy()
-    config["outdir"] = dnadiff_targets_showcoords_outdir
+    config["outdir"] = dnadiff_targets_outdir
 
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
@@ -229,11 +165,33 @@ def test_dnadiff(  # noqa: PLR0913
         show_progress_bar=False,
     )
 
-    # Check output against target fixtures
+    # Check nucmer output (.delta) against target fixtures
+    for fname in dnadiff_nucmer_targets_delta:
+        assert compare_files_with_skip(
+            fname, dnadiff_nucmer_targets_delta_indir / fname.name
+        )
+
+    # Check nucmer output (.filter) against target fixtures
+    for fname in dnadiff_nucmer_targets_filter:
+        assert compare_files_with_skip(
+            fname,
+            dnadiff_nucmer_targets_filter_indir / fname.name,
+        )
+
+    # Check show_coords output (.mcoords) against target fixtures
     for fname in dnadiff_targets_showcoords:
         assert compare_files_with_skip(
-            dnadiff_targets_showcoords_indir / fname,
-            dnadiff_targets_showcoords_outdir / fname,
+            fname,
+            dnadiff_targets_showcoords_indir / fname.name,
             skip=0,
         )
+
+    # Check showdiff output (.qdiff) against target fixtures
+    for fname in dnadiff_targets_showdiff:
+        assert compare_files_with_skip(
+            fname,
+            dnadiff_targets_showdiff_indir / fname.name,
+            skip=0,
+        )
+
     compare_matrices(db, dir_dnadiff_matrices, absolute_tolerance=5e-5)

@@ -182,8 +182,8 @@ def test_dnadiff(  # noqa: PLR0913
 ) -> None:
     """Test rule dnadiff.
 
-    Checks that the show_diff_and_coords rule in the dnadiff snakemake wrapper gives the
-    expected show-coords output.
+    Checks that the dnadiff rule in the dnadiff snakemake wrapper gives the
+    expected output.
 
     If the output directory exists (i.e. the make clean_tests rule has not
     been run), the tests will automatically pass as snakemake will not

@@ -113,8 +113,8 @@ def dir_anim_results() -> Path:
 
 
 @pytest.fixture
-def anim_nucmer_targets_filter_outdir(tmp_path: str) -> Path:
-    """Output directory for MUMmer filter snakemake tests.
+def anim_targets_outdir(tmp_path: str) -> Path:
+    """Output directory for ANIm snakemake tests.
 
     This path indicates the location to which MUMmer should write
     its output files during ANIm testing
@@ -129,37 +129,27 @@ def anim_nucmer_targets_delta_indir() -> Path:
 
 
 @pytest.fixture
-def anim_nucmer_targets_delta_outdir(tmp_path: str) -> Path:
-    """Output directory for MUMmer delta snakemake tests.
-
-    This path indicates the location to which MUMmer should write
-    its output files during ANIm testing
-    """
-    return Path(tmp_path).resolve() / "nucmer_delta_output"
-
-
-@pytest.fixture
-def anim_nucmer_targets_filter(anim_nucmer_targets_filter_outdir: Path) -> list[str]:
-    """Target files for ANIm tests.
+def anim_nucmer_targets_filter(anim_targets_outdir: Path) -> list[Path]:
+    """Target delta-filter files for ANIm tests.
 
     These are paths to the output files we want to generate using
     nucmer for ANIm. We aim to ask MUMmer to generate a set of
     .filter files that could later be processed to obtain ANI values
     """
     reference_paths = (FIXTUREPATH / "anim" / "targets" / "filter").glob("*.filter")
-    return [anim_nucmer_targets_filter_outdir / _.name for _ in reference_paths]
+    return [anim_targets_outdir / _.name for _ in reference_paths]
 
 
 @pytest.fixture
-def anim_nucmer_targets_delta(anim_nucmer_targets_delta_outdir: Path) -> list[str]:
-    """Target files for ANIm tests.
+def anim_nucmer_targets_delta(anim_targets_outdir: Path) -> list[Path]:
+    """Target delta files for ANIm tests.
 
     These are paths to the output files we want to generate using
     nucmer for ANIm. We aim to generate a set of .delta files that
     could later be processed to obtain ANI values
     """
     reference_paths = (FIXTUREPATH / "anim" / "targets" / "delta").glob("*.delta")
-    return [anim_nucmer_targets_delta_outdir / _.name for _ in reference_paths]
+    return [anim_targets_outdir / _.name for _ in reference_paths]
 
 
 @pytest.fixture

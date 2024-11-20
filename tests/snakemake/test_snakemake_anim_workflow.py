@@ -86,9 +86,11 @@ def compare_files_with_skip(file1: Path, file2: Path, skip: int = 1) -> bool:
 
 
 def test_rule_ANIm(  # noqa: N802, PLR0913
-    anim_nucmer_targets_filter: list[str],
+    anim_nucmer_targets_filter: list[Path],
+    anim_nucmer_targets_delta: list[Path],
     anim_nucmer_targets_filter_indir: Path,
-    anim_nucmer_targets_filter_outdir: Path,
+    anim_targets_outdir: Path,
+    anim_nucmer_targets_delta_indir: Path,
     dir_anim_results: Path,
     config_anim_args: dict,
     tmp_path: str,
@@ -105,7 +107,7 @@ def test_rule_ANIm(  # noqa: N802, PLR0913
     output directory before running the tests.
     """
     # Remove the output directory to force re-running the snakemake rule
-    shutil.rmtree(anim_nucmer_targets_filter_outdir, ignore_errors=True)
+    shutil.rmtree(anim_targets_outdir, ignore_errors=True)
 
     # Assuming this will match but worker nodes might have a different version
     nucmer_tool = get_nucmer()
@@ -128,7 +130,7 @@ def test_rule_ANIm(  # noqa: N802, PLR0913
     assert db.is_file()
 
     config = config_anim_args.copy()
-    config["outdir"] = anim_nucmer_targets_filter_outdir
+    config["outdir"] = anim_targets_outdir
 
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
@@ -142,10 +144,18 @@ def test_rule_ANIm(  # noqa: N802, PLR0913
         show_progress_bar=False,
     )
 
-    # Check output against target fixtures
+    # Check delta-filter output against target fixtures
     for fname in anim_nucmer_targets_filter:
         assert compare_files_with_skip(
-            anim_nucmer_targets_filter_indir / fname,
-            anim_nucmer_targets_filter_outdir / fname,
+            anim_nucmer_targets_filter_indir / fname.name,
+            fname,
         )
+
+    # Check nucmer output against target fixtures
+    for fname in anim_nucmer_targets_delta:
+        assert compare_files_with_skip(
+            anim_nucmer_targets_delta_indir / fname.name,
+            fname,
+        )
+
     compare_matrices(db, dir_anim_results)

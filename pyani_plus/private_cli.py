@@ -942,10 +942,10 @@ def log_sourmash(
 def log_branchwater(
     database: REQ_ARG_TYPE_DATABASE,
     run_id: REQ_ARG_TYPE_RUN_ID,
-    pairwise: Annotated[
+    manysearch: Annotated[
         Path,
         typer.Option(
-            help="Sourmash-plugin-branchwater pairwise CSV output file",
+            help="Sourmash-plugin-branchwater manysearch CSV output file",
             show_default=False,
             dir_okay=False,
             file_okay=True,
@@ -980,10 +980,11 @@ def log_branchwater(
 
     # Now do a bulk import... but must skip any pre-existing entries
     # otherwise would hit sqlite3.IntegrityError for breaking uniqueness!
+    # Do this via the Sqlite3 supported SQL command "INSERT OR IGNORE"
+    # using the dialect's on_conflict_do_nothing method.
     # Repeating those calculations is a waste, but a performance trade off
-    pre_existing = {(comp.query_hash, comp.subject_hash) for comp in run.comparisons()}
     session.execute(
-        insert(db_orm.Comparison),
+        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
         [
             {
                 "query_hash": query_hash,
@@ -998,10 +999,9 @@ def log_branchwater(
                 query_hash,
                 subject_hash,
                 identity,
-            ) in method_branchwater.parse_sourmash_pairwise_csv(
-                pairwise, filename_to_hash
+            ) in method_branchwater.parse_sourmash_manysearch_csv(
+                manysearch, filename_to_hash
             )
-            if (query_hash, subject_hash) not in pre_existing
         ],
     )
 

@@ -39,6 +39,7 @@ from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
 from pyani_plus.methods import (
     method_anib,
     method_anim,
+    method_branchwater,
     method_dnadiff,
     method_fastani,
     method_sourmash,
@@ -930,6 +931,77 @@ def log_sourmash(
                 subject_hash,
                 identity,
             ) in method_sourmash.parse_sourmash_compare_csv(compare, filename_to_hash)
+        ],
+    )
+
+    session.commit()
+    return 0
+
+
+@app.command(rich_help_panel="Method specific logging")
+def log_branchwater(
+    database: REQ_ARG_TYPE_DATABASE,
+    run_id: REQ_ARG_TYPE_RUN_ID,
+    pairwise: Annotated[
+        Path,
+        typer.Option(
+            help="Sourmash-plugin-branchwater pairwise CSV output file",
+            show_default=False,
+            dir_okay=False,
+            file_okay=True,
+            exists=True,
+        ),
+    ],
+    *,
+    quiet: OPT_ARG_TYPE_QUIET = False,
+) -> int:
+    """Log an all-vs-all sourmash pairwise comparison to database."""
+    if database != ":memory:" and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+
+    uname = platform.uname()
+    uname_system = uname.system
+    uname_release = uname.release
+    uname_machine = uname.machine
+
+    if not quiet:
+        print(f"Logging branchwater to {database}")
+    session = db_orm.connect_to_db(database)
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+    if run.configuration.method != "branchwater":
+        msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
+        sys.exit(msg)
+
+    _check_tool_version(tools.get_sourmash(), run.configuration)
+
+    config_id = run.configuration.configuration_id
+    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
+
+    # Now do a bulk import... but must skip any pre-existing entries
+    # otherwise would hit sqlite3.IntegrityError for breaking uniqueness!
+    # Repeating those calculations is a waste, but a performance trade off
+    pre_existing = {(comp.query_hash, comp.subject_hash) for comp in run.comparisons()}
+    session.execute(
+        insert(db_orm.Comparison),
+        [
+            {
+                "query_hash": query_hash,
+                "subject_hash": subject_hash,
+                "identity": identity,
+                "configuration_id": config_id,
+                "uname_system": uname_system,
+                "uname_release": uname_release,
+                "uname_machine": uname_machine,
+            }
+            for (
+                query_hash,
+                subject_hash,
+                identity,
+            ) in method_branchwater.parse_sourmash_pairwise_csv(
+                pairwise, filename_to_hash
+            )
+            if (query_hash, subject_hash) not in pre_existing
         ],
     )
 

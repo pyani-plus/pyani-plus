@@ -107,7 +107,7 @@ from pathlib import Path
 import pandas as pd
 
 
-def parse_mcoords(mcoords_file: Path) -> tuple[float, int]:
+def parse_mcoords(mcoords_file: Path) -> tuple[float | None, int]:
     """Parse mcoords file and return avg ID% and number of aligned bases with gaps (QRY).
 
     :parama mcoords_file: Path to the mcoords_file
@@ -134,7 +134,12 @@ def parse_mcoords(mcoords_file: Path) -> tuple[float, int]:
             aligned_bases_with_gaps += int(row["col_8"])
             seen_ref_seq.add(row["col_12"])
 
-    return (sum_identity / sum_alignment_lengths, aligned_bases_with_gaps)
+    try:
+        avrg_identity = sum_identity / sum_alignment_lengths
+    except ZeroDivisionError:
+        avrg_identity = None  # Using Python's None to represent NULL
+
+    return (avrg_identity, aligned_bases_with_gaps)
 
 
 def parse_qdiff(qdiff_file: Path) -> int:

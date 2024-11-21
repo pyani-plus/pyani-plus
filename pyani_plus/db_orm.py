@@ -724,7 +724,7 @@ def db_comparison(  # noqa: PLR0913
     configuration_id: int,
     query_hash: str,
     subject_hash: str,
-    identity: float,
+    identity: float | None = None,
     aln_length: int | None = None,
     sim_errors: int | None = None,
     cov_query: float | None = None,

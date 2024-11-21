@@ -740,7 +740,9 @@ def log_dnadiff(  # noqa: PLR0913
         subject_hash=subject_md5,
         identity=identity,
         aln_length=aligned_bases_with_gaps - gap_lengths,
-        sim_errors=round((aligned_bases_with_gaps - gap_lengths) * (1 - identity)),
+        sim_errors=None
+        if identity is None
+        else round((aligned_bases_with_gaps - gap_lengths) * (1 - identity)),
         cov_query=(aligned_bases_with_gaps - gap_lengths) / query.length,
         cov_subject=None,  # Leaving this as None for now (need rdiff files to calculate this)
     )

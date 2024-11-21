@@ -238,7 +238,7 @@ class Comparison(Base):
     )
 
     # The results of the comparison
-    identity: Mapped[float] = mapped_column()
+    identity: Mapped[float | None] = mapped_column()
     # in fastANI this is matchedfrags * fragLength:
     aln_length: Mapped[int | None] = mapped_column()
     # in fastANI this is allfrags - matchedfrags

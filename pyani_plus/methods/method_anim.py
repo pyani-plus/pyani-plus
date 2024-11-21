@@ -76,7 +76,7 @@ def get_aligned_bases_count(aligned_regions: dict) -> int:
     return aligned_bases
 
 
-def parse_delta(filename: Path) -> tuple[int, int, float, int]:
+def parse_delta(filename: Path) -> tuple[int, int, float | None, int]:
     """Return (reference alignment length, query alignment length, average identity, similarity errors).
 
     :param filename: Path to the input .delta file
@@ -177,7 +177,10 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
             )
 
     # Calculate average %ID
-    avrg_identity = weighted_identical_bases / aligned_bases
+    try:
+        avrg_identity = weighted_identical_bases / aligned_bases
+    except ZeroDivisionError:
+        avrg_identity = None  # Using Python's None to represent NULL
 
     return (
         get_aligned_bases_count(regions_qry),

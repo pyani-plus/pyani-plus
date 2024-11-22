@@ -32,7 +32,7 @@ from typing import Annotated
 
 import typer
 from rich.progress import Progress
-from sqlalchemy import insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
@@ -791,10 +791,11 @@ def log_sourmash(
 
     # Now do a bulk import... but must skip any pre-existing entries
     # otherwise would hit sqlite3.IntegrityError for breaking uniqueness!
+    # Do this via the Sqlite3 supported SQL command "INSERT OR IGNORE"
+    # using the dialect's on_conflict_do_nothing method.
     # Repeating those calculations is a waste, but a performance trade off
-    pre_existing = {(comp.query_hash, comp.subject_hash) for comp in run.comparisons()}
     session.execute(
-        insert(db_orm.Comparison),
+        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
         [
             {
                 "query_hash": query_hash,
@@ -810,7 +811,6 @@ def log_sourmash(
                 subject_hash,
                 identity,
             ) in method_sourmash.parse_sourmash_compare_csv(compare, filename_to_hash)
-            if (query_hash, subject_hash) not in pre_existing
         ],
     )
 

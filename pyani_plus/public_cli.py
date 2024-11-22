@@ -217,7 +217,7 @@ def start_and_run_method(  # noqa: PLR0913
         fasta_to_hash=filename_to_md5,
     )
     session.commit()  # Redundant?
-    print(f"Run setup with {n} genomes in database")
+    print(f"{method} run setup with {n} genomes in database")
 
     return run_method(
         executor,

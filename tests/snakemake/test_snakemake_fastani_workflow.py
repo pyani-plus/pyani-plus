@@ -134,7 +134,6 @@ def test_snakemake_rule_fastani(  # noqa: PLR0913
         targets=fastani_targets,
         params=config_fastani_args,
         working_directory=Path(tmp_path),
-        show_progress_bar=False,
     )
 
     # Check output against target fixtures
@@ -180,5 +179,4 @@ def test_snakemake_duplicate_stems(
             targets=fastani_targets,
             params=dup_config,
             working_directory=Path(tmp_path),
-            show_progress_bar=False,
         )

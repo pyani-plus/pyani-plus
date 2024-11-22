@@ -85,7 +85,6 @@ def test_snakemake_rule_fragments(
         targets=anib_targets_fragments,
         params=config_anib_args,
         working_directory=Path(tmp_path),
-        show_progress_bar=False,
     )
 
     # Check output against target fixtures
@@ -126,7 +125,6 @@ def test_snakemake_rule_blastdb(
         targets=anib_targets_blastdb,
         params=config_anib_args,
         working_directory=Path(tmp_path),
-        show_progress_bar=False,
     )
 
     # Check output against target fixtures
@@ -175,7 +173,6 @@ def test_snakemake_rule_blastn(  # noqa: PLR0913
         targets=anib_targets_blastn,
         params=config_anib_args,
         working_directory=Path(tmp_path),
-        show_progress_bar=False,
     )
 
     # Check output against target fixtures

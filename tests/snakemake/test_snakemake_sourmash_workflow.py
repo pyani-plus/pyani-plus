@@ -152,7 +152,6 @@ def test_snakemake_sketch_rule(
         targets=sourmash_targets_sig,
         params=config,
         working_directory=Path(tmp_path),
-        show_progress_bar=False,
     )
 
     # Check output against target fixtures
@@ -221,7 +220,6 @@ def test_snakemake_compare_rule(  # noqa: PLR0913
         targets=[sourmash_targets_compare_outdir / "sourmash.csv"],
         params=config,
         working_directory=Path(tmp_path),
-        show_progress_bar=False,
     )
 
     # Check output against target fixture

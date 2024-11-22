@@ -33,6 +33,7 @@ from pathlib import Path
 import pytest
 
 from pyani_plus.workflows import (
+    ShowProgress,
     ToolExecutor,
     check_input_stems,
     run_snakemake_with_progress_bar,
@@ -72,7 +73,7 @@ def test_duplicate_stems(
 
 def test_progress_bar_error() -> None:
     """Verify expected error message without database or run-in."""
-    msg = "Both database and run_id are required with show_progress_bar=True"
+    msg = "Both database and run_id are required with display as progress bar"
     with pytest.raises(ValueError, match=re.escape(msg)):
         run_snakemake_with_progress_bar(
             ToolExecutor.slurm,
@@ -80,5 +81,5 @@ def test_progress_bar_error() -> None:
             [Path("/mnt/shared/answer.tsv")],
             {},
             Path(),
-            show_progress_bar=True,
+            display=ShowProgress.bar,
         )

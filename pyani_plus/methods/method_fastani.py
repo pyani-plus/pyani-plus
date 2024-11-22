@@ -44,7 +44,7 @@ def parse_fastani_file(
     number of orthologous matches (int), and the number of sequence
     fragments considered from the fastANI output file (int).
 
-    Example with a pairwise fastANI comparison, one query and one reference:
+    Example fastANI comparison, three queries vs one reference:
 
     >>> mapping = {
     ...     "OP073605.fasta": "A",

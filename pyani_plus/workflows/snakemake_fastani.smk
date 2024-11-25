@@ -21,39 +21,57 @@
 # THE SOFTWARE.
 from pyani_plus.workflows import check_input_stems
 
+# This returns a dict mapping stems to full paths
 indir_files = check_input_stems(config["indir"])
-
-
-def get_genomeA(wildcards):
-    return indir_files[wildcards.genomeA]
 
 
 def get_genomeB(wildcards):
     return indir_files[wildcards.genomeB]
 
 
-# The fastani rule runs fastANI
+# Need a file with a single FASTA file per line, one for each query.
+# This could be all the FASTA files in the input directory, but can
+# be a subset - consider use case expanding a DB from N genomes to
+# N+1 genomes.
+rule genomes_list:
+    params:
+        db=config["db"],
+        run_id=config["run_id"],
+        indir=config["indir"],
+    input:
+        genomeB=get_genomeB,
+    output:
+        "{outdir}/genome_list_for_{genomeB}.txt",
+    shell:
+        """
+        .pyani-plus-private-cli build-query-list --quiet --self \
+            --database {params.db} --run-id {params.run_id} \
+            --subject {wildcards.genomeB} --fasta {params.indir} > {output}
+        """
+
+
+# The fastani rule runs fastANI doing all queries vs one subject (reference)
 rule fastani:
     params:
         db=config["db"],
         run_id=config["run_id"],
         fastani=config["fastani"],
         indir=config["indir"],
+        outdir=config["outdir"],
         fragsize=config["fragsize"],
         kmersize=config["kmersize"],
         minmatch=config["minmatch"],
     input:
-        genomeA=get_genomeA,
+        queries="{outdir}/genome_list_for_{genomeB}.txt",
         genomeB=get_genomeB,
     output:
-        "{outdir}/{genomeA}_vs_{genomeB}.fastani",
+        "{outdir}/all_vs_{genomeB}.fastani",
     shell:
         """
-        {params.fastani} -q {input.genomeA} -r {input.genomeB} \
+        {params.fastani} --ql "{input.queries}" -r {input.genomeB} \
             -o {output} --fragLen {params.fragsize} -k {params.kmersize} \
             --minFraction {params.minmatch} > {output}.log 2>&1 &&
-        .pyani-plus-private-cli log-fastani \
-            --quiet --database {params.db} --run-id {params.run_id} \
-            --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
-            --fastani {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.fastani
+        .pyani-plus-private-cli log-fastani --quiet \
+            --database {params.db} --run-id {params.run_id} \
+            --fastani {output}
         """

@@ -32,7 +32,7 @@ from typing import Annotated
 
 import typer
 from rich.progress import Progress
-from sqlalchemy import insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
@@ -408,12 +408,10 @@ def log_comparison(  # noqa: PLR0913
 # Ought we switch the command line arguments here to match fastANI naming?
 # Note this omits mode
 @app.command(rich_help_panel="Method specific logging")
-def log_fastani(  # noqa: PLR0913
+def log_fastani(
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
     run_id: REQ_ARG_TYPE_RUN_ID,
-    query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
-    subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
     fastani: Annotated[
         Path,
         typer.Option(
@@ -427,64 +425,160 @@ def log_fastani(  # noqa: PLR0913
     *,
     quiet: OPT_ARG_TYPE_QUIET = False,
 ) -> int:
-    """Log single fastANI pairwise comparison to database.
+    """Log fastANI pairwise comparison(s) to database.
 
     The associated configuration and genome entries must already exist.
+    We expect this to be used on a row of the final matrix at a time,
+    that is the output for many query genomes vs a single subject
+    (reference) genome.
     """
-    used_query, used_subject = fastani.stem.split("_vs_")
-    if used_query != query_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --query-fasta {query_fasta} but query in fastANI filename was {used_query}"
-        )
-    if used_subject != subject_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but subject in fastANI filename was {used_subject}"
-        )
-
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
+    uname = platform.uname()
+    uname_system = uname.system
+    uname_release = uname.release
+    uname_machine = uname.machine
+
     if not quiet:
         print(f"Logging fastANI comparison to {database}")
     session = db_orm.connect_to_db(database)
-    run, query_md5, subject_md5 = _lookup_run_query_subject(
-        session, run_id, query_fasta, subject_fasta
-    )
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
     if run.configuration.method != "fastANI":
         msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
         sys.exit(msg)
 
     _check_tool_version(tools.get_fastani(), run.configuration)
 
-    used_query_path, used_subject_path, identity, orthologous_matches, fragments = (
-        method_fastani.parse_fastani_file(fastani)
-    )
-    # Allow for variation in the folder part of the filenames (e.g. relative paths)
-    if used_query_path.stem != query_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --query-fasta {query_fasta} but query in fastANI file contents was {used_query_path}"
-        )
-    if used_subject_path.stem != subject_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but subject in fastANI file contents was {used_subject_path}"
-        )
+    config_id = run.configuration_id
+    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
 
-    db_orm.db_comparison(
-        session,
-        configuration_id=run.configuration_id,
-        query_hash=query_md5,
-        subject_hash=subject_md5,
-        identity=identity,
-        aln_length=round(
-            run.configuration.fragsize * orthologous_matches
-        ),  # proxy value,
-        sim_errors=fragments - orthologous_matches,  # proxy value, not bp,
-        cov_query=float(orthologous_matches) / fragments,  # an approximation,
-        cov_subject=None,
+    # Now do a bulk import... but must skip any pre-existing entries
+    # otherwise would hit sqlite3.IntegrityError for breaking uniqueness!
+    # Do this via the Sqlite3 supported SQL command "INSERT OR IGNORE"
+    # using the dialect's on_conflict_do_nothing method.
+    session.execute(
+        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
+        [
+            {
+                "query_hash": query_hash,
+                "subject_hash": subject_hash,
+                "identity": identity,
+                # Proxy values:
+                "aln_length": round(run.configuration.fragsize * orthologous_matches),
+                "sim_errors": fragments - orthologous_matches,
+                "cov_query": float(orthologous_matches) / fragments,
+                "configuration_id": config_id,
+                "uname_system": uname_system,
+                "uname_release": uname_release,
+                "uname_machine": uname_machine,
+            }
+            for (
+                query_hash,
+                subject_hash,
+                identity,
+                orthologous_matches,
+                fragments,
+            ) in method_fastani.parse_fastani_file(fastani, filename_to_hash)
+        ],
     )
 
     session.commit()
+    return 0
+
+
+@app.command()
+def build_query_list(  # noqa: C901, PLR0913
+    database: REQ_ARG_TYPE_DATABASE,
+    # These are for the comparison table
+    run_id: REQ_ARG_TYPE_RUN_ID,
+    subject: Annotated[
+        str,
+        typer.Option(
+            help="Full-path, filename, filename stem, or hash of subject (reference) FASTA file",
+            show_default=False,
+        ),
+    ],
+    *,
+    include_subject: Annotated[
+        bool,
+        typer.Option(
+            # Listing name explicitly to avoid automatic matching --no-self
+            "--self",
+            help="If output would be empty, include the subject to force at least one output (self vs self).",
+            show_default=False,
+        ),
+    ] = False,
+    fasta: Annotated[
+        Path | None,
+        typer.Option(
+            help="Path to FASTA files (default is as per the database)",
+            show_default=False,
+            exists=True,
+            dir_okay=True,
+            file_okay=False,
+        ),
+    ] = None,
+    quiet: OPT_ARG_TYPE_QUIET = False,
+) -> int:
+    """Output a list of query FASTA files to compare against the given subject.
+
+    This was initially needed for the fastANI wrapper, but could have broader usage.
+    For the given subject (reference) genome, we may have some of the pairwise
+    comparisons already recorded in the database, but others are still pending. This
+    outputs a plain text list of those query genomes.
+
+    Potentially the DB recorded the fasta_directory relative to the original
+    working directory, in which case that cannot be used on a worker node in
+    a temporary working directory. We therefore accept a FASTA input directory.
+
+    Because fastANI gives an error with an empty list, this tool has the option
+    with --self to include the subject filename to avoid an empty list.
+    """
+    session = db_orm.connect_to_db(database)
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+    if subject in hash_to_filename:
+        subject_hash = subject
+    else:
+        name = Path(subject).name
+        stem = Path(subject).stem
+        subject_hash = None
+        for md5, filename in hash_to_filename.items():
+            if name == filename or stem == Path(filename).stem:
+                subject_hash = md5
+        del name, stem
+        if not subject_hash:
+            msg = f"ERROR: Did not recognise {subject!r} as an MD5 hash or filename in run-id {run_id}"
+            sys.exit(msg)
+
+    completed_queries = {
+        comp.query_hash
+        for comp in run.comparisons().where(
+            db_orm.Comparison.subject_hash == subject_hash
+        )
+    }
+    if not quiet:
+        done = len(completed_queries)
+        n = len(hash_to_filename)
+        sys.stderr.write(
+            f"INFO: Have {done} of {n} comparisons for {subject_hash}, {n - done} needed\n"
+        )
+
+    fasta_dir = Path(fasta) if fasta else Path(run.fasta_directory)
+    empty = True
+    for md5, filename in hash_to_filename.items():
+        if md5 not in completed_queries:
+            print(fasta_dir / filename)
+            empty = False
+    if empty:
+        if include_subject:
+            print(fasta_dir / hash_to_filename[subject_hash])
+        if not quiet:
+            sys.stderr.write(
+                f"INFO: Already have all comparisons for subject {subject_hash}\n"
+            )
     return 0
 
 
@@ -791,10 +885,11 @@ def log_sourmash(
 
     # Now do a bulk import... but must skip any pre-existing entries
     # otherwise would hit sqlite3.IntegrityError for breaking uniqueness!
+    # Do this via the Sqlite3 supported SQL command "INSERT OR IGNORE"
+    # using the dialect's on_conflict_do_nothing method.
     # Repeating those calculations is a waste, but a performance trade off
-    pre_existing = {(comp.query_hash, comp.subject_hash) for comp in run.comparisons()}
     session.execute(
-        insert(db_orm.Comparison),
+        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
         [
             {
                 "query_hash": query_hash,
@@ -810,7 +905,6 @@ def log_sourmash(
                 subject_hash,
                 identity,
             ) in method_sourmash.parse_sourmash_compare_csv(compare, filename_to_hash)
-            if (query_hash, subject_hash) not in pre_existing
         ],
     )
 

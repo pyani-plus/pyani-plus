@@ -21,6 +21,7 @@
 # THE SOFTWARE.
 """Code to wrap the fastANI average nucleotide identity method."""
 
+from collections.abc import Iterator
 from pathlib import Path
 
 KMER_SIZE = 16  # Default fastANI k-mer size (max 16)
@@ -29,11 +30,13 @@ MIN_FRACTION = 0.2  # Default fastANI min fraction
 MAX_RATIO_DIFF = 10.0  # Default fastANI maximum ratio difference
 
 
-def parse_fastani_file(filename: Path) -> tuple[Path, Path, float, int, int]:
-    """Parse a single-line fastANI output file extracting key fields as a tuple.
+def parse_fastani_file(
+    filename: Path, filename_to_hash: dict[str, str]
+) -> Iterator[tuple[str, str, float, int, int]]:
+    """Parse a multi-line fastANI output file extracting key fields as a tuple.
 
-    Return (ref genome, query genome, ANI estimate, orthologous matches,
-    sequence fragments) tuple.
+    Returns tuples of (query genome (hash), reference/subject genome (hash),
+    ANI estimate (float), orthologous matches (int), sequence fragments).
 
     :param filename: Path, path to the input file
 
@@ -41,21 +44,41 @@ def parse_fastani_file(filename: Path) -> tuple[Path, Path, float, int, int]:
     number of orthologous matches (int), and the number of sequence
     fragments considered from the fastANI output file (int).
 
-    We assume that all fastANI comparisons are pairwise: one query and
-    one reference file. The fastANI file should contain a single line.
+    Example fastANI comparison, three queries vs one reference:
 
-    fastANI *can* produce multi-line output, if a list of query/reference
-    files is given to it.
+    >>> mapping = {
+    ...     "OP073605.fasta": "A",
+    ...     "MGV-GENOME-0266457.fna": "B",
+    ...     "MGV-GENOME-0264574.fas": "C",
+    ... }
+    >>> fname = Path("tests/fixtures/fastani/targets/all_vs_OP073605.fastani")
+    >>> for query, subject, ani, matches, frags in parse_fastani_file(fname, mapping):
+    ...     print(f"{query} vs {subject} gave {100*ani:0.1f}%")
+    A vs A gave 100.0%
+    B vs A gave 99.5%
+    C vs A gave 99.9%
+
+    Empty files trigger an exception:
+
+    >>> fname = Path("/dev/null")
+    >>> for query, subject, ani, matches, frags in parse_fastani_file(fname, mapping):
+    ...     print(f"{query} vs {subject} gave {100*ani:0.1f}%")
+    Traceback (most recent call last):
+      ...
+    ValueError: Input file /dev/null is empty
     """
+    empty = True
     with filename.open() as handle:
-        line = handle.readline().strip().split()
-    if not line:  # No file content; either run failed or no detectable similarity
+        for line in handle:
+            parts = line.strip().split()
+            yield (
+                filename_to_hash[Path(parts[0]).name],
+                filename_to_hash[Path(parts[1]).name],
+                0.01 * float(parts[2]),
+                int(parts[3]),
+                int(parts[4]),
+            )
+            empty = False
+    if empty:
         msg = f"Input file {filename} is empty"
         raise ValueError(msg)
-    return (
-        Path(line[0]),
-        Path(line[1]),
-        0.01 * float(line[2]),
-        int(line[3]),
-        int(line[4]),
-    )

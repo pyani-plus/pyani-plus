@@ -32,10 +32,9 @@ Genomes are compared in both directions (forward and reverse)
 using fastANI.
 """
 
-# Imports
 import subprocess
+import tempfile
 from decimal import Decimal
-from itertools import product
 from pathlib import Path
 
 import numpy as np
@@ -60,31 +59,35 @@ for file in FASTANI_DIR.glob("*.fastani"):
 
 # Running comparisons
 inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*.f*")}
-comparisons = product(inputs, inputs)
 
 fastani = get_fastani()
 print(f"Using fastANI {fastani.version} at {fastani.exe_path}")
 
-for genomes in comparisons:
-    stem = "_vs_".join(genomes)
-    subprocess.run(
-        [
-            fastani.exe_path,
-            "-q",
-            inputs[genomes[0]],
-            "-r",
-            inputs[genomes[1]],
-            "-o",
-            FASTANI_DIR / (stem + ".fastani"),
-            "--fragLen",
-            str(FRAG_LEN),
-            "-k",
-            str(KMER_SIZE),
-            "--minFraction",
-            str(MIN_FRAC),
-        ],
-        check=True,
-    )
+# Generate values for each row of the matrix
+with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as genome_list:
+    for genome_filename in inputs.values():
+        genome_list.write(f"{genome_filename}\n")
+    genome_list.close()
+    for stem, genome_filename in inputs.items():
+        subprocess.run(
+            [
+                fastani.exe_path,
+                "--ql",
+                genome_list.name,
+                "-r",
+                genome_filename,
+                "-o",
+                FASTANI_DIR / f"all_vs_{stem}.fastani",
+                "--fragLen",
+                str(FRAG_LEN),
+                "-k",
+                str(KMER_SIZE),
+                "--minFraction",
+                str(MIN_FRAC),
+            ],
+            check=True,
+        )
+
 
 md5dict = {str(file): file_md5sum(file) for file in inputs.values()}
 hashes = sorted(set(md5dict.values()))
@@ -123,14 +126,15 @@ matrix_fragments = np.full((n, n), -1, int)
 print("Now parsing the fastANI output to generate expected matrices")
 for file in FASTANI_DIR.glob("*.fastani"):
     with file.open() as handle:
-        fields = handle.readline().rstrip("\n").split("\t")
-        assert len(fields) == 5, f"Bad input {file}"  # noqa: PLR2004
-        row = hashes.index(md5dict[fields[0]])  # query
-        col = hashes.index(md5dict[fields[1]])  # subject
-        # This is to avoid 99.8332 becoming 0.9983329999999999 and so on:
-        matrix_ani_string[row, col] = str(Decimal(fields[2]) / 100)
-        matrix_orthologous_matches[row, col] = float(fields[3])
-        matrix_fragments[row, col] = float(fields[4])
+        for line in handle:
+            fields = line.rstrip("\n").split("\t")
+            assert len(fields) == 5, f"Bad input {file}"  # noqa: PLR2004
+            row = hashes.index(md5dict[fields[0]])  # query
+            col = hashes.index(md5dict[fields[1]])  # subject
+            # This is to avoid 99.8332 becoming 0.9983329999999999 and so on:
+            matrix_ani_string[row, col] = str(Decimal(fields[2]) / 100)
+            matrix_orthologous_matches[row, col] = float(fields[3])
+            matrix_fragments[row, col] = float(fields[4])
 
 assert matrix_orthologous_matches.min() >= 0
 assert matrix_fragments.min() >= 0

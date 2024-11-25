@@ -29,49 +29,21 @@ def get_genomeB(wildcards):
     return indir_files[wildcards.genomeB]
 
 
-# Need a file with a single FASTA file per line, one for each query.
-# This could be all the FASTA files in the input directory, but can
-# be a subset - consider use case expanding a DB from N genomes to
-# N+1 genomes.
-rule genomes_list:
-    params:
-        db=config["db"],
-        run_id=config["run_id"],
-        indir=config["indir"],
-    input:
-        genomeB=get_genomeB,
-    output:
-        "{outdir}/genome_list_for_{genomeB}.txt",
-    shell:
-        """
-        .pyani-plus-private-cli build-query-list --quiet --self \
-            --database {params.db} --run-id {params.run_id} \
-            --subject {input} --fasta {params.indir} > {output}
-        """
-
-
 # The fastani rule runs fastANI doing all queries vs one subject (reference)
+# This will create temporary files local to the node where this is run.
+# If it worked, the rule generates an empty "output" file as a signal to snakemake
 rule fastani:
     params:
         db=config["db"],
         run_id=config["run_id"],
-        fastani=config["fastani"],
-        indir=config["indir"],
         outdir=config["outdir"],
-        fragsize=config["fragsize"],
-        kmersize=config["kmersize"],
-        minmatch=config["minmatch"],
     input:
-        queries="{outdir}/genome_list_for_{genomeB}.txt",
         genomeB=get_genomeB,
     output:
         "{outdir}/all_vs_{genomeB}.fastani",
     shell:
         """
-        {params.fastani} --ql "{input.queries}" -r {input.genomeB} \
-            -o {output} --fragLen {params.fragsize} -k {params.kmersize} \
-            --minFraction {params.minmatch} > {output}.log 2>&1 &&
-        .pyani-plus-private-cli log-fastani --quiet \
+        .pyani-plus-private-cli fastani --quiet \
             --database {params.db} --run-id {params.run_id} \
-            --fastani {output}
+            --subject {input} && touch {output}
         """

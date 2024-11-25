@@ -496,7 +496,7 @@ def build_query_list(  # noqa: C901, PLR0913
     subject: Annotated[
         str,
         typer.Option(
-            help="Full-path, filename, filename stem, or hash of subject (reference) FASTA file",
+            help="Filename or hash of subject (reference) FASTA file",
             show_default=False,
         ),
     ],
@@ -543,12 +543,11 @@ def build_query_list(  # noqa: C901, PLR0913
         subject_hash = subject
     else:
         name = Path(subject).name
-        stem = Path(subject).stem
         subject_hash = None
         for md5, filename in hash_to_filename.items():
-            if name == filename or stem == Path(filename).stem:
+            if name == filename:
                 subject_hash = md5
-        del name, stem
+        del name
         if not subject_hash:
             msg = f"ERROR: Did not recognise {subject!r} as an MD5 hash or filename in run-id {run_id}"
             sys.exit(msg)

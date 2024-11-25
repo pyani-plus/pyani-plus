@@ -46,7 +46,7 @@ rule genomes_list:
         """
         .pyani-plus-private-cli build-query-list --quiet --self \
             --database {params.db} --run-id {params.run_id} \
-            --subject {wildcards.genomeB} --fasta {params.indir} > {output}
+            --subject {input} --fasta {params.indir} > {output}
         """
 
 

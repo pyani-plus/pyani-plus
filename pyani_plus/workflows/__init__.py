@@ -42,6 +42,14 @@ class ToolExecutor(str, Enum):
     slurm = "slurm"
 
 
+class ShowProgress(str, Enum):
+    """How to show progress of the workflow execution."""
+
+    quiet = "quiet"
+    bar = "bar"
+    spin = "spin"
+
+
 def check_input_stems(indir: str) -> dict[str, Path]:
     """Check input files against approved list of extensions.
 
@@ -109,17 +117,22 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     params: dict,
     working_directory: Path,
     *,
-    show_progress_bar: bool = False,
+    display: ShowProgress = ShowProgress.quiet,
     database: Path | None = None,
     run_id: int | None = None,
     interval: float = 0.5,
 ) -> None:
     """Run snakemake with a progress bar.
 
-    The datatabase and run_id are only required with a progress bar.
+    The datatabase and run_id are only required with a progress bar,
+    which will be used for live updates.
+
+    In quiet or spinner mode the DB is only accessed except by the workflow
+    itself, and need not be passed to this function.
     """
+    show_progress_bar = display == ShowProgress.bar
     if show_progress_bar and (database is None or run_id is None):
-        msg = "Both database and run_id are required with show_progress_bar=True"
+        msg = "Both database and run_id are required with display as progress bar"
         raise ValueError(msg)
 
     # Check this now to give clear up-front error - this function will be
@@ -135,9 +148,8 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     parser, args = parse_args(
         [
             "--quiet",
-            # No argument for quiet mode (with progress bar),
-            # otherwise --quiet rules isn't too verbose:
-            *([] if show_progress_bar else ["rules"]),
+            # No argument for snakemake quiet mode with progress bar or spinner,
+            *(["rules"] if display == ShowProgress.quiet else []),
             "--executor",
             executor.value,
             "--directory",
@@ -148,8 +160,14 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
         + [str(_) for _ in targets]
     )
     args.config = [f"{k}={v}" for k, v in params.items()]
-    if not show_progress_bar:
+    if display == ShowProgress.quiet:
         success = args_to_api(args, parser)
+    elif display == ShowProgress.spin:
+        with Progress(*PROGRESS_BAR_COLUMNS) as progress:
+            # Not quite the visual look I want, but close:
+            task = progress.add_task("Comparing pairs", total=None)
+            success = args_to_api(args, parser)
+            progress.update(task, advance=len(targets), total=len(targets))
     else:
         # As of Python 3.8 onwards, the default on macOS ("Darwin") is "spawn"
         # As of Python 3.12, the default of "fork" on Linux triggers a deprecation warning.

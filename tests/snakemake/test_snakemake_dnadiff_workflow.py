@@ -162,7 +162,6 @@ def test_dnadiff(  # noqa: PLR0913
         targets=dnadiff_targets_showcoords,
         params=config,
         working_directory=Path(tmp_path),
-        show_progress_bar=False,
     )
 
     # Check nucmer output (.delta) against target fixtures

@@ -141,7 +141,6 @@ def test_rule_ANIm(  # noqa: N802, PLR0913
         targets=anim_nucmer_targets_filter,
         params=config,
         working_directory=Path(tmp_path),
-        show_progress_bar=False,
     )
 
     # Check delta-filter output against target fixtures

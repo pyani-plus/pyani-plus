@@ -44,7 +44,11 @@ from sqlalchemy.orm import Session
 from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, db_orm, tools
 from pyani_plus.methods import method_anib, method_anim, method_fastani, method_sourmash
 from pyani_plus.utils import available_cores, check_db, check_fasta, file_md5sum
-from pyani_plus.workflows import ToolExecutor, run_snakemake_with_progress_bar
+from pyani_plus.workflows import (
+    ShowProgress,
+    ToolExecutor,
+    run_snakemake_with_progress_bar,
+)
 
 # Reused required command line arguments (which have no default)
 REQ_ARG_TYPE_DATABASE = Annotated[
@@ -244,7 +248,8 @@ def run_method(  # noqa: PLR0913
     """Run the snakemake workflow for given method and log run to database."""
     run_id = run.run_id
     configuration = run.configuration
-    workflow_name = f"snakemake_{configuration.method.lower()}.smk"
+    method = configuration.method
+    workflow_name = f"snakemake_{method.lower()}.smk"
     params: dict[str, object] = {
         # Paths etc - see also outdir below
         "indir": Path(run.fasta_directory).resolve(),  # must be absolute
@@ -302,7 +307,9 @@ def run_method(  # noqa: PLR0913
                 target_paths,
                 params,
                 work_path,
-                show_progress_bar=True,
+                display=ShowProgress.spin
+                if method in {"sourmash", "branchwater"}
+                else ShowProgress.bar,
                 database=Path(database),
                 run_id=run_id,
             )

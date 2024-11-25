@@ -94,7 +94,8 @@ OPT_ARG_TYPE_FRAGSIZE = Annotated[
         min=1,
     ),
 ]
-# fastANI has maximum (and default) k-mer size 16
+# fastANI has maximum (and default) k-mer size 16,
+# so defined separately with max=16
 OPT_ARG_TYPE_KMERSIZE = Annotated[
     int,
     typer.Option(
@@ -454,7 +455,16 @@ def fastani(  # noqa: PLR0913
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_fastani.FRAG_LEN,
     # Does not use mode
-    kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
+    # Don't use OPT_ARG_TYPE_KMERSIZE as want to include max=16
+    kmersize: Annotated[
+        int,
+        typer.Option(
+            help="Comparison method k-mer size",
+            rich_help_panel="Method parameters",
+            min=1,
+            max=16,
+        ),
+    ] = method_fastani.KMER_SIZE,
     minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,

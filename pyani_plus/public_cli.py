@@ -656,10 +656,10 @@ def resume(  # noqa: C901, PLR0912, PLR0915
     filename_to_md5 = {
         fasta / link.fasta_filename: link.genome_hash for link in run.fasta_hashes
     }
-    for filename in filename_to_md5:
+    for filename, md5 in filename_to_md5.items():
         if not filename.is_file():
             msg = (
-                f"ERROR: run-id {run_id} used {filename} with MD5 {filename_to_md5[filename]}"
+                f"ERROR: run-id {run_id} used {filename} with MD5 {md5}"
                 f" but this FASTA file no longer exists"
             )
             sys.exit(msg)

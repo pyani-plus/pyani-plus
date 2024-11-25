@@ -67,8 +67,8 @@ def get_aligned_bases_count(aligned_regions: dict) -> int:
     :param aligned_regions: dict of aligned regions
     """
     aligned_bases = 0
-    for seq_id in aligned_regions:
-        tree = intervaltree.IntervalTree.from_tuples(aligned_regions[seq_id])
+    for region in aligned_regions.values():
+        tree = intervaltree.IntervalTree.from_tuples(region)
         tree.merge_overlaps(strict=False)
         for interval in tree:
             aligned_bases += interval.end - interval.begin + 1

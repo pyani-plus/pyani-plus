@@ -83,7 +83,7 @@ def test_bad_query_or_subject(
 
     tmp_input = Path(tmp_path) / "input"
     tmp_input.mkdir()
-    for filename in input_genomes_tiny.glob("MGV-*.f*"):
+    for filename in input_genomes_tiny.glob("MGV-*02*.f*"):
         alias = tmp_input / (filename.name)
         alias.symlink_to(filename)
 
@@ -155,7 +155,7 @@ def test_not_all_vs_all(
 
     with pytest.raises(
         SystemExit,
-        match=("Expected sourmash compare CSV to have 3 columns, not 2"),
+        match=("Expected sourmash compare CSV to have 4 columns, not 2"),
     ):
         private_cli.log_sourmash(
             database=tmp_db,
@@ -218,7 +218,7 @@ def test_logging_sourmash(
     # Mock input folder of just 2 files
     tmp_input = Path(tmp_path) / "input"
     tmp_input.mkdir()
-    for filename in input_genomes_tiny.glob("MGV-*.f*"):
+    for filename in input_genomes_tiny.glob("MGV-*02*.f*"):
         alias = tmp_input / (filename.name)
         alias.symlink_to(filename)
 

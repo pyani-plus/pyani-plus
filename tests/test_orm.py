@@ -610,6 +610,6 @@ def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
     run.status = "Complete"
     session.commit()
     assert run.df_hadamard == (
-        '{"columns":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],"index":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],"data":[[0.99,0.9801,0.9801],[0.9801,0.99,0.9801],[0.9801,0.9801,0.99]]}'
+        '{"columns":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536","a30481565b45f6bbc6ce5260503067e0"],"index":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536","a30481565b45f6bbc6ce5260503067e0"],"data":[[0.99,0.9801,0.9801,0.9801],[0.9801,0.99,0.9801,0.9801],[0.9801,0.9801,0.99,0.9801],[0.9801,0.9801,0.9801,0.99]]}'
     )
     tmp_db.unlink()

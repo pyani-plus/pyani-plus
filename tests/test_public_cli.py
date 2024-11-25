@@ -183,7 +183,7 @@ def test_partial_run(
     output = capsys.readouterr().out
     assert " 3 analysis runs in " in output, output
     assert " 0/0=0² │ Empty " in output, output
-    assert " 4/9=3² │ Partial " in output, output
+    assert " 4/16=4² │ Partial " in output, output
     assert " 4/4=2² │ Done " in output, output
 
     # Unlike a typical method calculation, we have not triggered
@@ -308,7 +308,7 @@ def test_dnadiff(
     )
     session = db_orm.connect_to_db(tmp_db)
     run = session.query(db_orm.Run).one()
-    assert run.name == "3 genomes using dnadiff"
+    assert run.name == "4 genomes using dnadiff"
     session.close()
 
 
@@ -428,17 +428,17 @@ def test_resume_partial_fastani(
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 1 analysis runs in " in output, output
-    assert " 8/9=3² │ Partial " in output, output
+    assert " 15/16=4² │ Partial " in output, output
 
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
     assert "Resuming run-id 1, the only run" in output, output
-    assert "Database already has 8 of 3²=9 comparisons, 1 needed" in output, output
+    assert "Database already has 15 of 4²=16 comparisons, 1 needed" in output, output
 
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 1 analysis runs in " in output, output
-    assert " 9/9=3² │ Done " in output, output
+    assert " 16/16=4² │ Done " in output, output
 
 
 def test_resume_partial_anim(
@@ -464,7 +464,7 @@ def test_resume_partial_anim(
     for filename, md5 in fasta_to_hash.items():
         db_orm.db_genome(session, filename, md5, create=True)
 
-    # Record 8 of the possible 9 comparisons:
+    # Record 8 of the possible 12 comparisons:
     genomes = list(fasta_to_hash.values())
     for query_hash in genomes:
         for subject_hash in genomes:
@@ -492,17 +492,17 @@ def test_resume_partial_anim(
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 1 analysis runs in " in output, output
-    assert " 8/9=3² │ Partial " in output, output
+    assert " 15/16=4² │ Partial " in output, output
 
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
     assert "Resuming run-id 1, the only run" in output, output
-    assert "Database already has 8 of 3²=9 comparisons, 1 needed" in output, output
+    assert "Database already has 15 of 4²=16 comparisons, 1 needed" in output, output
 
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 1 analysis runs in " in output, output
-    assert " 9/9=3² │ Done " in output, output
+    assert " 16/16=4² │ Done " in output, output
 
 
 def test_resume_partial_sourmash(
@@ -555,17 +555,17 @@ def test_resume_partial_sourmash(
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 1 analysis runs in " in output, output
-    assert " 4/9=3² │ Partial " in output, output
+    assert " 9/16=4² │ Partial " in output, output
 
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
     assert "Resuming run-id 1, the only run" in output, output
-    assert "Database already has 4 of 3²=9 comparisons, 5 needed" in output, output
+    assert "Database already has 9 of 4²=16 comparisons, 7 needed" in output, output
 
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 1 analysis runs in " in output, output
-    assert " 9/9=3² │ Done " in output, output
+    assert " 16/16=4² │ Done " in output, output
 
 
 def test_resume_dir_gone(tmp_path: str, input_genomes_tiny: Path) -> None:
@@ -707,7 +707,7 @@ def test_resume_complete(
             assert "Resuming run-id 1, the only run" in output, output
         else:
             assert f"Resuming run-id {index+1}, the latest run" in output, output
-        assert "Database already has all 3²=9 comparisons" in output, output
+        assert "Database already has all 4²=16 comparisons" in output, output
 
 
 def test_resume_fasta_gone(
@@ -782,7 +782,7 @@ def test_resume_fasta_gone(
     (tmp_indir / Path(missing).name).symlink_to(Path(missing))
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
-    assert "Database already has all 3²=9 comparisons" in output, output
+    assert "Database already has all 4²=16 comparisons" in output, output
 
     # Should work even with extra FASTA files, real world use case:
     # Using input directory like /mnt/shared/genomes
@@ -793,4 +793,4 @@ def test_resume_fasta_gone(
         handle.write(">recently-added-genome\nACGTACGTAGT\n")
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
-    assert "Database already has all 3²=9 comparisons" in output, output
+    assert "Database already has all 4²=16 comparisons" in output, output

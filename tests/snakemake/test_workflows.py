@@ -48,6 +48,7 @@ def test_input_stems(
         "MGV-GENOME-0264574": input_genomes_tiny / "MGV-GENOME-0264574.fas",
         "MGV-GENOME-0266457": input_genomes_tiny / "MGV-GENOME-0266457.fna",
         "OP073605": input_genomes_tiny / "OP073605.fasta",
+        "MGV-GENOME-0357962": input_genomes_tiny / "MGV-GENOME-0357962.fna",
     }
 
 

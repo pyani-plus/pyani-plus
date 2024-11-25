@@ -33,8 +33,6 @@ import pytest
 from pyani_plus import db_orm, private_cli, tools
 from pyani_plus.methods.method_fastani import parse_fastani_file
 
-from . import get_matrix_entry
-
 
 def test_bad_path() -> None:
     """Confirm giving an empty path etc fails."""
@@ -48,31 +46,25 @@ def test_empty_path() -> None:
         list(parse_fastani_file(Path("/dev/null"), {}))
 
 
-def test_missing_db(
-    tmp_path: str,
-    input_genomes_tiny: Path,
-) -> None:
+def test_missing_db(tmp_path: str) -> None:
     """Check expected error when DB does not exist."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
 
     with pytest.raises(SystemExit, match="does not exist"):
-        private_cli.log_fastani(
+        private_cli.fastani(
             database=tmp_db,
             run_id=1,
-            fastani=input_genomes_tiny
-            / "intermediates"
-            / "fastANI"
-            / "all_vs_MGV-GENOME-0266457.fastani",
+            subject="XXX",
         )
 
 
-def test_logging_fastani(
+def test_running_fastani(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
-    """Check can log a fastANI comparison to DB."""
+    """Check can run a fastANI comparison to DB."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
 
@@ -88,59 +80,45 @@ def test_logging_fastani(
         program=tool.exe_path.stem,
         version=tool.version,
         fragsize=1000,
-        kmersize=51,
+        kmersize=13,  # must be at most 16
         minmatch=0.9,
         create_db=True,
     )
     output = capsys.readouterr().out
     assert output.endswith("Run identifier 1\n")
 
-    private_cli.log_fastani(
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Did not recognise 'XXXX' as an MD5 hash or filename in run-id 1",
+    ):
+        private_cli.fastani(
+            database=tmp_db,
+            run_id=1,
+            subject="XXXX",
+        )
+
+    private_cli.fastani(
         database=tmp_db,
         run_id=1,
-        fastani=input_genomes_tiny
-        / "intermediates"
-        / "fastANI"
-        / "all_vs_MGV-GENOME-0266457.fastani",
+        subject="MGV-GENOME-0266457.fna",  # will test using a hash next
     )
 
     # Check the recorded comparison values
     session = db_orm.connect_to_db(tmp_db)
     assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004
-    query = "689d3fd6881db36b5e08329cf23cecdd"  # MGV-GENOME-0264574.fas
-    subject = "78975d5144a1cd12e98898d573cf6536"  # MGV-GENOME-0266457.fna
-    comp = (
-        session.query(db_orm.Comparison)
-        .where(db_orm.Comparison.query_hash == query)
-        .one()
-    )
-    assert comp.subject_hash == subject
-    assert comp.configuration_id == 1  # by construction
+    # No need to test the ANI values here, will be done elsewhere.
 
-    # Using approx to avoid 0.9950140000000001 != 0.995014
-    pytest.approx(
-        comp.identity,
-        get_matrix_entry(
-            input_genomes_tiny / "matrices" / "fastANI_identity.tsv", query, subject
-        ),
+    # Do another row, should accept a hash:
+    private_cli.fastani(
+        database=tmp_db, run_id=1, subject="689d3fd6881db36b5e08329cf23cecdd"
     )
-    pytest.approx(
-        comp.aln_length,
-        get_matrix_entry(
-            input_genomes_tiny / "matrices" / "fastANI_aln_lengths.tsv", query, subject
-        ),
+    assert session.query(db_orm.Comparison).count() == 6  # noqa: PLR2004
+
+    # Do the same row again, should skip gracefully:
+    private_cli.fastani(
+        database=tmp_db, run_id=1, subject="689d3fd6881db36b5e08329cf23cecdd"
     )
-    pytest.approx(
-        comp.sim_errors,
-        get_matrix_entry(
-            input_genomes_tiny / "matrices" / "fastANI_sim_errors.tsv", query, subject
-        ),
-    )
-    pytest.approx(
-        comp.cov_query,
-        get_matrix_entry(
-            input_genomes_tiny / "matrices" / "fastANI_coverage.tsv", query, subject
-        ),
-    )
+    assert session.query(db_orm.Comparison).count() == 6  # noqa: PLR2004
+
     session.close()
     tmp_db.unlink()

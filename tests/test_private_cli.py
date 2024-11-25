@@ -33,7 +33,7 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus import db_orm, private_cli, utils
+from pyani_plus import db_orm, private_cli
 
 
 def test_log_configuration(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
@@ -437,58 +437,6 @@ def test_log_comparison_parallel(
     assert session.query(db_orm.Comparison).count() == len(fasta) ** 2
 
 
-def test_build_query_list(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
-    """Check building query lists (for fastANI)."""
-    tmp_db = Path(tmp_path) / "minimal.db"
-    tmp_fasta = Path(tmp_path) / "tiny.fasta"
-    with tmp_fasta.open("w") as handle:
-        handle.write(">tiny\nACGT\n")
-
-    private_cli.log_run(
-        database=tmp_db,
-        # Run
-        cmdline="pyani_plus run ...",
-        name="Guess Run",
-        status="Empty",
-        fasta=Path(tmp_path),  # no genomes
-        # Config
-        method="guessing",
-        program="guestimate",
-        version="0.1.2beta3",
-        fragsize=100,
-        kmersize=51,
-        # Misc
-        create_db=True,
-    )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
-
-    # Pathological with only one genome, but missing tiny vs tiny.
-
-    # Should accept filename and ignore the directory
-    private_cli.build_query_list(
-        database=tmp_db, run_id=1, subject="/mnt/shared/data/tiny.fasta"
-    )
-    output = capsys.readouterr().out
-    assert output == f"{tmp_fasta}\n"
-
-    # Should accept MD5 too. And in this example, adding --self makes no difference
-    private_cli.build_query_list(
-        database=tmp_db,
-        run_id=1,
-        subject=utils.file_md5sum(tmp_fasta),
-        include_subject=True,
-    )
-    output = capsys.readouterr().out
-    assert output == f"{tmp_fasta}\n"
-
-    with pytest.raises(
-        SystemExit,
-        match="ERROR: Did not recognise 'missing' as an MD5 hash or filename in run-id 1",
-    ):
-        private_cli.build_query_list(database=tmp_db, run_id=1, subject="missing")
-
-
 def test_fragment_fasta(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Confirm fragmenting FASTA files (for ANIb) works."""
     fasta = input_genomes_tiny.glob("*.f*")
@@ -528,7 +476,7 @@ def test_fragment_fasta_bad_args(tmp_path: str, input_genomes_tiny: Path) -> Non
 def test_log_wrong_config(
     capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
 ) -> None:
-    """Confirm can't log a comparison to another method."""
+    """Confirm can't run/log a comparison to another method."""
     tmp_db = Path(tmp_path) / "guestimate.sqlite"
     assert not tmp_db.is_file()
     faked = Path(tmp_path) / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tmp"
@@ -583,10 +531,10 @@ def test_log_wrong_config(
         )
 
     with pytest.raises(SystemExit, match="ERROR: Run-id 1 expected guessing results"):
-        private_cli.log_fastani(
+        private_cli.fastani(
             tmp_db,
             run_id=1,
-            fastani=faked,
+            subject="XXX",
         )
 
     with pytest.raises(SystemExit, match="ERROR: Run-id 1 expected guessing results"):

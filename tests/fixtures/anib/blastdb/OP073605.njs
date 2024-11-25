@@ -6,10 +6,10 @@
   "description": "OP073605",
   "number-of-letters": 57793,
   "number-of-sequences": 1,
-  "last-updated": "2024-10-03T13:03:00",
+  "last-updated": "2024-11-22T17:08:00",
   "number-of-volumes": 1,
-  "bytes-total": 51578,
-  "bytes-to-cache": 14554,
+  "bytes-total": 51586,
+  "bytes-to-cache": 14562,
   "files": [
     "OP073605.ndb",
     "OP073605.nhr",

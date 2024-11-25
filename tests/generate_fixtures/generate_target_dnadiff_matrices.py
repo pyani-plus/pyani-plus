@@ -65,6 +65,7 @@ import re
 from decimal import Decimal
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from pyani_plus import utils
@@ -87,7 +88,12 @@ def parse_dnadiff_report(dnadiff_report: Path) -> tuple[int, Decimal, Decimal]:
     query_coverage = (
         Decimal(re.findall(r"(\d+\.\d+)%\s*\)$", lines_of_interest[0])[0]) / 100
     )
-    avg_identity = Decimal(re.findall(r"(\d+\.\d+)\s*$", lines_of_interest[1])[0]) / 100
+    reported_identity = re.findall(r"(\d+\.\d+)\s*$", lines_of_interest[1])
+    avg_identity = (
+        Decimal(reported_identity[0]) / 100
+        if (reported_identity and Decimal(reported_identity[0]) != 0)
+        else np.nan
+    )
 
     return (aligned_bases, query_coverage, avg_identity)
 
@@ -114,7 +120,12 @@ for file in report_files:
     aln_lengths_matrix.loc[query_hash, subject_hash] = aligned_bases
     coverage_matrix.loc[query_hash, subject_hash] = query_coverage
     identity_matrix.loc[query_hash, subject_hash] = avg_identity
-    sim_errors.loc[query_hash, subject_hash] = round(aligned_bases * (1 - avg_identity))
+    try:
+        sim_errors.loc[query_hash, subject_hash] = round(
+            aligned_bases * (1 - avg_identity)
+        )
+    except ValueError:
+        sim_errors.loc[query_hash, subject_hash] = np.nan
 
 matrices_directory = "../fixtures/dnadiff/matrices/"
 Path(matrices_directory).mkdir(parents=True, exist_ok=True)

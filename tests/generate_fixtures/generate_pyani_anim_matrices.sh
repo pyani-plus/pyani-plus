@@ -30,10 +30,10 @@ pyani --version 2>&1 | grep "pyani version: 0\.3\." > /dev/null
 # Remove pre-existing fixtures before regenerating new ones.
 # This is to help with if and when we change the
 # example sequences being used.
-echo "Removing pre-existing fixtures..."
-for file in ../fixtures/anim/matrices/*.tsv; do
-    rm "$file"
-done
+# echo "Removing pre-existing fixtures..."
+# for file in ../fixtures/anim/matrices/*.tsv; do
+#     rm "$file"
+# done
 
 # Make a temp subdir
 mkdir tmp_pyani_anim
@@ -43,8 +43,11 @@ echo "Creating pyANI database"
 pyani createdb
 
 echo "Setting up input genomes"
+# Exclude MGV-GENOME-0357962.fna as it will result in
 for FASTA in ../../../tests/fixtures/viral_example/*.f*; do
-    ln -s "$FASTA" "${FASTA##*/}"
+    if [[ "$FASTA" != "../../../tests/fixtures/viral_example/MGV-GENOME-0357962.fna" ]]; then
+        ln -s "$FASTA" "${FASTA##*/}"
+    fi
 done
 
 echo "Indexing with pyani..."
@@ -71,3 +74,7 @@ done
 cd ..
 rm -rf tmp_pyani_anim
 echo "Generated ANIm matrices"
+
+echo "Updating matrices..."
+# Add comparisons that return no alignments, which would otherwise cause issues with legacy pyANI
+python ./update_anim_matrices.py

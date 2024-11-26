@@ -43,7 +43,7 @@ from pyani_plus.workflows import (
     run_snakemake_with_progress_bar,
 )
 
-from . import compare_matrices
+from . import compare_db_matrices
 
 
 @pytest.fixture
@@ -193,6 +193,4 @@ def test_dnadiff(  # noqa: PLR0913
             skip=0,
         )
 
-    compare_matrices(
-        db, input_genomes_tiny / "matrices", "dnadiff", absolute_tolerance=5e-5
-    )
+    compare_db_matrices(db, input_genomes_tiny / "matrices", absolute_tolerance=5e-5)

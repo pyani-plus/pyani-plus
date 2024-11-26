@@ -39,7 +39,7 @@ from pyani_plus.workflows import (
     run_snakemake_with_progress_bar,
 )
 
-from . import compare_matrices
+from . import compare_db_matrices
 
 
 @pytest.fixture
@@ -157,4 +157,4 @@ def test_rule_ANIm(  # noqa: N802, PLR0913
             fname,
         )
 
-    compare_matrices(db, input_genomes_tiny / "matrices", "ANIm")
+    compare_db_matrices(db, input_genomes_tiny / "matrices")

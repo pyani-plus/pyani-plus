@@ -80,12 +80,13 @@ def test_parse_blastn_bad_query(tmp_path: str) -> None:
         method_anib.parse_blastn_file(fake)
 
 
-def test_parse_blastn(anib_blastn: Path) -> None:
+def test_parse_blastn(input_genomes_tiny: Path) -> None:
     """Check parsing of BLASTN tabular file."""
     # Function returns tuple of mean percentage identity, total alignment length, and
     # total mismatches/gaps:
     assert method_anib.parse_blastn_file(
-        anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv"
+        input_genomes_tiny
+        / "intermediates/ANIb/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv"
     ) == (0.9945938461538462, 39169, 215)
     # $ md5sum tests/fixtures/viral_example/*.f*
     # 689d3fd6881db36b5e08329cf23cecdd tests/fixtures/viral_example/MGV-GENOME-0264574.fas
@@ -99,7 +100,7 @@ def test_parse_blastn(anib_blastn: Path) -> None:
     # Note final digit wobble from 3 (old) to 2 (new)
 
 
-def test_missing_db(tmp_path: str, input_genomes_tiny: Path, anib_blastn: Path) -> None:
+def test_missing_db(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check expected error when DB does not exist."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
@@ -111,13 +112,12 @@ def test_missing_db(tmp_path: str, input_genomes_tiny: Path, anib_blastn: Path) 
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            blastn=anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
+            blastn=input_genomes_tiny
+            / "intermediates/ANIb/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
         )
 
 
-def test_bad_query_or_subject(
-    tmp_path: str, input_genomes_tiny: Path, anib_blastn: Path
-) -> None:
+def test_bad_query_or_subject(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Mismatch between query or subject FASTA in fastANI output and commandline."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
@@ -135,7 +135,8 @@ def test_bad_query_or_subject(
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            blastn=anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
+            blastn=input_genomes_tiny
+            / "intermediates/ANIb/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
         )
 
     with pytest.raises(
@@ -151,7 +152,8 @@ def test_bad_query_or_subject(
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            blastn=anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
+            blastn=input_genomes_tiny
+            / "intermediates/ANIb/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
         )
 
 
@@ -159,7 +161,6 @@ def test_logging_anib(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
-    anib_blastn: Path,
 ) -> None:
     """Check can log a ANIb comparison to DB."""
     tmp_db = Path(tmp_path) / "new.sqlite"
@@ -188,7 +189,8 @@ def test_logging_anib(
         # These are for the comparison table
         query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
         subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-        blastn=anib_blastn / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
+        blastn=input_genomes_tiny
+        / "intermediates/ANIb/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
     )
 
     # Check the recorded comparison values

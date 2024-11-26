@@ -489,15 +489,15 @@ def test_build_query_list(capsys: pytest.CaptureFixture[str], tmp_path: str) -> 
         private_cli.build_query_list(database=tmp_db, run_id=1, subject="missing")
 
 
-def test_fragment_fasta(
-    tmp_path: str, input_genomes_tiny: Path, anib_fragments: Path
-) -> None:
+def test_fragment_fasta(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Confirm fragmenting FASTA files (for ANIb) works."""
     fasta = input_genomes_tiny.glob("*.f*")
     out_dir = Path(tmp_path)
     private_cli.fragment_fasta(fasta, out_dir)
 
-    old_frags = [anib_fragments / (f.stem + "-fragments.fna") for f in fasta]
+    old_frags = [
+        input_genomes_tiny / f"intermediates/ANIb/{f.stem}-fragments.fna" for f in fasta
+    ]
     new_frags = [out_dir / (f.stem + "-fragments.fna") for f in fasta]
     for old_file, new_file in zip(old_frags, new_frags, strict=True):
         assert filecmp.cmp(old_file, new_file), f"Wrong output in {new_file}"

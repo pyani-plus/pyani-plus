@@ -43,9 +43,7 @@ from pyani_plus.tools import get_blastn, get_makeblastdb
 
 # Paths to directories (eg, input sequences, delta and filter)
 SUBJECT_DIR = Path("../fixtures/viral_example")
-QUERY_DIR = Path("../fixtures/anib/fragments")
-NJS_DIR = Path("../fixtures/anib/blastdb")
-BLASTN_DIR = Path("../fixtures/anib/blastn")
+QUERY_DIR = NJS_DIR = BLASTN_DIR = Path("../fixtures/viral_example/intermediates/ANIb/")
 
 # Remove pre-existing fixtures before regenerating new ones.
 # This is to help with if and when we change the

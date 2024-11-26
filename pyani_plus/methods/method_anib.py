@@ -102,9 +102,7 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
     (treated as zero rather than NaN if there are no accepted alignments), the
     total alignment length, and total similarity errors (mismatches and gaps).
 
-    >>> fname = (
-    ...     "tests/fixtures/anib/blastn/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv"
-    ... )
+    >>> fname = "tests/fixtures/viral_example/intermediates/ANIb/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv"
     >>> identity, length, sim_errors = parse_blastn_file(Path(fname))
     >>> print(
     ...     f"Identity {100*identity:0.1f}% over length {length} with {sim_errors} errors"
@@ -113,9 +111,7 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
 
     We expect 100% identity for a self comparison (but this is not always true):
 
-    >>> fname = (
-    ...     "tests/fixtures/anib/blastn/MGV-GENOME-0264574_vs_MGV-GENOME-0264574.tsv"
-    ... )
+    >>> fname = "tests/fixtures/viral_example/intermediates/ANIb/MGV-GENOME-0264574_vs_MGV-GENOME-0264574.tsv"
     >>> identity, length, sim_errors = parse_blastn_file(Path(fname))
     >>> print(
     ...     f"Identity {100*identity:0.1f}% over length {length} with {sim_errors} errors"

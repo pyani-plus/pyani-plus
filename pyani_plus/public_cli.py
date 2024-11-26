@@ -421,7 +421,6 @@ def anib(  # noqa: PLR0913
     """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
 
-    target_extension = ".tsv"
     tool = tools.get_blastn()
     alt = tools.get_makeblastdb()
     if tool.version != alt.version:
@@ -431,14 +430,16 @@ def anib(  # noqa: PLR0913
         "blastn": tool.exe_path,
         "makeblastdb": alt.exe_path,
     }
+    fasta_list = check_fasta(fasta)
+
     return start_and_run_method(
         executor,
         database,
         name,
         "ANIb",
         fasta,
-        [],
-        target_extension,
+        [f"all_vs_{Path(_).stem}.anib" for _ in fasta_list],
+        None,  # no pairwise target
         tool,
         binaries,
         fragsize=fragsize,

@@ -635,75 +635,171 @@ def log_anim(  # noqa: PLR0913
     return 0
 
 
-# Note this omits kmersize, minmatch, mode
-@app.command(rich_help_panel="Method specific logging")
-def log_anib(  # noqa: PLR0913
+@app.command(rich_help_panel="ANI methods")
+def anib(  # noqa: C901, PLR0915
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the comparison table
     run_id: REQ_ARG_TYPE_RUN_ID,
-    query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
-    subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
-    blastn: Annotated[
-        Path,
-        typer.Option(
-            help="Path to blastn TSV output file",
-            dir_okay=False,
-            file_okay=True,
-            exists=True,
-        ),
-    ],
+    subject: REQ_ARG_TYPE_SUBJECT,
     *,
     quiet: OPT_ARG_TYPE_QUIET = False,
 ) -> int:
-    """Log single ANIb pairwise comparison (with blastn) to database.
+    """Run ANIb and log pairwise comparison to database.
+
+    This to be used to fill in a column of the final matrix, i.e. the output for
+    many query genomes vs a single subject (reference) genome. This will build a
+    temporary BLAST database for the reference (assuming any comparisons are needed),
+    and then run ``blastn`` for each query sequence.
 
     The associated configuration and genome entries must already exist.
     """
-    used_query, used_subject = blastn.stem.split("_vs_")
-    if used_query != query_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --query-fasta {query_fasta} but query in blastn filename was {used_query}"
-        )
-    if used_subject != subject_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but subject in blastn filename was {used_subject}"
-        )
-
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
+    uname = platform.uname()
+    uname_system = uname.system
+    uname_release = uname.release
+    uname_machine = uname.machine
+
     if not quiet:
         print(f"Logging ANIb comparison to {database}")
     session = db_orm.connect_to_db(database)
-    run, query_md5, subject_md5 = _lookup_run_query_subject(
-        session, run_id, query_fasta, subject_fasta
-    )
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
     if run.configuration.method != "ANIb":
         msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
         sys.exit(msg)
 
-    _check_tool_version(tools.get_blastn(), run.configuration)
+    tool = tools.get_blastn()
+    _check_tool_version(tool, run.configuration)
 
-    # Need genome lengths for coverage (fragmented FASTA irrelevant):
-    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
-    subject = db_orm.db_genome(session, subject_fasta, subject_md5, create=False)
+    config_id = run.configuration_id
+    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
+    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
 
-    identity, aln_length, sim_errors = method_anib.parse_blastn_file(blastn)
+    if subject in hash_to_filename:
+        subject_hash = subject
+    else:
+        try:
+            subject_hash = filename_to_hash[Path(subject).name]
+        except KeyError:
+            msg = f"ERROR: Did not recognise {subject!r} as an MD5 hash or filename in run-id {run_id}"
+            sys.exit(msg)
 
-    db_orm.db_comparison(
-        session,
-        configuration_id=run.configuration_id,
-        query_hash=query_md5,
-        subject_hash=subject_md5,
-        identity=identity,
-        aln_length=aln_length,
-        sim_errors=sim_errors,
-        cov_query=float(aln_length) / query.length,
-        cov_subject=float(aln_length) / subject.length,
+    # What comparisons are needed?
+    missing_query_hashes = set(hash_to_filename).difference(
+        comp.query_hash
+        for comp in run.comparisons().where(
+            db_orm.Comparison.subject_hash == subject_hash
+        )
     )
 
-    session.commit()
+    if not missing_query_hashes:
+        if not quiet:
+            print(f"INFO: No comparisons needed against {subject_hash}")
+        return 0
+
+    fragsize = run.configuration.fragsize
+    subject_length = (
+        session.query(db_orm.Genome)
+        .where(db_orm.Genome.genome_hash == subject_hash)
+        .one()
+        .length
+    )
+    subject_stem = Path(hash_to_filename[subject_hash]).stem
+    outfmt = "6 " + " ".join(method_anib.BLAST_COLUMNS)
+    fasta_dir = Path(run.fasta_directory)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_dir = Path(tmp)
+        tmp_db = tmp_dir / f"{subject_stem}"  # prefix for BLAST DB
+
+        if not quiet:
+            print(f"INFO: Calling makeblastdb for {subject_stem}")
+
+        # This will hide the stdout/stderr, unless it fails in which case we
+        # get to see some of it via the default exception message:
+        subprocess.check_output(
+            [
+                str(tools.get_makeblastdb().exe_path),
+                "-in",
+                str(fasta_dir / hash_to_filename[subject_hash]),
+                "-input_type",
+                "fasta",
+                "-dbtype",
+                "nucl",
+                "-title",
+                subject_stem,
+                "-out",
+                tmp_db,
+            ],
+            stderr=subprocess.STDOUT,
+        )
+
+        for query_hash in missing_query_hashes:
+            query_stem = Path(hash_to_filename[query_hash]).stem
+            tmp_tsv = tmp_dir / f"{query_stem}_vs_{subject_stem}.tsv"
+            # We may want to refactor this function's API
+            tmp_frag_query = method_anib.fragment_fasta_files(
+                [fasta_dir / hash_to_filename[query_hash]], tmp_dir, fragsize
+            )[0]
+
+            if not quiet:
+                print(f"INFO: Calling blastn for {query_stem} vs {subject_stem}")
+
+            # This will hide the stdout/stderr, unless it fails in which case we
+            # get to see some of it via the default exception message:
+            subprocess.check_output(
+                [
+                    str(tool.exe_path),
+                    "-query",
+                    str(tmp_frag_query),
+                    "-db",
+                    str(tmp_db),
+                    "-out",
+                    str(tmp_tsv),
+                    "-task",
+                    "blastn",
+                    "-outfmt",
+                    outfmt,
+                    "-xdrop_gap_final",
+                    "150",
+                    "-dust",
+                    "no",
+                    "-evalue",
+                    "1e-15",
+                ],
+                stderr=subprocess.STDOUT,
+            )
+
+            identity, aln_length, sim_errors = method_anib.parse_blastn_file(tmp_tsv)
+
+            query_length = (
+                session.query(db_orm.Genome)
+                .where(db_orm.Genome.genome_hash == query_hash)
+                .one()
+                .length
+            )
+
+            session.execute(
+                sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
+                [
+                    {
+                        "query_hash": query_hash,
+                        "subject_hash": subject_hash,
+                        "identity": identity,
+                        "aln_length": aln_length,
+                        "sim_errors": sim_errors,
+                        "cov_query": float(aln_length) / query_length,
+                        "cov_subject": float(aln_length) / subject_length,
+                        "configuration_id": config_id,
+                        "uname_system": uname_system,
+                        "uname_release": uname_release,
+                        "uname_machine": uname_machine,
+                    }
+                ],
+            )
+
+            session.commit()
     return 0
 
 

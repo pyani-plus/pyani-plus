@@ -40,7 +40,7 @@ from pyani_plus.workflows import (
     run_snakemake_with_progress_bar,
 )
 
-from . import compare_matrices
+from . import compare_db_matrices
 
 
 @pytest.fixture
@@ -143,7 +143,7 @@ def test_snakemake_rule_fastani(  # noqa: PLR0913
             fastani_targets_outdir / fname,
         )
 
-    compare_matrices(db, input_genomes_tiny / "matrices", "fastANI")
+    compare_db_matrices(db, input_genomes_tiny / "matrices")
 
 
 def test_snakemake_duplicate_stems(

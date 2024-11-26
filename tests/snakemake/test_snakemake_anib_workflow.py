@@ -40,7 +40,7 @@ from pyani_plus.workflows import (
     run_snakemake_with_progress_bar,
 )
 
-from . import compare_matrices
+from . import compare_db_matrices
 
 
 @pytest.fixture
@@ -181,4 +181,4 @@ def test_snakemake_rule_blastn(  # noqa: PLR0913
         assert Path(fname).is_file()
         assert (anib_blastn / fname.name).is_file()
         assert filecmp.cmp(fname, anib_blastn / fname.name)
-    compare_matrices(db, input_genomes_tiny / "matrices", "ANIb")
+    compare_db_matrices(db, input_genomes_tiny / "matrices")

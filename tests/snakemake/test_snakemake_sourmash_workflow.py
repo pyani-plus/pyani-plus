@@ -43,7 +43,7 @@ from pyani_plus.workflows import (
     run_snakemake_with_progress_bar,
 )
 
-from . import compare_matrices
+from . import compare_db_matrices
 
 
 @pytest.fixture
@@ -228,4 +228,4 @@ def test_snakemake_compare_rule(  # noqa: PLR0913
         sourmash_targets_compare_indir / "sourmash.csv",
     )
 
-    compare_matrices(db, input_genomes_tiny / "matrices", "sourmash")
+    compare_db_matrices(db, input_genomes_tiny / "matrices")

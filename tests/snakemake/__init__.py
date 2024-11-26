@@ -68,10 +68,9 @@ def compare_matrix(
         )
 
 
-def compare_matrices(
+def compare_db_matrices(
     database_path: Path,
     matrices_path: Path,
-    method: str = "matrix",
     absolute_tolerance: float = 2e-8,
 ) -> None:
     """Compare the matrices in the given DB to legacy output from pyANI.
@@ -80,18 +79,16 @@ def compare_matrices(
     is one and only one configuration in the database (as a common
     failure was comparisons being logged to a different configuration).
 
-    By default assumes legacy matrices named ``matrix_*.tsv`` but using MD5
-    captions internally:
+    Assumes the expected matrices on disk are named ``{method}_*.tsv``
+    and using MD5 captions internally:
 
-    * ``matrix_aln_lengths.tsv``
-    * ``matrix_coverage.tsv``
-    * ``matrix_hadamard.tsv``
-    * ``matrix_identity.tsv``
-    * ``matrix_sim_errors.tsv``
+    * ``{method}_aln_lengths.tsv``
+    * ``{method}_coverage.tsv``
+    * ``{method}_hadamard.tsv``
+    * ``{method}_identity.tsv``
+    * ``{method}_sim_errors.tsv``
 
-    If using the pyani-plus export-run naming, then matrix is replaced with method.
-
-    If any of the files are missing, the comparison is skipped.
+    If any of the files are missing, that comparison is skipped.
 
     The absolute_tolerance is only used for the floating point matrices.
     """
@@ -107,6 +104,7 @@ def compare_matrices(
     run.cache_comparisons()  # could be all NaN if constructed in steps
     assert run.identities is not None
     assert matrices_path.is_dir()
+    method = run.configuration.method
 
     checked = False
     if (matrices_path / f"{method}_identity.tsv").is_file():

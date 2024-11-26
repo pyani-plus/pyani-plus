@@ -179,13 +179,12 @@ def test_bad_query_or_subject(
         )
 
 
-def test_logging_dnadiff(  # noqa: PLR0913
+def test_logging_dnadiff(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
     dnadiff_targets_showcoords_indir: Path,
     dnadiff_targets_showdiff_indir: Path,
-    dir_dnadiff_matrices: Path,
 ) -> None:
     """Check can log a fastANI comparison to DB."""
     tmp_db = Path(tmp_path) / "new.sqlite"
@@ -226,18 +225,22 @@ def test_logging_dnadiff(  # noqa: PLR0913
     subject = "78975d5144a1cd12e98898d573cf6536"  # MGV-GENOME-0266457.fna
     pytest.approx(
         comp.identity,
-        get_matrix_entry(dir_dnadiff_matrices / "matrix_identity.tsv", query, subject),
+        get_matrix_entry(
+            input_genomes_tiny / "matrices" / "dnadiff_identity.tsv", query, subject
+        ),
         abs=5e-5,
     )
     pytest.approx(
         comp.aln_length,
         get_matrix_entry(
-            dir_dnadiff_matrices / "matrix_aln_lengths.tsv", query, subject
+            input_genomes_tiny / "matrices" / "dnadiff_aln_lengths.tsv", query, subject
         ),
     )
     pytest.approx(
         comp.cov_query,
-        get_matrix_entry(dir_dnadiff_matrices / "matrix_coverage.tsv", query, subject),
+        get_matrix_entry(
+            input_genomes_tiny / "matrices" / "dnadiff_coverage.tsv", query, subject
+        ),
     )
     session.close()
     tmp_db.unlink()

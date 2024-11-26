@@ -292,9 +292,7 @@ def test_anim(tmp_path: str, input_genomes_tiny: Path) -> None:
     )
 
 
-def test_dnadiff(
-    tmp_path: str, input_genomes_tiny: Path, dir_dnadiff_matrices: Path
-) -> None:
+def test_dnadiff(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check dnadiff run (default settings)."""
     out = Path(tmp_path)
     tmp_db = out / "example.sqlite"
@@ -303,7 +301,7 @@ def test_dnadiff(
     public_cli.export_run(database=tmp_db, outdir=out)
     # Fuzzy, 0.9963 from dnadiff tool != 0.9962661747 from our code
     compare_matrix_files(
-        dir_dnadiff_matrices / "matrix_identity.tsv",
+        input_genomes_tiny / "matrices" / "dnadiff_identity.tsv",
         out / "dnadiff_identity.tsv",
         atol=5e-5,
     )

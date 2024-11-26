@@ -86,12 +86,12 @@ def compare_files_with_skip(file1: Path, file2: Path, skip: int = 1) -> bool:
 
 
 def test_rule_ANIm(  # noqa: N802, PLR0913
+    input_genomes_tiny: Path,
     anim_nucmer_targets_filter: list[Path],
     anim_nucmer_targets_delta: list[Path],
     anim_nucmer_targets_filter_indir: Path,
     anim_targets_outdir: Path,
     anim_nucmer_targets_delta_indir: Path,
-    dir_anim_results: Path,
     config_anim_args: dict,
     tmp_path: str,
 ) -> None:
@@ -116,7 +116,7 @@ def test_rule_ANIm(  # noqa: N802, PLR0913
     db = config_anim_args["db"]
     assert not db.is_file()
     log_run(
-        fasta=config_anim_args["indir"],
+        fasta=config_anim_args["indir"],  # i.e. input_genomes_tiny
         database=db,
         status="Testing",
         name="Test case",
@@ -157,4 +157,4 @@ def test_rule_ANIm(  # noqa: N802, PLR0913
             fname,
         )
 
-    compare_matrices(db, dir_anim_results)
+    compare_matrices(db, input_genomes_tiny / "matrices", "ANIm")

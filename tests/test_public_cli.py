@@ -274,7 +274,7 @@ def test_export_run(tmp_path: str) -> None:
     tmp_db.unlink()
 
 
-def test_anim(tmp_path: str, input_genomes_tiny: Path, dir_anim_results: Path) -> None:
+def test_anim(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check ANIm run."""
     out = Path(tmp_path)
     tmp_db = out / "example.sqlite"
@@ -287,7 +287,8 @@ def test_anim(tmp_path: str, input_genomes_tiny: Path, dir_anim_results: Path) -
     )
     public_cli.export_run(database=tmp_db, outdir=out, run_id=1)  # have two runs
     compare_matrix_files(
-        dir_anim_results / "matrix_identity.tsv", out / "ANIm_identity.tsv"
+        input_genomes_tiny / "matrices" / "ANIm_identity.tsv",
+        out / "ANIm_identity.tsv",
     )
 
 

@@ -163,12 +163,6 @@ def fastani_targets_outdir(tmp_path: str) -> Path:
 
 
 @pytest.fixture
-def fastani_matrices() -> Path:
-    """Directory containing pyani v0.3 fastANI matrices."""
-    return FIXTUREPATH / "fastani" / "matrices"
-
-
-@pytest.fixture
 def fastani_targets(fastani_targets_outdir: Path) -> list[str]:
     """Target files for ANIm tests (inferred from target fixtures)."""
     reference_paths = (FIXTUREPATH / "fastani" / "targets").glob("*.fastani")

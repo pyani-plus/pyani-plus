@@ -66,7 +66,6 @@ def test_logging_fastani(
     tmp_path: str,
     input_genomes_tiny: Path,
     fastani_targets_indir: Path,
-    fastani_matrices: Path,
 ) -> None:
     """Check can log a fastANI comparison to DB."""
     tmp_db = Path(tmp_path) / "new.sqlite"
@@ -113,19 +112,27 @@ def test_logging_fastani(
     # Using approx to avoid 0.9950140000000001 != 0.995014
     pytest.approx(
         comp.identity,
-        get_matrix_entry(fastani_matrices / "matrix_identity.tsv", query, subject),
+        get_matrix_entry(
+            input_genomes_tiny / "matrices" / "fastANI_identity.tsv", query, subject
+        ),
     )
     pytest.approx(
         comp.aln_length,
-        get_matrix_entry(fastani_matrices / "matrix_aln_lengths.tsv", query, subject),
+        get_matrix_entry(
+            input_genomes_tiny / "matrices" / "fastANI_aln_lengths.tsv", query, subject
+        ),
     )
     pytest.approx(
         comp.sim_errors,
-        get_matrix_entry(fastani_matrices / "matrix_sim_errors.tsv", query, subject),
+        get_matrix_entry(
+            input_genomes_tiny / "matrices" / "fastANI_sim_errors.tsv", query, subject
+        ),
     )
     pytest.approx(
         comp.cov_query,
-        get_matrix_entry(fastani_matrices / "matrix_coverage.tsv", query, subject),
+        get_matrix_entry(
+            input_genomes_tiny / "matrices" / "fastANI_coverage.tsv", query, subject
+        ),
     )
     session.close()
     tmp_db.unlink()

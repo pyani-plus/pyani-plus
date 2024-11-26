@@ -88,11 +88,11 @@ def compare_fastani_files(file1: Path, file2: Path) -> bool:
 
 def test_snakemake_rule_fastani(  # noqa: PLR0913
     capsys: pytest.CaptureFixture[str],
+    input_genomes_tiny: Path,
     fastani_targets: list[str],
     fastani_targets_outdir: Path,
     config_fastani_args: dict,
     fastani_targets_indir: Path,
-    fastani_matrices: Path,
     tmp_path: str,
 ) -> None:
     """Test fastANI snakemake wrapper.
@@ -110,7 +110,7 @@ def test_snakemake_rule_fastani(  # noqa: PLR0913
     db = config_fastani_args["db"]
     assert not db.is_file()
     log_run(
-        fasta=config_fastani_args["indir"],
+        fasta=config_fastani_args["indir"],  # i.e. input_genomes_tiny
         database=db,
         status="Testing",
         name="Test case",
@@ -143,7 +143,7 @@ def test_snakemake_rule_fastani(  # noqa: PLR0913
             fastani_targets_outdir / fname,
         )
 
-    compare_matrices(db, fastani_matrices)
+    compare_matrices(db, input_genomes_tiny / "matrices", "fastANI")
 
 
 def test_snakemake_duplicate_stems(

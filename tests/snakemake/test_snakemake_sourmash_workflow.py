@@ -168,8 +168,8 @@ def test_snakemake_compare_rule(  # noqa: PLR0913
     capsys: pytest.CaptureFixture[str],
     sourmash_targets_compare_outdir: Path,
     config_sourmash_args: dict,
-    dir_sourmash_results: Path,
     sourmash_targets_compare_indir: Path,
+    input_genomes_tiny: Path,
     tmp_path: str,
 ) -> None:
     """Test sourmash compare snakemake wrapper.
@@ -196,7 +196,7 @@ def test_snakemake_compare_rule(  # noqa: PLR0913
     db = config["db"]
     assert not db.is_file()
     log_run(
-        fasta=config_sourmash_args["indir"],
+        fasta=config_sourmash_args["indir"],  # i.e. input_genomes_tiny
         database=db,
         cmdline="pyani-plus sourmash ...",
         status="Testing",
@@ -228,4 +228,4 @@ def test_snakemake_compare_rule(  # noqa: PLR0913
         sourmash_targets_compare_indir / "sourmash.csv",
     )
 
-    compare_matrices(db, dir_sourmash_results)
+    compare_matrices(db, input_genomes_tiny / "matrices", "sourmash")

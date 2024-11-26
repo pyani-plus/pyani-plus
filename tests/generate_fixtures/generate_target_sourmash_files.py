@@ -50,17 +50,16 @@ from pyani_plus.tools import get_sourmash
 
 # Paths to directories (eg, input sequences, delta and filter)
 INPUT_DIR = Path("../fixtures/viral_example")
-SIGNATURE_DIR = Path("../fixtures/sourmash/targets/signatures")
-COMPARE_DIR = Path("../fixtures/sourmash/targets/compare")
+OUT_DIR = Path("../fixtures/viral_example/intermediates/sourmash")
 
 # Running ANIm comparisons (all vs all)
 inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*.f*")}
 comparisons = product(inputs, inputs)
 
 # Cleanup
-for file in SIGNATURE_DIR.glob("*.sig"):
+for file in OUT_DIR.glob("*.sig"):
     file.unlink()
-for file in COMPARE_DIR.glob("*.csv"):
+for file in OUT_DIR.glob("*.csv"):
     file.unlink()
 
 sourmash = get_sourmash()
@@ -76,7 +75,7 @@ for genome in inputs.values():
             "k=31,scaled=300",
             genome,
             "-o",
-            SIGNATURE_DIR / (genome.stem + ".sig"),
+            OUT_DIR / (genome.stem + ".sig"),
         ],
         check=True,
     )
@@ -85,32 +84,12 @@ subprocess.run(
     [
         sourmash.exe_path,
         "compare",
-        *sorted(SIGNATURE_DIR.glob("*.sig")),
+        *sorted(OUT_DIR.glob("*.sig")),
         "--csv",
-        COMPARE_DIR / "sourmash.csv",
+        OUT_DIR / "sourmash.csv",
         "--estimate-ani",
         "--max-containment",
         "-k=31",
     ],
     check=True,
 )
-
-
-# We don't really need all the pairwise comparisons now, but a
-# few are used in our test cases...
-for genomes in comparisons:
-    sigs = [SIGNATURE_DIR / (stem + ".sig") for stem in genomes]
-    stem = "_vs_".join(genomes)
-    subprocess.run(
-        [
-            sourmash.exe_path,
-            "compare",
-            *sigs,
-            "--csv",
-            COMPARE_DIR / (stem + ".csv"),
-            "--estimate-ani",
-            "--max-containment",
-            "-k=31",
-        ],
-        check=True,
-    )

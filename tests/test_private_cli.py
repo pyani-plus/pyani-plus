@@ -522,12 +522,10 @@ def test_log_wrong_config(
         )
 
     with pytest.raises(SystemExit, match="ERROR: Run-id 1 expected guessing results"):
-        private_cli.log_anib(
+        private_cli.anib(
             tmp_db,
             run_id=1,
-            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            blastn=faked,
+            subject="XXX",
         )
 
     with pytest.raises(SystemExit, match="ERROR: Run-id 1 expected guessing results"):

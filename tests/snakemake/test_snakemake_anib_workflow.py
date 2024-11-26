@@ -26,7 +26,6 @@ These tests are intended to be run from the repository root using:
 pytest -v or make test
 """
 
-import filecmp
 import shutil  # We need this for filesystem operations
 from pathlib import Path
 
@@ -67,85 +66,7 @@ def config_anib_args(
     }
 
 
-def test_snakemake_rule_fragments(
-    input_genomes_tiny: Path,
-    anib_targets_outdir: Path,
-    config_anib_args: dict,
-    tmp_path: str,
-) -> None:
-    """Test overall ANIb snakemake wrapper."""
-    # Remove the output directory to force re-running the snakemake rule
-    shutil.rmtree(anib_targets_outdir, ignore_errors=True)
-
-    anib_targets_fragments = [
-        anib_targets_outdir / (_.stem + "-fragments.fna")
-        for _ in input_genomes_tiny.glob("*.f*")
-    ]
-
-    # Run snakemake wrapper
-    run_snakemake_with_progress_bar(
-        executor=ToolExecutor.local,
-        workflow_name="snakemake_anib.smk",
-        targets=anib_targets_fragments,
-        params=config_anib_args,
-        working_directory=Path(tmp_path),
-    )
-
-    # Check output against target fixtures
-    for fname in anib_targets_fragments:
-        assert fname.name.endswith("-fragments.fna"), fname
-        assert Path(fname).is_file()
-        assert filecmp.cmp(
-            fname, input_genomes_tiny / "intermediates/ANIb" / fname.name
-        )
-
-
-def compare_blast_json(file_a: Path, file_b: Path) -> bool:
-    """Compare two BLAST+ .njs JSON files, ignoring the date-stamp."""
-    with file_a.open() as handle_a, file_b.open() as handle_b:
-        for a, b in zip(handle_a, handle_b, strict=True):
-            assert (
-                a == b
-                or ("last-updated" in a and "last-updated" in b)
-                or ("bytes-total" in a and "bytes-total" in b)
-                or ("bytes-to-cache" in a and "bytes-to-cache" in b)
-            ), f"{a!r} != {b!r}"
-    return True
-
-
-def test_snakemake_rule_blastdb(
-    input_genomes_tiny: Path,
-    anib_targets_outdir: Path,
-    config_anib_args: dict,
-    tmp_path: str,
-) -> None:
-    """Test overall ANIb snakemake wrapper."""
-    # Remove the output directory to force re-running the snakemake rule
-    shutil.rmtree(anib_targets_outdir, ignore_errors=True)
-
-    anib_targets_blastdb = [
-        anib_targets_outdir / (_.stem + ".njs") for _ in input_genomes_tiny.glob("*.f*")
-    ]
-
-    # Run snakemake wrapper
-    run_snakemake_with_progress_bar(
-        executor=ToolExecutor.local,
-        workflow_name="snakemake_anib.smk",
-        targets=anib_targets_blastdb,
-        params=config_anib_args,
-        working_directory=Path(tmp_path),
-    )
-
-    # Check output against target fixtures
-    for fname in anib_targets_blastdb:
-        assert fname.suffix == ".njs", fname
-        assert Path(fname).is_file()
-        compare_blast_json(
-            fname, input_genomes_tiny / "intermediates/ANIb" / fname.name
-        )
-
-
-def test_snakemake_rule_blastn(
+def test_snakemake_rule_anib(
     input_genomes_tiny: Path,
     anib_targets_outdir: Path,
     config_anib_args: dict,
@@ -166,7 +87,7 @@ def test_snakemake_rule_blastn(
         database=db,
         status="Testing",
         name="Test case",
-        cmdline="blah blah blah",
+        cmdline="pyani-plus anib blah blah blah",
         method="ANIb",
         program=blastn_tool.exe_path.stem,
         version=blastn_tool.version,
@@ -175,20 +96,19 @@ def test_snakemake_rule_blastn(
     )
     assert db.is_file()
 
-    expected_targets = list((input_genomes_tiny / "intermediates/ANIb").glob("*.tsv"))
-    generated_targets = [anib_targets_outdir / f.name for f in expected_targets]
-
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
         workflow_name="snakemake_anib.smk",
-        targets=generated_targets,
+        targets=[
+            anib_targets_outdir / f"all_vs_{s.stem}.anib"
+            for s in config_anib_args["indir"].glob("*.f*")
+        ],
         params=config_anib_args,
         working_directory=Path(tmp_path),
     )
 
+    # Want to check the intermediate files, but currently lost in a temp folder...
+
     # Check output against target fixtures
-    for expected, generated in zip(expected_targets, generated_targets, strict=False):
-        assert generated.is_file()
-        assert filecmp.cmp(expected, generated)
     compare_db_matrices(db, input_genomes_tiny / "matrices")

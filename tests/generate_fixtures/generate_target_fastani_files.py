@@ -46,7 +46,7 @@ from pyani_plus.utils import file_md5sum
 # Parameters (eg, input sequences, fastANI outputs, k-mer sizes...)
 INPUT_DIR = Path("../fixtures/viral_example")
 FASTANI_DIR = Path("../fixtures/fastani/targets")
-MATRIX_DIR = Path("../fixtures/fastani/matrices")
+MATRIX_DIR = Path("../fixtures/viral_example/matrices")
 FRAG_LEN = 3000
 KMER_SIZE = 16
 MIN_FRAC = 0.2
@@ -152,10 +152,10 @@ matrix_hadamard = matrix_coverage * matrix_ani_string.astype(float)
 # Another estimate:
 matrix_aln_lengths = FRAG_LEN * matrix_orthologous_matches
 
-write_matrix(MATRIX_DIR / "matrix_identity.tsv", hashes, matrix_ani_string)
-write_matrix(MATRIX_DIR / "matrix_coverage.tsv", hashes, matrix_coverage)
-write_matrix(MATRIX_DIR / "matrix_aln_lengths.tsv", hashes, matrix_aln_lengths)
-write_matrix(MATRIX_DIR / "matrix_hadamard.tsv", hashes, matrix_hadamard)
-write_matrix(MATRIX_DIR / "matrix_sim_errors.tsv", hashes, matrix_sim_errors)
+write_matrix(MATRIX_DIR / "fastANI_identity.tsv", hashes, matrix_ani_string)
+write_matrix(MATRIX_DIR / "fastANI_coverage.tsv", hashes, matrix_coverage)
+write_matrix(MATRIX_DIR / "fastANI_aln_lengths.tsv", hashes, matrix_aln_lengths)
+write_matrix(MATRIX_DIR / "fastANI_hadamard.tsv", hashes, matrix_hadamard)
+write_matrix(MATRIX_DIR / "fastANI_sim_errors.tsv", hashes, matrix_sim_errors)
 
 print("Done")

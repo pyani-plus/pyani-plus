@@ -325,9 +325,7 @@ def test_anib(tmp_path: str, input_genomes_tiny: Path, dir_anib_results: Path) -
     )
 
 
-def test_fastani(
-    tmp_path: str, input_genomes_tiny: Path, fastani_matrices: Path
-) -> None:
+def test_fastani(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check fastANI run (default settings)."""
     out = Path(tmp_path)
     tmp_db = out / "example.sqlite"
@@ -336,7 +334,8 @@ def test_fastani(
     )
     public_cli.export_run(database=tmp_db, outdir=out)
     compare_matrix_files(
-        fastani_matrices / "matrix_identity.tsv", out / "fastANI_identity.tsv"
+        input_genomes_tiny / "matrices" / "fastANI_identity.tsv",
+        out / "fastANI_identity.tsv",
     )
 
 

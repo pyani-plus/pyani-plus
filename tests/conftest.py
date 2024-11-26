@@ -40,12 +40,6 @@ def anib_targets_outdir(tmp_path: str) -> Path:
 
 
 @pytest.fixture
-def anim_nucmer_targets_filter_indir() -> Path:
-    """Directory containing MUMmer filter snakemake reference files."""
-    return FIXTUREPATH / "anim" / "targets" / "filter"
-
-
-@pytest.fixture
 def anim_targets_outdir(tmp_path: str) -> Path:
     """Output directory for ANIm snakemake tests.
 
@@ -53,36 +47,6 @@ def anim_targets_outdir(tmp_path: str) -> Path:
     its output files during ANIm testing
     """
     return Path(tmp_path).resolve() / "nucmer_filter_output"
-
-
-@pytest.fixture
-def anim_nucmer_targets_delta_indir() -> Path:
-    """Directory containing MUMmer delta snakemake reference files."""
-    return FIXTUREPATH / "anim" / "targets" / "delta"
-
-
-@pytest.fixture
-def anim_nucmer_targets_filter(anim_targets_outdir: Path) -> list[Path]:
-    """Target delta-filter files for ANIm tests.
-
-    These are paths to the output files we want to generate using
-    nucmer for ANIm. We aim to ask MUMmer to generate a set of
-    .filter files that could later be processed to obtain ANI values
-    """
-    reference_paths = (FIXTUREPATH / "anim" / "targets" / "filter").glob("*.filter")
-    return [anim_targets_outdir / _.name for _ in reference_paths]
-
-
-@pytest.fixture
-def anim_nucmer_targets_delta(anim_targets_outdir: Path) -> list[Path]:
-    """Target delta files for ANIm tests.
-
-    These are paths to the output files we want to generate using
-    nucmer for ANIm. We aim to generate a set of .delta files that
-    could later be processed to obtain ANI values
-    """
-    reference_paths = (FIXTUREPATH / "anim" / "targets" / "delta").glob("*.delta")
-    return [anim_targets_outdir / _.name for _ in reference_paths]
 
 
 @pytest.fixture

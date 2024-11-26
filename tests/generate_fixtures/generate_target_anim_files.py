@@ -44,8 +44,7 @@ from pyani_plus.tools import get_delta_filter, get_nucmer
 
 # Paths to directories (eg, input sequences, delta and filter)
 INPUT_DIR = Path("../fixtures/viral_example")
-DELTA_DIR = Path("../fixtures/anim/targets/delta")
-FILTER_DIR = Path("../fixtures/anim/targets/filter")
+DELTA_DIR = FILTER_DIR = Path("../fixtures/viral_example/intermediates/ANIm")
 
 # Running ANIm comparisons (all vs all)
 inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*.f*")}

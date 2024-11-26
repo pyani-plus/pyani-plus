@@ -101,12 +101,6 @@ def anim_nucmer_targets_filter_indir() -> Path:
 
 
 @pytest.fixture
-def dir_anim_results() -> Path:
-    """Directory containing pyani v0.3 aniM matrices."""
-    return FIXTUREPATH / "anim" / "matrices"
-
-
-@pytest.fixture
 def anim_targets_outdir(tmp_path: str) -> Path:
     """Output directory for ANIm snakemake tests.
 

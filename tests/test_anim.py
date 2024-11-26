@@ -139,7 +139,6 @@ def test_logging_anim(
     tmp_path: str,
     input_genomes_tiny: Path,
     anim_nucmer_targets_filter_indir: Path,
-    dir_anim_results: Path,
 ) -> None:
     """Check can log a fastANI comparison to DB."""
     tmp_db = Path(tmp_path) / "new.sqlite"
@@ -179,19 +178,27 @@ def test_logging_anim(
     subject = "78975d5144a1cd12e98898d573cf6536"  # MGV-GENOME-0266457.fna
     pytest.approx(
         comp.identity,
-        get_matrix_entry(dir_anim_results / "matrix_identity.tsv", query, subject),
+        get_matrix_entry(
+            input_genomes_tiny / "matrices" / "ANIm_identity.tsv", query, subject
+        ),
     )
     pytest.approx(
         comp.aln_length,
-        get_matrix_entry(dir_anim_results / "matrix_aln_lengths.tsv", query, subject),
+        get_matrix_entry(
+            input_genomes_tiny / "matrices" / "ANIm_aln_lengths.tsv", query, subject
+        ),
     )
     pytest.approx(
         comp.sim_errors,
-        get_matrix_entry(dir_anim_results / "matrix_sim_errors.tsv", query, subject),
+        get_matrix_entry(
+            input_genomes_tiny / "matrices" / "ANIm_sim_errors.tsv", query, subject
+        ),
     )
     pytest.approx(
         comp.cov_query,
-        get_matrix_entry(dir_anim_results / "matrix_coverage.tsv", query, subject),
+        get_matrix_entry(
+            input_genomes_tiny / "matrices" / "ANIm_coverage.tsv", query, subject
+        ),
     )
     session.close()
     tmp_db.unlink()

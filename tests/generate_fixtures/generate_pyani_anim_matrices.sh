@@ -31,11 +31,12 @@ pyani --version 2>&1 | grep "pyani version: 0\.3\." > /dev/null
 # This is to help with if and when we change the
 # example sequences being used.
 echo "Removing pre-existing fixtures..."
-for file in ../fixtures/anim/matrices/*.tsv; do
+for file in ../fixtures/viral_example/matrices/ANIm_*.tsv; do
     rm "$file"
 done
 
 # Make a temp subdir
+rm -rf tmp_pyani_anim
 mkdir tmp_pyani_anim
 cd tmp_pyani_anim
 
@@ -61,10 +62,12 @@ echo "Generate matrices..."
 pyani report -v -o . --formats=stdout --run_matrices 1
 
 echo "Collecting output for test fixtures..."
-for file in *_1.tab; do
-    # Renaming XXX_1.tab to XXX.tsv
+for file in matrix_*_1.tab; do
+    # Renaming matrix_XXX_1.tab to ANIb_XXX.tsv
+    name=${file%_1.tab}
+    name=${name#matrix_}
     # Removing :n suffices on MD5 hash labels
-    sed "s/:[0-9]//g" "$file" > "../../fixtures/anim/matrices/${file%_1.tab}.tsv"
+    sed "s/:[0-9]//g" "$file" > "../../fixtures/viral_example/matrices/ANIm_${name}.tsv"
 done
 
 #Remove temp subdir

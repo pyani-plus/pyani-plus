@@ -45,7 +45,7 @@ from pyani_plus.utils import file_md5sum
 
 # Parameters (eg, input sequences, fastANI outputs, k-mer sizes...)
 INPUT_DIR = Path("../fixtures/viral_example")
-FASTANI_DIR = Path("../fixtures/fastani/targets")
+FASTANI_DIR = Path("../fixtures/viral_example/intermediates/fastANI/")
 MATRIX_DIR = Path("../fixtures/viral_example/matrices")
 FRAG_LEN = 3000
 KMER_SIZE = 16

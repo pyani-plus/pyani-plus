@@ -48,7 +48,10 @@ def test_empty_path() -> None:
         list(parse_fastani_file(Path("/dev/null"), {}))
 
 
-def test_missing_db(tmp_path: str, fastani_targets_indir: Path) -> None:
+def test_missing_db(
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
     """Check expected error when DB does not exist."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
@@ -57,7 +60,10 @@ def test_missing_db(tmp_path: str, fastani_targets_indir: Path) -> None:
         private_cli.log_fastani(
             database=tmp_db,
             run_id=1,
-            fastani=fastani_targets_indir / "all_vs_MGV-GENOME-0266457.fastani",
+            fastani=input_genomes_tiny
+            / "intermediates"
+            / "fastANI"
+            / "all_vs_MGV-GENOME-0266457.fastani",
         )
 
 
@@ -65,7 +71,6 @@ def test_logging_fastani(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
-    fastani_targets_indir: Path,
 ) -> None:
     """Check can log a fastANI comparison to DB."""
     tmp_db = Path(tmp_path) / "new.sqlite"
@@ -93,7 +98,10 @@ def test_logging_fastani(
     private_cli.log_fastani(
         database=tmp_db,
         run_id=1,
-        fastani=fastani_targets_indir / "all_vs_MGV-GENOME-0266457.fastani",
+        fastani=input_genomes_tiny
+        / "intermediates"
+        / "fastANI"
+        / "all_vs_MGV-GENOME-0266457.fastani",
     )
 
     # Check the recorded comparison values

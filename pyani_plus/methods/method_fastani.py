@@ -51,7 +51,9 @@ def parse_fastani_file(
     ...     "MGV-GENOME-0266457.fna": "B",
     ...     "OP073605.fasta": "C",
     ... }
-    >>> fname = Path("tests/fixtures/fastani/targets/all_vs_OP073605.fastani")
+    >>> fname = Path(
+    ...     "tests/fixtures/viral_example/intermediates/fastANI/all_vs_OP073605.fastani"
+    ... )
     >>> for query, subject, ani, matches, frags in parse_fastani_file(fname, mapping):
     ...     print(f"{query} vs {subject} gave {100*ani:0.1f}%")
     A vs C gave 99.9%

@@ -28,6 +28,7 @@ average_nucleotide_identity.py --version
 average_nucleotide_identity.py --version | grep "pyani 0\.2\." > /dev/null
 
 # Make a temp subdir
+rm -rf tmp_pyani_anib
 mkdir tmp_pyani_anib
 cd tmp_pyani_anib
 
@@ -49,12 +50,12 @@ mkdir output
 average_nucleotide_identity.py -m ANIb -i . -o output -v -l ANIb.log --force # --labels labels.txt --classes classes.txt
 
 echo "Collecting output for test fixtures..."
-# The output names here are based on pyANI v0.3 conventions
-sed -f rename.txt output/ANIb_percentage_identity.tab > ../../fixtures/anib/matrices/matrix_identity.tsv
-sed -f rename.txt output/ANIb_alignment_coverage.tab > ../../fixtures/anib/matrices/matrix_coverage.tsv
-sed -f rename.txt output/ANIb_alignment_lengths.tab > ../../fixtures/anib/matrices/matrix_aln_lengths.tsv
-sed -f rename.txt output/ANIb_hadamard.tab > ../../fixtures/anib/matrices/matrix_hadamard.tsv
-sed -f rename.txt output/ANIb_similarity_errors.tab > ../../fixtures/anib/matrices/matrix_sim_errors.tsv
+# The output names here are based on pyANI v0.3 conventions, the pyani-plus names are shorter
+sed -f rename.txt output/ANIb_percentage_identity.tab > ../../fixtures/viral_example/matrices/ANIb_identity.tsv
+sed -f rename.txt output/ANIb_alignment_coverage.tab > ../../fixtures/viral_example/matrices/ANIb_coverage.tsv
+sed -f rename.txt output/ANIb_alignment_lengths.tab > ../../fixtures/viral_example/matrices/ANIb_aln_lengths.tsv
+sed -f rename.txt output/ANIb_hadamard.tab > ../../fixtures/viral_example/matrices/ANIb_hadamard.tsv
+sed -f rename.txt output/ANIb_similarity_errors.tab > ../../fixtures/viral_example/matrices/ANIb_sim_errors.tsv
 
 #Remove temp subdir
 cd ..

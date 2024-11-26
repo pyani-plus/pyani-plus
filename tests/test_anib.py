@@ -160,7 +160,6 @@ def test_logging_anib(
     tmp_path: str,
     input_genomes_tiny: Path,
     anib_blastn: Path,
-    dir_anib_results: Path,
 ) -> None:
     """Check can log a ANIb comparison to DB."""
     tmp_db = Path(tmp_path) / "new.sqlite"
@@ -200,19 +199,27 @@ def test_logging_anib(
     subject = "78975d5144a1cd12e98898d573cf6536"  # MGV-GENOME-0266457.fna
     pytest.approx(
         comp.identity,
-        get_matrix_entry(dir_anib_results / "matrix_identity.tsv", query, subject),
+        get_matrix_entry(
+            input_genomes_tiny / "matrices" / "ANIb_identity.tsv", query, subject
+        ),
     )
     pytest.approx(
         comp.aln_length,
-        get_matrix_entry(dir_anib_results / "matrix_aln_lengths.tsv", query, subject),
+        get_matrix_entry(
+            input_genomes_tiny / "matrices" / "ANIb_aln_lengths.tsv", query, subject
+        ),
     )
     pytest.approx(
         comp.sim_errors,
-        get_matrix_entry(dir_anib_results / "matrix_sim_errors.tsv", query, subject),
+        get_matrix_entry(
+            input_genomes_tiny / "matrices" / "ANIb_sim_errors.tsv", query, subject
+        ),
     )
     pytest.approx(
         comp.cov_query,
-        get_matrix_entry(dir_anib_results / "matrix_coverage.tsv", query, subject),
+        get_matrix_entry(
+            input_genomes_tiny / "matrices" / "ANIb_coverage.tsv", query, subject
+        ),
     )
     session.close()
     tmp_db.unlink()

@@ -135,11 +135,11 @@ def test_snakemake_rule_blastdb(
 
 
 def test_snakemake_rule_blastn(  # noqa: PLR0913
+    input_genomes_tiny: Path,
     anib_targets_blastn: list[Path],
     anib_targets_outdir: Path,
     config_anib_args: dict,
     anib_blastn: Path,
-    dir_anib_results: Path,
     tmp_path: str,
 ) -> None:
     """Test blastn (overall) ANIb snakemake wrapper."""
@@ -153,7 +153,7 @@ def test_snakemake_rule_blastn(  # noqa: PLR0913
     db = config_anib_args["db"]
     assert not db.is_file()
     log_run(
-        fasta=config_anib_args["indir"],
+        fasta=config_anib_args["indir"],  # i.e. input_genomes_tiny
         database=db,
         status="Testing",
         name="Test case",
@@ -181,4 +181,4 @@ def test_snakemake_rule_blastn(  # noqa: PLR0913
         assert Path(fname).is_file()
         assert (anib_blastn / fname.name).is_file()
         assert filecmp.cmp(fname, anib_blastn / fname.name)
-    compare_matrices(db, dir_anib_results)
+    compare_matrices(db, input_genomes_tiny / "matrices", "ANIb")

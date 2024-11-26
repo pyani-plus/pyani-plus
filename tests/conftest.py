@@ -95,12 +95,6 @@ def anib_targets_blastn(
 
 
 @pytest.fixture
-def dir_anib_results() -> Path:
-    """Directory containing pyani v0.3 ANIb matrices."""
-    return FIXTUREPATH / "anib" / "matrices"
-
-
-@pytest.fixture
 def anim_nucmer_targets_filter_indir() -> Path:
     """Directory containing MUMmer filter snakemake reference files."""
     return FIXTUREPATH / "anim" / "targets" / "filter"

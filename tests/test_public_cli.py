@@ -312,7 +312,7 @@ def test_dnadiff(
     session.close()
 
 
-def test_anib(tmp_path: str, input_genomes_tiny: Path, dir_anib_results: Path) -> None:
+def test_anib(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check ANIb run (default settings)."""
     out = Path(tmp_path)
     tmp_db = out / "example.sqlite"
@@ -321,7 +321,8 @@ def test_anib(tmp_path: str, input_genomes_tiny: Path, dir_anib_results: Path) -
     )
     public_cli.export_run(database=tmp_db, outdir=out)
     compare_matrix_files(
-        dir_anib_results / "matrix_identity.tsv", out / "ANIb_identity.tsv"
+        input_genomes_tiny / "matrices" / "ANIb_identity.tsv",
+        out / "ANIb_identity.tsv",
     )
 
 

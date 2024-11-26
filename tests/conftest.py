@@ -169,12 +169,6 @@ def fastani_targets_indir() -> Path:
 
 
 @pytest.fixture
-def dir_dnadiff_matrices() -> Path:
-    """Directory containing dnadiff matrices."""
-    return FIXTUREPATH / "dnadiff" / "matrices"
-
-
-@pytest.fixture
 def dnadiff_nucmer_targets_filter_indir() -> Path:
     """Directory containing MUMmer filter snakemake reference files."""
     return FIXTUREPATH / "dnadiff" / "targets" / "filter"

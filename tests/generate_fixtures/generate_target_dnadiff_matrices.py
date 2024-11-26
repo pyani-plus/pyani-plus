@@ -116,10 +116,10 @@ for file in report_files:
     identity_matrix.loc[query_hash, subject_hash] = avg_identity
     sim_errors.loc[query_hash, subject_hash] = round(aligned_bases * (1 - avg_identity))
 
-matrices_directory = "../fixtures/dnadiff/matrices/"
-Path(matrices_directory).mkdir(parents=True, exist_ok=True)
+matrices_directory = Path("../fixtures/viral_example/matrices/")
+matrices_directory.mkdir(parents=True, exist_ok=True)
 
-aln_lengths_matrix.to_csv(matrices_directory + "matrix_aln_lengths.tsv", sep="\t")
-coverage_matrix.to_csv(matrices_directory + "matrix_coverage.tsv", sep="\t")
-identity_matrix.to_csv(matrices_directory + "matrix_identity.tsv", sep="\t")
-sim_errors.to_csv(matrices_directory + "matrix_sim_errors.tsv", sep="\t")
+aln_lengths_matrix.to_csv(matrices_directory / "dnadiff_aln_lengths.tsv", sep="\t")
+coverage_matrix.to_csv(matrices_directory / "dnadiff_coverage.tsv", sep="\t")
+identity_matrix.to_csv(matrices_directory / "dnadiff_identity.tsv", sep="\t")
+sim_errors.to_csv(matrices_directory / "dnadiff_sim_errors.tsv", sep="\t")

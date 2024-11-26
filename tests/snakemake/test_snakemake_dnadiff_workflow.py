@@ -103,6 +103,7 @@ def compare_show_diff_files(file1: Path, file2: Path) -> bool:
 
 
 def test_dnadiff(  # noqa: PLR0913
+    input_genomes_tiny: Path,
     dnadiff_nucmer_targets_delta: list[Path],
     dnadiff_nucmer_targets_filter: list[Path],
     dnadiff_targets_showcoords: list[Path],
@@ -113,7 +114,6 @@ def test_dnadiff(  # noqa: PLR0913
     dnadiff_targets_showdiff_indir: Path,
     dnadiff_targets_outdir: Path,
     config_dnadiff_args: dict,
-    dir_dnadiff_matrices: Path,
     tmp_path: str,
 ) -> None:
     """Test rule dnadiff.
@@ -136,7 +136,7 @@ def test_dnadiff(  # noqa: PLR0913
     db = config_dnadiff_args["db"]
     assert not db.is_file()
     log_run(
-        fasta=config_dnadiff_args["indir"],
+        fasta=config_dnadiff_args["indir"],  # i.e. input_genomes_tiny
         database=db,
         status="Testing",
         name="Test case",
@@ -193,4 +193,6 @@ def test_dnadiff(  # noqa: PLR0913
             skip=0,
         )
 
-    compare_matrices(db, dir_dnadiff_matrices, absolute_tolerance=5e-5)
+    compare_matrices(
+        db, input_genomes_tiny / "matrices", "dnadiff", absolute_tolerance=5e-5
+    )

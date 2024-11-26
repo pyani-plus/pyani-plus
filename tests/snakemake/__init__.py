@@ -134,7 +134,7 @@ def compare_matrices(
         )
         checked = True
     if (matrices_path / f"{method}_sim_errors.tsv").is_file():
-        if "dnadiff" in str(matrices_path):
+        if method == "dnadiff" and "/viral_example/matrices" in str(matrices_path):
             compare_matrix(
                 run.sim_errors,
                 matrices_path / f"{method}_sim_errors.tsv",

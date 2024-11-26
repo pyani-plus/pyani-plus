@@ -209,7 +209,6 @@ def test_logging_sourmash(
     tmp_path: str,
     input_genomes_tiny: Path,
     sourmash_targets_compare_indir: Path,
-    dir_sourmash_results: Path,
 ) -> None:
     """Check can log a sourmash comparison to DB."""
     tmp_db = Path(tmp_path) / "new.sqlite"
@@ -256,7 +255,7 @@ def test_logging_sourmash(
         pytest.approx(
             comp.identity,
             get_matrix_entry(
-                dir_sourmash_results / "matrix_identity.tsv",
+                input_genomes_tiny / "matrices" / "sourmash_identity.tsv",
                 comp.query_hash,
                 comp.subject_hash,
             ),

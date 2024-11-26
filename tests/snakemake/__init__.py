@@ -69,7 +69,10 @@ def compare_matrix(
 
 
 def compare_matrices(
-    database_path: Path, matrices_path: Path, absolute_tolerance: float = 2e-8
+    database_path: Path,
+    matrices_path: Path,
+    method: str = "matrix",
+    absolute_tolerance: float = 2e-8,
 ) -> None:
     """Compare the matrices in the given DB to legacy output from pyANI.
 
@@ -77,7 +80,7 @@ def compare_matrices(
     is one and only one configuration in the database (as a common
     failure was comparisons being logged to a different configuration).
 
-    Assumes the legacy matrices are named ``matrix_*.tsv`` and use MD5
+    By default assumes legacy matrices named ``matrix_*.tsv`` but using MD5
     captions internally:
 
     * ``matrix_aln_lengths.tsv``
@@ -85,6 +88,8 @@ def compare_matrices(
     * ``matrix_hadamard.tsv``
     * ``matrix_identity.tsv``
     * ``matrix_sim_errors.tsv``
+
+    If using the pyani-plus export-run naming, then matrix is replaced with method.
 
     If any of the files are missing, the comparison is skipped.
 
@@ -104,39 +109,39 @@ def compare_matrices(
     assert matrices_path.is_dir()
 
     checked = False
-    if (matrices_path / "matrix_identity.tsv").is_file():
+    if (matrices_path / f"{method}_identity.tsv").is_file():
         compare_matrix(
             run.identities,
-            matrices_path / "matrix_identity.tsv",
+            matrices_path / f"{method}_identity.tsv",
             absolute_tolerance=absolute_tolerance,
         )
         checked = True
-    if (matrices_path / "matrix_aln_lengths.tsv").is_file():
-        compare_matrix(run.aln_length, matrices_path / "matrix_aln_lengths.tsv")
+    if (matrices_path / f"{method}_aln_lengths.tsv").is_file():
+        compare_matrix(run.aln_length, matrices_path / f"{method}_aln_lengths.tsv")
         checked = True
-    if (matrices_path / "matrix_coverage.tsv").is_file():
+    if (matrices_path / f"{method}_coverage.tsv").is_file():
         compare_matrix(
             run.cov_query,
-            matrices_path / "matrix_coverage.tsv",
+            matrices_path / f"{method}_coverage.tsv",
             absolute_tolerance=absolute_tolerance,
         )
         checked = True
-    if (matrices_path / "matrix_hadamard.tsv").is_file():
+    if (matrices_path / f"{method}_hadamard.tsv").is_file():
         compare_matrix(
             run.hadamard,
-            matrices_path / "matrix_hadamard.tsv",
+            matrices_path / f"{method}_hadamard.tsv",
             absolute_tolerance=absolute_tolerance,
         )
         checked = True
-    if (matrices_path / "matrix_sim_errors.tsv").is_file():
+    if (matrices_path / f"{method}_sim_errors.tsv").is_file():
         if "dnadiff" in str(matrices_path):
             compare_matrix(
                 run.sim_errors,
-                matrices_path / "matrix_sim_errors.tsv",
+                matrices_path / f"{method}_sim_errors.tsv",
                 absolute_tolerance=1.33,
             )
             checked = True
         else:
-            compare_matrix(run.sim_errors, matrices_path / "matrix_sim_errors.tsv")
+            compare_matrix(run.sim_errors, matrices_path / f"{method}_sim_errors.tsv")
         checked = True
     assert checked, f"Missing expected matrices in {matrices_path}"

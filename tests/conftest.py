@@ -340,9 +340,3 @@ def sourmash_targets_sig(sourmash_targets_signature_outdir: Path) -> list[Path]:
 def sourmash_target_all_vs_all_ani() -> list[Path]:
     """Target file for sourmash ani estimation tests."""
     return [FIXTUREPATH / "sourmash" / "targets" / "compare" / "sourmash.csv"]
-
-
-@pytest.fixture
-def dir_sourmash_results() -> Path:
-    """Directory containing sourmash matrices."""
-    return FIXTUREPATH / "sourmash" / "matrices"

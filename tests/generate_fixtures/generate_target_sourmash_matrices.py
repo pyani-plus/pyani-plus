@@ -60,7 +60,7 @@ identity_matrix = pd.DataFrame(index=sorted_hashes, columns=sorted_hashes)
 
 
 # Appending information to matrices
-compare_files = Path("../fixtures/sourmash/targets/compare/").glob("*.csv")
+compare_files = Path("../fixtures/sourmash/targets/compare/").glob("*_vs_*.csv")
 
 for file in compare_files:
     query, subject = file.stem.split("_vs_")
@@ -69,8 +69,8 @@ for file in compare_files:
     identity = parse_compare_files(file)
     identity_matrix.loc[query_hash, subject_hash] = identity
 
-matrices_directory = "../fixtures/sourmash/matrices/"
+matrices_directory = Path("../fixtures/viral_example/matrices/")
 Path(matrices_directory).mkdir(parents=True, exist_ok=True)
 
 
-identity_matrix.to_csv(matrices_directory + "matrix_identity.tsv", sep="\t")
+identity_matrix.to_csv(matrices_directory / "sourmash_identity.tsv", sep="\t")

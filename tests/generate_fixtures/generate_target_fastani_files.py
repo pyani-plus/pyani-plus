@@ -65,7 +65,7 @@ print(f"Using fastANI {fastani.version} at {fastani.exe_path}")
 
 # Generate values for each row of the matrix
 with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as genome_list:
-    for genome_filename in inputs.values():
+    for genome_filename in sorted(inputs.values()):
         genome_list.write(f"{genome_filename}\n")
     genome_list.close()
     for stem, genome_filename in inputs.items():

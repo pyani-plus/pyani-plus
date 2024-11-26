@@ -47,16 +47,16 @@ def parse_fastani_file(
     Example fastANI comparison, three queries vs one reference:
 
     >>> mapping = {
-    ...     "OP073605.fasta": "A",
+    ...     "MGV-GENOME-0264574.fas": "A",
     ...     "MGV-GENOME-0266457.fna": "B",
-    ...     "MGV-GENOME-0264574.fas": "C",
+    ...     "OP073605.fasta": "C",
     ... }
     >>> fname = Path("tests/fixtures/fastani/targets/all_vs_OP073605.fastani")
     >>> for query, subject, ani, matches, frags in parse_fastani_file(fname, mapping):
     ...     print(f"{query} vs {subject} gave {100*ani:0.1f}%")
-    A vs A gave 100.0%
-    B vs A gave 99.5%
-    C vs A gave 99.9%
+    A vs C gave 99.9%
+    B vs C gave 99.5%
+    C vs C gave 100.0%
 
     Empty files trigger an exception:
 

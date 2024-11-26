@@ -527,7 +527,7 @@ def build_query_list(  # noqa: C901, PLR0913
     This was initially needed for the fastANI wrapper, but could have broader usage.
     For the given subject (reference) genome, we may have some of the pairwise
     comparisons already recorded in the database, but others are still pending. This
-    outputs a plain text list of those query genomes.
+    outputs a plain text list of those query genomes sorted by filename.
 
     Potentially the DB recorded the fasta_directory relative to the original
     working directory, in which case that cannot be used on a worker node in
@@ -538,7 +538,10 @@ def build_query_list(  # noqa: C901, PLR0913
     """
     session = db_orm.connect_to_db(database)
     run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+    hash_to_filename = {
+        _.genome_hash: _.fasta_filename
+        for _ in run.fasta_hashes.order_by(db_orm.RunGenomeAssociation.fasta_filename)
+    }
     if subject in hash_to_filename:
         subject_hash = subject
     else:

@@ -135,6 +135,7 @@ def test_snakemake_rule_fastani(
         ],
         params=config_fastani_args,
         working_directory=Path(tmp_path),
+        temp=Path(tmp_path),
     )
 
     # Want to check the intermediate files, but currently lost in a temp folder...
@@ -180,4 +181,5 @@ def test_snakemake_duplicate_stems(
             targets=generated_targets,
             params=dup_config,
             working_directory=Path(tmp_path),
+            temp=Path(tmp_path),
         )

@@ -316,13 +316,18 @@ def test_anib(tmp_path: str, input_genomes_tiny: Path) -> None:
     out = Path(tmp_path)
     tmp_db = out / "example.sqlite"
     public_cli.anib(
-        database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=True
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Test Run",
+        create_db=True,
+        temp=out,
     )
     public_cli.export_run(database=tmp_db, outdir=out)
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "ANIb_identity.tsv",
         out / "ANIb_identity.tsv",
     )
+    # Now check the intermediates...
 
 
 def test_fastani(tmp_path: str, input_genomes_tiny: Path) -> None:
@@ -330,13 +335,18 @@ def test_fastani(tmp_path: str, input_genomes_tiny: Path) -> None:
     out = Path(tmp_path)
     tmp_db = out / "example.sqlite"
     public_cli.fastani(
-        database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=True
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Test Run",
+        create_db=True,
+        temp=out,
     )
     public_cli.export_run(database=tmp_db, outdir=out)
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "fastANI_identity.tsv",
         out / "fastANI_identity.tsv",
     )
+    # Now check the intermediates...
 
 
 def test_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:

@@ -106,6 +106,7 @@ def test_snakemake_rule_anib(
         ],
         params=config_anib_args,
         working_directory=Path(tmp_path),
+        temp=Path(tmp_path),
     )
 
     # Want to check the intermediate files, but currently lost in a temp folder...

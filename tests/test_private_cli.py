@@ -636,7 +636,8 @@ def test_compute_column_fastani(
     input_genomes_tiny: Path,
 ) -> None:
     """Check compute_column with valid args (using fastANI)."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "new.sqlite"
     assert not tmp_db.is_file()
 
     tool = tools.get_fastani()
@@ -662,6 +663,7 @@ def test_compute_column_fastani(
         database=tmp_db,
         run_id=1,
         subject="0",  # here passing column number
+        temp=tmp_dir,
     )
     output = capsys.readouterr().out
     assert (

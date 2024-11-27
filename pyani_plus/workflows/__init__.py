@@ -121,6 +121,7 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     database: Path | None = None,
     run_id: int | None = None,
     interval: float = 0.5,
+    temp: Path | None = None,
 ) -> None:
     """Run snakemake with a progress bar.
 
@@ -130,6 +131,16 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     In quiet or spinner mode the DB is only accessed except by the workflow
     itself, and need not be passed to this function.
     """
+    # Including the --temp as part of the parameter as a way to avoid
+    # adding --temp without an argument:
+    if temp:
+        params["temp"] = f"--temp {temp.resolve()}"
+    else:
+        # With empty string or '' or "" snakemake puts the literal string
+        # None into the command line. So can't use that.
+        # So as a horrible hack, have to put in something, so repeat --quiet
+        params["temp"] = "--quiet"
+
     show_progress_bar = display == ShowProgress.bar
     if show_progress_bar and (database is None or run_id is None):
         msg = "Both database and run_id are required with display as progress bar"
@@ -159,7 +170,7 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
         ]
         + [str(_) for _ in targets]
     )
-    args.config = [f"{k}={v}" for k, v in params.items()]
+    args.config = [f"{k}='{v}'" for k, v in params.items()]
     if display == ShowProgress.quiet:
         success = args_to_api(args, parser)
     elif display == ShowProgress.spin:

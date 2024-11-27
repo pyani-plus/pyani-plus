@@ -41,7 +41,7 @@ rule anib:
         "{outdir}/all_vs_{genomeB}.anib",
     shell:
         """
-        .pyani-plus-private-cli anib --quiet \
+        .pyani-plus-private-cli compute-column --quiet \
             --database {params.db} --run-id {params.run_id} \
             --subject {input} && touch {output}
         """

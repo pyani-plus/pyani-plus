@@ -98,19 +98,6 @@ def test_parse_blastn(input_genomes_tiny: Path) -> None:
     # Note final digit wobble from 3 (old) to 2 (new)
 
 
-def test_missing_db(tmp_path: str) -> None:
-    """Check expected error when DB does not exist."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
-    assert not tmp_db.is_file()
-
-    with pytest.raises(SystemExit, match="does not exist"):
-        private_cli.anib(
-            database=tmp_db,
-            run_id=1,
-            subject="XXXX",
-        )
-
-
 def test_running_anib(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
@@ -137,38 +124,21 @@ def test_running_anib(
     output = capsys.readouterr().out
     assert output.endswith("Run identifier 1\n")
 
-    with pytest.raises(
-        SystemExit,
-        match="ERROR: Did not recognise 'XXXX' as an MD5 hash or filename in run-id 1",
-    ):
-        private_cli.anib(
-            database=tmp_db,
-            run_id=1,
-            subject="XXXX",
-        )
-
-    private_cli.anib(
-        database=tmp_db,
-        run_id=1,
-        subject=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-    )
-
-    # Check the recorded comparison values
     session = db_orm.connect_to_db(tmp_db)
+    run = session.query(db_orm.Run).one()
+    assert run.run_id == 1
+    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+
+    private_cli.anib(
+        session,
+        run,
+        hash_to_filename,
+        {},  # not used for ANIb
+        query_hashes=set(hash_to_filename),
+        subject_hash=list(hash_to_filename)[1],
+    )
     assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004
+
     # No need to test the ANI values here, will be done elsewhere.
-
-    # Do another row, should accept a hash:
-    private_cli.anib(
-        database=tmp_db, run_id=1, subject="689d3fd6881db36b5e08329cf23cecdd"
-    )
-    assert session.query(db_orm.Comparison).count() == 6  # noqa: PLR2004
-
-    # Do the same row again, should skip gracefully:
-    private_cli.anib(
-        database=tmp_db, run_id=1, subject="689d3fd6881db36b5e08329cf23cecdd"
-    )
-    assert session.query(db_orm.Comparison).count() == 6  # noqa: PLR2004
-
     session.close()
     tmp_db.unlink()

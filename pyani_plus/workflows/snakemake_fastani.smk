@@ -43,7 +43,7 @@ rule fastani:
         "{outdir}/all_vs_{genomeB}.fastani",
     shell:
         """
-        .pyani-plus-private-cli fastani --quiet \
+        .pyani-plus-private-cli compute-column --quiet \
             --database {params.db} --run-id {params.run_id} \
             --subject {input} && touch {output}
         """

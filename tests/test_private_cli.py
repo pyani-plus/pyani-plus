@@ -32,8 +32,9 @@ import sys
 from pathlib import Path
 
 import pytest
+from sqlalchemy.exc import NoResultFound
 
-from pyani_plus import db_orm, private_cli
+from pyani_plus import db_orm, private_cli, tools
 
 
 def test_log_configuration(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
@@ -522,20 +523,6 @@ def test_log_wrong_config(
         )
 
     with pytest.raises(SystemExit, match="ERROR: Run-id 1 expected guessing results"):
-        private_cli.anib(
-            tmp_db,
-            run_id=1,
-            subject="XXX",
-        )
-
-    with pytest.raises(SystemExit, match="ERROR: Run-id 1 expected guessing results"):
-        private_cli.fastani(
-            tmp_db,
-            run_id=1,
-            subject="XXX",
-        )
-
-    with pytest.raises(SystemExit, match="ERROR: Run-id 1 expected guessing results"):
         private_cli.log_sourmash(
             tmp_db,
             run_id=1,
@@ -548,3 +535,159 @@ def test_log_wrong_config(
             run_id=1,
             manysearch=faked,
         )
+
+
+def test_compute_column_missing_db(tmp_path: str) -> None:
+    """Check expected error when DB does not exist."""
+    tmp_db = Path(tmp_path) / "new.sqlite"
+    assert not tmp_db.is_file()
+
+    with pytest.raises(SystemExit, match="does not exist"):
+        private_cli.compute_column(
+            database=tmp_db,
+            run_id=1,
+            subject=0,
+        )
+
+
+def test_compute_column_bad_args(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Check how compute_column handles bad run ID or subject."""
+    tmp_db = Path(tmp_path) / "new.sqlite"
+    assert not tmp_db.is_file()
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus guessing ...",
+        status="Testing",
+        name="Testing compute-column",
+        method="guessing",
+        program="guestimate",
+        version="0.1.2beta3",
+        fragsize=100,
+        kmersize=51,
+        create_db=True,
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
+
+    # If this was the public API, should handle it more gracefully:
+    with pytest.raises(
+        NoResultFound,
+        match="No row was found when one was required",
+    ):
+        private_cli.compute_column(
+            database=tmp_db,
+            run_id=2,
+            subject="XXXX",
+        )
+
+    with pytest.raises(  # noqa: PT012
+        SystemExit,
+        match="ERROR: Unknown method guessing for run-id 1 in .*/new.sqlite",
+    ):
+        private_cli.compute_column(
+            database=tmp_db,
+            run_id=1,
+            subject="3",
+        )
+        # This has to be within the context manager to work:
+        output = capsys.readouterr().out
+        assert "INFO: Treating subject N as 0 (first column)" in output
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Did not recognise 'XXXX' as an MD5 hash, filename, or column number in run-id 1",
+    ):
+        private_cli.compute_column(
+            database=tmp_db,
+            run_id=1,
+            subject="XXXX",
+        )
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Column should be in range 0 to 3, not -1",
+    ):
+        private_cli.compute_column(
+            database=tmp_db,
+            run_id=1,
+            subject="-1",
+        )
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Column should be in range 0 to 3, not 4",
+    ):
+        private_cli.compute_column(
+            database=tmp_db,
+            run_id=1,
+            subject="4",
+        )
+
+
+def test_compute_column_fastani(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Check compute_column with valid args (using fastANI)."""
+    tmp_db = Path(tmp_path) / "new.sqlite"
+    assert not tmp_db.is_file()
+
+    tool = tools.get_fastani()
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus fastani ...",
+        status="Testing",
+        name="Testing log_fastani",
+        method="fastANI",
+        program=tool.exe_path.stem,
+        version=tool.version,
+        fragsize=1000,
+        kmersize=13,  # must be at most 16
+        minmatch=0.9,
+        create_db=True,
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
+
+    private_cli.compute_column(
+        database=tmp_db,
+        run_id=1,
+        subject="0",  # here passing column number
+    )
+    output = capsys.readouterr().out
+    assert (
+        "Calling fastANI for 3 queries vs 5584c7029328dc48d33f95f0a78f7e57\n" in output
+    )
+
+    # This time should skip any computation:
+    private_cli.compute_column(
+        database=tmp_db,
+        run_id=1,
+        subject="5584c7029328dc48d33f95f0a78f7e57",  # here passing hash
+    )
+    output = capsys.readouterr().out
+    assert (
+        "INFO: No comparisons needed against 5584c7029328dc48d33f95f0a78f7e57\n"
+        in output
+    )
+
+    # Again, should skip any computation:
+    private_cli.compute_column(
+        database=tmp_db,
+        run_id=1,
+        subject="OP073605.fasta",  # here passing filename
+    )
+    output = capsys.readouterr().out
+    assert (
+        "INFO: No comparisons needed against 5584c7029328dc48d33f95f0a78f7e57\n"
+        in output
+    )

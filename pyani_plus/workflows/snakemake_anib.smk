@@ -35,6 +35,7 @@ rule anib:
         db=config["db"],
         run_id=config["run_id"],
         outdir=config["outdir"],
+        temp=config["temp"],
     input:
         genomeB=get_genomeB,
     output:
@@ -43,5 +44,5 @@ rule anib:
         """
         .pyani-plus-private-cli compute-column --quiet \
             --database {params.db} --run-id {params.run_id} \
-            --subject {input} && touch {output}
+            --subject {input} {params.temp} && touch {output}
         """

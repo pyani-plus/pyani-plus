@@ -86,6 +86,18 @@ OPT_ARG_TYPE_RUN_NAME = Annotated[
         help="Run name. Default is 'N genomes using METHOD'.", show_default=False
     ),
 ]
+OPT_ARG_TYPE_TEMP = Annotated[
+    Path | None,
+    typer.Option(
+        help="Directory to use for intermediate files, which will not be deleted."
+        " Default behaviour is to use a system specified temporary directory and"
+        " remove this afterwards.",
+        show_default=False,
+        exists=True,
+        dir_okay=True,
+        file_okay=False,
+    ),
+]
 OPT_ARG_TYPE_FRAGSIZE = Annotated[
     int,
     typer.Option(
@@ -156,6 +168,7 @@ app = typer.Typer(
 
 def start_and_run_method(  # noqa: PLR0913
     executor: ToolExecutor,
+    temp: Path | None,
     database: Path,
     name: str | None,
     method: str,
@@ -226,6 +239,7 @@ def start_and_run_method(  # noqa: PLR0913
 
     return run_method(
         executor,
+        temp,
         filename_to_md5,
         database,
         session,
@@ -238,6 +252,7 @@ def start_and_run_method(  # noqa: PLR0913
 
 def run_method(  # noqa: PLR0913
     executor: ToolExecutor,
+    temp: Path | None,
     filename_to_md5: dict[Path, str],
     database: Path,
     session: Session,
@@ -313,6 +328,7 @@ def run_method(  # noqa: PLR0913
                 else ShowProgress.bar,
                 database=Path(database),
                 run_id=run_id,
+                temp=temp,
             )
 
         # Reconnect to the DB
@@ -344,6 +360,7 @@ def anim(  # noqa: PLR0913
     mode: OPT_ARG_TYPE_ANIM_MODE = method_anim.MODE,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    temp: OPT_ARG_TYPE_TEMP = None,
 ) -> int:
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -356,6 +373,7 @@ def anim(  # noqa: PLR0913
     }
     return start_and_run_method(
         executor,
+        temp,
         database,
         name,
         "ANIm",
@@ -369,7 +387,7 @@ def anim(  # noqa: PLR0913
 
 
 @app.command(rich_help_panel="ANI methods")
-def dnadiff(
+def dnadiff(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     *,
@@ -378,6 +396,7 @@ def dnadiff(
     # Does not use fragsize, mode, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    temp: OPT_ARG_TYPE_TEMP = None,
 ) -> int:
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -394,6 +413,7 @@ def dnadiff(
     }
     return start_and_run_method(
         executor,
+        temp,
         database,
         name,
         "dnadiff",
@@ -417,6 +437,7 @@ def anib(  # noqa: PLR0913
     # Does not use mode, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    temp: OPT_ARG_TYPE_TEMP = None,
 ) -> int:
     """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -434,6 +455,7 @@ def anib(  # noqa: PLR0913
 
     return start_and_run_method(
         executor,
+        temp,
         database,
         name,
         "ANIb",
@@ -469,6 +491,7 @@ def fastani(  # noqa: PLR0913
     minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    temp: OPT_ARG_TYPE_TEMP = None,
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -481,6 +504,7 @@ def fastani(  # noqa: PLR0913
 
     return start_and_run_method(
         executor,
+        temp,
         database,
         name,
         "fastANI",
@@ -507,6 +531,7 @@ def sourmash(  # noqa: PLR0913
     mode: OPT_ARG_TYPE_SOURMASH_MODE = method_sourmash.MODE,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    temp: OPT_ARG_TYPE_TEMP = None,
     scaled: OPT_ARG_TYPE_SOURMASH_SCALED = method_sourmash.SCALED,  # 1000
     num: OPT_ARG_TYPE_SOURMASH_NUM = None,  # will override scaled if used
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
@@ -521,6 +546,7 @@ def sourmash(  # noqa: PLR0913
     extra = f"scaled={scaled}" if num is None else f"num={num}"
     return start_and_run_method(
         executor,
+        temp,
         database,
         name,
         "sourmash",
@@ -549,6 +575,7 @@ def branchwater(  # noqa: PLR0913
     mode: OPT_ARG_TYPE_SOURMASH_MODE = method_sourmash.MODE,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    temp: OPT_ARG_TYPE_TEMP = None,
     scaled: OPT_ARG_TYPE_SOURMASH_SCALED = method_sourmash.SCALED,  # 1000
     num: OPT_ARG_TYPE_SOURMASH_NUM = None,  # will override scaled if used
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
@@ -563,6 +590,7 @@ def branchwater(  # noqa: PLR0913
     extra = f"scaled={scaled}" if num is None else f"num={num}"
     return start_and_run_method(
         executor,
+        temp,
         database,
         name,
         "branchwater",
@@ -586,6 +614,7 @@ def resume(  # noqa: C901, PLR0912, PLR0915
         typer.Option(help="Which run to resume (defaults to most recent)"),
     ] = None,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    temp: OPT_ARG_TYPE_TEMP = None,
 ) -> int:
     """Resume any (paritual) run already logged in the database.
 
@@ -728,6 +757,7 @@ def resume(  # noqa: C901, PLR0912, PLR0915
 
     return run_method(
         executor,
+        temp,
         filename_to_md5,
         database,
         session,

@@ -70,12 +70,6 @@ def dnadiff_targets_outdir(tmp_path: str) -> Path:
 
 
 @pytest.fixture
-def input_genomes_tiny() -> Path:
-    """Path to small set of two viral input genomes."""
-    return FIXTUREPATH / "viral_example"
-
-
-@pytest.fixture
 def sourmash_targets_signature_outdir(tmp_path: str) -> Path:
     """Output directory for sourmash sketch_dna snakemake tests.
 
@@ -93,3 +87,15 @@ def sourmash_targets_compare_outdir(tmp_path: str) -> Path:
     its output files during sourmash testing
     """
     return Path(tmp_path).resolve() / "sourmash_compare_output"
+
+
+@pytest.fixture
+def input_genomes_tiny() -> Path:
+    """Path to small set of three viral input genomes."""
+    return FIXTUREPATH / "viral_example"
+
+
+@pytest.fixture
+def input_genomes_bad_alignments() -> Path:
+    """Path to small set of two bad alignments input genomes."""
+    return FIXTUREPATH / "bad_alignments"

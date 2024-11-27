@@ -420,6 +420,18 @@ def compute_column(  # noqa: C901
         ),
     ],
     *,
+    temp: Annotated[
+        Path | None,
+        typer.Option(
+            help="Directory to use for intermediate files, which will not be deleted."
+            " Default behaviour is to use a system specified temporary directory and"
+            " remove this afterwards.",
+            show_default=False,
+            exists=True,
+            dir_okay=True,
+            file_okay=False,
+        ),
+    ] = None,
     quiet: OPT_ARG_TYPE_QUIET = False,
 ) -> int:
     """Run the method for one column and log pairwise comparisons to the database.
@@ -465,9 +477,6 @@ def compute_column(  # noqa: C901
         subject_hash = sorted(hash_to_filename)[column]
         del column
 
-    if not quiet:
-        print(f"INFO: Logging {method} comparison vs {subject_hash} to {database}")
-
     # What comparisons are needed?
     query_hashes: set[str] = set(hash_to_filename).difference(
         comp.query_hash
@@ -478,7 +487,7 @@ def compute_column(  # noqa: C901
 
     if not query_hashes:
         if not quiet:
-            print(f"INFO: No comparisons needed against {subject_hash}")
+            print(f"INFO: No {method} comparisons needed against {subject_hash}")
         return 0
 
     # Will probably want to move each of these functions to the relevant method module...
@@ -491,18 +500,34 @@ def compute_column(  # noqa: C901
         msg = f"ERROR: Unknown method {method} for run-id {run_id} in {database}"
         sys.exit(msg)
 
-    return compute(
-        session,
-        run,
-        hash_to_filename,
-        filename_to_hash,
-        query_hashes,
-        subject_hash,
-        quiet=quiet,
-    )
+    if temp:
+        # Use the specified temp-directory (and do not clean up)
+        return compute(
+            temp,
+            session,
+            run,
+            hash_to_filename,
+            filename_to_hash,
+            query_hashes,
+            subject_hash,
+            quiet=quiet,
+        )
+    # Use a system temp-directory (and do clean up)
+    with tempfile.TemporaryDirectory() as sys_temp:
+        return compute(
+            Path(sys_temp),
+            session,
+            run,
+            hash_to_filename,
+            filename_to_hash,
+            query_hashes,
+            subject_hash,
+            quiet=quiet,
+        )
 
 
 def fastani(  # noqa: PLR0913
+    tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
     hash_to_filename: dict[str, Path],
@@ -524,72 +549,68 @@ def fastani(  # noqa: PLR0913
     config_id = run.configuration.configuration_id
 
     fasta_dir = Path(run.fasta_directory)
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_output = Path(tmp) / f"queries_vs_{subject_hash}.csv"
-        tmp_queries = Path(tmp) / f"queries_vs_{subject_hash}.txt"
-        with tmp_queries.open("w") as handle:
-            for query_hash in query_hashes:
-                handle.write(f"{fasta_dir / hash_to_filename[query_hash]}\n")
+    tmp_output = tmp_dir / f"queries_vs_{subject_hash}.csv"
+    tmp_queries = tmp_dir / f"queries_vs_{subject_hash}.txt"
+    with tmp_queries.open("w") as handle:
+        for query_hash in query_hashes:
+            handle.write(f"{fasta_dir / hash_to_filename[query_hash]}\n")
 
-        if not quiet:
-            print(
-                f"INFO: Calling fastANI for {len(query_hashes)} queries vs {subject_hash}"
-            )
-
-        # This will hide the stdout/stderr, unless it fails in which case we
-        # get to see some of it via the default exception message:
-        subprocess.check_output(
-            [
-                tool.exe_path,
-                "--ql",
-                str(tmp_queries),
-                "-r",
-                str(fasta_dir / hash_to_filename[subject_hash]),
-                # Send to file or just capture stdout?
-                "-o",
-                str(tmp_output),
-                "--fragLen",
-                str(run.configuration.fragsize),
-                "-k",
-                str(run.configuration.kmersize),
-                "--minFraction",
-                str(run.configuration.minmatch),
-            ],
-            stderr=subprocess.STDOUT,
+    if not quiet:
+        print(
+            f"INFO: Calling fastANI for {len(query_hashes)} queries vs {subject_hash}"
         )
 
-        # Now do a bulk import. There shouldn't be any unless perhaps we have a
-        # race condition with another thread, but skip any pre-existing entries via
-        # Sqlite3's "INSERT OR IGNORE" using dialect's on_conflict_do_nothing method.
-        session.execute(
-            sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
-            [
-                {
-                    "query_hash": query_hash,
-                    "subject_hash": subject_hash,
-                    "identity": identity,
-                    # Proxy values:
-                    "aln_length": round(
-                        run.configuration.fragsize * orthologous_matches
-                    ),
-                    "sim_errors": fragments - orthologous_matches,
-                    "cov_query": float(orthologous_matches) / fragments,
-                    "configuration_id": config_id,
-                    "uname_system": uname_system,
-                    "uname_release": uname_release,
-                    "uname_machine": uname_machine,
-                }
-                for (
-                    query_hash,
-                    subject_hash,
-                    identity,
-                    orthologous_matches,
-                    fragments,
-                ) in method_fastani.parse_fastani_file(tmp_output, filename_to_hash)
-            ],
-        )
-        session.commit()
+    # This will hide the stdout/stderr, unless it fails in which case we
+    # get to see some of it via the default exception message:
+    subprocess.check_output(
+        [
+            tool.exe_path,
+            "--ql",
+            str(tmp_queries),
+            "-r",
+            str(fasta_dir / hash_to_filename[subject_hash]),
+            # Send to file or just capture stdout?
+            "-o",
+            str(tmp_output),
+            "--fragLen",
+            str(run.configuration.fragsize),
+            "-k",
+            str(run.configuration.kmersize),
+            "--minFraction",
+            str(run.configuration.minmatch),
+        ],
+        stderr=subprocess.STDOUT,
+    )
 
+    # Now do a bulk import. There shouldn't be any unless perhaps we have a
+    # race condition with another thread, but skip any pre-existing entries via
+    # Sqlite3's "INSERT OR IGNORE" using dialect's on_conflict_do_nothing method.
+    session.execute(
+        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
+        [
+            {
+                "query_hash": query_hash,
+                "subject_hash": subject_hash,
+                "identity": identity,
+                # Proxy values:
+                "aln_length": round(run.configuration.fragsize * orthologous_matches),
+                "sim_errors": fragments - orthologous_matches,
+                "cov_query": float(orthologous_matches) / fragments,
+                "configuration_id": config_id,
+                "uname_system": uname_system,
+                "uname_release": uname_release,
+                "uname_machine": uname_machine,
+            }
+            for (
+                query_hash,
+                subject_hash,
+                identity,
+                orthologous_matches,
+                fragments,
+            ) in method_fastani.parse_fastani_file(tmp_output, filename_to_hash)
+        ],
+    )
+    session.commit()
     return 0
 
 
@@ -694,6 +715,7 @@ def log_anim(  # noqa: PLR0913
 
 
 def anib(  # noqa: PLR0913
+    tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
     hash_to_filename: dict[str, Path],
@@ -724,97 +746,95 @@ def anib(  # noqa: PLR0913
     outfmt = "6 " + " ".join(method_anib.BLAST_COLUMNS)
 
     fasta_dir = Path(run.fasta_directory)
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_dir = Path(tmp)
-        tmp_db = tmp_dir / f"{subject_stem}"  # prefix for BLAST DB
+    tmp_db = tmp_dir / f"{subject_stem}"  # prefix for BLAST DB
+
+    if not quiet:
+        print(f"INFO: Calling makeblastdb for {subject_stem}")
+
+    # This will hide the stdout/stderr, unless it fails in which case we
+    # get to see some of it via the default exception message:
+    subprocess.check_output(
+        [
+            str(tools.get_makeblastdb().exe_path),
+            "-in",
+            str(fasta_dir / hash_to_filename[subject_hash]),
+            "-input_type",
+            "fasta",
+            "-dbtype",
+            "nucl",
+            "-title",
+            subject_hash,
+            "-out",
+            tmp_db,
+        ],
+        stderr=subprocess.STDOUT,
+    )
+
+    for query_hash in query_hashes:
+        query_stem = Path(hash_to_filename[query_hash]).stem
+        tmp_tsv = tmp_dir / f"{query_stem}_vs_{subject_stem}.tsv"
+        # We may want to refactor this function's API
+        tmp_frag_query = method_anib.fragment_fasta_files(
+            [fasta_dir / hash_to_filename[query_hash]], tmp_dir, fragsize
+        )[0]
 
         if not quiet:
-            print(f"INFO: Calling makeblastdb for {subject_stem}")
+            print(f"INFO: Calling blastn for {query_stem} vs {subject_stem}")
 
         # This will hide the stdout/stderr, unless it fails in which case we
         # get to see some of it via the default exception message:
         subprocess.check_output(
             [
-                str(tools.get_makeblastdb().exe_path),
-                "-in",
-                str(fasta_dir / hash_to_filename[subject_hash]),
-                "-input_type",
-                "fasta",
-                "-dbtype",
-                "nucl",
-                "-title",
-                subject_stem,
+                str(tool.exe_path),
+                "-query",
+                str(tmp_frag_query),
+                "-db",
+                str(tmp_db),
                 "-out",
-                tmp_db,
+                str(tmp_tsv),
+                "-task",
+                "blastn",
+                "-outfmt",
+                outfmt,
+                "-xdrop_gap_final",
+                "150",
+                "-dust",
+                "no",
+                "-evalue",
+                "1e-15",
             ],
             stderr=subprocess.STDOUT,
         )
 
-        for query_hash in query_hashes:
-            query_stem = Path(hash_to_filename[query_hash]).stem
-            tmp_tsv = tmp_dir / f"{query_stem}_vs_{subject_stem}.tsv"
-            # We may want to refactor this function's API
-            tmp_frag_query = method_anib.fragment_fasta_files(
-                [fasta_dir / hash_to_filename[query_hash]], tmp_dir, fragsize
-            )[0]
+        identity, aln_length, sim_errors = method_anib.parse_blastn_file(tmp_tsv)
 
-            if not quiet:
-                print(f"INFO: Calling blastn for {query_stem} vs {subject_stem}")
+        query_length = (
+            session.query(db_orm.Genome)
+            .where(db_orm.Genome.genome_hash == query_hash)
+            .one()
+            .length
+        )
 
-            # This will hide the stdout/stderr, unless it fails in which case we
-            # get to see some of it via the default exception message:
-            subprocess.check_output(
-                [
-                    str(tool.exe_path),
-                    "-query",
-                    str(tmp_frag_query),
-                    "-db",
-                    str(tmp_db),
-                    "-out",
-                    str(tmp_tsv),
-                    "-task",
-                    "blastn",
-                    "-outfmt",
-                    outfmt,
-                    "-xdrop_gap_final",
-                    "150",
-                    "-dust",
-                    "no",
-                    "-evalue",
-                    "1e-15",
-                ],
-                stderr=subprocess.STDOUT,
-            )
+        session.execute(
+            sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
+            [
+                {
+                    "query_hash": query_hash,
+                    "subject_hash": subject_hash,
+                    "identity": identity,
+                    "aln_length": aln_length,
+                    "sim_errors": sim_errors,
+                    "cov_query": float(aln_length) / query_length,
+                    "cov_subject": float(aln_length) / subject_length,
+                    "configuration_id": config_id,
+                    "uname_system": uname_system,
+                    "uname_release": uname_release,
+                    "uname_machine": uname_machine,
+                }
+            ],
+        )
 
-            identity, aln_length, sim_errors = method_anib.parse_blastn_file(tmp_tsv)
-
-            query_length = (
-                session.query(db_orm.Genome)
-                .where(db_orm.Genome.genome_hash == query_hash)
-                .one()
-                .length
-            )
-
-            session.execute(
-                sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
-                [
-                    {
-                        "query_hash": query_hash,
-                        "subject_hash": subject_hash,
-                        "identity": identity,
-                        "aln_length": aln_length,
-                        "sim_errors": sim_errors,
-                        "cov_query": float(aln_length) / query_length,
-                        "cov_subject": float(aln_length) / subject_length,
-                        "configuration_id": config_id,
-                        "uname_system": uname_system,
-                        "uname_release": uname_release,
-                        "uname_machine": uname_machine,
-                    }
-                ],
-            )
-
-            session.commit()
+        session.commit()
     return 0
 
 

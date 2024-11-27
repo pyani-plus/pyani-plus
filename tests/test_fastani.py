@@ -52,7 +52,8 @@ def test_running_fastani(
     input_genomes_tiny: Path,
 ) -> None:
     """Check can run a fastANI comparison to DB."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "new.sqlite"
     assert not tmp_db.is_file()
 
     tool = tools.get_fastani()
@@ -81,6 +82,7 @@ def test_running_fastani(
     hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
 
     private_cli.fastani(
+        tmp_dir,
         session,
         run,
         hash_to_filename,

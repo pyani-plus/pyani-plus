@@ -104,7 +104,8 @@ def test_running_anib(
     input_genomes_tiny: Path,
 ) -> None:
     """Check can log a ANIb comparison to DB."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "new.sqlite"
     assert not tmp_db.is_file()
 
     tool = tools.get_blastn()
@@ -130,6 +131,7 @@ def test_running_anib(
     hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
 
     private_cli.anib(
+        tmp_dir,
         session,
         run,
         hash_to_filename,

@@ -26,6 +26,7 @@ These tests are intended to be run from the repository root using:
 make test
 """
 
+import filecmp
 import os
 import re
 import shutil
@@ -98,8 +99,7 @@ def test_snakemake_rule_fastani(
     Checks that the fastANI rule in the fastANI snakemake wrapper gives the
     expected output.
     """
-    # Remove the output directory to force re-running the snakemake rule
-    shutil.rmtree(fastani_targets_outdir, ignore_errors=True)
+    tmp_dir = Path(tmp_path)
 
     # Assuming this will match but worker nodes might have a different version
     fastani_tool = get_fastani()
@@ -138,7 +138,10 @@ def test_snakemake_rule_fastani(
         temp=Path(tmp_path),
     )
 
-    # Want to check the intermediate files, but currently lost in a temp folder...
+    # Check the intermediate files
+
+    for file in (input_genomes_tiny / "intermediates/fastANI").glob("*_vs_*.fastani"):
+        assert filecmp.cmp(file, tmp_dir / file), f"Wrong fastANI output in {file.name}"
 
     compare_db_matrices(db, input_genomes_tiny / "matrices")
 

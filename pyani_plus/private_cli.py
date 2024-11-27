@@ -405,77 +405,135 @@ def log_comparison(  # noqa: PLR0913
     return 0
 
 
-@app.command(rich_help_panel="ANI methods")
-def fastani(
+@app.command()
+def compute_column(  # noqa: C901
     database: REQ_ARG_TYPE_DATABASE,
     run_id: REQ_ARG_TYPE_RUN_ID,
-    subject: REQ_ARG_TYPE_SUBJECT,
+    subject: Annotated[
+        str,
+        typer.Option(
+            help="Subject (reference) FASTA filename, MD5 checksum, or index (integer).",
+            show_default=False,
+            exists=True,
+            dir_okay=False,
+            file_okay=True,
+        ),
+    ],
     *,
     quiet: OPT_ARG_TYPE_QUIET = False,
 ) -> int:
-    """Run fastANI and log pairwise comparison to database.
+    """Run the method for one column and log pairwise comparisons to the database.
 
-    This to be used to fill in a column of the final matrix, i.e. the output for
-    many query genomes vs a single subject (reference) genome.
+    The database and run ID specify the method and configuration, additionally
+    you must supply a subject filename, hash, or column index to control which
+    column of the matrix is to be computed.
 
-    The associated configuration and genome entries must already exist.
+    If using a column number, these are taken to be zero based but it will accept
+    0 or N to mean the first subject. This is intended to facilitate use with
+    cluster array jobs.
     """
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    uname = platform.uname()
-    uname_system = uname.system
-    uname_release = uname.release
-    uname_machine = uname.machine
-
-    if not quiet:
-        print(f"INFO: Logging fastANI comparison vs {subject} to {database}")
     session = db_orm.connect_to_db(database)
     run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-    if run.configuration.method != "fastANI":
-        msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
-        sys.exit(msg)
+    config = run.configuration
+    method = config.method
 
-    tool = tools.get_fastani()
-    _check_tool_version(tool, run.configuration)
-
-    config_id = run.configuration_id
     filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
     hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+    n = len(hash_to_filename)
+
     if subject in hash_to_filename:
         subject_hash = subject
+    elif Path(subject).name in filename_to_hash:
+        subject_hash = filename_to_hash[Path(subject).name]
     else:
         try:
-            subject_hash = filename_to_hash[Path(subject).name]
-        except KeyError:
-            msg = f"ERROR: Did not recognise {subject!r} as an MD5 hash or filename in run-id {run_id}"
+            column = int(subject)
+        except ValueError:
+            msg = f"ERROR: Did not recognise {subject!r} as an MD5 hash, filename, or column number in run-id {run_id}"
             sys.exit(msg)
+        if column < 0 or len(hash_to_filename) < column:
+            msg = f"ERROR: Column should be in range 0 to {n}, not {subject}"
+            sys.exit(msg)
+        if column == n:
+            if not quiet:
+                sys.stderr.write("INFO: Treating subject N as 0 (first column)\n")
+            column = 0
+        subject_hash = sorted(hash_to_filename)[column]
+        del column
+
+    if not quiet:
+        print(f"INFO: Logging {method} comparison vs {subject_hash} to {database}")
 
     # What comparisons are needed?
-    missing_query_hashes = set(hash_to_filename).difference(
+    query_hashes: set[str] = set(hash_to_filename).difference(
         comp.query_hash
         for comp in run.comparisons().where(
             db_orm.Comparison.subject_hash == subject_hash
         )
     )
 
-    if not missing_query_hashes:
+    if not query_hashes:
         if not quiet:
             print(f"INFO: No comparisons needed against {subject_hash}")
         return 0
+
+    # Will probably want to move each of these functions to the relevant method module...
+    try:
+        compute = {
+            "fastANI": fastani,
+            "ANIb": anib,
+        }[method]
+    except KeyError:
+        msg = f"ERROR: Unknown method {method} for run-id {run_id} in {database}"
+        sys.exit(msg)
+
+    return compute(
+        session,
+        run,
+        hash_to_filename,
+        filename_to_hash,
+        query_hashes,
+        subject_hash,
+        quiet=quiet,
+    )
+
+
+def fastani(  # noqa: PLR0913
+    session: Session,
+    run: db_orm.Run,
+    hash_to_filename: dict[str, Path],
+    filename_to_hash: dict[str, str],
+    query_hashes: set[str],
+    subject_hash: str,
+    *,
+    quiet: bool = False,
+) -> int:
+    """Run fastANI many-vs-subject and log column of comparisons to database."""
+    uname = platform.uname()
+    uname_system = uname.system
+    uname_release = uname.release
+    uname_machine = uname.machine
+
+    tool = tools.get_fastani()
+    _check_tool_version(tool, run.configuration)
+
+    config_id = run.configuration.configuration_id
 
     fasta_dir = Path(run.fasta_directory)
     with tempfile.TemporaryDirectory() as tmp:
         tmp_output = Path(tmp) / f"queries_vs_{subject_hash}.csv"
         tmp_queries = Path(tmp) / f"queries_vs_{subject_hash}.txt"
         with tmp_queries.open("w") as handle:
-            for query_hash in missing_query_hashes:
+            for query_hash in query_hashes:
                 handle.write(f"{fasta_dir / hash_to_filename[query_hash]}\n")
 
         if not quiet:
             print(
-                f"INFO: Calling fastANI for {len(missing_query_hashes)} queries vs {subject_hash}"
+                f"INFO: Calling fastANI for {len(query_hashes)} queries vs {subject_hash}"
             )
 
         # This will hide the stdout/stderr, unless it fails in which case we
@@ -635,70 +693,26 @@ def log_anim(  # noqa: PLR0913
     return 0
 
 
-@app.command(rich_help_panel="ANI methods")
-def anib(  # noqa: C901, PLR0915
-    database: REQ_ARG_TYPE_DATABASE,
-    # These are for the comparison table
-    run_id: REQ_ARG_TYPE_RUN_ID,
-    subject: REQ_ARG_TYPE_SUBJECT,
+def anib(  # noqa: PLR0913
+    session: Session,
+    run: db_orm.Run,
+    hash_to_filename: dict[str, Path],
+    filename_to_hash: dict[str, str],  # noqa: ARG001
+    query_hashes: set[str],
+    subject_hash: str,
     *,
-    quiet: OPT_ARG_TYPE_QUIET = False,
+    quiet: bool = False,
 ) -> int:
-    """Run ANIb and log pairwise comparison to database.
-
-    This to be used to fill in a column of the final matrix, i.e. the output for
-    many query genomes vs a single subject (reference) genome. This will build a
-    temporary BLAST database for the reference (assuming any comparisons are needed),
-    and then run ``blastn`` for each query sequence.
-
-    The associated configuration and genome entries must already exist.
-    """
-    if database != ":memory:" and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
-
+    """Run ANIb many-vs-subject and log column of comparisons to database."""
     uname = platform.uname()
     uname_system = uname.system
     uname_release = uname.release
     uname_machine = uname.machine
 
-    if not quiet:
-        print(f"Logging ANIb comparison to {database}")
-    session = db_orm.connect_to_db(database)
-    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-    if run.configuration.method != "ANIb":
-        msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
-        sys.exit(msg)
-
     tool = tools.get_blastn()
     _check_tool_version(tool, run.configuration)
 
     config_id = run.configuration_id
-    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
-    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
-
-    if subject in hash_to_filename:
-        subject_hash = subject
-    else:
-        try:
-            subject_hash = filename_to_hash[Path(subject).name]
-        except KeyError:
-            msg = f"ERROR: Did not recognise {subject!r} as an MD5 hash or filename in run-id {run_id}"
-            sys.exit(msg)
-
-    # What comparisons are needed?
-    missing_query_hashes = set(hash_to_filename).difference(
-        comp.query_hash
-        for comp in run.comparisons().where(
-            db_orm.Comparison.subject_hash == subject_hash
-        )
-    )
-
-    if not missing_query_hashes:
-        if not quiet:
-            print(f"INFO: No comparisons needed against {subject_hash}")
-        return 0
-
     fragsize = run.configuration.fragsize
     subject_length = (
         session.query(db_orm.Genome)
@@ -708,6 +722,7 @@ def anib(  # noqa: C901, PLR0915
     )
     subject_stem = Path(hash_to_filename[subject_hash]).stem
     outfmt = "6 " + " ".join(method_anib.BLAST_COLUMNS)
+
     fasta_dir = Path(run.fasta_directory)
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
@@ -735,7 +750,7 @@ def anib(  # noqa: C901, PLR0915
             stderr=subprocess.STDOUT,
         )
 
-        for query_hash in missing_query_hashes:
+        for query_hash in query_hashes:
             query_stem = Path(hash_to_filename[query_hash]).stem
             tmp_tsv = tmp_dir / f"{query_stem}_vs_{subject_stem}.tsv"
             # We may want to refactor this function's API

@@ -122,10 +122,9 @@ def compare_sourmash_ani_files(data1: Path, data2: Path) -> bool:
 
 
 def test_snakemake_sketch_rule(
+    input_genomes_tiny: Path,
     sourmash_targets_signature_outdir: Path,
-    sourmash_targets_sig: list[str],
     config_sourmash_args: dict,
-    sourmash_targets_sig_indir: Path,
     tmp_path: str,
 ) -> None:
     """Test sourmash sketch snakemake wrapper.
@@ -145,30 +144,29 @@ def test_snakemake_sketch_rule(
     config = config_sourmash_args.copy()
     config["outdir"] = sourmash_targets_signature_outdir
 
+    expected_sigs = list((input_genomes_tiny / "intermediates/sourmash").glob("*.sig"))
+    targets = [
+        sourmash_targets_signature_outdir / fname.name for fname in expected_sigs
+    ]
+
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
         workflow_name="snakemake_sourmash.smk",
-        targets=sourmash_targets_sig,
+        targets=targets,
         params=config,
         working_directory=Path(tmp_path),
     )
 
     # Check output against target fixtures
-    for fname in sourmash_targets_sig:
-        assert Path(fname).suffix == ".sig", fname
-        assert Path(fname).is_file()
-        assert compare_sourmash_sig_files(
-            sourmash_targets_signature_outdir / Path(fname).name,
-            sourmash_targets_sig_indir / Path(fname).name,
-        )
+    for expected, generated in zip(expected_sigs, targets, strict=False):
+        assert compare_sourmash_sig_files(expected, generated)
 
 
-def test_snakemake_compare_rule(  # noqa: PLR0913
+def test_snakemake_compare_rule(
     capsys: pytest.CaptureFixture[str],
     sourmash_targets_compare_outdir: Path,
     config_sourmash_args: dict,
-    sourmash_targets_compare_indir: Path,
     input_genomes_tiny: Path,
     tmp_path: str,
 ) -> None:
@@ -225,7 +223,7 @@ def test_snakemake_compare_rule(  # noqa: PLR0913
     # Check output against target fixture
     assert compare_sourmash_ani_files(
         sourmash_targets_compare_outdir / "sourmash.csv",
-        sourmash_targets_compare_indir / "sourmash.csv",
+        input_genomes_tiny / "intermediates/sourmash/sourmash.csv",
     )
 
     compare_db_matrices(db, input_genomes_tiny / "matrices")

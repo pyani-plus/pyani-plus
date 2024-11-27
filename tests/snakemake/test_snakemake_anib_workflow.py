@@ -68,15 +68,19 @@ def config_anib_args(
 
 
 def test_snakemake_rule_fragments(
-    anib_targets_fragments: list[Path],
+    input_genomes_tiny: Path,
     anib_targets_outdir: Path,
     config_anib_args: dict,
-    anib_fragments: Path,
     tmp_path: str,
 ) -> None:
     """Test overall ANIb snakemake wrapper."""
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(anib_targets_outdir, ignore_errors=True)
+
+    anib_targets_fragments = [
+        anib_targets_outdir / (_.stem + "-fragments.fna")
+        for _ in input_genomes_tiny.glob("*.f*")
+    ]
 
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
@@ -91,7 +95,9 @@ def test_snakemake_rule_fragments(
     for fname in anib_targets_fragments:
         assert fname.name.endswith("-fragments.fna"), fname
         assert Path(fname).is_file()
-        assert filecmp.cmp(fname, anib_fragments / fname.name)
+        assert filecmp.cmp(
+            fname, input_genomes_tiny / "intermediates/ANIb" / fname.name
+        )
 
 
 def compare_blast_json(file_a: Path, file_b: Path) -> bool:
@@ -108,15 +114,18 @@ def compare_blast_json(file_a: Path, file_b: Path) -> bool:
 
 
 def test_snakemake_rule_blastdb(
-    anib_targets_blastdb: list[Path],
+    input_genomes_tiny: Path,
     anib_targets_outdir: Path,
     config_anib_args: dict,
-    anib_blastdb: Path,
     tmp_path: str,
 ) -> None:
     """Test overall ANIb snakemake wrapper."""
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(anib_targets_outdir, ignore_errors=True)
+
+    anib_targets_blastdb = [
+        anib_targets_outdir / (_.stem + ".njs") for _ in input_genomes_tiny.glob("*.f*")
+    ]
 
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
@@ -131,15 +140,15 @@ def test_snakemake_rule_blastdb(
     for fname in anib_targets_blastdb:
         assert fname.suffix == ".njs", fname
         assert Path(fname).is_file()
-        compare_blast_json(fname, anib_blastdb / fname.name)
+        compare_blast_json(
+            fname, input_genomes_tiny / "intermediates/ANIb" / fname.name
+        )
 
 
-def test_snakemake_rule_blastn(  # noqa: PLR0913
+def test_snakemake_rule_blastn(
     input_genomes_tiny: Path,
-    anib_targets_blastn: list[Path],
     anib_targets_outdir: Path,
     config_anib_args: dict,
-    anib_blastn: Path,
     tmp_path: str,
 ) -> None:
     """Test blastn (overall) ANIb snakemake wrapper."""
@@ -166,19 +175,20 @@ def test_snakemake_rule_blastn(  # noqa: PLR0913
     )
     assert db.is_file()
 
+    expected_targets = list((input_genomes_tiny / "intermediates/ANIb").glob("*.tsv"))
+    generated_targets = [anib_targets_outdir / f.name for f in expected_targets]
+
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
         workflow_name="snakemake_anib.smk",
-        targets=anib_targets_blastn,
+        targets=generated_targets,
         params=config_anib_args,
         working_directory=Path(tmp_path),
     )
 
     # Check output against target fixtures
-    for fname in anib_targets_blastn:
-        assert fname.suffix == ".tsv", fname
-        assert Path(fname).is_file()
-        assert (anib_blastn / fname.name).is_file()
-        assert filecmp.cmp(fname, anib_blastn / fname.name)
+    for expected, generated in zip(expected_targets, generated_targets, strict=False):
+        assert generated.is_file()
+        assert filecmp.cmp(expected, generated)
     compare_db_matrices(db, input_genomes_tiny / "matrices")

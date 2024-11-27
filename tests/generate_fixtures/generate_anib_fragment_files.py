@@ -37,7 +37,7 @@ from Bio.SeqIO.FastaIO import SimpleFastaParser
 
 # Paths to directories (eg, input sequences, delta and filter)
 INPUT_DIR = Path("../fixtures/viral_example")
-FRAG_DIR = Path("../fixtures/anib/fragments")
+FRAG_DIR = Path("../fixtures/viral_example/intermediates/ANIb")
 FRAGSIZE = 1020  # Default ANIb fragment size
 
 # Remove pre-existing fixtures before regenerating new ones.

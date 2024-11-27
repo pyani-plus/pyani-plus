@@ -86,13 +86,11 @@ def compare_fastani_files(file1: Path, file2: Path) -> bool:
     return True
 
 
-def test_snakemake_rule_fastani(  # noqa: PLR0913
+def test_snakemake_rule_fastani(
     capsys: pytest.CaptureFixture[str],
     input_genomes_tiny: Path,
-    fastani_targets: list[str],
     fastani_targets_outdir: Path,
     config_fastani_args: dict,
-    fastani_targets_indir: Path,
     tmp_path: str,
 ) -> None:
     """Test fastANI snakemake wrapper.
@@ -127,27 +125,28 @@ def test_snakemake_rule_fastani(  # noqa: PLR0913
     output = capsys.readouterr().out
     assert output.endswith("Run identifier 1\n")
 
+    expected_targets = list(
+        (input_genomes_tiny / "intermediates/fastANI").glob("*.fastani")
+    )
+    generated_targets = [fastani_targets_outdir / f.name for f in expected_targets]
+
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
         workflow_name="snakemake_fastani.smk",
-        targets=fastani_targets,
+        targets=generated_targets,
         params=config_fastani_args,
         working_directory=Path(tmp_path),
     )
 
     # Check output against target fixtures
-    for fname in fastani_targets:
-        assert compare_fastani_files(
-            fastani_targets_indir / fname,
-            fastani_targets_outdir / fname,
-        )
+    for expected, generated in zip(expected_targets, generated_targets, strict=False):
+        assert compare_fastani_files(expected, generated)
 
     compare_db_matrices(db, input_genomes_tiny / "matrices")
 
 
 def test_snakemake_duplicate_stems(
-    fastani_targets: list[str],
     fastani_targets_outdir: Path,
     config_fastani_args: dict,
     tmp_path: str,
@@ -172,11 +171,17 @@ def test_snakemake_duplicate_stems(
     dup_config["indir"] = dup_input_dir
     msg = f"Duplicated stems found for {sorted(stems)}. Please investigate."
 
+    generated_targets = [
+        fastani_targets_outdir / f"{q}_vs_{s}.fastani"
+        for q in dup_input_dir.glob("*.f*")
+        for s in dup_input_dir.glob("*.f*")
+    ]
+
     with pytest.raises(ValueError, match=re.escape(msg)):
         run_snakemake_with_progress_bar(
             executor=ToolExecutor.local,
             workflow_name="snakemake_fastani.smk",
-            targets=fastani_targets,
+            targets=generated_targets,
             params=dup_config,
             working_directory=Path(tmp_path),
         )

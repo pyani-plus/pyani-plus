@@ -53,30 +53,26 @@ def expected_gap_lengths_qry() -> int:
 
 
 def test_parse_mcoords(
-    dnadiff_targets_showcoords_indir: Path, expected_mcoords_output: tuple[float, int]
+    input_genomes_tiny: Path, expected_mcoords_output: tuple[float, int]
 ) -> None:
     """Check parsing of test mcoords file."""
     assert expected_mcoords_output == method_dnadiff.parse_mcoords(
-        dnadiff_targets_showcoords_indir
-        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords"
+        input_genomes_tiny
+        / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords"
     )
 
 
-def test_parse_qdiff(
-    dnadiff_targets_showdiff_indir: Path, expected_gap_lengths_qry: int
-) -> None:
+def test_parse_qdiff(input_genomes_tiny: Path, expected_gap_lengths_qry: int) -> None:
     """Check parsing of test qdiff file."""
     assert expected_gap_lengths_qry == method_dnadiff.parse_qdiff(
-        dnadiff_targets_showdiff_indir
-        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff"
+        input_genomes_tiny
+        / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff"
     )
 
 
 def test_missing_db(
     tmp_path: str,
     input_genomes_tiny: Path,
-    dnadiff_targets_showcoords_indir: Path,
-    dnadiff_targets_showdiff_indir: Path,
 ) -> None:
     """Check expected error when DB does not exist."""
     tmp_db = Path(tmp_path) / "new.sqlite"
@@ -89,18 +85,16 @@ def test_missing_db(
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            mcoords=dnadiff_targets_showcoords_indir
-            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
-            qdiff=dnadiff_targets_showdiff_indir
-            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff",
+            mcoords=input_genomes_tiny
+            / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
+            qdiff=input_genomes_tiny
+            / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff",
         )
 
 
 def test_bad_query_or_subject(
     tmp_path: str,
     input_genomes_tiny: Path,
-    dnadiff_targets_showcoords_indir: Path,
-    dnadiff_targets_showdiff_indir: Path,
 ) -> None:
     """Mismatch between query or subject FASTA in show-coords and show-diff output and commandline."""
     tmp_db = Path(tmp_path) / "new.sqlite"
@@ -118,10 +112,10 @@ def test_bad_query_or_subject(
             run_id=1,
             query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            mcoords=dnadiff_targets_showcoords_indir
-            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
-            qdiff=dnadiff_targets_showdiff_indir
-            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff",
+            mcoords=input_genomes_tiny
+            / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
+            qdiff=input_genomes_tiny
+            / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff",
         )
 
     with pytest.raises(
@@ -136,10 +130,10 @@ def test_bad_query_or_subject(
             run_id=1,
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            mcoords=dnadiff_targets_showcoords_indir
-            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
-            qdiff=dnadiff_targets_showdiff_indir
-            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff",
+            mcoords=input_genomes_tiny
+            / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
+            qdiff=input_genomes_tiny
+            / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff",
         )
 
     with pytest.raises(
@@ -154,10 +148,10 @@ def test_bad_query_or_subject(
             run_id=1,
             query_fasta=input_genomes_tiny / "OP073605.fasta",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            mcoords=dnadiff_targets_showcoords_indir
-            / "OP073605_vs_MGV-GENOME-0266457.mcoords",
-            qdiff=dnadiff_targets_showdiff_indir
-            / "MGV-GENOME-0266457_vs_OP073605.qdiff",
+            mcoords=input_genomes_tiny
+            / "intermediates/dnadiff/OP073605_vs_MGV-GENOME-0266457.mcoords",
+            qdiff=input_genomes_tiny
+            / "intermediates/dnadiff/MGV-GENOME-0266457_vs_OP073605.qdiff",
         )
 
     with pytest.raises(
@@ -172,10 +166,10 @@ def test_bad_query_or_subject(
             run_id=1,
             query_fasta=input_genomes_tiny / "OP073605.fasta",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            mcoords=dnadiff_targets_showcoords_indir
-            / "OP073605_vs_MGV-GENOME-0266457.mcoords",
-            qdiff=dnadiff_targets_showdiff_indir
-            / "OP073605_vs_MGV-GENOME-0264574.qdiff",
+            mcoords=input_genomes_tiny
+            / "intermediates/dnadiff/OP073605_vs_MGV-GENOME-0266457.mcoords",
+            qdiff=input_genomes_tiny
+            / "intermediates/dnadiff/OP073605_vs_MGV-GENOME-0264574.qdiff",
         )
 
 
@@ -183,8 +177,6 @@ def test_logging_dnadiff(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
-    dnadiff_targets_showcoords_indir: Path,
-    dnadiff_targets_showdiff_indir: Path,
 ) -> None:
     """Check can log a fastANI comparison to DB."""
     tmp_db = Path(tmp_path) / "new.sqlite"
@@ -211,10 +203,10 @@ def test_logging_dnadiff(
         run_id=1,
         query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
         subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-        mcoords=dnadiff_targets_showcoords_indir
-        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
-        qdiff=dnadiff_targets_showdiff_indir
-        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff",
+        mcoords=input_genomes_tiny
+        / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
+        qdiff=input_genomes_tiny
+        / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff",
     )
 
     # Check the recorded comparison values

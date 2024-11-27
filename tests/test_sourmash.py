@@ -34,8 +34,6 @@ import pytest
 from pyani_plus import db_orm, private_cli, tools
 from pyani_plus.methods import method_sourmash
 
-from . import get_matrix_entry
-
 
 def test_parser_with_bad_self_vs_self(tmp_path: str) -> None:
     """Check self-vs-self is one in sourmash compare parser."""
@@ -54,7 +52,7 @@ def test_parser_with_bad_self_vs_self(tmp_path: str) -> None:
         next(parser)
 
 
-def test_missing_db(tmp_path: str, sourmash_targets_compare_indir: Path) -> None:
+def test_missing_db(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check expected error when DB does not exist."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
@@ -63,8 +61,7 @@ def test_missing_db(tmp_path: str, sourmash_targets_compare_indir: Path) -> None
         private_cli.log_sourmash(
             database=tmp_db,
             run_id=1,
-            compare=sourmash_targets_compare_indir
-            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.csv",
+            compare=input_genomes_tiny / "intermediates/sourmash/sourmash.csv",
         )
 
 
@@ -72,19 +69,18 @@ def test_bad_query_or_subject(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
-    sourmash_targets_compare_indir: Path,
 ) -> None:
     """Mismatch between query or subject FASTA in sourmash compare output and commandline.
 
-    Defining a run with two files, but then parsing compare output with different FASTA.
+    Defining a run with three files, but then parsing compare output with different FASTA.
     """
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
 
     tmp_input = Path(tmp_path) / "input"
     tmp_input.mkdir()
-    for filename in input_genomes_tiny.glob("MGV-*.f*"):
-        alias = tmp_input / (filename.name)
+    for i, filename in enumerate(input_genomes_tiny.glob("*.f*")):
+        alias = tmp_input / f"file{i}.fasta"
         alias.symlink_to(filename)
 
     tool = tools.get_sourmash()
@@ -109,35 +105,38 @@ def test_bad_query_or_subject(
     with pytest.raises(
         SystemExit,
         match=(
-            "CSV file .*/MGV-GENOME-0264574_vs_OP073605.csv contained reference"
-            " to 'OP073605.fasta' which is not in the run"
+            "CSV file .*/sourmash.csv contained reference to '.*' which is not in the run"
         ),
     ):
         private_cli.log_sourmash(
             database=tmp_db,
             run_id=1,
-            compare=sourmash_targets_compare_indir
-            / "MGV-GENOME-0264574_vs_OP073605.csv",
+            compare=input_genomes_tiny / "intermediates/sourmash/sourmash.csv",
         )
 
 
-def test_not_all_vs_all(
+def test_wrong_size(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
-    sourmash_targets_compare_indir: Path,
 ) -> None:
-    """Mismatch where CSV is only a subset.
+    """Mismatch where CSV matrix is wrong size.
 
-    Defining a run with 3 files, but then parsing compare output only 2 FASTA.
+    Defining a run with 2 files, but then parsing compare output with 3 FASTA.
     """
-    tmp_db = Path(tmp_path) / "three.sqlite"
+    tmp_db = Path(tmp_path) / "two.sqlite"
     assert not tmp_db.is_file()
+
+    tmp_input = Path(tmp_path) / "input"
+    tmp_input.mkdir()
+    for filename in input_genomes_tiny.glob("M*.f*"):
+        alias = tmp_input / filename.name
+        alias.symlink_to(filename)
 
     tool = tools.get_sourmash()
 
     private_cli.log_run(
-        fasta=input_genomes_tiny,
+        fasta=tmp_input,
         database=tmp_db,
         cmdline="pyani-plus sourmash ...",
         status="Testing",
@@ -155,13 +154,12 @@ def test_not_all_vs_all(
 
     with pytest.raises(
         SystemExit,
-        match=("Expected sourmash compare CSV to have 3 columns, not 2"),
+        match=("Expected sourmash compare CSV to have 2 columns, not 3"),
     ):
         private_cli.log_sourmash(
             database=tmp_db,
             run_id=1,
-            compare=sourmash_targets_compare_indir
-            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.csv",
+            compare=input_genomes_tiny / "intermediates/sourmash/sourmash.csv",
         )
 
 
@@ -169,7 +167,6 @@ def test_logging_wrong_version(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
-    sourmash_targets_compare_indir: Path,
 ) -> None:
     """Check mismatched sourmash version fails."""
     tmp_db = Path(tmp_path) / "new.sqlite"
@@ -199,8 +196,7 @@ def test_logging_wrong_version(
         private_cli.log_sourmash(
             database=tmp_db,
             run_id=1,
-            compare=sourmash_targets_compare_indir
-            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.csv",
+            compare=input_genomes_tiny / "intermediates/sourmash/sourmash.csv",
         )
 
 
@@ -208,23 +204,15 @@ def test_logging_sourmash(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
-    sourmash_targets_compare_indir: Path,
 ) -> None:
     """Check can log a sourmash comparison to DB."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
 
-    # Mock input folder of just 2 files
-    tmp_input = Path(tmp_path) / "input"
-    tmp_input.mkdir()
-    for filename in input_genomes_tiny.glob("MGV-*.f*"):
-        alias = tmp_input / (filename.name)
-        alias.symlink_to(filename)
-
     tool = tools.get_sourmash()
 
     private_cli.log_run(
-        fasta=tmp_input,
+        fasta=input_genomes_tiny,
         database=tmp_db,
         cmdline="pyani-plus sourmash ...",
         status="Testing",
@@ -243,22 +231,11 @@ def test_logging_sourmash(
     private_cli.log_sourmash(
         database=tmp_db,
         run_id=1,
-        compare=sourmash_targets_compare_indir
-        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.csv",
+        compare=input_genomes_tiny / "intermediates/sourmash/sourmash.csv",
     )
 
     # Check the recorded comparison values
     session = db_orm.connect_to_db(tmp_db)
-    assert session.query(db_orm.Comparison).count() == 4  # noqa: PLR2004
-    # Should we just compare as a matrix?
-    for comp in session.query(db_orm.Comparison):
-        pytest.approx(
-            comp.identity,
-            get_matrix_entry(
-                input_genomes_tiny / "matrices" / "sourmash_identity.tsv",
-                comp.query_hash,
-                comp.subject_hash,
-            ),
-        )
+    assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
     session.close()
     tmp_db.unlink()

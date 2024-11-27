@@ -54,11 +54,11 @@ def genome_hashes(input_genomes_tiny: Path) -> dict:
     }
 
 
-def test_delta_parsing(anim_nucmer_targets_filter_indir: Path) -> None:
+def test_delta_parsing(input_genomes_tiny: Path) -> None:
     """Check parsing of test NUCmer .delta/.filter file."""
     assert method_anim.parse_delta(
-        anim_nucmer_targets_filter_indir
-        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
+        input_genomes_tiny
+        / "intermediates/ANIm/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
     ) == (
         39169,
         39176,
@@ -75,9 +75,7 @@ def test_aligned_bases_count(aligned_regions: dict) -> None:
     assert method_anim.get_aligned_bases_count(aligned_regions) == 39176  # noqa: PLR2004
 
 
-def test_missing_db(
-    tmp_path: str, input_genomes_tiny: Path, anim_nucmer_targets_filter_indir: Path
-) -> None:
+def test_missing_db(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check expected error when DB does not exist."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
@@ -89,14 +87,12 @@ def test_missing_db(
             # These are for the comparison table
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            deltafilter=anim_nucmer_targets_filter_indir
-            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
+            deltafilter=input_genomes_tiny
+            / "intermediates/ANIm/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
         )
 
 
-def test_bad_query_or_subject(
-    tmp_path: str, input_genomes_tiny: Path, anim_nucmer_targets_filter_indir: Path
-) -> None:
+def test_bad_query_or_subject(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Mismatch between query or subject FASTA in fastANI output and commandline."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
@@ -113,8 +109,8 @@ def test_bad_query_or_subject(
             run_id=1,
             query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            deltafilter=anim_nucmer_targets_filter_indir
-            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
+            deltafilter=input_genomes_tiny
+            / "intermediates/ANIm/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
         )
 
     with pytest.raises(
@@ -129,8 +125,8 @@ def test_bad_query_or_subject(
             run_id=1,
             query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
             subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            deltafilter=anim_nucmer_targets_filter_indir
-            / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
+            deltafilter=input_genomes_tiny
+            / "intermediates/ANIm/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
         )
 
 
@@ -138,7 +134,6 @@ def test_logging_anim(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
-    anim_nucmer_targets_filter_indir: Path,
 ) -> None:
     """Check can log a fastANI comparison to DB."""
     tmp_db = Path(tmp_path) / "new.sqlite"
@@ -166,8 +161,8 @@ def test_logging_anim(
         run_id=1,
         query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
         subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-        deltafilter=anim_nucmer_targets_filter_indir
-        / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
+        deltafilter=input_genomes_tiny
+        / "intermediates/ANIm/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
     )
 
     # Check the recorded comparison values

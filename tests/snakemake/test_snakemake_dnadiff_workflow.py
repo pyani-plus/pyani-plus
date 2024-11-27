@@ -102,16 +102,8 @@ def compare_show_diff_files(file1: Path, file2: Path) -> bool:
     return True
 
 
-def test_dnadiff(  # noqa: PLR0913
+def test_dnadiff(
     input_genomes_tiny: Path,
-    dnadiff_nucmer_targets_delta: list[Path],
-    dnadiff_nucmer_targets_filter: list[Path],
-    dnadiff_targets_showcoords: list[Path],
-    dnadiff_targets_showdiff: list[Path],
-    dnadiff_nucmer_targets_delta_indir: Path,
-    dnadiff_nucmer_targets_filter_indir: Path,
-    dnadiff_targets_showcoords_indir: Path,
-    dnadiff_targets_showdiff_indir: Path,
     dnadiff_targets_outdir: Path,
     config_dnadiff_args: dict,
     tmp_path: str,
@@ -155,41 +147,44 @@ def test_dnadiff(  # noqa: PLR0913
     config = config_dnadiff_args.copy()
     config["outdir"] = dnadiff_targets_outdir
 
+    targets = [
+        dnadiff_targets_outdir / fname.name
+        for fname in (input_genomes_tiny / "intermediates/dnadiff").glob("*.mcoords")
+    ]
+
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
         workflow_name="snakemake_dnadiff.smk",
-        targets=dnadiff_targets_showcoords,
+        targets=targets,
         params=config,
         working_directory=Path(tmp_path),
     )
 
     # Check nucmer output (.delta) against target fixtures
-    for fname in dnadiff_nucmer_targets_delta:
-        assert compare_files_with_skip(
-            fname, dnadiff_nucmer_targets_delta_indir / fname.name
-        )
+    for fname in (input_genomes_tiny / "intermediates/dnadiff").glob("*.delta"):
+        assert compare_files_with_skip(fname, dnadiff_targets_outdir / fname.name)
 
     # Check nucmer output (.filter) against target fixtures
-    for fname in dnadiff_nucmer_targets_filter:
+    for fname in (input_genomes_tiny / "intermediates/dnadiff").glob("*.filter"):
         assert compare_files_with_skip(
             fname,
-            dnadiff_nucmer_targets_filter_indir / fname.name,
-        )
-
-    # Check show_coords output (.mcoords) against target fixtures
-    for fname in dnadiff_targets_showcoords:
-        assert compare_files_with_skip(
-            fname,
-            dnadiff_targets_showcoords_indir / fname.name,
-            skip=0,
+            dnadiff_targets_outdir / fname.name,
         )
 
     # Check showdiff output (.qdiff) against target fixtures
-    for fname in dnadiff_targets_showdiff:
+    for fname in (input_genomes_tiny / "intermediates/dnadiff").glob("*.qdiff"):
         assert compare_files_with_skip(
             fname,
-            dnadiff_targets_showdiff_indir / fname.name,
+            dnadiff_targets_outdir / fname.name,
+            skip=0,
+        )
+
+    # Check show_coords output (.mcoords) against target fixtures
+    for fname in targets:
+        assert compare_files_with_skip(
+            fname,
+            dnadiff_targets_outdir / fname.name,
             skip=0,
         )
 

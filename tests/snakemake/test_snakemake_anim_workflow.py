@@ -85,13 +85,9 @@ def compare_files_with_skip(file1: Path, file2: Path, skip: int = 1) -> bool:
     return True
 
 
-def test_rule_ANIm(  # noqa: N802, PLR0913
+def test_rule_ANIm(  # noqa: N802
     input_genomes_tiny: Path,
-    anim_nucmer_targets_filter: list[Path],
-    anim_nucmer_targets_delta: list[Path],
-    anim_nucmer_targets_filter_indir: Path,
     anim_targets_outdir: Path,
-    anim_nucmer_targets_delta_indir: Path,
     config_anim_args: dict,
     tmp_path: str,
 ) -> None:
@@ -132,29 +128,29 @@ def test_rule_ANIm(  # noqa: N802, PLR0913
     config = config_anim_args.copy()
     config["outdir"] = anim_targets_outdir
 
+    expected_filter = list((input_genomes_tiny / "intermediates/ANIm").glob("*.filter"))
+    expected_delta = list((input_genomes_tiny / "intermediates/ANIm").glob("*.delta"))
+    targets = [anim_targets_outdir / fname.name for fname in expected_filter]
+
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
         workflow_name="snakemake_anim.smk",
         database=db,
         run_id=0,  # only needed for progress bar
-        targets=anim_nucmer_targets_filter,
+        targets=targets,
         params=config,
         working_directory=Path(tmp_path),
     )
 
     # Check delta-filter output against target fixtures
-    for fname in anim_nucmer_targets_filter:
-        assert compare_files_with_skip(
-            anim_nucmer_targets_filter_indir / fname.name,
-            fname,
-        )
+    for fname in expected_filter:
+        generated = anim_targets_outdir / fname.name
+        assert compare_files_with_skip(fname, generated)
 
     # Check nucmer output against target fixtures
-    for fname in anim_nucmer_targets_delta:
-        assert compare_files_with_skip(
-            anim_nucmer_targets_delta_indir / fname.name,
-            fname,
-        )
+    for fname in expected_delta:
+        generated = anim_targets_outdir / fname.name
+        assert compare_files_with_skip(fname, generated)
 
     compare_db_matrices(db, input_genomes_tiny / "matrices")

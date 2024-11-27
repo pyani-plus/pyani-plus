@@ -49,6 +49,7 @@ from pyani_plus.methods import (
 from pyani_plus.public_cli import (
     OPT_ARG_TYPE_CREATE_DB,
     OPT_ARG_TYPE_FRAGSIZE,
+    OPT_ARG_TYPE_TEMP,
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
     REQ_ARG_TYPE_OUTDIR,
@@ -420,18 +421,7 @@ def compute_column(  # noqa: C901
         ),
     ],
     *,
-    temp: Annotated[
-        Path | None,
-        typer.Option(
-            help="Directory to use for intermediate files, which will not be deleted."
-            " Default behaviour is to use a system specified temporary directory and"
-            " remove this afterwards.",
-            show_default=False,
-            exists=True,
-            dir_okay=True,
-            file_okay=False,
-        ),
-    ] = None,
+    temp: OPT_ARG_TYPE_TEMP = None,
     quiet: OPT_ARG_TYPE_QUIET = False,
 ) -> int:
     """Run the method for one column and log pairwise comparisons to the database.

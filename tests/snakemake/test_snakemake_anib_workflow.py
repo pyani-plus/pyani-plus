@@ -26,6 +26,7 @@ These tests are intended to be run from the repository root using:
 pytest -v or make test
 """
 
+import filecmp
 import shutil  # We need this for filesystem operations
 from pathlib import Path
 
@@ -66,6 +67,19 @@ def config_anib_args(
     }
 
 
+def compare_blast_json(file_a: Path, file_b: Path) -> bool:
+    """Compare two BLAST+ .njs JSON files, ignoring the date-stamp."""
+    with file_a.open() as handle_a, file_b.open() as handle_b:
+        for a, b in zip(handle_a, handle_b, strict=True):
+            assert (
+                a == b
+                or ("last-updated" in a and "last-updated" in b)
+                or ("bytes-total" in a and "bytes-total" in b)
+                or ("bytes-to-cache" in a and "bytes-to-cache" in b)
+            ), f"{a!r} != {b!r}"
+    return True
+
+
 def test_snakemake_rule_anib(
     input_genomes_tiny: Path,
     anib_targets_outdir: Path,
@@ -73,6 +87,8 @@ def test_snakemake_rule_anib(
     tmp_path: str,
 ) -> None:
     """Test blastn (overall) ANIb snakemake wrapper."""
+    tmp_dir = Path(tmp_path)
+
     # Remove the output directory to force re-running the snakemake rule
     shutil.rmtree(anib_targets_outdir, ignore_errors=True)
 
@@ -106,10 +122,19 @@ def test_snakemake_rule_anib(
         ],
         params=config_anib_args,
         working_directory=Path(tmp_path),
-        temp=Path(tmp_path),
+        temp=tmp_dir,
     )
 
-    # Want to check the intermediate files, but currently lost in a temp folder...
+    # Check the intermediate files
+
+    for file in (input_genomes_tiny / "intermediates/ANIb").glob("*.f*"):
+        assert filecmp.cmp(file, tmp_dir / file), f"Wrong fragmented FASTA {file.name}"
+
+    for file in (input_genomes_tiny / "intermediates/ANIb").glob("*.njs"):
+        assert compare_blast_json(file, tmp_dir / file), f"Wrong BLAST DB {file.name}"
+
+    for file in (input_genomes_tiny / "intermediates/ANIb").glob("*_vs_*.tsv"):
+        assert filecmp.cmp(file, tmp_dir / file), f"Wrong blastn output in {file.name}"
 
     # Check output against target fixtures
     compare_db_matrices(db, input_genomes_tiny / "matrices")

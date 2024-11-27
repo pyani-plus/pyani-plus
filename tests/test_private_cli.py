@@ -676,7 +676,7 @@ def test_compute_column_fastani(
     )
     output = capsys.readouterr().out
     assert (
-        "INFO: No comparisons needed against 5584c7029328dc48d33f95f0a78f7e57\n"
+        "INFO: No fastANI comparisons needed against 5584c7029328dc48d33f95f0a78f7e57\n"
         in output
     )
 
@@ -688,6 +688,6 @@ def test_compute_column_fastani(
     )
     output = capsys.readouterr().out
     assert (
-        "INFO: No comparisons needed against 5584c7029328dc48d33f95f0a78f7e57\n"
+        "INFO: No fastANI comparisons needed against 5584c7029328dc48d33f95f0a78f7e57\n"
         in output
     )

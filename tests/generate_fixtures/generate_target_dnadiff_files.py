@@ -54,6 +54,7 @@ from pyani_plus.tools import (
     get_show_diff,
 )
 
+# Generating fixtures for viral example
 # Paths to directories (eg. input sequences, outputs for delta, filter...)
 INPUT_DIR = Path("../fixtures/viral_example")
 DELTA_DIR = FILTER_DIR = SHOW_DIFF_DIR = SHOW_COORDS_DIR = DNADIFF_DIR = Path(
@@ -64,7 +65,7 @@ DELTA_DIR = FILTER_DIR = SHOW_DIFF_DIR = SHOW_COORDS_DIR = DNADIFF_DIR = Path(
 inputs = {_.stem: _ for _ in sorted(Path(INPUT_DIR).glob("*.f*"))}
 comparisons = product(inputs, inputs)
 
-# Cleanup
+# # Cleanup
 # This is to help with if and when we change the
 # example sequences being used.
 for file in DELTA_DIR.glob("*.delta"):
@@ -134,3 +135,101 @@ for genomes in comparisons:
             check=True,
         )
         shutil.move(tmp + "/" + stem + ".report", DNADIFF_DIR / (stem + ".report"))
+
+
+# Generating fixtures for bad alignments example
+# Paths to directories (eg. input sequences, outputs for delta, filter...)
+BAD_ALIGNMENTS_INPUT_DIR = Path("../fixtures/bad_alignments")
+BAD_ALIGNMENTS_DELTA_DIR = BAD_ALIGNMENTS_FILTER_DIR = BAD_ALIGNMENTS_SHOW_DIFF_DIR = (
+    BAD_ALIGNMENTS_SHOW_COORDS_DIR
+) = BAD_ALIGNMENTS_DNADIFF_DIR = Path(
+    "../fixtures/bad_alignments/intermediates/dnadiff/"
+)
+
+# Generating fixtures for genomes that return no alignments
+# Running dnadiff comparisons.
+# Skipping self-to-self comparisons for now.
+bad_inputs = {_.stem: _ for _ in sorted(Path(BAD_ALIGNMENTS_INPUT_DIR).glob("*.f*"))}
+bad_comparisons = [
+    (genome_1, genome_2)
+    for genome_1, genome_2 in product(bad_inputs, bad_inputs)
+    if genome_1 != genome_2
+]
+
+# Cleanup
+# This is to help with if and when we change the
+# example sequences being used.
+for file in BAD_ALIGNMENTS_DELTA_DIR.glob("*.delta"):
+    file.unlink()
+for file in BAD_ALIGNMENTS_FILTER_DIR.glob("*.filter"):
+    file.unlink()
+for file in BAD_ALIGNMENTS_SHOW_DIFF_DIR.glob("*.qdiff"):
+    file.unlink()
+for file in BAD_ALIGNMENTS_SHOW_COORDS_DIR.glob("*.mcoords"):
+    file.unlink()
+for file in BAD_ALIGNMENTS_DNADIFF_DIR.glob("*.report"):
+    file.unlink()
+
+nucmer = get_nucmer()
+delta_filter = get_delta_filter()
+show_coords = get_show_coords()
+show_diff = get_show_diff()
+dnadiff = get_dnadiff()
+print(f"Using nucmer {nucmer.version} at {nucmer.exe_path}")
+print(f"Using dnadiff {dnadiff.version} at {dnadiff.exe_path}")
+
+for genomes in bad_comparisons:
+    stem = "_vs_".join(genomes)
+    subprocess.run(
+        [
+            nucmer.exe_path,
+            "-p",
+            BAD_ALIGNMENTS_DELTA_DIR / stem,
+            "--maxmatch",
+            bad_inputs[genomes[1]],
+            bad_inputs[genomes[0]],
+        ],
+        check=True,
+    )
+
+    # To redirect using subprocess.run, we need to open the output file and
+    # pipe from within the call to stdout
+    with (BAD_ALIGNMENTS_FILTER_DIR / (stem + ".filter")).open("w") as ofh:
+        subprocess.run(
+            [delta_filter.exe_path, "-m", BAD_ALIGNMENTS_DELTA_DIR / (stem + ".delta")],
+            check=True,
+            stdout=ofh,
+        )
+
+    with (BAD_ALIGNMENTS_SHOW_DIFF_DIR / (stem + ".qdiff")).open("w") as ofh:
+        subprocess.run(
+            [show_diff.exe_path, "-qH", BAD_ALIGNMENTS_FILTER_DIR / (stem + ".filter")],
+            check=True,
+            stdout=ofh,
+        )
+
+    with (BAD_ALIGNMENTS_SHOW_COORDS_DIR / (stem + ".mcoords")).open("w") as ofh:
+        subprocess.run(
+            [
+                show_coords.exe_path,
+                "-rclTH",
+                BAD_ALIGNMENTS_FILTER_DIR / (stem + ".filter"),
+            ],
+            check=True,
+            stdout=ofh,
+        )
+    with tempfile.TemporaryDirectory() as tmp:
+        subprocess.run(
+            [
+                dnadiff.exe_path,
+                "-p",
+                tmp + "/" + stem,
+                bad_inputs[genomes[1]],
+                bad_inputs[genomes[0]],
+            ],
+            check=True,
+        )
+        shutil.move(
+            tmp + "/" + stem + ".report",
+            BAD_ALIGNMENTS_DNADIFF_DIR / (stem + ".report"),
+        )

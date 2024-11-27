@@ -76,7 +76,9 @@ def get_aligned_bases_count(aligned_regions: dict) -> int:
     return aligned_bases
 
 
-def parse_delta(filename: Path) -> tuple[int, int, float, int]:
+def parse_delta(
+    filename: Path,
+) -> tuple[int | None, int | None, float | None, int | None]:
     """Return (reference alignment length, query alignment length, average identity, similarity errors).
 
     :param filename: Path to the input .delta file
@@ -143,6 +145,10 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
     aligned_bases = 0  # Hold a count of aligned bases for each sequence
     weighted_identical_bases = 0  # Hold a count of weighted identical bases
 
+    # Flag to check if any ">" line exists
+    # This is to capture comparisons that result in no alignment
+    contains_alignment = False
+
     # Ideally we wouldn't read the whole file into memory at once...
     lines = [_.strip().split() for _ in filename.open("r").readlines()]
     if not lines:
@@ -157,6 +163,7 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
             current_qry = line[1]
         # Lines with seven columns are alignment region headers:
         if len(line) == 7:  # noqa: PLR2004
+            contains_alignment = True
             # Obtaining aligned regions needed to check for overlaps
             regions_ref[current_ref].append(
                 tuple(sorted([int(line[0]), int(line[1])]))
@@ -177,8 +184,14 @@ def parse_delta(filename: Path) -> tuple[int, int, float, int]:
             )
 
     # Calculate average %ID
-    avrg_identity = weighted_identical_bases / aligned_bases
+    try:
+        avrg_identity = weighted_identical_bases / aligned_bases
+    except ZeroDivisionError:
+        avrg_identity = None  # Using Python's None to represent NULL
 
+    # Return result based on whether alignments were found
+    if not contains_alignment:
+        return (None, None, None, None)
     return (
         get_aligned_bases_count(regions_qry),
         get_aligned_bases_count(regions_ref),

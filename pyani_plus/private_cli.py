@@ -349,20 +349,10 @@ def log_comparison(  # noqa: PLR0913
     config_id: REQ_ARG_TYPE_CONFIG_ID,
     query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
     subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
-    identity: Annotated[
-        float,
-        typer.Option(
-            help="Percent identity",
-            show_default=False,
-            min=0.0,
-            max=1.0,
-        ),
-    ],
-    aln_length: Annotated[
-        int, typer.Option(help="Alignment length", show_default=False)
-    ],
     *,
     # Optional comparison table entries
+    aln_length: Annotated[int | None, typer.Option(help="Alignment length")] = None,
+    identity: Annotated[float | None, typer.Option(help="Percent identity")] = None,
     sim_errors: Annotated[int | None, typer.Option(help="Alignment length")] = None,
     cov_query: Annotated[float | None, typer.Option(help="Alignment length")] = None,
     cov_subject: Annotated[float | None, typer.Option(help="Alignment length")] = None,
@@ -672,8 +662,12 @@ def log_anim(  # noqa: PLR0913
         identity=identity,
         aln_length=query_aligned_bases,
         sim_errors=sim_errors,
-        cov_query=float(query_aligned_bases) / query.length,
-        cov_subject=float(subject_aligned_bases) / subject.length,
+        cov_query=None
+        if query_aligned_bases is None
+        else float(query_aligned_bases) / query.length,
+        cov_subject=None
+        if subject_aligned_bases is None
+        else float(subject_aligned_bases) / subject.length,
     )
 
     session.commit()

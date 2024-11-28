@@ -117,24 +117,24 @@ def parse_mcoords(mcoords_file: Path) -> tuple[float | None, int | None]:
         sep="\t",
         names=[f"col_{_}" for _ in range(13)],
     )
-    if not mcoords.empty:
-        sum_identity = 0.0  # should be an int, but we can only estimate it
-        sum_alignment_lengths = 0
-        seen_ref_seq = set()
-        aligned_bases_with_gaps = 0
+    if mcoords.empty:
+        return (None, None)
+    sum_identity = 0.0  # should be an int, but we can only estimate it
+    sum_alignment_lengths = 0
+    seen_ref_seq = set()
+    aligned_bases_with_gaps = 0
 
-        # Calculate average nucleotide identity
-        for _index, row in mcoords.iterrows():
-            row_length = int(row["col_4"]) + int(row["col_5"])
-            sum_identity += float(row["col_6"]) * row_length / 100
-            sum_alignment_lengths += row_length
+    # Calculate average nucleotide identity
+    for _index, row in mcoords.iterrows():
+        row_length = int(row["col_4"]) + int(row["col_5"])
+        sum_identity += float(row["col_6"]) * row_length / 100
+        sum_alignment_lengths += row_length
 
-            # Get number of aligned bases with gaps
-            if row["col_12"] not in seen_ref_seq:
-                aligned_bases_with_gaps += int(row["col_8"])
-                seen_ref_seq.add(row["col_12"])
-        return (sum_identity / sum_alignment_lengths, aligned_bases_with_gaps)
-    return (None, None)
+        # Get number of aligned bases with gaps
+        if row["col_12"] not in seen_ref_seq:
+            aligned_bases_with_gaps += int(row["col_8"])
+            seen_ref_seq.add(row["col_12"])
+    return (sum_identity / sum_alignment_lengths, aligned_bases_with_gaps)
 
 
 def parse_qdiff(qdiff_file: Path) -> int | None:
@@ -147,12 +147,12 @@ def parse_qdiff(qdiff_file: Path) -> int | None:
         sep="\t",
         names=[f"col_{_}" for _ in range(7)],
     )
-    if not qdiff.empty:
-        gap_lengths = 0
-        for _index, row in qdiff.iterrows():
-            gap = row["col_4"]
-            if row["col_1"] != "DUP" and gap > 0:
-                gap_lengths += gap
+    if qdiff.empty:
+        return None
+    gap_lengths = 0
+    for _index, row in qdiff.iterrows():
+        gap = row["col_4"]
+        if row["col_1"] != "DUP" and gap > 0:
+            gap_lengths += gap
 
-        return gap_lengths
-    return None
+    return gap_lengths

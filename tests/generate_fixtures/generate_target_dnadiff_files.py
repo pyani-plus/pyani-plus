@@ -23,9 +23,10 @@
 # THE SOFTWARE.
 """Generate target files for pyani-plus dnadiff tests.
 
-This script can be run with ``./generate_target_dnadiff_files.py`` in the script's
-directory, or from the project root directory via ``make fixtures``. It will
-regenerate and potentially modify test input files under the fixtures directory.
+This script can be run with
+``./generate_target_dnadiff_files.py <path_to_input_dir> <path_to_output_dir>``
+in the script's directory, or from the project root directory via ``make fixtures``.
+It will regenerate and potentially modify test input files under the fixtures directory.
 
 nucmer runs with the --maxmatch parameter to find initial matches
 regardless of their uniqueness.
@@ -42,6 +43,7 @@ sequences in the query too.
 # Imports
 import shutil
 import subprocess
+import sys
 import tempfile
 from itertools import product
 from pathlib import Path
@@ -54,28 +56,26 @@ from pyani_plus.tools import (
     get_show_diff,
 )
 
+# Generating fixtures for viral example
 # Paths to directories (eg. input sequences, outputs for delta, filter...)
-INPUT_DIR = Path("../fixtures/viral_example")
-DELTA_DIR = FILTER_DIR = SHOW_DIFF_DIR = SHOW_COORDS_DIR = DNADIFF_DIR = Path(
-    "../fixtures/viral_example/intermediates/dnadiff/"
-)
+INPUT_DIR, OUT_DIR = Path(sys.argv[1]), Path(sys.argv[2])
 
 # Running comparisons (all vs all)
 inputs = {_.stem: _ for _ in sorted(Path(INPUT_DIR).glob("*.f*"))}
 comparisons = product(inputs, inputs)
 
-# Cleanup
+# # Cleanup
 # This is to help with if and when we change the
 # example sequences being used.
-for file in DELTA_DIR.glob("*.delta"):
+for file in OUT_DIR.glob("*.delta"):
     file.unlink()
-for file in FILTER_DIR.glob("*.filter"):
+for file in OUT_DIR.glob("*.filter"):
     file.unlink()
-for file in SHOW_DIFF_DIR.glob("*.qdiff"):
+for file in OUT_DIR.glob("*.qdiff"):
     file.unlink()
-for file in SHOW_COORDS_DIR.glob("*.mcoords"):
+for file in OUT_DIR.glob("*.mcoords"):
     file.unlink()
-for file in DNADIFF_DIR.glob("*.report"):
+for file in OUT_DIR.glob("*.report"):
     file.unlink()
 
 nucmer = get_nucmer()
@@ -92,7 +92,7 @@ for genomes in comparisons:
         [
             nucmer.exe_path,
             "-p",
-            DELTA_DIR / stem,
+            OUT_DIR / stem,
             "--maxmatch",
             inputs[genomes[1]],
             inputs[genomes[0]],
@@ -102,23 +102,23 @@ for genomes in comparisons:
 
     # To redirect using subprocess.run, we need to open the output file and
     # pipe from within the call to stdout
-    with (FILTER_DIR / (stem + ".filter")).open("w") as ofh:
+    with (OUT_DIR / (stem + ".filter")).open("w") as ofh:
         subprocess.run(
-            [delta_filter.exe_path, "-m", DELTA_DIR / (stem + ".delta")],
+            [delta_filter.exe_path, "-m", OUT_DIR / (stem + ".delta")],
             check=True,
             stdout=ofh,
         )
 
-    with (SHOW_DIFF_DIR / (stem + ".qdiff")).open("w") as ofh:
+    with (OUT_DIR / (stem + ".qdiff")).open("w") as ofh:
         subprocess.run(
-            [show_diff.exe_path, "-qH", FILTER_DIR / (stem + ".filter")],
+            [show_diff.exe_path, "-qH", OUT_DIR / (stem + ".filter")],
             check=True,
             stdout=ofh,
         )
 
-    with (SHOW_COORDS_DIR / (stem + ".mcoords")).open("w") as ofh:
+    with (OUT_DIR / (stem + ".mcoords")).open("w") as ofh:
         subprocess.run(
-            [show_coords.exe_path, "-rclTH", FILTER_DIR / (stem + ".filter")],
+            [show_coords.exe_path, "-rclTH", OUT_DIR / (stem + ".filter")],
             check=True,
             stdout=ofh,
         )
@@ -133,4 +133,4 @@ for genomes in comparisons:
             ],
             check=True,
         )
-        shutil.move(tmp + "/" + stem + ".report", DNADIFF_DIR / (stem + ".report"))
+        shutil.move(tmp + "/" + stem + ".report", OUT_DIR / (stem + ".report"))

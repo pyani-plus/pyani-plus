@@ -23,9 +23,11 @@
 # THE SOFTWARE.
 """Generate target files for pyani-plus ANIm tests.
 
-This script can be run with ``./generate_target_anim_files.py`` in the script's
-directory, or from the project root directory via ``make fixtures``. It will
-regenerate and potentially modify test input files under the fixtures directory.
+This script can be run with
+``python generate_target_anim_files.py <path_to_inputs_dir> <path_to_output_dir>``
+in the script's directory, or from the project root directory
+via ``make fixtures``. It will regenerate and potentially modify test
+input files under the fixtures directory.
 
 This script generates target files for anim comparisons.
 Genomes are compared in both directions (forward and reverse)
@@ -37,23 +39,24 @@ delta-filter runs with the -1 parameter to filter only 1-to-1 matches
 
 # Imports
 import subprocess
+import sys
 from itertools import product
 from pathlib import Path
 
 from pyani_plus.tools import get_delta_filter, get_nucmer
 
-# Paths to directories (eg, input sequences, delta and filter)
-INPUT_DIR = Path("../fixtures/viral_example")
-DELTA_DIR = FILTER_DIR = Path("../fixtures/viral_example/intermediates/ANIm")
+# Generating fixtures
+# Assign variable to specify Paths to directories (eg. input, output etc.)
+INPUT_DIR, OUT_DIR = Path(sys.argv[1]), Path(sys.argv[2])
 
 # Running ANIm comparisons (all vs all)
-inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*.f*")}
+inputs = {_.stem: _ for _ in INPUT_DIR.glob("*.f*")}
 comparisons = product(inputs, inputs)
 
 # Cleanup
-for file in DELTA_DIR.glob("*.delta"):
+for file in OUT_DIR.glob("*.delta"):
     file.unlink()
-for file in FILTER_DIR.glob("*.filter"):
+for file in OUT_DIR.glob("*.filter"):
     file.unlink()
 
 nucmer = get_nucmer()
@@ -66,7 +69,7 @@ for genomes in comparisons:
         [
             nucmer.exe_path,
             "-p",
-            DELTA_DIR / stem,
+            OUT_DIR / stem,
             "--mum",
             inputs[genomes[1]],
             inputs[genomes[0]],
@@ -76,9 +79,9 @@ for genomes in comparisons:
 
     # To redirect using subprocess.run, we need to open the output file and
     # pipe from within the call to stdout
-    with (FILTER_DIR / (stem + ".filter")).open("w") as ofh:
+    with (OUT_DIR / (stem + ".filter")).open("w") as ofh:
         subprocess.run(
-            [delta_filter.exe_path, "-1", DELTA_DIR / (stem + ".delta")],
+            [delta_filter.exe_path, "-1", OUT_DIR / (stem + ".delta")],
             check=True,
             stdout=ofh,
         )

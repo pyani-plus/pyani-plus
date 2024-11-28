@@ -104,9 +104,7 @@ identity_matrix = pd.DataFrame(index=sorted_hashes, columns=sorted_hashes)
 sim_errors = pd.DataFrame(index=sorted_hashes, columns=sorted_hashes)
 
 # Appending information to matrices
-report_files = Path("../fixtures/fixtures/viral_example/intermediates/dnadiff/").glob(
-    "*.report"
-)
+report_files = Path("../fixtures/viral_example/intermediates/dnadiff/").glob("*.report")
 
 for file in report_files:
     query, subject = file.stem.split("_vs_")

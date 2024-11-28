@@ -37,8 +37,10 @@ fixtures:
 	@echo ""
 	cd tests/generate_fixtures/; ./generate_anib_fragment_files.py
 	cd tests/generate_fixtures/; ./generate_anib_blast_files.py
-	cd tests/generate_fixtures/; ./generate_target_anim_files.py
-	cd tests/generate_fixtures/; ./generate_target_dnadiff_files.py
+	cd tests/generate_fixtures/; ./generate_target_anim_files.py ../fixtures/viral_example ../fixtures/viral_example/intermediates/ANIm
+	cd tests/generate_fixtures/; ./generate_target_anim_files.py ../fixtures/bad_alignments ../fixtures/bad_alignments/intermediates/ANIm
+	cd tests/generate_fixtures/; ./generate_target_dnadiff_files.py ../fixtures/viral_example ../fixtures/viral_example/intermediates/dnadiff
+	cd tests/generate_fixtures/; ./generate_target_dnadiff_files.py ../fixtures/bad_alignments ../fixtures/bad_alignments/intermediates/dnadiff
 	cd tests/generate_fixtures/; ./generate_target_dnadiff_matrices.py
 	cd tests/generate_fixtures/; ./generate_target_sourmash_files.py
 	cd tests/generate_fixtures/; ./generate_target_sourmash_matrices.py

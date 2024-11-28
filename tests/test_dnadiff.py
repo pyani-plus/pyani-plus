@@ -62,11 +62,30 @@ def test_parse_mcoords(
     )
 
 
+def test_parse_mcoords_bad_alignment(input_genomes_bad_alignments: Path) -> None:
+    """Check parsing of test mcoords file for bad alignments example."""
+    assert method_dnadiff.parse_mcoords(
+        input_genomes_bad_alignments
+        / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0357962.mcoords"
+    ) == (None, None)
+
+
 def test_parse_qdiff(input_genomes_tiny: Path, expected_gap_lengths_qry: int) -> None:
     """Check parsing of test qdiff file."""
     assert expected_gap_lengths_qry == method_dnadiff.parse_qdiff(
         input_genomes_tiny
         / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff"
+    )
+
+
+def test_parse_qdiff_bad_alignments(input_genomes_bad_alignments: Path) -> None:
+    """Check parsing of test qdiff file for bad alignments example."""
+    assert (
+        method_dnadiff.parse_qdiff(
+            input_genomes_bad_alignments
+            / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0357962.qdiff"
+        )
+        is None
     )
 
 
@@ -178,7 +197,7 @@ def test_logging_dnadiff(
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
-    """Check can log a fastANI comparison to DB."""
+    """Check can log a dnadiff comparison to DB."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
 
@@ -234,5 +253,65 @@ def test_logging_dnadiff(
             input_genomes_tiny / "matrices" / "dnadiff_coverage.tsv", query, subject
         ),
     )
+    session.close()
+    tmp_db.unlink()
+
+
+def test_logging_dnadiff_bad_alignments(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_bad_alignments: Path,
+) -> None:
+    """Check can log a dnadiff comparison to DB (bad alignments)."""
+    tmp_db = Path(tmp_path) / "new.sqlite"
+    assert not tmp_db.is_file()
+
+    tool = tools.get_nucmer()
+
+    private_cli.log_run(
+        fasta=input_genomes_bad_alignments,
+        database=tmp_db,
+        cmdline="pyani-plus dnadiff ...",
+        status="Testing",
+        name="Testing log_dnadiff",
+        method="dnadiff",
+        program=tool.exe_path.stem,
+        version=tool.version,
+        create_db=True,
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
+
+    private_cli.log_dnadiff(
+        database=tmp_db,
+        run_id=1,
+        query_fasta=input_genomes_bad_alignments / "MGV-GENOME-0264574.fas",
+        subject_fasta=input_genomes_bad_alignments / "MGV-GENOME-0357962.fna",
+        mcoords=input_genomes_bad_alignments
+        / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0357962.mcoords",
+        qdiff=input_genomes_bad_alignments
+        / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0357962.qdiff",
+    )
+
+    # Check the recorded comparison values
+    session = db_orm.connect_to_db(tmp_db)
+    assert session.query(db_orm.Comparison).count() == 1
+    comp = session.query(db_orm.Comparison).one()
+    assert all(
+        value is None
+        for value in [
+            comp.identity,
+            comp.aln_length,
+            comp.sim_errors,
+            comp.cov_query,
+            comp.cov_subject,
+        ]
+    )
+    assert (
+        comp.query_hash == "689d3fd6881db36b5e08329cf23cecdd"
+    )  # MGV-GENOME-0264574.fas
+    assert (
+        comp.subject_hash == "a30481565b45f6bbc6ce5260503067e0"
+    )  # MGV-GENOME-0357962.fna
     session.close()
     tmp_db.unlink()

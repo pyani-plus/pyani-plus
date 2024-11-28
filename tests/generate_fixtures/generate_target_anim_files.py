@@ -24,10 +24,7 @@
 """Generate target files for pyani-plus ANIm tests.
 
 This script can be run with
-``python generate_target_anim_files.py \
-    <path_to_inputs_dir> \
-    <path_to_delta_output_dir> \
-    <path_to_filter_output_dir>``
+``python generate_target_anim_files.py <path_to_inputs_dir> <path_to_output_dir>``
 in the script's directory, or from the project root directory
 via ``make fixtures``. It will regenerate and potentially modify test
 input files under the fixtures directory.

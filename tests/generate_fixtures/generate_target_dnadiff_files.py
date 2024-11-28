@@ -23,9 +23,10 @@
 # THE SOFTWARE.
 """Generate target files for pyani-plus dnadiff tests.
 
-This script can be run with ``./generate_target_dnadiff_files.py`` in the script's
-directory, or from the project root directory via ``make fixtures``. It will
-regenerate and potentially modify test input files under the fixtures directory.
+This script can be run with
+``./generate_target_dnadiff_files.py <path_to_input_dir> <path_to_output_dir>``
+in the script's directory, or from the project root directory via ``make fixtures``.
+It will regenerate and potentially modify test input files under the fixtures directory.
 
 nucmer runs with the --maxmatch parameter to find initial matches
 regardless of their uniqueness.
@@ -42,6 +43,7 @@ sequences in the query too.
 # Imports
 import shutil
 import subprocess
+import sys
 import tempfile
 from itertools import product
 from pathlib import Path
@@ -56,10 +58,7 @@ from pyani_plus.tools import (
 
 # Generating fixtures for viral example
 # Paths to directories (eg. input sequences, outputs for delta, filter...)
-INPUT_DIR = Path("../fixtures/viral_example")
-DELTA_DIR = FILTER_DIR = SHOW_DIFF_DIR = SHOW_COORDS_DIR = DNADIFF_DIR = Path(
-    "../fixtures/viral_example/intermediates/dnadiff/"
-)
+INPUT_DIR, OUT_DIR = Path(sys.argv[1]), Path(sys.argv[2])
 
 # Running comparisons (all vs all)
 inputs = {_.stem: _ for _ in sorted(Path(INPUT_DIR).glob("*.f*"))}
@@ -68,15 +67,15 @@ comparisons = product(inputs, inputs)
 # # Cleanup
 # This is to help with if and when we change the
 # example sequences being used.
-for file in DELTA_DIR.glob("*.delta"):
+for file in OUT_DIR.glob("*.delta"):
     file.unlink()
-for file in FILTER_DIR.glob("*.filter"):
+for file in OUT_DIR.glob("*.filter"):
     file.unlink()
-for file in SHOW_DIFF_DIR.glob("*.qdiff"):
+for file in OUT_DIR.glob("*.qdiff"):
     file.unlink()
-for file in SHOW_COORDS_DIR.glob("*.mcoords"):
+for file in OUT_DIR.glob("*.mcoords"):
     file.unlink()
-for file in DNADIFF_DIR.glob("*.report"):
+for file in OUT_DIR.glob("*.report"):
     file.unlink()
 
 nucmer = get_nucmer()
@@ -93,7 +92,7 @@ for genomes in comparisons:
         [
             nucmer.exe_path,
             "-p",
-            DELTA_DIR / stem,
+            OUT_DIR / stem,
             "--maxmatch",
             inputs[genomes[1]],
             inputs[genomes[0]],
@@ -103,23 +102,23 @@ for genomes in comparisons:
 
     # To redirect using subprocess.run, we need to open the output file and
     # pipe from within the call to stdout
-    with (FILTER_DIR / (stem + ".filter")).open("w") as ofh:
+    with (OUT_DIR / (stem + ".filter")).open("w") as ofh:
         subprocess.run(
-            [delta_filter.exe_path, "-m", DELTA_DIR / (stem + ".delta")],
+            [delta_filter.exe_path, "-m", OUT_DIR / (stem + ".delta")],
             check=True,
             stdout=ofh,
         )
 
-    with (SHOW_DIFF_DIR / (stem + ".qdiff")).open("w") as ofh:
+    with (OUT_DIR / (stem + ".qdiff")).open("w") as ofh:
         subprocess.run(
-            [show_diff.exe_path, "-qH", FILTER_DIR / (stem + ".filter")],
+            [show_diff.exe_path, "-qH", OUT_DIR / (stem + ".filter")],
             check=True,
             stdout=ofh,
         )
 
-    with (SHOW_COORDS_DIR / (stem + ".mcoords")).open("w") as ofh:
+    with (OUT_DIR / (stem + ".mcoords")).open("w") as ofh:
         subprocess.run(
-            [show_coords.exe_path, "-rclTH", FILTER_DIR / (stem + ".filter")],
+            [show_coords.exe_path, "-rclTH", OUT_DIR / (stem + ".filter")],
             check=True,
             stdout=ofh,
         )
@@ -134,102 +133,4 @@ for genomes in comparisons:
             ],
             check=True,
         )
-        shutil.move(tmp + "/" + stem + ".report", DNADIFF_DIR / (stem + ".report"))
-
-
-# Generating fixtures for bad alignments example
-# Paths to directories (eg. input sequences, outputs for delta, filter...)
-BAD_ALIGNMENTS_INPUT_DIR = Path("../fixtures/bad_alignments")
-BAD_ALIGNMENTS_DELTA_DIR = BAD_ALIGNMENTS_FILTER_DIR = BAD_ALIGNMENTS_SHOW_DIFF_DIR = (
-    BAD_ALIGNMENTS_SHOW_COORDS_DIR
-) = BAD_ALIGNMENTS_DNADIFF_DIR = Path(
-    "../fixtures/bad_alignments/intermediates/dnadiff/"
-)
-
-# Generating fixtures for genomes that return no alignments
-# Running dnadiff comparisons.
-# Skipping self-to-self comparisons for now.
-bad_inputs = {_.stem: _ for _ in sorted(Path(BAD_ALIGNMENTS_INPUT_DIR).glob("*.f*"))}
-bad_comparisons = [
-    (genome_1, genome_2)
-    for genome_1, genome_2 in product(bad_inputs, bad_inputs)
-    if genome_1 != genome_2
-]
-
-# Cleanup
-# This is to help with if and when we change the
-# example sequences being used.
-for file in BAD_ALIGNMENTS_DELTA_DIR.glob("*.delta"):
-    file.unlink()
-for file in BAD_ALIGNMENTS_FILTER_DIR.glob("*.filter"):
-    file.unlink()
-for file in BAD_ALIGNMENTS_SHOW_DIFF_DIR.glob("*.qdiff"):
-    file.unlink()
-for file in BAD_ALIGNMENTS_SHOW_COORDS_DIR.glob("*.mcoords"):
-    file.unlink()
-for file in BAD_ALIGNMENTS_DNADIFF_DIR.glob("*.report"):
-    file.unlink()
-
-nucmer = get_nucmer()
-delta_filter = get_delta_filter()
-show_coords = get_show_coords()
-show_diff = get_show_diff()
-dnadiff = get_dnadiff()
-print(f"Using nucmer {nucmer.version} at {nucmer.exe_path}")
-print(f"Using dnadiff {dnadiff.version} at {dnadiff.exe_path}")
-
-for genomes in bad_comparisons:
-    stem = "_vs_".join(genomes)
-    subprocess.run(
-        [
-            nucmer.exe_path,
-            "-p",
-            BAD_ALIGNMENTS_DELTA_DIR / stem,
-            "--maxmatch",
-            bad_inputs[genomes[1]],
-            bad_inputs[genomes[0]],
-        ],
-        check=True,
-    )
-
-    # To redirect using subprocess.run, we need to open the output file and
-    # pipe from within the call to stdout
-    with (BAD_ALIGNMENTS_FILTER_DIR / (stem + ".filter")).open("w") as ofh:
-        subprocess.run(
-            [delta_filter.exe_path, "-m", BAD_ALIGNMENTS_DELTA_DIR / (stem + ".delta")],
-            check=True,
-            stdout=ofh,
-        )
-
-    with (BAD_ALIGNMENTS_SHOW_DIFF_DIR / (stem + ".qdiff")).open("w") as ofh:
-        subprocess.run(
-            [show_diff.exe_path, "-qH", BAD_ALIGNMENTS_FILTER_DIR / (stem + ".filter")],
-            check=True,
-            stdout=ofh,
-        )
-
-    with (BAD_ALIGNMENTS_SHOW_COORDS_DIR / (stem + ".mcoords")).open("w") as ofh:
-        subprocess.run(
-            [
-                show_coords.exe_path,
-                "-rclTH",
-                BAD_ALIGNMENTS_FILTER_DIR / (stem + ".filter"),
-            ],
-            check=True,
-            stdout=ofh,
-        )
-    with tempfile.TemporaryDirectory() as tmp:
-        subprocess.run(
-            [
-                dnadiff.exe_path,
-                "-p",
-                tmp + "/" + stem,
-                bad_inputs[genomes[1]],
-                bad_inputs[genomes[0]],
-            ],
-            check=True,
-        )
-        shutil.move(
-            tmp + "/" + stem + ".report",
-            BAD_ALIGNMENTS_DNADIFF_DIR / (stem + ".report"),
-        )
+        shutil.move(tmp + "/" + stem + ".report", OUT_DIR / (stem + ".report"))

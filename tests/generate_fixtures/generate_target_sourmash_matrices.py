@@ -56,21 +56,14 @@ genome_hashes = {
     for file in Path("../fixtures/viral_example/").glob("*.f*")
 }
 sorted_hashes = sorted(genome_hashes.values())
-identity_matrix = pd.DataFrame(index=sorted_hashes, columns=sorted_hashes)
 
-
-# Appending information to matrices
-compare_files = Path("../fixtures/sourmash/targets/compare/").glob("*_vs_*.csv")
-
-for file in compare_files:
-    query, subject = file.stem.split("_vs_")
-    query_hash = genome_hashes[query]
-    subject_hash = genome_hashes[subject]
-    identity = parse_compare_files(file)
-    identity_matrix.loc[query_hash, subject_hash] = identity
+# Generate target identity matrix for pyani-plus sourmash tests
+identity_matrix = pd.read_csv(
+    Path("../fixtures/viral_example/intermediates/sourmash/sourmash.csv")
+)
+identity_matrix.columns = [genome_hashes[Path(_).stem] for _ in identity_matrix]
+identity_matrix.index = identity_matrix.columns
 
 matrices_directory = Path("../fixtures/viral_example/matrices/")
 Path(matrices_directory).mkdir(parents=True, exist_ok=True)
-
-
 identity_matrix.to_csv(matrices_directory / "sourmash_identity.tsv", sep="\t")

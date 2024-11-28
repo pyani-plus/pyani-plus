@@ -26,6 +26,7 @@ These tests are intended to be run from the repository root using:
 pytest -v
 """
 
+import filecmp
 from pathlib import Path
 
 import pandas as pd
@@ -313,40 +314,51 @@ def test_dnadiff(tmp_path: str, input_genomes_tiny: Path) -> None:
 
 def test_anib(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check ANIb run (default settings)."""
-    out = Path(tmp_path)
-    tmp_db = out / "example.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "example.sqlite"
     public_cli.anib(
         database=tmp_db,
         fasta=input_genomes_tiny,
         name="Test Run",
         create_db=True,
-        temp=out,
+        temp=tmp_dir,
     )
-    public_cli.export_run(database=tmp_db, outdir=out)
+
+    for file in (input_genomes_tiny / "intermediates/ANIb").glob("*.f*"):
+        assert filecmp.cmp(file, tmp_dir / file), f"Wrong fragmented FASTA {file.name}"
+
+    # Could check the BLAST DB *.njs files here too...
+
+    for file in (input_genomes_tiny / "intermediates/ANIb").glob("*_vs_*.tsv"):
+        assert filecmp.cmp(file, tmp_dir / file), f"Wrong blastn output in {file.name}"
+
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "ANIb_identity.tsv",
-        out / "ANIb_identity.tsv",
+        tmp_dir / "ANIb_identity.tsv",
     )
-    # Now check the intermediates...
 
 
 def test_fastani(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check fastANI run (default settings)."""
-    out = Path(tmp_path)
-    tmp_db = out / "example.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "example.sqlite"
     public_cli.fastani(
         database=tmp_db,
         fasta=input_genomes_tiny,
         name="Test Run",
         create_db=True,
-        temp=out,
+        temp=tmp_dir,
     )
-    public_cli.export_run(database=tmp_db, outdir=out)
+
+    for file in (input_genomes_tiny / "intermediates/fastANI").glob("*_vs_*.fastani"):
+        assert filecmp.cmp(file, tmp_dir / file), f"Wrong fastANI output in {file.name}"
+
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "fastANI_identity.tsv",
-        out / "fastANI_identity.tsv",
+        tmp_dir / "fastANI_identity.tsv",
     )
-    # Now check the intermediates...
 
 
 def test_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:

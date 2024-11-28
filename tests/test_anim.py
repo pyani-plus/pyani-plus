@@ -75,12 +75,7 @@ def test_bad_alignments_parsing(input_genomes_bad_alignments: Path) -> None:
     assert method_anim.parse_delta(
         input_genomes_bad_alignments
         / "intermediates/ANIm/MGV-GENOME-0264574_vs_MGV-GENOME-0357962.filter",
-    ) == (
-        None,
-        None,
-        None,
-        None,
-    )
+    ) == (None, None, None, None)
 
 
 def test_aligned_bases_count(aligned_regions: dict) -> None:

@@ -62,12 +62,15 @@ from line[11], and AvgIdentity from line[23].
 """
 
 import re
+import sys
 from decimal import Decimal
 from pathlib import Path
 
 import pandas as pd
 
 from pyani_plus import utils
+
+INPUT_DIR, OUT_DIR = Path(sys.argv[1]), Path(sys.argv[2])
 
 
 def parse_dnadiff_report(dnadiff_report: Path) -> tuple[int, Decimal, Decimal]:
@@ -93,10 +96,7 @@ def parse_dnadiff_report(dnadiff_report: Path) -> tuple[int, Decimal, Decimal]:
 
 
 # Constructing a matrix where the MD5 hashes of test genomes are used as both column names and index.
-genome_hashes = {
-    file.stem: utils.file_md5sum(file)
-    for file in Path("../fixtures/viral_example/").glob("*.f*")
-}
+genome_hashes = {file.stem: utils.file_md5sum(file) for file in INPUT_DIR.glob("*.f*")}
 sorted_hashes = sorted(genome_hashes.values())
 aln_lengths_matrix = pd.DataFrame(index=sorted_hashes, columns=sorted_hashes)
 coverage_matrix = pd.DataFrame(index=sorted_hashes, columns=sorted_hashes)
@@ -104,19 +104,36 @@ identity_matrix = pd.DataFrame(index=sorted_hashes, columns=sorted_hashes)
 sim_errors = pd.DataFrame(index=sorted_hashes, columns=sorted_hashes)
 
 # Appending information to matrices
-report_files = Path("../fixtures/viral_example/intermediates/dnadiff/").glob("*.report")
+report_files = (INPUT_DIR / "intermediates/dnadiff").glob("*.report")
 
 for file in report_files:
     query, subject = file.stem.split("_vs_")
     query_hash = genome_hashes[query]
     subject_hash = genome_hashes[subject]
     aligned_bases, query_coverage, avg_identity = parse_dnadiff_report(file)
-    aln_lengths_matrix.loc[query_hash, subject_hash] = aligned_bases
-    coverage_matrix.loc[query_hash, subject_hash] = query_coverage
-    identity_matrix.loc[query_hash, subject_hash] = avg_identity
-    sim_errors.loc[query_hash, subject_hash] = round(aligned_bases * (1 - avg_identity))
 
-matrices_directory = Path("../fixtures/viral_example/matrices/")
+    # Set all values to None if all metrics are zero
+    values = (
+        (None, None, None, None)
+        if aligned_bases == 0 and query_coverage == 0 and avg_identity == 0
+        else (
+            aligned_bases,
+            query_coverage,
+            avg_identity,
+            round(aligned_bases * (1 - avg_identity)),
+        )
+    )
+
+    # Assign values to matrices
+    (
+        aln_lengths_matrix.loc[query_hash, subject_hash],
+        coverage_matrix.loc[query_hash, subject_hash],
+        identity_matrix.loc[query_hash, subject_hash],
+        sim_errors.loc[query_hash, subject_hash],
+    ) = values
+
+
+matrices_directory = OUT_DIR
 matrices_directory.mkdir(parents=True, exist_ok=True)
 
 aln_lengths_matrix.to_csv(matrices_directory / "dnadiff_aln_lengths.tsv", sep="\t")

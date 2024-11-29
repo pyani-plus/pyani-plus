@@ -26,7 +26,6 @@ These tests are intended to be run from the repository root using:
 pytest -v
 """
 
-import filecmp
 import multiprocessing
 import sys
 from pathlib import Path
@@ -436,42 +435,6 @@ def test_log_comparison_parallel(
 
     session = db_orm.connect_to_db(tmp_db)
     assert session.query(db_orm.Comparison).count() == len(fasta) ** 2
-
-
-def test_fragment_fasta(tmp_path: str, input_genomes_tiny: Path) -> None:
-    """Confirm fragmenting FASTA files (for ANIb) works."""
-    fasta = input_genomes_tiny.glob("*.f*")
-    out_dir = Path(tmp_path)
-    private_cli.fragment_fasta(fasta, out_dir)
-
-    old_frags = [
-        input_genomes_tiny / f"intermediates/ANIb/{f.stem}-fragments.fna" for f in fasta
-    ]
-    new_frags = [out_dir / (f.stem + "-fragments.fna") for f in fasta]
-    for old_file, new_file in zip(old_frags, new_frags, strict=True):
-        assert filecmp.cmp(old_file, new_file), f"Wrong output in {new_file}"
-
-
-def test_fragment_fasta_bad_args(tmp_path: str, input_genomes_tiny: Path) -> None:
-    """Check error handling for fragmenting FASTA files (for ANIb)."""
-    fasta = input_genomes_tiny.glob("*.f*")
-    out_dir = Path(tmp_path)
-
-    with pytest.raises(
-        SystemExit, match="ERROR: outdir /does/not/exist should be a directory"
-    ):
-        private_cli.fragment_fasta(fasta, outdir=Path("/does/not/exist"))
-
-    with pytest.raises(
-        FileNotFoundError, match="No such file or directory: '/does/not/exist.fasta'"
-    ):
-        private_cli.fragment_fasta([Path("/does/not/exist.fasta")], out_dir)
-
-    with pytest.raises(
-        TypeError,
-        match="Expected a Path object in list of FASTA files, got 'some/example.fasta'",
-    ):
-        private_cli.fragment_fasta(["some/example.fasta"], out_dir)
 
 
 def test_log_wrong_config(

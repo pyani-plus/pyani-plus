@@ -55,41 +55,28 @@ BLAST_COL_MISMATCH = BLAST_COLUMNS.index("mismatch")
 BLAST_COL_PIDENT = BLAST_COLUMNS.index("pident")
 
 
-def fragment_fasta_files(
-    fasta: list[Path], outdir: Path, fragsize: int = FRAGSIZE
-) -> list[Path]:
-    """Fragment FASTA files into subsequences of up to the given size.
-
-    The output files are named ``<stem>-fragments.fna`` regardless of the
-    input file extension (typically ``.fna``, ``.fa`` or ``.fasta``).
+def fragment_fasta_file(
+    filename: Path, fragmented_fasta: Path, fragsize: int = FRAGSIZE
+) -> None:
+    """Fragment FASTA file into subsequences of up to the given size.
 
     Any remainder is taken as is (1 <= length < fragsize).
-
-    Returns a list of the output fragmented FASTA files.
     """
-    fragmented_files = []
-    for filename in fasta:
-        if not isinstance(filename, Path):
-            msg = f"Expected a Path object in list of FASTA files, got {filename!r}"
-            raise TypeError(msg)
-        frag_filename = outdir / (filename.stem + "-fragments.fna")
-        with filename.open() as in_handle, frag_filename.open("w") as out_handle:
-            count = 0
-            for title, seq in SimpleFastaParser(in_handle):
-                index = 0
-                while index < len(seq):
-                    count += 1
-                    fragment = seq[index : index + fragsize]
-                    out_handle.write(f">frag{count:05d} {title}\n")
-                    # Now line wrap at 60 chars
-                    for i in range(0, len(fragment), 60):
-                        out_handle.write(fragment[i : i + 60] + "\n")
-                    index += fragsize
-        if not count:
-            msg = f"No sequences found in {filename}"
-            raise ValueError(msg)
-        fragmented_files.append(frag_filename)
-    return fragmented_files
+    with filename.open() as in_handle, fragmented_fasta.open("w") as out_handle:
+        count = 0
+        for title, seq in SimpleFastaParser(in_handle):
+            index = 0
+            while index < len(seq):
+                count += 1
+                fragment = seq[index : index + fragsize]
+                out_handle.write(f">frag{count:05d} {title}\n")
+                # Now line wrap at 60 chars
+                for i in range(0, len(fragment), 60):
+                    out_handle.write(fragment[i : i + 60] + "\n")
+                index += fragsize
+    if not count:
+        msg = f"No sequences found in {filename}"
+        raise ValueError(msg)
 
 
 def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:

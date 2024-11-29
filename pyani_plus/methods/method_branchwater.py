@@ -46,14 +46,18 @@ def parse_sourmash_manysearch_csv(
         # This is fine for max-containment mode, but for plain containment will
         # probably want to capture query_containment_ani & match_containment_ani
         for line in handle:
-            values = line.rstrip("\n").split(",")
-            if not values:
+            line = line.rstrip("\n")  # noqa: PLW2901
+            if not line:
                 continue
+            values = line.split(",")
             if (
                 values[column_query] == values[column_subject]
                 and values[column_ani] != "1.0"
             ):
-                msg = f"sourmash self-vs-self was {values[column_ani]!r} not one"
+                msg = (
+                    f"Expected branchwater {filename_to_hash[values[column_query]]}"
+                    f" vs self to be one, not {values[column_ani]!r}"
+                )
                 raise ValueError(msg)
             yield (
                 filename_to_hash[values[column_query]],

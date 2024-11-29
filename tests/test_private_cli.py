@@ -595,3 +595,10 @@ def test_log_wrong_config(
             run_id=1,
             compare=faked,
         )
+
+    with pytest.raises(SystemExit, match="ERROR: Run-id 1 expected guessing results"):
+        private_cli.log_branchwater(
+            tmp_db,
+            run_id=1,
+            manysearch=faked,
+        )

@@ -26,6 +26,7 @@ These tests are intended to be run from the repository root using:
 pytest -v
 """
 
+import filecmp
 from pathlib import Path
 
 import pytest
@@ -103,7 +104,7 @@ def test_running_anib(
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
-    """Check can log a ANIb comparison to DB."""
+    """Check can computer and log column of ANIb comparisons to DB."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "new.sqlite"
     assert not tmp_db.is_file()
@@ -130,6 +131,7 @@ def test_running_anib(
     assert run.run_id == 1
     hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
 
+    subject_hash = list(hash_to_filename)[1]
     private_cli.anib(
         tmp_dir,
         session,
@@ -137,10 +139,27 @@ def test_running_anib(
         hash_to_filename,
         {},  # not used for ANIb
         query_hashes=set(hash_to_filename),
-        subject_hash=list(hash_to_filename)[1],
+        subject_hash=subject_hash,
     )
     assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004
+    assert (
+        session.query(db_orm.Comparison)
+        .where(db_orm.Comparison.subject_hash == subject_hash)
+        .count()
+        == 3  # noqa: PLR2004
+    )
 
-    # No need to test the ANI values here, will be done elsewhere.
+    # Check the intermediate fragmented FASTA files match
+    for fname in (input_genomes_tiny / "intermediates/ANIb").glob("*.f*"):
+        assert filecmp.cmp(fname, tmp_dir / fname.name)
+
+    # Check the intermediate TSV files from blastn match
+    subject_stem = Path(hash_to_filename[subject_hash]).stem
+    for fname in (input_genomes_tiny / "intermediates/ANIb").glob(
+        f"*_vs_{subject_stem}.tsv"
+    ):
+        assert filecmp.cmp(fname, tmp_dir / fname.name)
+
+    # No real need to test the ANI values here, will be done elsewhere.
     session.close()
     tmp_db.unlink()

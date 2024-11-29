@@ -357,6 +357,25 @@ def test_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:
     )
 
 
+def test_branchwater(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Check sourmash run (default settings except scaled=300)."""
+    out = Path(tmp_path)
+    tmp_db = out / "example.sqlite"
+    public_cli.branchwater(
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Test Run",
+        scaled=300,
+        create_db=True,
+    )
+    public_cli.export_run(database=tmp_db, outdir=out)
+    # Should match the sourmash output (but computed quicker)
+    compare_matrix_files(
+        input_genomes_tiny / "matrices" / "sourmash_identity.tsv",
+        out / "branchwater_identity.tsv",
+    )
+
+
 def test_fastani_dups(tmp_path: str) -> None:
     """Check fastANI run (duplicate FASTA inputs)."""
     tmp = Path(tmp_path)

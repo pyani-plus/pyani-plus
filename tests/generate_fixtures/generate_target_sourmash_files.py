@@ -23,9 +23,11 @@
 # THE SOFTWARE.
 """Generate target files for pyani-plus sourmash tests.
 
-This script can be run with ``./generate_target_sourmash_files.py`` in the script's
-directory, or from the project root directory via ``make fixtures``. It will
-regenerate and potentially modify test input files under the fixtures directory.
+This script can be run with
+``./generate_target_sourmash_files.py <path_to_inputs_dir> <path_to_output_dir>``
+in the script's directory, or from the project root directory via ``make fixtures``.
+It will regenerate and potentially modify test input files under thefixtures
+directory.
 
 This script generates target files for sourmash comparisons.
 Genomes are compared in both directions (forward and reverse)
@@ -43,17 +45,17 @@ and estimate ANI.
 
 # Imports
 import subprocess
+import sys
 from itertools import product
 from pathlib import Path
 
 from pyani_plus.tools import get_sourmash
 
 # Paths to directories (eg, input sequences, delta and filter)
-INPUT_DIR = Path("../fixtures/viral_example")
-OUT_DIR = Path("../fixtures/viral_example/intermediates/sourmash")
+INPUT_DIR, OUT_DIR = Path(sys.argv[1]), Path(sys.argv[2])
 
 # Running ANIm comparisons (all vs all)
-inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*.f*")}
+inputs = {_.stem: _ for _ in INPUT_DIR.glob("*.f*")}
 comparisons = product(inputs, inputs)
 
 # Cleanup

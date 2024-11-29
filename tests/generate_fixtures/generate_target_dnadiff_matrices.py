@@ -23,8 +23,9 @@
 # THE SOFTWARE.
 """Generate target matrices for pyani-plus dnadiff tests.
 
-This script can be run with ``./generate_target_anim_files.py`` in the
-script's directory, or from the project root directory via ``make fixtures``.
+This script can be run with
+``./generate_target_anim_files.py <path_to_input_dir> <path_to_output_dir>``
+in the script's directory, or from the project root directory via ``make fixtures``.
 It will regenerate and potentially modify test input files under the
 fixtures directory.
 

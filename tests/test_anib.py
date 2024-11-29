@@ -34,6 +34,8 @@ import pytest
 from pyani_plus import db_orm, private_cli, tools
 from pyani_plus.methods import method_anib
 
+from . import get_matrix_entry
+
 
 def test_bad_path(tmp_path: str) -> None:
     """Confirm giving an empty path etc fails."""
@@ -138,7 +140,7 @@ def test_running_anib(
         run,
         hash_to_filename,
         {},  # not used for ANIb
-        query_hashes=set(hash_to_filename),
+        query_hashes=set(hash_to_filename),  # order should not matter!
         subject_hash=subject_hash,
     )
     assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004
@@ -161,5 +163,18 @@ def test_running_anib(
         assert filecmp.cmp(fname, tmp_dir / fname.name)
 
     # No real need to test the ANI values here, will be done elsewhere.
+    for query_hash in hash_to_filename:
+        pytest.approx(
+            get_matrix_entry(
+                input_genomes_tiny / "matrices/ANIb_identity.tsv",
+                query_hash,
+                subject_hash,
+            )
+            == session.query(db_orm.Comparison)
+            .where(db_orm.Comparison.query_hash == query_hash)
+            .where(db_orm.Comparison.subject_hash == subject_hash)
+            .one()
+            .identity
+        )
     session.close()
     tmp_db.unlink()

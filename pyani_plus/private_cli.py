@@ -25,6 +25,7 @@ The commands defined here are intended to be used from within pyANI-plus via
 snakemake, for example from worker nodes, to log results to the database.
 """
 
+import os
 import platform
 import subprocess
 import sys
@@ -48,11 +49,9 @@ from pyani_plus.methods import (
 )
 from pyani_plus.public_cli import (
     OPT_ARG_TYPE_CREATE_DB,
-    OPT_ARG_TYPE_FRAGSIZE,
     OPT_ARG_TYPE_TEMP,
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
-    REQ_ARG_TYPE_OUTDIR,
 )
 from pyani_plus.utils import check_fasta, file_md5sum
 
@@ -604,28 +603,6 @@ def fastani(  # noqa: PLR0913
     return 0
 
 
-@app.command()
-def fragment_fasta(
-    fasta: REQ_ARG_TYPE_FASTA_FILES,
-    outdir: REQ_ARG_TYPE_OUTDIR,
-    *,
-    fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
-    quiet: OPT_ARG_TYPE_QUIET = False,
-) -> int:
-    """Fragment FASTA files into subsequences of up to the given size.
-
-    The output files are named ``<stem>-fragmented.fna`` regardless of the
-    input file extension (typically ``.fna``, ``.fa`` or ``.fasta``). If
-    they already exist, they will be overwritten.
-    """
-    if not outdir.is_dir():
-        sys.exit(f"ERROR: outdir {outdir} should be a directory")
-    fragmented_files = method_anib.fragment_fasta_files(fasta, outdir, fragsize)
-    if not quiet:
-        print(f"Fragmented {len(fragmented_files)} files")
-    return 0
-
-
 @app.command(rich_help_panel="Method specific logging")
 def log_anim(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
@@ -763,10 +740,18 @@ def anib(  # noqa: PLR0913
     for query_hash in query_hashes:
         query_stem = Path(hash_to_filename[query_hash]).stem
         tmp_tsv = tmp_dir / f"{query_stem}_vs_{subject_stem}.tsv"
-        # We may want to refactor this function's API
-        tmp_frag_query = method_anib.fragment_fasta_files(
-            [fasta_dir / hash_to_filename[query_hash]], tmp_dir, fragsize
-        )[0]
+
+        # Potential race condition if other columns are being computed with the
+        # same tmp_dir - so give the fragments file a unique name using PID:
+        tmp_frag_query = (
+            tmp_dir / f"{query_stem}-fragments-{fragsize}-pid{os.getpid()}.fna"
+        )
+
+        method_anib.fragment_fasta_file(
+            fasta_dir / hash_to_filename[query_hash],
+            tmp_frag_query,
+            fragsize,
+        )
 
         if not quiet:
             print(f"INFO: Calling blastn for {query_stem} vs {subject_stem}")

@@ -42,18 +42,22 @@ def test_bad_path(tmp_path: str) -> None:
     with pytest.raises(
         FileNotFoundError, match="No such file or directory: '/does/not/exist'"
     ):
-        method_anib.fragment_fasta_files([Path("/does/not/exist")], Path(tmp_path))
+        method_anib.parse_blastn_file(Path("/does/not/exist"))
+
     with pytest.raises(
         FileNotFoundError, match="No such file or directory: '/does/not/exist'"
     ):
-        method_anib.parse_blastn_file(Path("/does/not/exist"))
+        method_anib.fragment_fasta_file(
+            Path("/does/not/exist"), Path(tmp_path) / "frags.fna", 1020
+        )
 
 
 def test_empty_path(tmp_path: str) -> None:
-    """Confirm giving an empty path etc fails."""
+    """Confirm fragmenting an empty path fails."""
     with pytest.raises(ValueError, match="No sequences found in /dev/null"):
-        method_anib.fragment_fasta_files([Path("/dev/null")], Path(tmp_path))
-    # Note it is valid to have an empty BLASTN TSV file (there are no headers)
+        method_anib.fragment_fasta_file(
+            Path("/dev/null"), Path(tmp_path) / "frags.fna", 1020
+        )
 
 
 def test_parse_blastn_empty() -> None:
@@ -152,8 +156,14 @@ def test_running_anib(
     )
 
     # Check the intermediate fragmented FASTA files match
-    for fname in (input_genomes_tiny / "intermediates/ANIb").glob("*.f*"):
-        assert filecmp.cmp(fname, tmp_dir / fname.name)
+    for fname in (input_genomes_tiny / "intermediates/ANIb").glob("*-fragments.fna"):
+        # Intermediate uses f"{query_stem}-fragments-{fragsize}-pid{os.getpid()}.fna"
+        tmp_frag_files = list(
+            tmp_dir.glob(f"{fname.name.rsplit('-', 1)[0]}-fragments-*.fna")
+        )
+        # Only computed one row, so should be only one copy of the fragment file
+        assert len(tmp_frag_files) == 1, (tmp_frag_files, fname.name)
+        assert filecmp.cmp(fname, tmp_frag_files[0])
 
     # Check the intermediate TSV files from blastn match
     subject_stem = Path(hash_to_filename[subject_hash]).stem

@@ -35,8 +35,6 @@ import pytest
 from pyani_plus import db_orm, public_cli, tools
 from pyani_plus.utils import file_md5sum
 
-from . import get_matrix_entry
-
 
 # This is very similar to the functions under tests/snakemake/__init__.py
 def compare_matrix_files(
@@ -189,17 +187,19 @@ def test_partial_run(
 
     # Unlike a typical method calculation, we have not triggered
     # .cache_comparisons() yet, so that will happen in export_run.
-    public_cli.export_run(database=tmp_db, run_id=2, outdir=tmp_path)
+    public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_path)
     output = capsys.readouterr().out
     assert f"Wrote matrices to {tmp_path}" in output, output
+
     # By construction run 2 is partial, only 4 of 9 matrix entries are
-    # defined - the missing entries are just blanks (empty strings)
-    with pytest.raises(ValueError, match="could not convert string to float: ''"):
-        get_matrix_entry(
-            Path(tmp_path) / ("fastANI_identity.tsv"),
-            list(fasta_to_hash.values())[2],
-            list(fasta_to_hash.values())[2],
-        )
+    # defined - this should fail
+    with pytest.raises(
+        SystemExit,
+        match=(
+            "ERROR: Database .*/list-runs.sqlite run-id 2 has only 4 of 3²=9 comparisons, 5 needed"
+        ),
+    ):
+        public_cli.export_run(database=tmp_db, run_id=2, outdir=tmp_path)
 
     # Resuming the partial job should fail as the fastANI version won't match:
     with pytest.raises(

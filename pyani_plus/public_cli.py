@@ -818,7 +818,7 @@ def list_runs(
 
 
 @app.command()
-def export_run(
+def export_run(  # noqa: C901
     database: REQ_ARG_TYPE_DATABASE,
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: Annotated[
@@ -868,10 +868,20 @@ def export_run(
             )
             sys.exit(msg)
 
-    if not run.comparisons().count():
+    done = run.comparisons().count()
+    n = run.genomes.count()
+    if not done:
         msg = f"ERROR: Database {database} run-id {run_id} has no comparisons"
         sys.exit(msg)
-    # What if the run is incomplete? Just output with NaN?
+    elif done < n**2:
+        # Would it be useful to allow partial export, perhaps with a --force option?
+        # Indicate this with blank strings?
+        msg = (
+            f"ERROR: Database {database} run-id {run_id} has only {done} of {n}²={n**2}"
+            f" comparisons, {n**2 - done} needed"
+        )
+        sys.exit(msg)
+
     if run.identities is None:
         run.cache_comparisons()
     if not isinstance(run.identities, pd.DataFrame):

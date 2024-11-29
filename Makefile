@@ -44,7 +44,7 @@ fixtures:
 	cd tests/generate_fixtures/; ./generate_target_dnadiff_matrices.py ../fixtures/viral_example ../fixtures/viral_example/matrices
 	cd tests/generate_fixtures/; ./generate_target_dnadiff_matrices.py ../fixtures/bad_alignments ../fixtures/bad_alignments/matrices
 	cd tests/generate_fixtures/; ./generate_target_sourmash_files.py
-	cd tests/generate_fixtures/; ./generate_target_sourmash_matrices.py
+	cd tests/generate_fixtures/; ./generate_target_sourmash_matrices.py 
 	@echo ""
 	@echo "WARNING: If any tool version has changed, the generated test files"
 	@echo "under fixtures/ may have changed (check using 'git diff'), and"

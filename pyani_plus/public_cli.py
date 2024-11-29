@@ -868,8 +868,6 @@ def export_run(
             )
             sys.exit(msg)
 
-    conf = run.configuration
-
     if not run.comparisons().count():
         msg = f"ERROR: Database {database} run-id {run_id} has no comparisons"
         sys.exit(msg)
@@ -885,13 +883,14 @@ def export_run(
     # Question: Should we match the property in filenames to old pyANI (e.g. coverage)?
     # Question: Should we offer MD5 alternatives, and how? e.g. filename or labels
     # (seems more suited to a report command offering tables and plots)
-    run.identities.to_csv(outdir / f"{conf.method}_identity.tsv", sep="\t")
-    run.aln_length.to_csv(outdir / f"{conf.method}_aln_lengths.tsv", sep="\t")
-    run.sim_errors.to_csv(outdir / f"{conf.method}_sim_errors.tsv", sep="\t")
-    run.cov_query.to_csv(outdir / f"{conf.method}_query_cov.tsv", sep="\t")
-    run.hadamard.to_csv(outdir / f"{conf.method}_hadamard.tsv", sep="\t")
+    method = run.configuration.method
+    run.identities.to_csv(outdir / f"{method}_identity.tsv", sep="\t")
+    run.aln_length.to_csv(outdir / f"{method}_aln_lengths.tsv", sep="\t")
+    run.sim_errors.to_csv(outdir / f"{method}_sim_errors.tsv", sep="\t")
+    run.cov_query.to_csv(outdir / f"{method}_query_cov.tsv", sep="\t")
+    run.hadamard.to_csv(outdir / f"{method}_hadamard.tsv", sep="\t")
 
-    print(f"Wrote matrices to {outdir}/{conf.method}_*.tsv")
+    print(f"Wrote matrices to {outdir}/{method}_*.tsv")
 
     session.close()
     return 0

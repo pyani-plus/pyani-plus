@@ -142,6 +142,7 @@ def test_running_anib(
         tmp_dir,
         session,
         run,
+        input_genomes_tiny,
         hash_to_filename,
         {},  # not used for ANIb
         query_hashes=set(hash_to_filename),  # order should not matter!

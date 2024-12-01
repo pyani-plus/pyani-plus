@@ -23,6 +23,7 @@
 
 import hashlib
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -136,3 +137,21 @@ def check_fasta(fasta: Path) -> list[Path]:
         sys.exit(msg)
 
     return fasta_names
+
+
+def _fmt_cmd(args: list[str]) -> str:
+    # Needs to handle spaces with quoting
+    return " ".join(f"'{_}'" if " " in str(_) else str(_) for _ in args)
+
+
+def check_call(args: list[str]) -> int:
+    """Wrap for subprocess.check_call and report any error to stderr."""
+    try:
+        return subprocess.check_call(
+            [str(_) for _ in args], stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        )
+    except subprocess.CalledProcessError as err:
+        sys.stderr.write(f"ERROR: Return code {err.returncode} from {_fmt_cmd(args)}\n")
+        if err.output:
+            sys.stderr.write(err.output)
+        sys.exit(err.returncode)

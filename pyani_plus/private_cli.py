@@ -27,7 +27,6 @@ snakemake, for example from worker nodes, to log results to the database.
 
 import os
 import platform
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -53,7 +52,7 @@ from pyani_plus.public_cli import (
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
 )
-from pyani_plus.utils import check_fasta, file_md5sum
+from pyani_plus.utils import check_call, check_fasta, file_md5sum
 
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -549,11 +548,9 @@ def fastani(  # noqa: PLR0913
             f"INFO: Calling fastANI for {len(query_hashes)} queries vs {subject_hash}"
         )
 
-    # This will hide the stdout/stderr, unless it fails in which case we
-    # get to see some of it via the default exception message:
-    subprocess.check_output(
+    check_call(
         [
-            tool.exe_path,
+            str(tool.exe_path),
             "--ql",
             str(tmp_queries),
             "-r",
@@ -568,7 +565,6 @@ def fastani(  # noqa: PLR0913
             "--minFraction",
             str(run.configuration.minmatch),
         ],
-        stderr=subprocess.STDOUT,
     )
 
     # Now do a bulk import. There shouldn't be any unless perhaps we have a
@@ -718,9 +714,7 @@ def anib(  # noqa: PLR0913
     if not quiet:
         print(f"INFO: Calling makeblastdb for {subject_stem}")
 
-    # This will hide the stdout/stderr, unless it fails in which case we
-    # get to see some of it via the default exception message:
-    subprocess.check_output(
+    check_call(
         [
             str(tools.get_makeblastdb().exe_path),
             "-in",
@@ -732,9 +726,8 @@ def anib(  # noqa: PLR0913
             "-title",
             subject_hash,
             "-out",
-            tmp_db,
+            str(tmp_db),
         ],
-        stderr=subprocess.STDOUT,
     )
 
     for query_hash in query_hashes:
@@ -756,9 +749,7 @@ def anib(  # noqa: PLR0913
         if not quiet:
             print(f"INFO: Calling blastn for {query_stem} vs {subject_stem}")
 
-        # This will hide the stdout/stderr, unless it fails in which case we
-        # get to see some of it via the default exception message:
-        subprocess.check_output(
+        check_call(
             [
                 str(tool.exe_path),
                 "-query",
@@ -778,7 +769,6 @@ def anib(  # noqa: PLR0913
                 "-evalue",
                 "1e-15",
             ],
-            stderr=subprocess.STDOUT,
         )
 
         identity, aln_length, sim_errors = method_anib.parse_blastn_file(tmp_tsv)

@@ -85,6 +85,7 @@ def test_running_fastani(
         tmp_dir,
         session,
         run,
+        input_genomes_tiny,
         hash_to_filename,
         filename_to_hash,
         query_hashes=set(hash_to_filename),

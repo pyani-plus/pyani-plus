@@ -405,7 +405,7 @@ def log_comparison(  # noqa: PLR0913
 
 
 @app.command()
-def compute_column(  # noqa: C901
+def compute_column(  # noqa: C901, PLR0912
     database: REQ_ARG_TYPE_DATABASE,
     run_id: REQ_ARG_TYPE_RUN_ID,
     subject: Annotated[
@@ -488,12 +488,20 @@ def compute_column(  # noqa: C901
         msg = f"ERROR: Unknown method {method} for run-id {run_id} in {database}"
         sys.exit(msg)
 
+    # On a cluster we are likely in a temp working directory, meaning
+    # if it is a relative path, run.fasta_directory is useless without
+    # evaluating it relative to the DB filename.
+    fasta_dir = Path(run.fasta_directory)
+    if not fasta_dir.is_absolute():
+        fasta_dir = (database.parent / fasta_dir).absolute()
+
     if temp:
         # Use the specified temp-directory (and do not clean up)
         return compute(
             temp,
             session,
             run,
+            fasta_dir,
             hash_to_filename,
             filename_to_hash,
             query_hashes,
@@ -506,6 +514,7 @@ def compute_column(  # noqa: C901
             Path(sys_temp),
             session,
             run,
+            fasta_dir,
             hash_to_filename,
             filename_to_hash,
             query_hashes,
@@ -518,6 +527,7 @@ def fastani(  # noqa: PLR0913
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
+    fasta_dir: Path,
     hash_to_filename: dict[str, Path],
     filename_to_hash: dict[str, str],
     query_hashes: set[str],
@@ -536,7 +546,6 @@ def fastani(  # noqa: PLR0913
 
     config_id = run.configuration.configuration_id
 
-    fasta_dir = Path(run.fasta_directory)
     tmp_output = tmp_dir / f"queries_vs_{subject_hash}.csv"
     tmp_queries = tmp_dir / f"queries_vs_{subject_hash}.txt"
     with tmp_queries.open("w") as handle:
@@ -681,6 +690,7 @@ def anib(  # noqa: PLR0913
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
+    fasta_dir: Path,
     hash_to_filename: dict[str, Path],
     filename_to_hash: dict[str, str],  # noqa: ARG001
     query_hashes: set[str],
@@ -708,7 +718,6 @@ def anib(  # noqa: PLR0913
     subject_stem = Path(hash_to_filename[subject_hash]).stem
     outfmt = "6 " + " ".join(method_anib.BLAST_COLUMNS)
 
-    fasta_dir = Path(run.fasta_directory)
     tmp_db = tmp_dir / f"{subject_stem}"  # prefix for BLAST DB
 
     if not quiet:

@@ -42,8 +42,8 @@ KMER_SIZE = 31  # default
 
 def parse_sourmash_compare_csv(
     compare_file: Path, filename_to_hash: dict[str, str]
-) -> Iterator[tuple[str, str, float]]:
-    """Parse sourmash copare all-vs-all CSV output.
+) -> Iterator[tuple[str, str, float | None]]:
+    """Parse sourmash compare all-vs-all CSV output.
 
     Returns tuples of (query_hash, subject_hash, estimated ANI).
     """
@@ -68,4 +68,4 @@ def parse_sourmash_compare_csv(
                 msg = f"Expected sourmash {query} vs self to be one, not {values[row]}"
                 raise ValueError(msg)
             for col, ani in enumerate(values):
-                yield query, hashes[col], float(ani)
+                yield query, hashes[col], None if float(ani) == 0.0 else float(ani)

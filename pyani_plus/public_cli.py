@@ -526,6 +526,46 @@ def sourmash(  # noqa: PLR0913
     )
 
 
+@app.command(rich_help_panel="ANI methods")
+def branchwater(  # noqa: PLR0913
+    fasta: REQ_ARG_TYPE_FASTA_DIR,
+    database: REQ_ARG_TYPE_DATABASE,
+    *,
+    # These are for the run table:
+    name: OPT_ARG_TYPE_RUN_NAME = None,
+    # These are all for the configuration table:
+    # The mode here is not optional - must pick one!
+    mode: OPT_ARG_TYPE_SOURMASH_MODE = method_sourmash.MODE,
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    scaled: OPT_ARG_TYPE_SOURMASH_SCALED = method_sourmash.SCALED,  # 1000
+    num: OPT_ARG_TYPE_SOURMASH_NUM = None,  # will override scaled if used
+    kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
+) -> int:
+    """Execute sourmash-plugin-branchwater ANI calculations, logged to a pyANI-plus SQLite3 database."""
+    check_db(database, create_db)
+
+    tool = tools.get_sourmash()
+    binaries = {
+        "sourmash": tool.exe_path,
+    }
+    extra = f"scaled={scaled}" if num is None else f"num={num}"
+    return start_and_run_method(
+        executor,
+        database,
+        name,
+        "branchwater",
+        fasta,
+        ["branchwater.csv"],
+        None,  # no pairwise targets
+        tool,
+        binaries,
+        mode=mode.value,  # turn the enum into a string
+        kmersize=kmersize,
+        extra=extra,
+    )
+
+
 @app.command()
 def resume(  # noqa: C901, PLR0912, PLR0915
     database: REQ_ARG_TYPE_DATABASE,
@@ -632,6 +672,13 @@ def resume(  # noqa: C901, PLR0912, PLR0915
                 "sourmash": tool.exe_path,
             }
             targets = ["sourmash.csv"]
+            target_extension = None
+        case "branchwater":
+            tool = tools.get_sourmash()
+            binaries = {
+                "sourmash": tool.exe_path,
+            }
+            targets = ["branchwater.csv"]
             target_extension = None
         case _:
             msg = f"ERROR: Unknown method {config.method} for run-id {run_id} in {database}"

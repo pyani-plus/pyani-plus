@@ -2,3 +2,4 @@ blast
 fastani
 mummer=3.23
 sourmash-minimal>=4.8.11
+sourmash_plugin_branchwater>=0.9.11

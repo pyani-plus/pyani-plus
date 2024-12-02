@@ -27,7 +27,6 @@ pytest -v or make test
 """
 
 import json
-import re
 import shutil  # We need this for filesystem operations
 from pathlib import Path
 
@@ -65,47 +64,37 @@ def config_sourmash_args(
     }
 
 
-def compare_sourmash_sig_files(
-    file1: Path, file2: Path, key_to_modify: str = "filename"
-) -> bool:
+def compare_sourmash_sig_files(file1: Path, file2: Path) -> bool:
     """Compare two .sig files, considering only the stem in the filename field.
 
-    Return True if they are the same or False if they are different.
+    Also ignores name field if missing in either file (branchwater quirk).
     """
-
-    def keep_stem(data: dict) -> dict:
-        """Only consider stem in .sig files.
-
-        Keep only the last part after the last '/' in the filename field.
-        """
-        if isinstance(data, dict):  # If the data is a dictionary
-            if key_to_modify in data:
-                # Consider only the last part after the last '/'.
-                data["filename"] = re.sub(r".*/", "", data[key_to_modify])
-            # Call keep_stem on each value in the dictionary
-            for value in data.values():
-                keep_stem(value)
-        elif isinstance(data, list):  # If the data is a list
-            # Call keep_stem on each item in the list
-            for item in data:
-                keep_stem(item)
-
-        return data
-
-    # Load sketch data from the first .sig file
     with Path.open(file1) as f1:
         data1 = json.load(f1)
 
-    # Load sketch data from the second .sig file
     with Path.open(file2) as f2:
         data2 = json.load(f2)
 
-    # Keep only stem from both loaded sig files
-    cleaned_data1 = keep_stem(data1)
-    cleaned_data2 = keep_stem(data2)
+    assert isinstance(data1, list)
+    assert isinstance(data2, list)
+    assert len(data1) == len(data2)
 
-    # Compare the cleaned .sig data and return True if they are identical, False if different
-    return cleaned_data1 == cleaned_data2
+    for entry1, entry2 in zip(data1, data2, strict=False):
+        assert isinstance(entry1, dict)
+        assert isinstance(entry2, dict)
+        keys = set(entry1).union(entry2)
+        for key in keys:
+            if key == "filename":
+                assert Path(entry1[key]).stem == Path(entry2[key]).stem
+            elif key == "name" and (key not in entry2 or key not in entry1):
+                # Known to be missing in branchwater
+                pass
+            else:
+                assert (
+                    entry1[key] == entry2[key]
+                ), f"{key} {entry1[key]!r}!={entry2[key]!r}"
+
+    return True
 
 
 def compare_sourmash_ani_files(data1: Path, data2: Path) -> bool:
@@ -224,6 +213,82 @@ def test_snakemake_compare_rule(
     assert compare_sourmash_ani_files(
         sourmash_targets_compare_outdir / "sourmash.csv",
         input_genomes_tiny / "intermediates/sourmash/sourmash.csv",
+    )
+
+    compare_db_matrices(db, input_genomes_tiny / "matrices")
+
+
+def test_branchwater_sketch_rule(
+    input_genomes_tiny: Path,
+    config_sourmash_args: dict,
+    tmp_path: str,
+) -> None:
+    """Test sourmash branchwater sketch snakemake wrapper."""
+    tmp_dir = Path(tmp_path)
+
+    config = config_sourmash_args.copy()
+    config["outdir"] = tmp_dir / "output"
+
+    expected_sigs = list((input_genomes_tiny / "intermediates/sourmash").glob("*.sig"))
+    targets = [tmp_dir / "output" / fname.name for fname in expected_sigs]
+
+    # Run snakemake wrapper
+    run_snakemake_with_progress_bar(
+        executor=ToolExecutor.local,
+        workflow_name="snakemake_branchwater.smk",
+        targets=targets,
+        params=config,
+        working_directory=Path(tmp_path),
+    )
+
+    # Check output against target fixtures
+    for expected, generated in zip(expected_sigs, targets, strict=False):
+        assert compare_sourmash_sig_files(expected, generated)
+
+
+def test_branchwater_compare_rule(
+    capsys: pytest.CaptureFixture[str],
+    config_sourmash_args: dict,
+    input_genomes_tiny: Path,
+    tmp_path: str,
+) -> None:
+    """Test sourmash branchwater compare snakemake wrapper."""
+    tmp_dir = Path(tmp_path)
+
+    config = config_sourmash_args.copy()
+    config["outdir"] = tmp_dir / "output"
+
+    # Assuming this will match but worker nodes might have a different version
+    sourmash_tool = get_sourmash()
+
+    # Setup minimal test DB
+    db = config["db"]
+    assert not db.is_file()
+    log_run(
+        fasta=config_sourmash_args["indir"],  # i.e. input_genomes_tiny
+        database=db,
+        cmdline="pyani-plus branchwater ...",
+        status="Testing",
+        name="Testing branchwater",
+        method="branchwater",
+        program=sourmash_tool.exe_path.stem,
+        version=sourmash_tool.version,
+        # not implemented yet, mode=config["mode"],
+        kmersize=config["kmersize"],
+        extra=config["extra"],
+        create_db=True,
+    )
+    assert db.is_file()
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
+
+    # Run snakemake wrapper
+    run_snakemake_with_progress_bar(
+        executor=ToolExecutor.local,
+        workflow_name="snakemake_branchwater.smk",
+        targets=[tmp_dir / "output/branchwater.csv"],
+        params=config,
+        working_directory=Path(tmp_path),
     )
 
     compare_db_matrices(db, input_genomes_tiny / "matrices")

@@ -357,6 +357,25 @@ def test_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:
     )
 
 
+def test_branchwater(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Check sourmash run (default settings except scaled=300)."""
+    out = Path(tmp_path)
+    tmp_db = out / "example.sqlite"
+    public_cli.branchwater(
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Test Run",
+        scaled=300,
+        create_db=True,
+    )
+    public_cli.export_run(database=tmp_db, outdir=out)
+    # Should match the sourmash output (but computed quicker)
+    compare_matrix_files(
+        input_genomes_tiny / "matrices" / "sourmash_identity.tsv",
+        out / "branchwater_identity.tsv",
+    )
+
+
 def test_fastani_dups(tmp_path: str) -> None:
     """Check fastANI run (duplicate FASTA inputs)."""
     tmp = Path(tmp_path)
@@ -544,6 +563,69 @@ def test_resume_partial_sourmash(
         session,
         config,
         cmdline="pyani-plus sourmash ...",
+        fasta_directory=input_genomes_tiny,
+        status="Partial",
+        name="Test Resuming A Run",
+        fasta_to_hash=fasta_to_hash,  # all 3/3 genomes, but only have 4/9 comparisons
+    )
+    public_cli.list_runs(database=tmp_db)
+    output = capsys.readouterr().out
+    assert " 1 analysis runs in " in output, output
+    assert " 4/9=3² │ Partial " in output, output
+
+    public_cli.resume(database=tmp_db)
+    output = capsys.readouterr().out
+    assert "Resuming run-id 1, the only run" in output, output
+    assert "Database already has 4 of 3²=9 comparisons, 5 needed" in output, output
+
+    public_cli.list_runs(database=tmp_db)
+    output = capsys.readouterr().out
+    assert " 1 analysis runs in " in output, output
+    assert " 9/9=3² │ Done " in output, output
+
+
+def test_resume_partial_branchwater(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
+    """Check list-runs and export-run with mock data including a partial sourmash run."""
+    tmp_db = Path(tmp_path) / "resume.sqlite"
+    tool = tools.get_sourmash()
+    session = db_orm.connect_to_db(tmp_db)
+    config = db_orm.db_configuration(
+        session,
+        "branchwater",
+        tool.exe_path.stem,
+        tool.version,
+        kmersize=31,  # must be 31 to match the sig files in fixtures
+        extra="scaled=300",
+        mode="containment",
+        create=True,
+    )
+
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+
+    # Record 4 of the possible 9 comparisons,
+    # mimicking what might happen when a 2x2 run is expanded to 3x3
+    genomes = list(fasta_to_hash.values())
+    for query_hash in genomes[:-1]:
+        for subject_hash in genomes[:-1]:
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query_hash,
+                subject_hash,
+                1.0 if query_hash is subject_hash else 0.99,
+            )
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani-plus branchwater ...",
         fasta_directory=input_genomes_tiny,
         status="Partial",
         name="Test Resuming A Run",

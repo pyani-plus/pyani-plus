@@ -32,7 +32,7 @@ from pathlib import Path
 import pytest
 
 from pyani_plus import db_orm, private_cli, tools
-from pyani_plus.methods import method_sourmash
+from pyani_plus.methods import method_branchwater, method_sourmash
 
 
 def test_parser_with_bad_self_vs_self(tmp_path: str) -> None:
@@ -47,12 +47,31 @@ def test_parser_with_bad_self_vs_self(tmp_path: str) -> None:
     assert next(parser) == ("AAAAAA", "AAAAAA", 1.0)
     assert next(parser) == ("AAAAAA", "BBBBBB", 0.99)
     with pytest.raises(
-        ValueError, match="Expected sourmash BBBBBB vs self to be one, not NaN"
+        ValueError, match="Expected sourmash BBBBBB vs self to be one, not 'NaN'"
     ):
         next(parser)
 
 
-def test_missing_db(tmp_path: str, input_genomes_tiny: Path) -> None:
+def test_parser_with_bad_branchwater(tmp_path: str) -> None:
+    """Check self-vs-self is one in sourmash compare parser."""
+    mock_csv = Path(tmp_path) / "faked.csv"
+    with mock_csv.open("w") as handle:
+        handle.write("max_containment_ani,query_name,match_name\n")
+        handle.write("\n")  # parser will skip blank lines
+        handle.write("1.0,A.fasta,A.fasta\n")
+        handle.write("0.9,A.fasta,B.fasta\n")
+        handle.write("NaN,B.fasta,B.fasta\n")  # fails self-vs-self 100%
+    mock_dict = {"A.fasta": "AAAAAA", "B.fasta": "BBBBBB"}
+    parser = method_branchwater.parse_sourmash_manysearch_csv(mock_csv, mock_dict)
+    assert next(parser) == ("AAAAAA", "AAAAAA", 1.0)
+    assert next(parser) == ("AAAAAA", "BBBBBB", 0.9)
+    with pytest.raises(
+        ValueError, match="Expected branchwater BBBBBB vs self to be one, not 'NaN'"
+    ):
+        next(parser)
+
+
+def test_missing_db(tmp_path: str) -> None:
     """Check expected error when DB does not exist."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
@@ -61,7 +80,14 @@ def test_missing_db(tmp_path: str, input_genomes_tiny: Path) -> None:
         private_cli.log_sourmash(
             database=tmp_db,
             run_id=1,
-            compare=input_genomes_tiny / "intermediates/sourmash/sourmash.csv",
+            compare=Path("/dev/null"),  # won't get as far as opening this
+        )
+
+    with pytest.raises(SystemExit, match="does not exist"):
+        private_cli.log_branchwater(
+            database=tmp_db,
+            run_id=1,
+            manysearch=Path("/dev/null"),  # won't get as far as opening this
         )
 
 
@@ -163,7 +189,7 @@ def test_wrong_size(
         )
 
 
-def test_logging_wrong_version(
+def test_logging_wrong_version_sourmash(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
@@ -196,7 +222,44 @@ def test_logging_wrong_version(
         private_cli.log_sourmash(
             database=tmp_db,
             run_id=1,
-            compare=input_genomes_tiny / "intermediates/sourmash/sourmash.csv",
+            compare=Path("/dev/null"),  # won't get as far as opening this
+        )
+
+
+def test_logging_wrong_version_branchwater(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Check mismatched sourmash version fails."""
+    tmp_db = Path(tmp_path) / "new.sqlite"
+    assert not tmp_db.is_file()
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus branchwater ...",
+        status="Testing",
+        name="Testing log_branchwater",
+        method="branchwater",
+        program="sourmash",
+        version="42",
+        mode=method_sourmash.MODE,
+        kmersize=method_sourmash.KMER_SIZE,
+        extra="scaled=" + str(method_sourmash.SCALED),
+        create_db=True,
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Run configuration was sourmash 42 but we have sourmash 4.",
+    ):
+        private_cli.log_branchwater(
+            database=tmp_db,
+            run_id=1,
+            manysearch=Path("/dev/null"),  # won't get as far as opening this
         )
 
 

@@ -106,6 +106,9 @@ def compare_db_matrices(
     assert matrices_path.is_dir()
     method = run.configuration.method
 
+    if method == "branchwater":
+        method = "sourmash"  # branchwater should be just faster sourmash
+
     checked = False
     if (matrices_path / f"{method}_identity.tsv").is_file():
         compare_matrix(

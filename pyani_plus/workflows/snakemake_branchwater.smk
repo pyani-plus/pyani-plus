@@ -19,30 +19,51 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-"""Snakemake workflow for ANIb"""
+"""Snakemake workflow for sourmash-plugin-brakewater"""
 from pyani_plus.workflows import check_input_stems
 
 indir_files = check_input_stems(config["indir"])
+
+
+def get_genomeA(wildcards):
+    return indir_files[wildcards.genomeA]
 
 
 def get_genomeB(wildcards):
     return indir_files[wildcards.genomeB]
 
 
-# For ANIb, query the fragments FASTA from genomeA against a BLAST DB of genomeB.
-rule anib:
+# The sketch rule runs the branchwater equivalent of "sourmash sketch"
+rule sketch:
+    params:
+        indir=config["indir"],
+        outdir=config["outdir"],
+        extra=config["extra"],  # This will consist of either `scaled=X` or `num=X`.
+        kmersize=config["kmersize"],
+    input:
+        genomeA=get_genomeA,
+    output:
+        "{outdir}/{genomeA}.sig",
+    shell:
+        "sourmash scripts singlesketch -I DNA -p 'k={params.kmersize},{params.extra}' {input} -o {output} > {output}.log 2>&1"
+
+
+# The compare rule runs the branchwater equivalent of "sourmash compare"
+rule compare:
     params:
         db=config["db"],
         run_id=config["run_id"],
         outdir=config["outdir"],
-        temp=config["temp"],
+        extra=config["extra"],  # This will consist of either `scaled=X` or `num=X`.
     input:
-        genomeB=get_genomeB,
+        expand("{{outdir}}/{genome}.sig", genome=sorted(indir_files)),
     output:
-        "{outdir}/all_vs_{genomeB}.anib",
+        "{outdir}/branchwater.csv",
     shell:
         """
-        .pyani-plus-private-cli compute-column --quiet \
+        sourmash sig collect --quiet -F csv -o all_sigs.csv {input} > {output}.log 2>&1 &&
+        sourmash scripts manysearch -m DNA --quiet -o {output} all_sigs.csv all_sigs.csv >> {output}.log 2>&1 &&
+        .pyani-plus-private-cli log-branchwater --quiet \
             --database {params.db} --run-id {params.run_id} \
-            --subject {input} {params.temp} && touch {output}
+            --manysearch {output}
         """

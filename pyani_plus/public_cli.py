@@ -86,6 +86,18 @@ OPT_ARG_TYPE_RUN_NAME = Annotated[
         help="Run name. Default is 'N genomes using METHOD'.", show_default=False
     ),
 ]
+OPT_ARG_TYPE_TEMP = Annotated[
+    Path | None,
+    typer.Option(
+        help="Directory to use for intermediate files, which will not be deleted."
+        " Default behaviour is to use a system specified temporary directory and"
+        " remove this afterwards.",
+        show_default=False,
+        exists=True,
+        dir_okay=True,
+        file_okay=False,
+    ),
+]
 OPT_ARG_TYPE_FRAGSIZE = Annotated[
     int,
     typer.Option(
@@ -94,7 +106,8 @@ OPT_ARG_TYPE_FRAGSIZE = Annotated[
         min=1,
     ),
 ]
-# fastANI has maximum (and default) k-mer size 16
+# fastANI has maximum (and default) k-mer size 16,
+# so defined separately with max=16
 OPT_ARG_TYPE_KMERSIZE = Annotated[
     int,
     typer.Option(
@@ -155,6 +168,7 @@ app = typer.Typer(
 
 def start_and_run_method(  # noqa: PLR0913
     executor: ToolExecutor,
+    temp: Path | None,
     database: Path,
     name: str | None,
     method: str,
@@ -225,6 +239,7 @@ def start_and_run_method(  # noqa: PLR0913
 
     return run_method(
         executor,
+        temp,
         filename_to_md5,
         database,
         session,
@@ -237,6 +252,7 @@ def start_and_run_method(  # noqa: PLR0913
 
 def run_method(  # noqa: PLR0913
     executor: ToolExecutor,
+    temp: Path | None,
     filename_to_md5: dict[Path, str],
     database: Path,
     session: Session,
@@ -312,6 +328,7 @@ def run_method(  # noqa: PLR0913
                 else ShowProgress.bar,
                 database=Path(database),
                 run_id=run_id,
+                temp=temp,
             )
 
         # Reconnect to the DB
@@ -343,6 +360,7 @@ def anim(  # noqa: PLR0913
     mode: OPT_ARG_TYPE_ANIM_MODE = method_anim.MODE,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    temp: OPT_ARG_TYPE_TEMP = None,
 ) -> int:
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -355,6 +373,7 @@ def anim(  # noqa: PLR0913
     }
     return start_and_run_method(
         executor,
+        temp,
         database,
         name,
         "ANIm",
@@ -368,7 +387,7 @@ def anim(  # noqa: PLR0913
 
 
 @app.command(rich_help_panel="ANI methods")
-def dnadiff(
+def dnadiff(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     *,
@@ -377,6 +396,7 @@ def dnadiff(
     # Does not use fragsize, mode, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    temp: OPT_ARG_TYPE_TEMP = None,
 ) -> int:
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -393,6 +413,7 @@ def dnadiff(
     }
     return start_and_run_method(
         executor,
+        temp,
         database,
         name,
         "dnadiff",
@@ -416,11 +437,11 @@ def anib(  # noqa: PLR0913
     # Does not use mode, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    temp: OPT_ARG_TYPE_TEMP = None,
 ) -> int:
     """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
 
-    target_extension = ".tsv"
     tool = tools.get_blastn()
     alt = tools.get_makeblastdb()
     if tool.version != alt.version:
@@ -430,14 +451,17 @@ def anib(  # noqa: PLR0913
         "blastn": tool.exe_path,
         "makeblastdb": alt.exe_path,
     }
+    fasta_list = check_fasta(fasta)
+
     return start_and_run_method(
         executor,
+        temp,
         database,
         name,
         "ANIb",
         fasta,
-        [],
-        target_extension,
+        [f"all_vs_{Path(_).stem}.anib" for _ in fasta_list],
+        None,  # no pairwise target
         tool,
         binaries,
         fragsize=fragsize,
@@ -454,10 +478,20 @@ def fastani(  # noqa: PLR0913
     # These are all for the configuration table:
     fragsize: OPT_ARG_TYPE_FRAGSIZE = method_fastani.FRAG_LEN,
     # Does not use mode
-    kmersize: OPT_ARG_TYPE_KMERSIZE = method_fastani.KMER_SIZE,
+    # Don't use OPT_ARG_TYPE_KMERSIZE as want to include max=16
+    kmersize: Annotated[
+        int,
+        typer.Option(
+            help="Comparison method k-mer size",
+            rich_help_panel="Method parameters",
+            min=1,
+            max=16,
+        ),
+    ] = method_fastani.KMER_SIZE,
     minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    temp: OPT_ARG_TYPE_TEMP = None,
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -470,6 +504,7 @@ def fastani(  # noqa: PLR0913
 
     return start_and_run_method(
         executor,
+        temp,
         database,
         name,
         "fastANI",
@@ -496,6 +531,7 @@ def sourmash(  # noqa: PLR0913
     mode: OPT_ARG_TYPE_SOURMASH_MODE = method_sourmash.MODE,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    temp: OPT_ARG_TYPE_TEMP = None,
     scaled: OPT_ARG_TYPE_SOURMASH_SCALED = method_sourmash.SCALED,  # 1000
     num: OPT_ARG_TYPE_SOURMASH_NUM = None,  # will override scaled if used
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
@@ -510,6 +546,7 @@ def sourmash(  # noqa: PLR0913
     extra = f"scaled={scaled}" if num is None else f"num={num}"
     return start_and_run_method(
         executor,
+        temp,
         database,
         name,
         "sourmash",
@@ -517,6 +554,48 @@ def sourmash(  # noqa: PLR0913
         # Can we do e.g. sourmash_max-containment_k=31_scaled=300.csv
         # using [f"sourmash_{mode.value}_k={kmersize}_{extra}.csv"] ?
         ["sourmash.csv"],
+        None,  # no pairwise targets
+        tool,
+        binaries,
+        mode=mode.value,  # turn the enum into a string
+        kmersize=kmersize,
+        extra=extra,
+    )
+
+
+@app.command(rich_help_panel="ANI methods")
+def branchwater(  # noqa: PLR0913
+    fasta: REQ_ARG_TYPE_FASTA_DIR,
+    database: REQ_ARG_TYPE_DATABASE,
+    *,
+    # These are for the run table:
+    name: OPT_ARG_TYPE_RUN_NAME = None,
+    # These are all for the configuration table:
+    # The mode here is not optional - must pick one!
+    mode: OPT_ARG_TYPE_SOURMASH_MODE = method_sourmash.MODE,
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    temp: OPT_ARG_TYPE_TEMP = None,
+    scaled: OPT_ARG_TYPE_SOURMASH_SCALED = method_sourmash.SCALED,  # 1000
+    num: OPT_ARG_TYPE_SOURMASH_NUM = None,  # will override scaled if used
+    kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
+) -> int:
+    """Execute sourmash-plugin-branchwater ANI calculations, logged to a pyANI-plus SQLite3 database."""
+    check_db(database, create_db)
+
+    tool = tools.get_sourmash()
+    binaries = {
+        "sourmash": tool.exe_path,
+    }
+    extra = f"scaled={scaled}" if num is None else f"num={num}"
+    return start_and_run_method(
+        executor,
+        temp,
+        database,
+        name,
+        "branchwater",
+        fasta,
+        ["branchwater.csv"],
         None,  # no pairwise targets
         tool,
         binaries,
@@ -535,6 +614,7 @@ def resume(  # noqa: C901, PLR0912, PLR0915
         typer.Option(help="Which run to resume (defaults to most recent)"),
     ] = None,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    temp: OPT_ARG_TYPE_TEMP = None,
 ) -> int:
     """Resume any (paritual) run already logged in the database.
 
@@ -633,6 +713,13 @@ def resume(  # noqa: C901, PLR0912, PLR0915
             }
             targets = ["sourmash.csv"]
             target_extension = None
+        case "branchwater":
+            tool = tools.get_sourmash()
+            binaries = {
+                "sourmash": tool.exe_path,
+            }
+            targets = ["branchwater.csv"]
+            target_extension = None
         case _:
             msg = f"ERROR: Unknown method {config.method} for run-id {run_id} in {database}"
             sys.exit(msg)
@@ -670,6 +757,7 @@ def resume(  # noqa: C901, PLR0912, PLR0915
 
     return run_method(
         executor,
+        temp,
         filename_to_md5,
         database,
         session,
@@ -730,7 +818,7 @@ def list_runs(
 
 
 @app.command()
-def export_run(
+def export_run(  # noqa: C901
     database: REQ_ARG_TYPE_DATABASE,
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: Annotated[
@@ -780,12 +868,20 @@ def export_run(
             )
             sys.exit(msg)
 
-    conf = run.configuration
-
-    if not run.comparisons().count():
+    done = run.comparisons().count()
+    n = run.genomes.count()
+    if not done:
         msg = f"ERROR: Database {database} run-id {run_id} has no comparisons"
         sys.exit(msg)
-    # What if the run is incomplete? Just output with NaN?
+    elif done < n**2:
+        # Would it be useful to allow partial export, perhaps with a --force option?
+        # Indicate this with blank strings?
+        msg = (
+            f"ERROR: Database {database} run-id {run_id} has only {done} of {n}²={n**2}"
+            f" comparisons, {n**2 - done} needed"
+        )
+        sys.exit(msg)
+
     if run.identities is None:
         run.cache_comparisons()
     if not isinstance(run.identities, pd.DataFrame):
@@ -797,13 +893,14 @@ def export_run(
     # Question: Should we match the property in filenames to old pyANI (e.g. coverage)?
     # Question: Should we offer MD5 alternatives, and how? e.g. filename or labels
     # (seems more suited to a report command offering tables and plots)
-    run.identities.to_csv(outdir / f"{conf.method}_identity.tsv", sep="\t")
-    run.aln_length.to_csv(outdir / f"{conf.method}_aln_lengths.tsv", sep="\t")
-    run.sim_errors.to_csv(outdir / f"{conf.method}_sim_errors.tsv", sep="\t")
-    run.cov_query.to_csv(outdir / f"{conf.method}_query_cov.tsv", sep="\t")
-    run.hadamard.to_csv(outdir / f"{conf.method}_hadamard.tsv", sep="\t")
+    method = run.configuration.method
+    run.identities.to_csv(outdir / f"{method}_identity.tsv", sep="\t")
+    run.aln_length.to_csv(outdir / f"{method}_aln_lengths.tsv", sep="\t")
+    run.sim_errors.to_csv(outdir / f"{method}_sim_errors.tsv", sep="\t")
+    run.cov_query.to_csv(outdir / f"{method}_query_cov.tsv", sep="\t")
+    run.hadamard.to_csv(outdir / f"{method}_hadamard.tsv", sep="\t")
 
-    print(f"Wrote matrices to {outdir}/{conf.method}_*.tsv")
+    print(f"Wrote matrices to {outdir}/{method}_*.tsv")
 
     session.close()
     return 0

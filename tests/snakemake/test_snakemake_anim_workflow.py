@@ -44,7 +44,6 @@ from . import compare_db_matrices
 
 @pytest.fixture
 def config_anim_args(
-    input_genomes_tiny: Path,
     snakemake_cores: int,
     tmp_path: str,
 ) -> dict:
@@ -59,7 +58,7 @@ def config_anim_args(
         "nucmer": get_nucmer().exe_path,
         "delta_filter": get_delta_filter().exe_path,
         # "outdir": ... is dynamic
-        "indir": input_genomes_tiny,
+        # "indir": ... is dynamic
         "mode": "mum",
         "cores": snakemake_cores,
     }
@@ -108,11 +107,15 @@ def test_rule_ANIm(  # noqa: N802
     # Assuming this will match but worker nodes might have a different version
     nucmer_tool = get_nucmer()
 
+    config = config_anim_args.copy()
+    config["outdir"] = anim_targets_outdir
+    config["indir"] = input_genomes_tiny
+
     # Setup minimal test DB
     db = config_anim_args["db"]
     assert not db.is_file()
     log_run(
-        fasta=config_anim_args["indir"],  # i.e. input_genomes_tiny
+        fasta=config["indir"],  # i.e. input_genomes_tiny
         database=db,
         status="Testing",
         name="Test case",
@@ -124,9 +127,6 @@ def test_rule_ANIm(  # noqa: N802
         create_db=True,
     )
     assert db.is_file()
-
-    config = config_anim_args.copy()
-    config["outdir"] = anim_targets_outdir
 
     expected_filter = list((input_genomes_tiny / "intermediates/ANIm").glob("*.filter"))
     expected_delta = list((input_genomes_tiny / "intermediates/ANIm").glob("*.delta"))
@@ -154,3 +154,79 @@ def test_rule_ANIm(  # noqa: N802
         assert compare_files_with_skip(fname, generated)
 
     compare_db_matrices(db, input_genomes_tiny / "matrices")
+
+
+def test_rule_ANIm_bad_alignments(  # noqa: N802
+    input_genomes_bad_alignments: Path,
+    anim_targets_outdir: Path,
+    config_anim_args: dict,
+    tmp_path: str,
+) -> None:
+    """Test rule ANIm (bad alignments).
+
+    Checks that the ANIm rule in the ANIm snakemake wrapper gives the
+    expected output.
+
+    If the output directory exists (i.e. the make clean_tests rule has not
+    been run), the tests will automatically pass as snakemake will not
+    attempt to re-run the rule. That would prevent us from seeing any
+    introduced bugs, so we force re-running the rule by deleting the
+    output directory before running the tests.
+    """
+    # Remove the output directory to force re-running the snakemake rule
+    shutil.rmtree(anim_targets_outdir, ignore_errors=True)
+
+    # Assuming this will match but worker nodes might have a different version
+    nucmer_tool = get_nucmer()
+
+    config = config_anim_args.copy()
+    config["outdir"] = anim_targets_outdir
+    config["indir"] = input_genomes_bad_alignments
+
+    # Setup minimal test DB
+    db = config_anim_args["db"]
+    assert not db.is_file()
+    log_run(
+        fasta=config["indir"],  # i.e. input_genomes_bad_alignments
+        database=db,
+        status="Testing",
+        name="Test case",
+        cmdline="pyani-plus anib --database ... blah blah blah",
+        method="ANIm",
+        program=nucmer_tool.exe_path.stem,
+        version=nucmer_tool.version,
+        mode=config_anim_args["mode"],
+        create_db=True,
+    )
+    assert db.is_file()
+
+    expected_filter = list(
+        (input_genomes_bad_alignments / "intermediates/ANIm").glob("*.filter")
+    )
+    expected_delta = list(
+        (input_genomes_bad_alignments / "intermediates/ANIm").glob("*.delta")
+    )
+    targets = [anim_targets_outdir / fname.name for fname in expected_filter]
+
+    # Run snakemake wrapper
+    run_snakemake_with_progress_bar(
+        executor=ToolExecutor.local,
+        workflow_name="snakemake_anim.smk",
+        database=db,
+        run_id=0,  # only needed for progress bar
+        targets=targets,
+        params=config,
+        working_directory=Path(tmp_path),
+    )
+
+    # Check delta-filter output against target fixtures
+    for fname in expected_filter:
+        generated = anim_targets_outdir / fname.name
+        assert compare_files_with_skip(fname, generated)
+
+    # Check nucmer output against target fixtures
+    for fname in expected_delta:
+        generated = anim_targets_outdir / fname.name
+        assert compare_files_with_skip(fname, generated)
+
+    compare_db_matrices(db, input_genomes_bad_alignments / "matrices")

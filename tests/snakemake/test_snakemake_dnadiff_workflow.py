@@ -48,7 +48,6 @@ from . import compare_db_matrices
 
 @pytest.fixture
 def config_dnadiff_args(
-    input_genomes_tiny: Path,
     snakemake_cores: int,
     tmp_path: str,
 ) -> dict:
@@ -65,7 +64,7 @@ def config_dnadiff_args(
         "show_coords": get_show_coords().exe_path,
         "show_diff": get_show_diff().exe_path,
         # "outdir": ... is dynamic
-        "indir": input_genomes_tiny,
+        # "indir": ... is dynamic
         "cores": snakemake_cores,
     }
 
@@ -124,11 +123,15 @@ def test_dnadiff(
 
     nucmer_tool = get_nucmer()
 
+    config = config_dnadiff_args.copy()
+    config["outdir"] = dnadiff_targets_outdir
+    config["indir"] = input_genomes_tiny
+
     # Setup minimal test DB
     db = config_dnadiff_args["db"]
     assert not db.is_file()
     log_run(
-        fasta=config_dnadiff_args["indir"],  # i.e. input_genomes_tiny
+        fasta=config["indir"],  # i.e. input_genomes_tiny
         database=db,
         status="Testing",
         name="Test case",
@@ -143,9 +146,6 @@ def test_dnadiff(
         create_db=True,
     )
     assert db.is_file()
-
-    config = config_dnadiff_args.copy()
-    config["outdir"] = dnadiff_targets_outdir
 
     targets = [
         dnadiff_targets_outdir / fname.name
@@ -189,3 +189,103 @@ def test_dnadiff(
         )
 
     compare_db_matrices(db, input_genomes_tiny / "matrices", absolute_tolerance=5e-5)
+
+
+def test_dnadiff_bad_alignments(
+    input_genomes_bad_alignments: Path,
+    dnadiff_targets_outdir: Path,
+    config_dnadiff_args: dict,
+    tmp_path: str,
+) -> None:
+    """Test rule dnadiff (bad alignments).
+
+    Checks that the dnadiff rule in the dnadiff snakemake wrapper gives the
+    expected output.
+
+    If the output directory exists (i.e. the make clean_tests rule has not
+    been run), the tests will automatically pass as snakemake will not
+    attempt to re-run the rule. That would prevent us from seeing any
+    introduced bugs, so we force re-running the rule by deleting the
+    output directory before running the tests.
+    """
+    # Remove the output directory to force re-running the snakemake rule
+    shutil.rmtree(dnadiff_targets_outdir, ignore_errors=True)
+
+    nucmer_tool = get_nucmer()
+
+    config = config_dnadiff_args.copy()
+    config["outdir"] = dnadiff_targets_outdir
+    config["indir"] = input_genomes_bad_alignments
+
+    # Setup minimal test DB
+    db = config_dnadiff_args["db"]
+    assert not db.is_file()
+    log_run(
+        fasta=config["indir"],  # i.e. input_genomes_bad_alignments
+        database=db,
+        status="Testing",
+        name="Test case",
+        cmdline="pyani-plus dnadiff --database ... blah blah blah",
+        method="dnadiff",
+        program=nucmer_tool.exe_path.stem,
+        version=nucmer_tool.version,  # used as a proxy for MUMmer suite
+        fragsize=None,
+        mode=None,
+        kmersize=None,
+        minmatch=None,
+        create_db=True,
+    )
+    assert db.is_file()
+
+    targets = [
+        dnadiff_targets_outdir / fname.name
+        for fname in (input_genomes_bad_alignments / "intermediates/dnadiff").glob(
+            "*.mcoords"
+        )
+    ]
+
+    # Run snakemake wrapper
+    run_snakemake_with_progress_bar(
+        executor=ToolExecutor.local,
+        workflow_name="snakemake_dnadiff.smk",
+        targets=targets,
+        params=config,
+        working_directory=Path(tmp_path),
+    )
+
+    # Check nucmer output (.delta) against target fixtures
+    for fname in (input_genomes_bad_alignments / "intermediates/dnadiff").glob(
+        "*.delta"
+    ):
+        assert compare_files_with_skip(fname, dnadiff_targets_outdir / fname.name)
+
+    # Check nucmer output (.filter) against target fixtures
+    for fname in (input_genomes_bad_alignments / "intermediates/dnadiff").glob(
+        "*.filter"
+    ):
+        assert compare_files_with_skip(
+            fname,
+            dnadiff_targets_outdir / fname.name,
+        )
+
+    # Check showdiff output (.qdiff) against target fixtures
+    for fname in (input_genomes_bad_alignments / "intermediates/dnadiff").glob(
+        "*.qdiff"
+    ):
+        assert compare_files_with_skip(
+            fname,
+            dnadiff_targets_outdir / fname.name,
+            skip=0,
+        )
+
+    # Check show_coords output (.mcoords) against target fixtures
+    for fname in targets:
+        assert compare_files_with_skip(
+            fname,
+            dnadiff_targets_outdir / fname.name,
+            skip=0,
+        )
+
+    compare_db_matrices(
+        db, input_genomes_bad_alignments / "matrices", absolute_tolerance=5e-5
+    )

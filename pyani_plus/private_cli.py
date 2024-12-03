@@ -25,8 +25,10 @@ The commands defined here are intended to be used from within pyANI-plus via
 snakemake, for example from worker nodes, to log results to the database.
 """
 
+import os
 import platform
 import sys
+import tempfile
 from pathlib import Path
 from typing import Annotated
 
@@ -39,18 +41,18 @@ from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
 from pyani_plus.methods import (
     method_anib,
     method_anim,
+    method_branchwater,
     method_dnadiff,
     method_fastani,
     method_sourmash,
 )
 from pyani_plus.public_cli import (
     OPT_ARG_TYPE_CREATE_DB,
-    OPT_ARG_TYPE_FRAGSIZE,
+    OPT_ARG_TYPE_TEMP,
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
-    REQ_ARG_TYPE_OUTDIR,
 )
-from pyani_plus.utils import check_fasta, file_md5sum
+from pyani_plus.utils import check_call, check_fasta, file_md5sum
 
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -94,11 +96,18 @@ REQ_ARG_TYPE_QUERY_FASTA = Annotated[
 REQ_ARG_TYPE_SUBJECT_FASTA = Annotated[
     Path,
     typer.Option(
-        help="Path to subject FASTA file",
+        help="Path to subject (reference) FASTA file",
         show_default=False,
         exists=True,
         dir_okay=False,
         file_okay=True,
+    ),
+]
+REQ_ARG_TYPE_SUBJECT = Annotated[
+    str,
+    typer.Option(
+        help="Filename or hash of subject (reference) FASTA file",
+        show_default=False,
     ),
 ]
 REQ_ARG_TYPE_METHOD = Annotated[
@@ -395,59 +404,181 @@ def log_comparison(  # noqa: PLR0913
     return 0
 
 
-# Ought we switch the command line arguments here to match fastANI naming?
-# Note this omits mode
-@app.command(rich_help_panel="Method specific logging")
-def log_fastani(
+@app.command()
+def compute_column(  # noqa: C901, PLR0912
     database: REQ_ARG_TYPE_DATABASE,
-    # These are for the comparison table
     run_id: REQ_ARG_TYPE_RUN_ID,
-    fastani: Annotated[
-        Path,
+    subject: Annotated[
+        str,
         typer.Option(
-            help="Path to fastANI output file",
+            help="Subject (reference) FASTA filename, MD5 checksum, or index (integer).",
             show_default=False,
+            exists=True,
             dir_okay=False,
             file_okay=True,
-            exists=True,
         ),
     ],
     *,
+    temp: OPT_ARG_TYPE_TEMP = None,
     quiet: OPT_ARG_TYPE_QUIET = False,
 ) -> int:
-    """Log fastANI pairwise comparison(s) to database.
+    """Run the method for one column and log pairwise comparisons to the database.
 
-    The associated configuration and genome entries must already exist.
-    We expect this to be used on a row of the final matrix at a time,
-    that is the output for many query genomes vs a single subject
-    (reference) genome.
+    The database and run ID specify the method and configuration, additionally
+    you must supply a subject filename, hash, or column index to control which
+    column of the matrix is to be computed.
+
+    If using a column number, these are taken to be zero based but it will accept
+    0 or N to mean the first subject. This is intended to facilitate use with
+    cluster array jobs.
     """
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
+    session = db_orm.connect_to_db(database)
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+    config = run.configuration
+    method = config.method
+
+    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
+    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+    n = len(hash_to_filename)
+
+    if subject in hash_to_filename:
+        subject_hash = subject
+    elif Path(subject).name in filename_to_hash:
+        subject_hash = filename_to_hash[Path(subject).name]
+    else:
+        try:
+            column = int(subject)
+        except ValueError:
+            msg = f"ERROR: Did not recognise {subject!r} as an MD5 hash, filename, or column number in run-id {run_id}"
+            sys.exit(msg)
+        if column < 0 or len(hash_to_filename) < column:
+            msg = f"ERROR: Column should be in range 0 to {n}, not {subject}"
+            sys.exit(msg)
+        if column == n:
+            if not quiet:
+                sys.stderr.write("INFO: Treating subject N as 0 (first column)\n")
+            column = 0
+        subject_hash = sorted(hash_to_filename)[column]
+        del column
+
+    # What comparisons are needed?
+    query_hashes: set[str] = set(hash_to_filename).difference(
+        comp.query_hash
+        for comp in run.comparisons().where(
+            db_orm.Comparison.subject_hash == subject_hash
+        )
+    )
+
+    if not query_hashes:
+        if not quiet:
+            print(f"INFO: No {method} comparisons needed against {subject_hash}")
+        return 0
+
+    # Will probably want to move each of these functions to the relevant method module...
+    try:
+        compute = {
+            "fastANI": fastani,
+            "ANIb": anib,
+        }[method]
+    except KeyError:
+        msg = f"ERROR: Unknown method {method} for run-id {run_id} in {database}"
+        sys.exit(msg)
+
+    # On a cluster we are likely in a temp working directory, meaning
+    # if it is a relative path, run.fasta_directory is useless without
+    # evaluating it relative to the DB filename.
+    fasta_dir = Path(run.fasta_directory)
+    if not fasta_dir.is_absolute():
+        fasta_dir = (database.parent / fasta_dir).absolute()
+
+    if temp:
+        # Use the specified temp-directory (and do not clean up)
+        return compute(
+            temp,
+            session,
+            run,
+            fasta_dir,
+            hash_to_filename,
+            filename_to_hash,
+            query_hashes,
+            subject_hash,
+            quiet=quiet,
+        )
+    # Use a system temp-directory (and do clean up)
+    with tempfile.TemporaryDirectory() as sys_temp:
+        return compute(
+            Path(sys_temp),
+            session,
+            run,
+            fasta_dir,
+            hash_to_filename,
+            filename_to_hash,
+            query_hashes,
+            subject_hash,
+            quiet=quiet,
+        )
+
+
+def fastani(  # noqa: PLR0913
+    tmp_dir: Path,
+    session: Session,
+    run: db_orm.Run,
+    fasta_dir: Path,
+    hash_to_filename: dict[str, Path],
+    filename_to_hash: dict[str, str],
+    query_hashes: set[str],
+    subject_hash: str,
+    *,
+    quiet: bool = False,
+) -> int:
+    """Run fastANI many-vs-subject and log column of comparisons to database."""
     uname = platform.uname()
     uname_system = uname.system
     uname_release = uname.release
     uname_machine = uname.machine
 
+    tool = tools.get_fastani()
+    _check_tool_version(tool, run.configuration)
+
+    config_id = run.configuration.configuration_id
+
+    tmp_output = tmp_dir / f"queries_vs_{subject_hash}.csv"
+    tmp_queries = tmp_dir / f"queries_vs_{subject_hash}.txt"
+    with tmp_queries.open("w") as handle:
+        for query_hash in query_hashes:
+            handle.write(f"{fasta_dir / hash_to_filename[query_hash]}\n")
+
     if not quiet:
-        print(f"Logging fastANI comparison to {database}")
-    session = db_orm.connect_to_db(database)
-    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-    if run.configuration.method != "fastANI":
-        msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
-        sys.exit(msg)
+        print(
+            f"INFO: Calling fastANI for {len(query_hashes)} queries vs {subject_hash}"
+        )
 
-    _check_tool_version(tools.get_fastani(), run.configuration)
+    check_call(
+        [
+            str(tool.exe_path),
+            "--ql",
+            str(tmp_queries),
+            "-r",
+            str(fasta_dir / hash_to_filename[subject_hash]),
+            # Send to file or just capture stdout?
+            "-o",
+            str(tmp_output),
+            "--fragLen",
+            str(run.configuration.fragsize),
+            "-k",
+            str(run.configuration.kmersize),
+            "--minFraction",
+            str(run.configuration.minmatch),
+        ],
+    )
 
-    config_id = run.configuration_id
-    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
-
-    # Now do a bulk import... but must skip any pre-existing entries
-    # otherwise would hit sqlite3.IntegrityError for breaking uniqueness!
-    # Do this via the Sqlite3 supported SQL command "INSERT OR IGNORE"
-    # using the dialect's on_conflict_do_nothing method.
+    # Now do a bulk import. There shouldn't be any unless perhaps we have a
+    # race condition with another thread, but skip any pre-existing entries via
+    # Sqlite3's "INSERT OR IGNORE" using dialect's on_conflict_do_nothing method.
     session.execute(
         sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
         [
@@ -470,129 +601,10 @@ def log_fastani(
                 identity,
                 orthologous_matches,
                 fragments,
-            ) in method_fastani.parse_fastani_file(fastani, filename_to_hash)
+            ) in method_fastani.parse_fastani_file(tmp_output, filename_to_hash)
         ],
     )
-
     session.commit()
-    return 0
-
-
-@app.command()
-def build_query_list(  # noqa: C901, PLR0913
-    database: REQ_ARG_TYPE_DATABASE,
-    # These are for the comparison table
-    run_id: REQ_ARG_TYPE_RUN_ID,
-    subject: Annotated[
-        str,
-        typer.Option(
-            help="Filename or hash of subject (reference) FASTA file",
-            show_default=False,
-        ),
-    ],
-    *,
-    include_subject: Annotated[
-        bool,
-        typer.Option(
-            # Listing name explicitly to avoid automatic matching --no-self
-            "--self",
-            help="If output would be empty, include the subject to force at least one output (self vs self).",
-            show_default=False,
-        ),
-    ] = False,
-    fasta: Annotated[
-        Path | None,
-        typer.Option(
-            help="Path to FASTA files (default is as per the database)",
-            show_default=False,
-            exists=True,
-            dir_okay=True,
-            file_okay=False,
-        ),
-    ] = None,
-    quiet: OPT_ARG_TYPE_QUIET = False,
-) -> int:
-    """Output a list of query FASTA files to compare against the given subject.
-
-    This was initially needed for the fastANI wrapper, but could have broader usage.
-    For the given subject (reference) genome, we may have some of the pairwise
-    comparisons already recorded in the database, but others are still pending. This
-    outputs a plain text list of those query genomes sorted by filename.
-
-    Potentially the DB recorded the fasta_directory relative to the original
-    working directory, in which case that cannot be used on a worker node in
-    a temporary working directory. We therefore accept a FASTA input directory.
-
-    Because fastANI gives an error with an empty list, this tool has the option
-    with --self to include the subject filename to avoid an empty list.
-    """
-    session = db_orm.connect_to_db(database)
-    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-    hash_to_filename = {
-        _.genome_hash: _.fasta_filename
-        for _ in run.fasta_hashes.order_by(db_orm.RunGenomeAssociation.fasta_filename)
-    }
-    if subject in hash_to_filename:
-        subject_hash = subject
-    else:
-        name = Path(subject).name
-        subject_hash = None
-        for md5, filename in hash_to_filename.items():
-            if name == filename:
-                subject_hash = md5
-        del name
-        if not subject_hash:
-            msg = f"ERROR: Did not recognise {subject!r} as an MD5 hash or filename in run-id {run_id}"
-            sys.exit(msg)
-
-    completed_queries = {
-        comp.query_hash
-        for comp in run.comparisons().where(
-            db_orm.Comparison.subject_hash == subject_hash
-        )
-    }
-    if not quiet:
-        done = len(completed_queries)
-        n = len(hash_to_filename)
-        sys.stderr.write(
-            f"INFO: Have {done} of {n} comparisons for {subject_hash}, {n - done} needed\n"
-        )
-
-    fasta_dir = Path(fasta) if fasta else Path(run.fasta_directory)
-    empty = True
-    for md5, filename in hash_to_filename.items():
-        if md5 not in completed_queries:
-            print(fasta_dir / filename)
-            empty = False
-    if empty:
-        if include_subject:
-            print(fasta_dir / hash_to_filename[subject_hash])
-        if not quiet:
-            sys.stderr.write(
-                f"INFO: Already have all comparisons for subject {subject_hash}\n"
-            )
-    return 0
-
-
-@app.command()
-def fragment_fasta(
-    fasta: REQ_ARG_TYPE_FASTA_FILES,
-    outdir: REQ_ARG_TYPE_OUTDIR,
-    *,
-    fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
-    quiet: OPT_ARG_TYPE_QUIET = False,
-) -> int:
-    """Fragment FASTA files into subsequences of up to the given size.
-
-    The output files are named ``<stem>-fragmented.fna`` regardless of the
-    input file extension (typically ``.fna``, ``.fa`` or ``.fasta``). If
-    they already exist, they will be overwritten.
-    """
-    if not outdir.is_dir():
-        sys.exit(f"ERROR: outdir {outdir} should be a directory")
-    fragmented_files = method_anib.fragment_fasta_files(fasta, outdir, fragsize)
-    if not quiet:
-        print(f"Fragmented {len(fragmented_files)} files")
     return 0
 
 
@@ -674,75 +686,129 @@ def log_anim(  # noqa: PLR0913
     return 0
 
 
-# Note this omits kmersize, minmatch, mode
-@app.command(rich_help_panel="Method specific logging")
-def log_anib(  # noqa: PLR0913
-    database: REQ_ARG_TYPE_DATABASE,
-    # These are for the comparison table
-    run_id: REQ_ARG_TYPE_RUN_ID,
-    query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
-    subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
-    blastn: Annotated[
-        Path,
-        typer.Option(
-            help="Path to blastn TSV output file",
-            dir_okay=False,
-            file_okay=True,
-            exists=True,
-        ),
-    ],
+def anib(  # noqa: PLR0913
+    tmp_dir: Path,
+    session: Session,
+    run: db_orm.Run,
+    fasta_dir: Path,
+    hash_to_filename: dict[str, Path],
+    filename_to_hash: dict[str, str],  # noqa: ARG001
+    query_hashes: set[str],
+    subject_hash: str,
     *,
-    quiet: OPT_ARG_TYPE_QUIET = False,
+    quiet: bool = False,
 ) -> int:
-    """Log single ANIb pairwise comparison (with blastn) to database.
+    """Run ANIb many-vs-subject and log column of comparisons to database."""
+    uname = platform.uname()
+    uname_system = uname.system
+    uname_release = uname.release
+    uname_machine = uname.machine
 
-    The associated configuration and genome entries must already exist.
-    """
-    used_query, used_subject = blastn.stem.split("_vs_")
-    if used_query != query_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --query-fasta {query_fasta} but query in blastn filename was {used_query}"
-        )
-    if used_subject != subject_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but subject in blastn filename was {used_subject}"
-        )
+    tool = tools.get_blastn()
+    _check_tool_version(tool, run.configuration)
 
-    if database != ":memory:" and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+    config_id = run.configuration_id
+    fragsize = run.configuration.fragsize
+    subject_length = (
+        session.query(db_orm.Genome)
+        .where(db_orm.Genome.genome_hash == subject_hash)
+        .one()
+        .length
+    )
+    subject_stem = Path(hash_to_filename[subject_hash]).stem
+    outfmt = "6 " + " ".join(method_anib.BLAST_COLUMNS)
+
+    tmp_db = tmp_dir / f"{subject_stem}"  # prefix for BLAST DB
 
     if not quiet:
-        print(f"Logging ANIb comparison to {database}")
-    session = db_orm.connect_to_db(database)
-    run, query_md5, subject_md5 = _lookup_run_query_subject(
-        session, run_id, query_fasta, subject_fasta
-    )
-    if run.configuration.method != "ANIb":
-        msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
-        sys.exit(msg)
+        print(f"INFO: Calling makeblastdb for {subject_stem}")
 
-    _check_tool_version(tools.get_blastn(), run.configuration)
-
-    # Need genome lengths for coverage (fragmented FASTA irrelevant):
-    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
-    subject = db_orm.db_genome(session, subject_fasta, subject_md5, create=False)
-
-    identity, aln_length, sim_errors = method_anib.parse_blastn_file(blastn)
-
-    db_orm.db_comparison(
-        session,
-        configuration_id=run.configuration_id,
-        query_hash=query_md5,
-        subject_hash=subject_md5,
-        identity=identity,
-        aln_length=aln_length,
-        sim_errors=sim_errors,
-        cov_query=float(aln_length) / query.length,
-        cov_subject=float(aln_length) / subject.length,
+    check_call(
+        [
+            str(tools.get_makeblastdb().exe_path),
+            "-in",
+            str(fasta_dir / hash_to_filename[subject_hash]),
+            "-input_type",
+            "fasta",
+            "-dbtype",
+            "nucl",
+            "-title",
+            subject_hash,
+            "-out",
+            str(tmp_db),
+        ],
     )
 
-    session.commit()
+    for query_hash in query_hashes:
+        query_stem = Path(hash_to_filename[query_hash]).stem
+        tmp_tsv = tmp_dir / f"{query_stem}_vs_{subject_stem}.tsv"
+
+        # Potential race condition if other columns are being computed with the
+        # same tmp_dir - so give the fragments file a unique name using PID:
+        tmp_frag_query = (
+            tmp_dir / f"{query_stem}-fragments-{fragsize}-pid{os.getpid()}.fna"
+        )
+
+        method_anib.fragment_fasta_file(
+            fasta_dir / hash_to_filename[query_hash],
+            tmp_frag_query,
+            fragsize,
+        )
+
+        if not quiet:
+            print(f"INFO: Calling blastn for {query_stem} vs {subject_stem}")
+
+        check_call(
+            [
+                str(tool.exe_path),
+                "-query",
+                str(tmp_frag_query),
+                "-db",
+                str(tmp_db),
+                "-out",
+                str(tmp_tsv),
+                "-task",
+                "blastn",
+                "-outfmt",
+                outfmt,
+                "-xdrop_gap_final",
+                "150",
+                "-dust",
+                "no",
+                "-evalue",
+                "1e-15",
+            ],
+        )
+
+        identity, aln_length, sim_errors = method_anib.parse_blastn_file(tmp_tsv)
+
+        query_length = (
+            session.query(db_orm.Genome)
+            .where(db_orm.Genome.genome_hash == query_hash)
+            .one()
+            .length
+        )
+
+        session.execute(
+            sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
+            [
+                {
+                    "query_hash": query_hash,
+                    "subject_hash": subject_hash,
+                    "identity": identity,
+                    "aln_length": aln_length,
+                    "sim_errors": sim_errors,
+                    "cov_query": float(aln_length) / query_length,
+                    "cov_subject": float(aln_length) / subject_length,
+                    "configuration_id": config_id,
+                    "uname_system": uname_system,
+                    "uname_release": uname_release,
+                    "uname_machine": uname_machine,
+                }
+            ],
+        )
+
+        session.commit()
     return 0
 
 
@@ -930,6 +996,77 @@ def log_sourmash(
                 subject_hash,
                 identity,
             ) in method_sourmash.parse_sourmash_compare_csv(compare, filename_to_hash)
+        ],
+    )
+
+    session.commit()
+    return 0
+
+
+@app.command(rich_help_panel="Method specific logging")
+def log_branchwater(
+    database: REQ_ARG_TYPE_DATABASE,
+    run_id: REQ_ARG_TYPE_RUN_ID,
+    manysearch: Annotated[
+        Path,
+        typer.Option(
+            help="Sourmash-plugin-branchwater manysearch CSV output file",
+            show_default=False,
+            dir_okay=False,
+            file_okay=True,
+            exists=True,
+        ),
+    ],
+    *,
+    quiet: OPT_ARG_TYPE_QUIET = False,
+) -> int:
+    """Log an all-vs-all sourmash pairwise comparison to database."""
+    if database != ":memory:" and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+
+    uname = platform.uname()
+    uname_system = uname.system
+    uname_release = uname.release
+    uname_machine = uname.machine
+
+    if not quiet:
+        print(f"Logging branchwater to {database}")
+    session = db_orm.connect_to_db(database)
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+    if run.configuration.method != "branchwater":
+        msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
+        sys.exit(msg)
+
+    _check_tool_version(tools.get_sourmash(), run.configuration)
+
+    config_id = run.configuration.configuration_id
+    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
+
+    # Now do a bulk import... but must skip any pre-existing entries
+    # otherwise would hit sqlite3.IntegrityError for breaking uniqueness!
+    # Do this via the Sqlite3 supported SQL command "INSERT OR IGNORE"
+    # using the dialect's on_conflict_do_nothing method.
+    # Repeating those calculations is a waste, but a performance trade off
+    session.execute(
+        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
+        [
+            {
+                "query_hash": query_hash,
+                "subject_hash": subject_hash,
+                "identity": identity,
+                "configuration_id": config_id,
+                "uname_system": uname_system,
+                "uname_release": uname_release,
+                "uname_machine": uname_machine,
+            }
+            for (
+                query_hash,
+                subject_hash,
+                identity,
+            ) in method_branchwater.parse_sourmash_manysearch_csv(
+                manysearch, filename_to_hash
+            )
         ],
     )
 

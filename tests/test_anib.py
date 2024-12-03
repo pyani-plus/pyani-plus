@@ -26,6 +26,7 @@ These tests are intended to be run from the repository root using:
 pytest -v
 """
 
+import filecmp
 from pathlib import Path
 
 import pytest
@@ -41,18 +42,22 @@ def test_bad_path(tmp_path: str) -> None:
     with pytest.raises(
         FileNotFoundError, match="No such file or directory: '/does/not/exist'"
     ):
-        method_anib.fragment_fasta_files([Path("/does/not/exist")], Path(tmp_path))
+        method_anib.parse_blastn_file(Path("/does/not/exist"))
+
     with pytest.raises(
         FileNotFoundError, match="No such file or directory: '/does/not/exist'"
     ):
-        method_anib.parse_blastn_file(Path("/does/not/exist"))
+        method_anib.fragment_fasta_file(
+            Path("/does/not/exist"), Path(tmp_path) / "frags.fna", 1020
+        )
 
 
 def test_empty_path(tmp_path: str) -> None:
-    """Confirm giving an empty path etc fails."""
+    """Confirm fragmenting an empty path fails."""
     with pytest.raises(ValueError, match="No sequences found in /dev/null"):
-        method_anib.fragment_fasta_files([Path("/dev/null")], Path(tmp_path))
-    # Note it is valid to have an empty BLASTN TSV file (there are no headers)
+        method_anib.fragment_fasta_file(
+            Path("/dev/null"), Path(tmp_path) / "frags.fna", 1020
+        )
 
 
 def test_parse_blastn_empty() -> None:
@@ -100,70 +105,14 @@ def test_parse_blastn(input_genomes_tiny: Path) -> None:
     # Note final digit wobble from 3 (old) to 2 (new)
 
 
-def test_missing_db(tmp_path: str, input_genomes_tiny: Path) -> None:
-    """Check expected error when DB does not exist."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
-    assert not tmp_db.is_file()
-
-    with pytest.raises(SystemExit, match="does not exist"):
-        private_cli.log_anib(
-            database=tmp_db,
-            run_id=1,
-            # These are for the comparison table
-            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            blastn=input_genomes_tiny
-            / "intermediates/ANIb/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
-        )
-
-
-def test_bad_query_or_subject(tmp_path: str, input_genomes_tiny: Path) -> None:
-    """Mismatch between query or subject FASTA in fastANI output and commandline."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
-    assert not tmp_db.is_file()
-
-    with pytest.raises(
-        SystemExit,
-        match=(
-            "ERROR: Given --query-fasta .*/MGV-GENOME-0266457.fna"
-            " but query in blastn filename was MGV-GENOME-0264574"
-        ),
-    ):
-        private_cli.log_anib(
-            database=tmp_db,
-            run_id=1,
-            # These are for the comparison table
-            query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            blastn=input_genomes_tiny
-            / "intermediates/ANIb/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
-        )
-
-    with pytest.raises(
-        SystemExit,
-        match=(
-            "ERROR: Given --subject-fasta .*/MGV-GENOME-0264574.fas"
-            " but subject in blastn filename was MGV-GENOME-0266457"
-        ),
-    ):
-        private_cli.log_anib(
-            database=tmp_db,
-            run_id=1,
-            # These are for the comparison table
-            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            blastn=input_genomes_tiny
-            / "intermediates/ANIb/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
-        )
-
-
-def test_logging_anib(
+def test_running_anib(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
-    """Check can log a ANIb comparison to DB."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
+    """Check can computer and log column of ANIb comparisons to DB."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "new.sqlite"
     assert not tmp_db.is_file()
 
     tool = tools.get_blastn()
@@ -183,45 +132,60 @@ def test_logging_anib(
     output = capsys.readouterr().out
     assert output.endswith("Run identifier 1\n")
 
-    private_cli.log_anib(
-        database=tmp_db,
-        run_id=1,
-        # These are for the comparison table
-        query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-        subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-        blastn=input_genomes_tiny
-        / "intermediates/ANIb/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv",
+    session = db_orm.connect_to_db(tmp_db)
+    run = session.query(db_orm.Run).one()
+    assert run.run_id == 1
+    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+
+    subject_hash = list(hash_to_filename)[1]
+    private_cli.anib(
+        tmp_dir,
+        session,
+        run,
+        input_genomes_tiny,
+        hash_to_filename,
+        {},  # not used for ANIb
+        query_hashes=set(hash_to_filename),  # order should not matter!
+        subject_hash=subject_hash,
+    )
+    assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004
+    assert (
+        session.query(db_orm.Comparison)
+        .where(db_orm.Comparison.subject_hash == subject_hash)
+        .count()
+        == 3  # noqa: PLR2004
     )
 
-    # Check the recorded comparison values
-    session = db_orm.connect_to_db(tmp_db)
-    assert session.query(db_orm.Comparison).count() == 1
-    comp = session.query(db_orm.Comparison).one()
-    query = "689d3fd6881db36b5e08329cf23cecdd"  # MGV-GENOME-0264574.fas
-    subject = "78975d5144a1cd12e98898d573cf6536"  # MGV-GENOME-0266457.fna
-    pytest.approx(
-        comp.identity,
-        get_matrix_entry(
-            input_genomes_tiny / "matrices" / "ANIb_identity.tsv", query, subject
-        ),
-    )
-    pytest.approx(
-        comp.aln_length,
-        get_matrix_entry(
-            input_genomes_tiny / "matrices" / "ANIb_aln_lengths.tsv", query, subject
-        ),
-    )
-    pytest.approx(
-        comp.sim_errors,
-        get_matrix_entry(
-            input_genomes_tiny / "matrices" / "ANIb_sim_errors.tsv", query, subject
-        ),
-    )
-    pytest.approx(
-        comp.cov_query,
-        get_matrix_entry(
-            input_genomes_tiny / "matrices" / "ANIb_coverage.tsv", query, subject
-        ),
-    )
+    # Check the intermediate fragmented FASTA files match
+    for fname in (input_genomes_tiny / "intermediates/ANIb").glob("*-fragments.fna"):
+        # Intermediate uses f"{query_stem}-fragments-{fragsize}-pid{os.getpid()}.fna"
+        tmp_frag_files = list(
+            tmp_dir.glob(f"{fname.name.rsplit('-', 1)[0]}-fragments-*.fna")
+        )
+        # Only computed one row, so should be only one copy of the fragment file
+        assert len(tmp_frag_files) == 1, (tmp_frag_files, fname.name)
+        assert filecmp.cmp(fname, tmp_frag_files[0])
+
+    # Check the intermediate TSV files from blastn match
+    subject_stem = Path(hash_to_filename[subject_hash]).stem
+    for fname in (input_genomes_tiny / "intermediates/ANIb").glob(
+        f"*_vs_{subject_stem}.tsv"
+    ):
+        assert filecmp.cmp(fname, tmp_dir / fname.name)
+
+    # No real need to test the ANI values here, will be done elsewhere.
+    for query_hash in hash_to_filename:
+        pytest.approx(
+            get_matrix_entry(
+                input_genomes_tiny / "matrices/ANIb_identity.tsv",
+                query_hash,
+                subject_hash,
+            )
+            == session.query(db_orm.Comparison)
+            .where(db_orm.Comparison.query_hash == query_hash)
+            .where(db_orm.Comparison.subject_hash == subject_hash)
+            .one()
+            .identity
+        )
     session.close()
     tmp_db.unlink()

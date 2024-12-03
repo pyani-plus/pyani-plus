@@ -26,6 +26,7 @@ These tests are intended to be run from the repository root using:
 make test
 """
 
+import filecmp
 import os
 import re
 import shutil
@@ -98,8 +99,7 @@ def test_snakemake_rule_fastani(
     Checks that the fastANI rule in the fastANI snakemake wrapper gives the
     expected output.
     """
-    # Remove the output directory to force re-running the snakemake rule
-    shutil.rmtree(fastani_targets_outdir, ignore_errors=True)
+    tmp_dir = Path(tmp_path)
 
     # Assuming this will match but worker nodes might have a different version
     fastani_tool = get_fastani()
@@ -125,23 +125,23 @@ def test_snakemake_rule_fastani(
     output = capsys.readouterr().out
     assert output.endswith("Run identifier 1\n")
 
-    expected_targets = list(
-        (input_genomes_tiny / "intermediates/fastANI").glob("*.fastani")
-    )
-    generated_targets = [fastani_targets_outdir / f.name for f in expected_targets]
-
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
         workflow_name="snakemake_fastani.smk",
-        targets=generated_targets,
+        targets=[
+            fastani_targets_outdir / f"all_vs_{s.stem}.fastani"
+            for s in input_genomes_tiny.glob("*.f*")
+        ],
         params=config_fastani_args,
         working_directory=Path(tmp_path),
+        temp=Path(tmp_path),
     )
 
-    # Check output against target fixtures
-    for expected, generated in zip(expected_targets, generated_targets, strict=False):
-        assert compare_fastani_files(expected, generated)
+    # Check the intermediate files
+
+    for file in (input_genomes_tiny / "intermediates/fastANI").glob("*_vs_*.fastani"):
+        assert filecmp.cmp(file, tmp_dir / file), f"Wrong fastANI output in {file.name}"
 
     compare_db_matrices(db, input_genomes_tiny / "matrices")
 
@@ -184,4 +184,5 @@ def test_snakemake_duplicate_stems(
             targets=generated_targets,
             params=dup_config,
             working_directory=Path(tmp_path),
+            temp=Path(tmp_path),
         )

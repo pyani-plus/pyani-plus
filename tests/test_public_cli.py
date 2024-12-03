@@ -26,6 +26,7 @@ These tests are intended to be run from the repository root using:
 pytest -v
 """
 
+import filecmp
 from pathlib import Path
 
 import pandas as pd
@@ -33,8 +34,6 @@ import pytest
 
 from pyani_plus import db_orm, public_cli, tools
 from pyani_plus.utils import file_md5sum
-
-from . import get_matrix_entry
 
 
 # This is very similar to the functions under tests/snakemake/__init__.py
@@ -188,17 +187,19 @@ def test_partial_run(
 
     # Unlike a typical method calculation, we have not triggered
     # .cache_comparisons() yet, so that will happen in export_run.
-    public_cli.export_run(database=tmp_db, run_id=2, outdir=tmp_path)
+    public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_path)
     output = capsys.readouterr().out
     assert f"Wrote matrices to {tmp_path}" in output, output
+
     # By construction run 2 is partial, only 4 of 9 matrix entries are
-    # defined - the missing entries are just blanks (empty strings)
-    with pytest.raises(ValueError, match="could not convert string to float: ''"):
-        get_matrix_entry(
-            Path(tmp_path) / ("fastANI_identity.tsv"),
-            list(fasta_to_hash.values())[2],
-            list(fasta_to_hash.values())[2],
-        )
+    # defined - this should fail
+    with pytest.raises(
+        SystemExit,
+        match=(
+            "ERROR: Database .*/list-runs.sqlite run-id 2 has only 4 of 3²=9 comparisons, 5 needed"
+        ),
+    ):
+        public_cli.export_run(database=tmp_db, run_id=2, outdir=tmp_path)
 
     # Resuming the partial job should fail as the fastANI version won't match:
     with pytest.raises(
@@ -313,29 +314,50 @@ def test_dnadiff(tmp_path: str, input_genomes_tiny: Path) -> None:
 
 def test_anib(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check ANIb run (default settings)."""
-    out = Path(tmp_path)
-    tmp_db = out / "example.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "example.sqlite"
     public_cli.anib(
-        database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=True
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Test Run",
+        create_db=True,
+        temp=tmp_dir,
     )
-    public_cli.export_run(database=tmp_db, outdir=out)
+
+    for file in (input_genomes_tiny / "intermediates/ANIb").glob("*.f*"):
+        assert filecmp.cmp(file, tmp_dir / file), f"Wrong fragmented FASTA {file.name}"
+
+    # Could check the BLAST DB *.njs files here too...
+
+    for file in (input_genomes_tiny / "intermediates/ANIb").glob("*_vs_*.tsv"):
+        assert filecmp.cmp(file, tmp_dir / file), f"Wrong blastn output in {file.name}"
+
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "ANIb_identity.tsv",
-        out / "ANIb_identity.tsv",
+        tmp_dir / "ANIb_identity.tsv",
     )
 
 
 def test_fastani(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check fastANI run (default settings)."""
-    out = Path(tmp_path)
-    tmp_db = out / "example.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "example.sqlite"
     public_cli.fastani(
-        database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=True
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Test Run",
+        create_db=True,
+        temp=tmp_dir,
     )
-    public_cli.export_run(database=tmp_db, outdir=out)
+
+    for file in (input_genomes_tiny / "intermediates/fastANI").glob("*_vs_*.fastani"):
+        assert filecmp.cmp(file, tmp_dir / file), f"Wrong fastANI output in {file.name}"
+
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "fastANI_identity.tsv",
-        out / "fastANI_identity.tsv",
+        tmp_dir / "fastANI_identity.tsv",
     )
 
 
@@ -354,6 +376,25 @@ def test_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "sourmash_identity.tsv",
         out / "sourmash_identity.tsv",
+    )
+
+
+def test_branchwater(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Check sourmash run (default settings except scaled=300)."""
+    out = Path(tmp_path)
+    tmp_db = out / "example.sqlite"
+    public_cli.branchwater(
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Test Run",
+        scaled=300,
+        create_db=True,
+    )
+    public_cli.export_run(database=tmp_db, outdir=out)
+    # Should match the sourmash output (but computed quicker)
+    compare_matrix_files(
+        input_genomes_tiny / "matrices" / "sourmash_identity.tsv",
+        out / "branchwater_identity.tsv",
     )
 
 
@@ -544,6 +585,69 @@ def test_resume_partial_sourmash(
         session,
         config,
         cmdline="pyani-plus sourmash ...",
+        fasta_directory=input_genomes_tiny,
+        status="Partial",
+        name="Test Resuming A Run",
+        fasta_to_hash=fasta_to_hash,  # all 3/3 genomes, but only have 4/9 comparisons
+    )
+    public_cli.list_runs(database=tmp_db)
+    output = capsys.readouterr().out
+    assert " 1 analysis runs in " in output, output
+    assert " 4/9=3² │ Partial " in output, output
+
+    public_cli.resume(database=tmp_db)
+    output = capsys.readouterr().out
+    assert "Resuming run-id 1, the only run" in output, output
+    assert "Database already has 4 of 3²=9 comparisons, 5 needed" in output, output
+
+    public_cli.list_runs(database=tmp_db)
+    output = capsys.readouterr().out
+    assert " 1 analysis runs in " in output, output
+    assert " 9/9=3² │ Done " in output, output
+
+
+def test_resume_partial_branchwater(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
+    """Check list-runs and export-run with mock data including a partial sourmash run."""
+    tmp_db = Path(tmp_path) / "resume.sqlite"
+    tool = tools.get_sourmash()
+    session = db_orm.connect_to_db(tmp_db)
+    config = db_orm.db_configuration(
+        session,
+        "branchwater",
+        tool.exe_path.stem,
+        tool.version,
+        kmersize=31,  # must be 31 to match the sig files in fixtures
+        extra="scaled=300",
+        mode="containment",
+        create=True,
+    )
+
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+
+    # Record 4 of the possible 9 comparisons,
+    # mimicking what might happen when a 2x2 run is expanded to 3x3
+    genomes = list(fasta_to_hash.values())
+    for query_hash in genomes[:-1]:
+        for subject_hash in genomes[:-1]:
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query_hash,
+                subject_hash,
+                1.0 if query_hash is subject_hash else 0.99,
+            )
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani-plus branchwater ...",
         fasta_directory=input_genomes_tiny,
         status="Partial",
         name="Test Resuming A Run",

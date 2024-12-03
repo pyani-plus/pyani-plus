@@ -144,11 +144,11 @@ def _fmt_cmd(args: list[str]) -> str:
     return " ".join(f"'{_}'" if " " in str(_) else str(_) for _ in args)
 
 
-def check_call(args: list[str]) -> int:
-    """Wrap for subprocess.check_call and report any error to stderr."""
+def check_output(args: list[str]) -> str:
+    """Wrap for subprocess.check_output and report any error to stderr."""
     try:
-        return subprocess.check_call(
-            [str(_) for _ in args], stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        return subprocess.check_output(
+            [str(_) for _ in args], stderr=subprocess.STDOUT, text=True
         )
     except subprocess.CalledProcessError as err:
         sys.stderr.write(f"ERROR: Return code {err.returncode} from {_fmt_cmd(args)}\n")

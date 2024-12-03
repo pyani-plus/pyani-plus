@@ -52,7 +52,7 @@ from pyani_plus.public_cli import (
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
 )
-from pyani_plus.utils import check_call, check_fasta, file_md5sum
+from pyani_plus.utils import check_fasta, check_output, file_md5sum
 
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -557,7 +557,7 @@ def fastani(  # noqa: PLR0913
             f"INFO: Calling fastANI for {len(query_hashes)} queries vs {subject_hash}"
         )
 
-    check_call(
+    check_output(
         [
             str(tool.exe_path),
             "--ql",
@@ -723,7 +723,7 @@ def anib(  # noqa: PLR0913
     if not quiet:
         print(f"INFO: Calling makeblastdb for {subject_stem}")
 
-    check_call(
+    check_output(
         [
             str(tools.get_makeblastdb().exe_path),
             "-in",
@@ -758,7 +758,7 @@ def anib(  # noqa: PLR0913
         if not quiet:
             print(f"INFO: Calling blastn for {query_stem} vs {subject_stem}")
 
-        check_call(
+        check_output(
             [
                 str(tool.exe_path),
                 "-query",

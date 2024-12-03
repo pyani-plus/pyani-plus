@@ -27,7 +27,6 @@ pytest -v or make test
 """
 
 import filecmp
-import shutil  # We need this for filesystem operations
 from pathlib import Path
 
 # Required to support pytest automated testing
@@ -89,9 +88,6 @@ def test_snakemake_rule_anib(
     """Test blastn (overall) ANIb snakemake wrapper."""
     tmp_dir = Path(tmp_path)
 
-    # Remove the output directory to force re-running the snakemake rule
-    shutil.rmtree(anib_targets_outdir, ignore_errors=True)
-
     # Assuming this will match but worker nodes might have a different version
     blastn_tool = get_blastn()
 
@@ -121,7 +117,7 @@ def test_snakemake_rule_anib(
             for s in config_anib_args["indir"].glob("*.f*")
         ],
         params=config_anib_args,
-        working_directory=Path(tmp_path),
+        working_directory=tmp_dir,
         temp=tmp_dir,
     )
 

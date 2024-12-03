@@ -110,7 +110,7 @@ def test_running_anib(
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
-    """Check can computer and log column of ANIb comparisons to DB."""
+    """Check can compute and log column of ANIb comparisons to DB."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "new.sqlite"
     assert not tmp_db.is_file()

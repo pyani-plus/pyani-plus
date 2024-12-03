@@ -705,7 +705,10 @@ def resume(  # noqa: C901, PLR0912, PLR0915
                 "blastn": tool.exe_path,
                 "makeblastdb": tools.get_makeblastdb().exe_path,
             }
-            target_extension = ".tsv"
+            targets = [
+                f"all_vs_{Path(_.fasta_filename).stem}.anib" for _ in run.fasta_hashes
+            ]
+            target_extension = None
         case "sourmash":
             tool = tools.get_sourmash()
             binaries = {

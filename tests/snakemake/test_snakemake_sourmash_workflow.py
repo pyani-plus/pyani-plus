@@ -316,6 +316,7 @@ def test_branchwater_sketch_rule(
 
     config = config_sourmash_args.copy()
     config["outdir"] = tmp_dir / "output"
+    config["indir"] = input_genomes_tiny
 
     expected_sigs = list((input_genomes_tiny / "intermediates/sourmash").glob("*.sig"))
     targets = [tmp_dir / "output" / fname.name for fname in expected_sigs]
@@ -345,6 +346,7 @@ def test_branchwater_compare_rule(
 
     config = config_sourmash_args.copy()
     config["outdir"] = tmp_dir / "output"
+    config["indir"] = input_genomes_tiny
 
     # Assuming this will match but worker nodes might have a different version
     sourmash_tool = get_sourmash()
@@ -353,7 +355,7 @@ def test_branchwater_compare_rule(
     db = config["db"]
     assert not db.is_file()
     log_run(
-        fasta=config_sourmash_args["indir"],  # i.e. input_genomes_tiny
+        fasta=config["indir"],  # i.e. input_genomes_tiny
         database=db,
         cmdline="pyani-plus branchwater ...",
         status="Testing",

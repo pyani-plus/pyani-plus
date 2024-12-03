@@ -23,8 +23,9 @@
 # THE SOFTWARE.
 """Generate target matrices for pyani-plus sourmash tests.
 
-This script can be run with ``./generate_target_sourmash_matrices.py`` in the
-script's directory, or from the project root directory via ``make fixtures``.
+This script can be run with
+``./generate_target_sourmash_matrices.py <path_to_inputs_dir> <path_to_output_dir>``
+in the script's directory, or from the project root directory via ``make fixtures``.
 It will regenerate and potentially modify test input files under the
 fixtures directory.
 
@@ -32,11 +33,15 @@ This script generates target matrices for sourmash method comparisons from
 sourmash compare .csv files.
 """
 
+import sys
 from pathlib import Path
 
 import pandas as pd
 
 from pyani_plus import utils
+
+# Paths to directories (eg, input, output)
+INPUT_DIR, OUT_DIR = Path(sys.argv[1]), Path(sys.argv[2])
 
 
 def parse_compare_files(compare_file: Path) -> float:
@@ -51,19 +56,18 @@ def parse_compare_files(compare_file: Path) -> float:
 
 
 # Constructing a matrix where the MD5 hashes of test genomes are used as both column names and index.
-genome_hashes = {
-    file.stem: utils.file_md5sum(file)
-    for file in Path("../fixtures/viral_example/").glob("*.f*")
-}
+genome_hashes = {file.stem: utils.file_md5sum(file) for file in INPUT_DIR.glob("*.f*")}
 sorted_hashes = sorted(genome_hashes.values())
 
 # Generate target identity matrix for pyani-plus sourmash tests
-identity_matrix = pd.read_csv(
-    Path("../fixtures/viral_example/intermediates/sourmash/sourmash.csv")
-)
+identity_matrix = pd.read_csv(INPUT_DIR / "intermediates/sourmash/sourmash.csv")
 identity_matrix.columns = [genome_hashes[Path(_).stem] for _ in identity_matrix]
 identity_matrix.index = identity_matrix.columns
 
-matrices_directory = Path("../fixtures/viral_example/matrices/")
+# If ANI values can't be estimated (eg. sourmash 0.0) report None instead
+identity_matrix = identity_matrix.replace(0.0, None)
+
+
+matrices_directory = OUT_DIR
 Path(matrices_directory).mkdir(parents=True, exist_ok=True)
 identity_matrix.to_csv(matrices_directory / "sourmash_identity.tsv", sep="\t")

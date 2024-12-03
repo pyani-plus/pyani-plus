@@ -302,3 +302,44 @@ def test_logging_sourmash(
     assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
     session.close()
     tmp_db.unlink()
+
+
+def test_logging_sourmash_bad_alignments(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_bad_alignments: Path,
+) -> None:
+    """Check can log a sourmash comparison to DB (bad_alignments)."""
+    tmp_db = Path(tmp_path) / "new.sqlite"
+    assert not tmp_db.is_file()
+
+    tool = tools.get_sourmash()
+
+    private_cli.log_run(
+        fasta=input_genomes_bad_alignments,
+        database=tmp_db,
+        cmdline="pyani-plus sourmash ...",
+        status="Testing",
+        name="Testing log_sourmash",
+        method="sourmash",
+        program=tool.exe_path.stem,
+        version=tool.version,
+        mode=method_sourmash.MODE,
+        kmersize=method_sourmash.KMER_SIZE,
+        extra="scaled=" + str(method_sourmash.SCALED),
+        create_db=True,
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
+
+    private_cli.log_sourmash(
+        database=tmp_db,
+        run_id=1,
+        compare=input_genomes_bad_alignments / "intermediates/sourmash/sourmash.csv",
+    )
+
+    # Check the recorded comparison values
+    session = db_orm.connect_to_db(tmp_db)
+    assert session.query(db_orm.Comparison).count() == 4  # noqa: PLR2004
+    session.close()
+    tmp_db.unlink()

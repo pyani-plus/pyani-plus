@@ -145,13 +145,39 @@ def _fmt_cmd(args: list[str]) -> str:
 
 
 def check_output(args: list[str]) -> str:
-    """Wrap for subprocess.check_output and report any error to stderr."""
+    """Wrap for subprocess.run and report any error to stderr.
+
+    Note that if the output is not of interest on success, subprocess.check_call
+    would be natural instead. However, the documentation for that recommends not
+    to use this with subprocess.PIPE in case the child process blocks.
+    """
+    code = 0
+    output = None
     try:
         return subprocess.check_output(
             [str(_) for _ in args], stderr=subprocess.STDOUT, text=True
         )
     except subprocess.CalledProcessError as err:
-        sys.stderr.write(f"ERROR: Return code {err.returncode} from {_fmt_cmd(args)}\n")
-        if err.output:
-            sys.stderr.write(err.output)
-        sys.exit(err.returncode)
+        code = err.returncode
+        output = err.output
+
+    msg = f"ERROR: Return code {code} from: {_fmt_cmd(args)}\n"
+    sys.stderr.write(msg)
+    if output:
+        sys.stderr.write("~" * 60 + "\n")
+        sys.stderr.write(output)
+        sys.stderr.write("~" * 60 + "\n")
+        sys.stderr.write(msg)  # repeat as this is important
+        for line in output.split("\n"):
+            if line.upper().startswith("ERROR:"):
+                msg += line + "\n"
+    sys.stderr.flush()
+
+    # Calling sys.exit(X) is equivalent to raising SystemExit(X),
+    # where if X is an integer this is the return code, otherwise
+    # X is printed to stderr and the return code is 1.
+    #
+    # i.e. We cannot raise SystemExit with a custom message and code
+    # This makes testing with pytest a little harder! Therefore opting
+    # to raise a message which we can test, and settle for return code 1.
+    raise SystemExit(msg) from None

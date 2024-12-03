@@ -55,3 +55,15 @@ def test_md5_invalid() -> None:
         ValueError, match="Input file /does/not/exist.txt is not a file or symlink"
     ):
         utils.file_md5sum("/does/not/exist.txt")
+
+
+def test_check_output() -> None:
+    """Confirm our subprocess wrapper catches expected failures."""
+    # I wanted to check the full stderr, but couldn't get it to work.
+    # After and outside the context manager capsys.readouterr().out was empty.
+    # Inside the context manager, the code never ran...
+    with pytest.raises(
+        SystemExit,
+        match=r'ERROR: Return code 1 from: blastn -task blast\nError: Argument "task". Illegal value',
+    ):
+        utils.check_output(["blastn", "-task", "blast"])

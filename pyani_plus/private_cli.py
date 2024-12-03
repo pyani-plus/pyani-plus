@@ -484,6 +484,7 @@ def compute_column(  # noqa: C901, PLR0912
             "fastANI": fastani,
             "ANIb": anib,
             "ANIm": anim,
+            "dnadiff": dnadiff,
         }[method]
     except KeyError:
         msg = f"ERROR: Unknown method {method} for run-id {run_id} in {database}"
@@ -655,7 +656,7 @@ def anim(  # noqa: PLR0913
         deltafilter = tmp_dir / f"{query_stem}_vs_{subject_stem}.filter"
 
         if not quiet:
-            print(f"INFO: Calling nucmer for {query_stem} vs {subject_stem}")
+            print(f"INFO: Calling nucmer for {delta.name}")
 
         # Here mode will be "mum" (default) or "maxmatch", meaning nucmer --mum etc.
         check_output(
@@ -674,7 +675,7 @@ def anim(  # noqa: PLR0913
             sys.exit(msg)
 
         if not quiet:
-            print(f"INFO: Calling delta filter for {query_stem} vs {subject_stem}")
+            print(f"INFO: Calling delta filter for {deltafilter.name}")
 
         # The constant -1 option is used for 1-to-1 alignments in the delta-filter,
         # with no other options available for the end user.
@@ -846,125 +847,150 @@ def anib(  # noqa: PLR0913
     return 0
 
 
-@app.command(rich_help_panel="Method specific logging")
-def log_dnadiff(  # noqa: PLR0913
-    database: REQ_ARG_TYPE_DATABASE,
-    # These are for the comparison table
-    run_id: REQ_ARG_TYPE_RUN_ID,
-    query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
-    subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
-    mcoords: Annotated[
-        Path,
-        typer.Option(
-            help="Path to show-coords (.mcoords) output file",
-            dir_okay=False,
-            file_okay=True,
-            exists=True,
-        ),
-    ],
-    qdiff: Annotated[
-        Path,
-        typer.Option(
-            help="Path to show-diff (.qdiff) output file",
-            dir_okay=False,
-            file_okay=True,
-            exists=True,
-        ),
-    ],
+def dnadiff(  # noqa: PLR0913
+    tmp_dir: Path,
+    session: Session,
+    run: db_orm.Run,
+    fasta_dir: Path,
+    hash_to_filename: dict[str, Path],
+    filename_to_hash: dict[str, str],  # noqa: ARG001
+    query_hashes: set[str],
+    subject_hash: str,
     *,
-    quiet: OPT_ARG_TYPE_QUIET = False,
+    quiet: bool = False,
 ) -> int:
-    """Log single dnadiff pairwise comparison (with nucmer) to database.
+    """Run dnadiff many-vs-subject and log column of comparisons to database."""
+    uname = platform.uname()
+    uname_system = uname.system
+    uname_release = uname.release
+    uname_machine = uname.machine
 
-    The associated configuration and genome entries must already exist.
-    """
-    # As with other methods, we need to verify that the provided query/subject sequences
-    # match those used to generate the mcoords and qdiff files.
-    # Checking if the query and subject used to generate mcoords files match those for
-    # qdiff files might be unnecessary, as an incorrect query or subject will raise an error in lines 500-618.
-    used_query_mcoords, used_subject_mcoords = mcoords.stem.split("_vs_")
-    if used_query_mcoords != query_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --query-fasta {query_fasta} but query in mcoords filename was {used_query_mcoords}"
+    nucmer = tools.get_nucmer()
+    delta_filter = tools.get_delta_filter()
+    show_diff = tools.get_show_diff()
+    show_coords = tools.get_show_coords()
+    _check_tool_version(nucmer, run.configuration)
+
+    config_id = run.configuration.configuration_id
+    subject_stem = Path(hash_to_filename[subject_hash]).stem
+
+    for query_hash in query_hashes:
+        query_length = (
+            session.query(db_orm.Genome)
+            .where(db_orm.Genome.genome_hash == query_hash)
+            .one()
+            .length
         )
-    if used_subject_mcoords != subject_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but subject in mcoords filename was {used_subject_mcoords}"
+        query_stem = Path(hash_to_filename[query_hash]).stem
+
+        stem = tmp_dir / f"{query_stem}_vs_{subject_stem}"
+        delta = tmp_dir / f"{query_stem}_vs_{subject_stem}.delta"
+        deltafilter = tmp_dir / f"{query_stem}_vs_{subject_stem}.filter"
+        qdiff = tmp_dir / f"{query_stem}_vs_{subject_stem}.qdiff"
+        mcoords = tmp_dir / f"{query_stem}_vs_{subject_stem}.mcoords"
+
+        if not quiet:
+            print(f"INFO: Calling nucmer for {delta.name}")
+        # This should not be run in the same tmp_dir as ANIm, as the nucmer output will clash
+        check_output(
+            [
+                str(nucmer.exe_path),
+                "-p",
+                str(stem),
+                "--maxmatch",
+                # subject THEN query:
+                str(fasta_dir / hash_to_filename[subject_hash]),
+                str(fasta_dir / hash_to_filename[query_hash]),
+            ],
         )
+        if not delta.is_file():
+            msg = f"ERROR: nucmer didn't make {delta}"
+            sys.exit(msg)
 
-    used_query_qdiff, used_subject_qdiff = qdiff.stem.split("_vs_")
-    if used_query_qdiff != query_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --query-fasta {query_fasta} but query in qdiff filename was {used_query_qdiff}"
+        if not quiet:
+            print(f"INFO: Calling delta-filter for {deltafilter.name}")
+        output = check_output(
+            [
+                str(delta_filter.exe_path),
+                "-m",
+                str(delta),
+            ],
         )
-    if used_subject_qdiff != subject_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but subject in qdiff filename was {used_subject_qdiff}"
+        # May be able to avoid writing this to disk, but helps with testing intermediates
+        with deltafilter.open("w") as handle:
+            handle.write(output)
+
+        if not quiet:
+            print(f"INFO: Calling show-diff for {qdiff.name}")
+        output = check_output(
+            [
+                str(show_diff.exe_path),
+                "-qH",
+                str(deltafilter),
+            ],
         )
+        # May be able to avoid writing this to disk, but helps with testing intermediates
+        with qdiff.open("w") as handle:
+            handle.write(output)
 
-    if database != ":memory:" and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+        if not quiet:
+            print(f"INFO: Calling show-coords for {mcoords.name}")
+        output = check_output(
+            [
+                str(show_coords.exe_path),
+                "-rclTH",
+                str(deltafilter),
+            ],
+        )
+        # May be able to avoid writing this to disk, but helps with testing intermediates
+        with mcoords.open("w") as handle:
+            handle.write(output)
 
-    if not quiet:
-        print(f"Logging dnadiff to {database}")
-    session = db_orm.connect_to_db(database)
-    run, query_md5, subject_md5 = _lookup_run_query_subject(
-        session, run_id, query_fasta, subject_fasta
-    )
-    if run.configuration.method != "dnadiff":
-        msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
-        sys.exit(msg)
+        identity, aligned_bases_with_gaps = method_dnadiff.parse_mcoords(mcoords)
+        gap_lengths = method_dnadiff.parse_qdiff(qdiff)
 
-    _check_tool_version(tools.get_nucmer(), run.configuration)
-
-    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
-
-    identity, aligned_bases_with_gaps = method_dnadiff.parse_mcoords(mcoords)
-    gap_lengths = method_dnadiff.parse_qdiff(qdiff)
-
-    db_orm.db_comparison(
-        session,
-        configuration_id=run.configuration_id,
-        query_hash=query_md5,
-        subject_hash=subject_md5,
-        identity=identity,
         # For comparisons of closely related genomes, qdiff files might
         # be empty as there are no gaps in the alignments. In this case, we
         # want to treat gap_lengths as 0. In cases of comparisons
         # of distantly related genomes, we report gap_lengths as None.
-        aln_length=(
+        aln_length = (
             None
             if gap_lengths is None and aligned_bases_with_gaps is None
-            else (
-                (aligned_bases_with_gaps or 0)
-                - (gap_lengths if gap_lengths is not None else 0)
-            )
-        ),
-        sim_errors=(
+            else (aligned_bases_with_gaps or 0) - (gap_lengths or 0)
+        )
+        sim_errors = (
             None
             if identity is None or aligned_bases_with_gaps is None
             else round(
-                (
-                    (aligned_bases_with_gaps or 0)
-                    - (gap_lengths if gap_lengths is not None else 0)
-                )
-                * (1 - identity)
+                ((aligned_bases_with_gaps or 0) - (gap_lengths or 0)) * (1 - identity)
             )
-        ),
-        cov_query=(
+        )
+        cov_query = (
             None
-            if aligned_bases_with_gaps is None or query.length == 0
-            else (
-                (aligned_bases_with_gaps or 0)
-                - (gap_lengths if gap_lengths is not None else 0)
-            )
-            / query.length
-        ),
-        cov_subject=None,  # Leaving this as None for now (need rdiff files to calculate this)
-    )
+            if aligned_bases_with_gaps is None or query_length == 0
+            else ((aligned_bases_with_gaps or 0) - (gap_lengths or 0)) / query_length
+        )
 
-    session.commit()
+        session.execute(
+            sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
+            [
+                {
+                    "query_hash": query_hash,
+                    "subject_hash": subject_hash,
+                    "identity": identity,
+                    "aln_length": aln_length,
+                    "sim_errors": sim_errors,
+                    "cov_query": cov_query,
+                    "cov_subject": None,
+                    "configuration_id": config_id,
+                    "uname_system": uname_system,
+                    "uname_release": uname_release,
+                    "uname_machine": uname_machine,
+                }
+            ],
+        )
+
+        session.commit()
     return 0
 
 

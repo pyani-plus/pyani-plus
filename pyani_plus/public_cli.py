@@ -402,7 +402,6 @@ def dnadiff(  # noqa: PLR0913
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
 
-    target_extension = ".qdiff"  # or .mcoords as rule makes both
     # We don't actually call the tool dnadiff (which has its own version),
     # rather we call nucmer, delta-filter, show-diff and show-coords from MUMmer
     tool = tools.get_nucmer()
@@ -412,6 +411,8 @@ def dnadiff(  # noqa: PLR0913
         "show_diff": tools.get_show_diff().exe_path,
         "show_coords": tools.get_show_coords().exe_path,
     }
+    fasta_list = check_fasta(fasta)
+
     return start_and_run_method(
         executor,
         temp,
@@ -419,8 +420,8 @@ def dnadiff(  # noqa: PLR0913
         name,
         "dnadiff",
         fasta,
-        [],
-        target_extension,
+        [f"all_vs_{Path(_).stem}.dnadiff" for _ in fasta_list],
+        None,  # no pairwise target
         tool,
         binaries,
     )
@@ -701,7 +702,11 @@ def resume(  # noqa: C901, PLR0912, PLR0915
                 "show_diff": tools.get_show_diff().exe_path,
                 "show_coords": tools.get_show_coords().exe_path,
             }
-            target_extension = ".qdiff"
+            targets = [
+                f"all_vs_{Path(_.fasta_filename).stem}.dnadiff"
+                for _ in run.fasta_hashes
+            ]
+            target_extension = None
         case "ANIb":
             tool = tools.get_blastn()
             binaries = {

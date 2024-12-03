@@ -549,7 +549,7 @@ def test_compute_column_bad_args(
             subject="XXXX",
         )
 
-    with pytest.raises(  # noqa: PT012
+    with pytest.raises(
         SystemExit,
         match="ERROR: Unknown method guessing for run-id 1 in .*/new.sqlite",
     ):
@@ -558,9 +558,6 @@ def test_compute_column_bad_args(
             run_id=1,
             subject="3",
         )
-        # This has to be within the context manager to work:
-        output = capsys.readouterr().out
-        assert "INFO: Treating subject N as 0 (first column)" in output
 
     with pytest.raises(
         SystemExit,

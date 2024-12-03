@@ -25,45 +25,24 @@ from pyani_plus.workflows import check_input_stems
 indir_files = check_input_stems(config["indir"])
 
 
-def get_genomeA(wildcards):
-    return indir_files[wildcards.genomeA]
-
-
 def get_genomeB(wildcards):
     return indir_files[wildcards.genomeB]
 
 
-# The ANIm rule runs nucmer and delta-filter
-# NOTE: We do not need to construct forward and reverse comparisons within this
-# rule. This is done in the context of pyani_plus by specifying target files in
-# the calling code.
-# Here mode will be "mum" (default) or "maxmatch", meaning nucmer --mum etc.
-# The constant -1 option is used for 1-to-1 alignments in the delta-filter,
-# with no other options available for the end user.
+# For ANIm, runs nucmer and delta-filter for each query-vs-subject pair
 rule ANIm:
     params:
         db=config["db"],
         run_id=config["run_id"],
-        mode=config["mode"],
-        nucmer=config["nucmer"],
-        delta_filter=config["delta_filter"],
-        indir=config["indir"],
         outdir=config["outdir"],
+        temp=config["temp"],
     input:
-        genomeA=get_genomeA,
         genomeB=get_genomeB,
     output:
-        "{outdir}/{genomeA}_vs_{genomeB}.filter",
+        "{outdir}/all_vs_{genomeB}.anim",
     shell:
         """
-        {params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} \
-            --{params.mode} {input.genomeB} {input.genomeA} \
-            > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}_nucmer.log 2>&1 &&
-        {params.delta_filter} \
-            -1 {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.delta \
-             > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter &&
-        .pyani-plus-private-cli log-anim --quiet \
+        .pyani-plus-private-cli compute-column --quiet \
             --database {params.db} --run-id {params.run_id} \
-            --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
-            --deltafilter {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter
+            --subject {input} {params.temp} && touch {output}
         """

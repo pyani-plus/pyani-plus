@@ -483,6 +483,7 @@ def compute_column(  # noqa: C901, PLR0912
         compute = {
             "fastANI": fastani,
             "ANIb": anib,
+            "ANIm": anim,
         }[method]
     except KeyError:
         msg = f"ERROR: Unknown method {method} for run-id {run_id} in {database}"
@@ -608,81 +609,114 @@ def fastani(  # noqa: PLR0913
     return 0
 
 
-@app.command(rich_help_panel="Method specific logging")
-def log_anim(  # noqa: PLR0913
-    database: REQ_ARG_TYPE_DATABASE,
-    # These are for the comparison table
-    run_id: REQ_ARG_TYPE_RUN_ID,
-    query_fasta: REQ_ARG_TYPE_QUERY_FASTA,
-    subject_fasta: REQ_ARG_TYPE_SUBJECT_FASTA,
-    deltafilter: Annotated[
-        Path,
-        typer.Option(
-            help="Path to deltafilter output file",
-            dir_okay=False,
-            file_okay=True,
-            exists=True,
-        ),
-    ],
+def anim(  # noqa: PLR0913
+    tmp_dir: Path,
+    session: Session,
+    run: db_orm.Run,
+    fasta_dir: Path,
+    hash_to_filename: dict[str, Path],
+    filename_to_hash: dict[str, str],  # noqa: ARG001
+    query_hashes: set[str],
+    subject_hash: str,
     *,
-    quiet: OPT_ARG_TYPE_QUIET = False,
-    # Don't use any of fragsize, maxmatch, kmersize, minmatch (configuration table entries)
+    quiet: bool = False,
 ) -> int:
-    """Log single ANIm pairwise comparison (with nucmer) to database.
+    """Run ANIm many-vs-subject and log column of comparisons to database."""
+    uname = platform.uname()
+    uname_system = uname.system
+    uname_release = uname.release
+    uname_machine = uname.machine
 
-    The associated configuration and genome entries must already exist.
-    """
-    used_query, used_subject = deltafilter.stem.split("_vs_")
-    if used_query != query_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --query-fasta {query_fasta} but query in deltafilter filename was {used_query}"
+    nucmer = tools.get_nucmer()
+    delta_filter = tools.get_delta_filter()
+    _check_tool_version(nucmer, run.configuration)
+
+    config_id = run.configuration.configuration_id
+    mode = run.configuration.mode
+    subject_length = (
+        session.query(db_orm.Genome)
+        .where(db_orm.Genome.genome_hash == subject_hash)
+        .one()
+        .length
+    )
+    subject_stem = Path(hash_to_filename[subject_hash]).stem
+
+    for query_hash in query_hashes:
+        query_length = (
+            session.query(db_orm.Genome)
+            .where(db_orm.Genome.genome_hash == query_hash)
+            .one()
+            .length
         )
-    if used_subject != subject_fasta.stem:
-        sys.exit(
-            f"ERROR: Given --subject-fasta {subject_fasta} but subject in deltafilter filename was {used_subject}"
+        query_stem = Path(hash_to_filename[query_hash]).stem
+
+        stem = tmp_dir / f"{query_stem}_vs_{subject_stem}"
+        delta = tmp_dir / f"{query_stem}_vs_{subject_stem}.delta"
+        deltafilter = tmp_dir / f"{query_stem}_vs_{subject_stem}.filter"
+
+        if not quiet:
+            print(f"INFO: Calling nucmer for {query_stem} vs {subject_stem}")
+
+        # Here mode will be "mum" (default) or "maxmatch", meaning nucmer --mum etc.
+        check_output(
+            [
+                str(nucmer.exe_path),
+                "-p",
+                str(stem),
+                f"--{mode}",
+                # subject THEN query:
+                str(fasta_dir / hash_to_filename[subject_hash]),
+                str(fasta_dir / hash_to_filename[query_hash]),
+            ],
+        )
+        if not delta.is_file():
+            msg = f"ERROR: nucmer didn't make {delta}"
+            sys.exit(msg)
+
+        if not quiet:
+            print(f"INFO: Calling delta filter for {query_stem} vs {subject_stem}")
+
+        # The constant -1 option is used for 1-to-1 alignments in the delta-filter,
+        # with no other options available for the end user.
+        output = check_output(
+            [
+                str(delta_filter.exe_path),
+                "-1",
+                str(delta),
+            ],
+        )
+        # Don't really need to write this to disk except to help with testing intermediates
+        with deltafilter.open("w") as handle:
+            handle.write(output)
+
+        query_aligned_bases, subject_aligned_bases, identity, sim_errors = (
+            method_anim.parse_delta(deltafilter)
         )
 
-    if database != ":memory:" and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+        session.execute(
+            sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
+            [
+                {
+                    "query_hash": query_hash,
+                    "subject_hash": subject_hash,
+                    "identity": identity,
+                    "aln_length": query_aligned_bases,
+                    "sim_errors": sim_errors,
+                    "cov_query": None
+                    if query_aligned_bases is None
+                    else float(query_aligned_bases) / query_length,
+                    "cov_subject": None
+                    if subject_aligned_bases is None
+                    else float(subject_aligned_bases) / subject_length,
+                    "configuration_id": config_id,
+                    "uname_system": uname_system,
+                    "uname_release": uname_release,
+                    "uname_machine": uname_machine,
+                }
+            ],
+        )
 
-    if not quiet:
-        print(f"Logging ANIm to {database}")
-    session = db_orm.connect_to_db(database)
-    run, query_md5, subject_md5 = _lookup_run_query_subject(
-        session, run_id, query_fasta, subject_fasta
-    )
-    if run.configuration.method != "ANIm":
-        msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
-        sys.exit(msg)
-
-    _check_tool_version(tools.get_nucmer(), run.configuration)
-
-    # Need genome lengths for coverage:
-    query = db_orm.db_genome(session, query_fasta, query_md5, create=False)
-    subject = db_orm.db_genome(session, subject_fasta, subject_md5, create=False)
-
-    query_aligned_bases, subject_aligned_bases, identity, sim_errors = (
-        method_anim.parse_delta(deltafilter)
-    )
-
-    db_orm.db_comparison(
-        session,
-        configuration_id=run.configuration_id,
-        query_hash=query_md5,
-        subject_hash=subject_md5,
-        identity=identity,
-        aln_length=query_aligned_bases,
-        sim_errors=sim_errors,
-        cov_query=None
-        if query_aligned_bases is None
-        else float(query_aligned_bases) / query.length,
-        cov_subject=None
-        if subject_aligned_bases is None
-        else float(subject_aligned_bases) / subject.length,
-    )
-
-    session.commit()
+        session.commit()
     return 0
 
 

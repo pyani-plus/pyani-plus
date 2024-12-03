@@ -365,12 +365,13 @@ def anim(  # noqa: PLR0913
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
 
-    target_extension = ".filter"
     tool = tools.get_nucmer()
     binaries = {
         "nucmer": tool.exe_path,
         "delta_filter": tools.get_delta_filter().exe_path,
     }
+    fasta_list = check_fasta(fasta)
+
     return start_and_run_method(
         executor,
         temp,
@@ -378,8 +379,8 @@ def anim(  # noqa: PLR0913
         name,
         "ANIm",
         fasta,
-        [],
-        target_extension,
+        [f"all_vs_{Path(_).stem}.anim" for _ in fasta_list],
+        None,  # no pairwise target
         tool,
         binaries,
         mode=mode.value,  # turn the enum into a string
@@ -688,7 +689,10 @@ def resume(  # noqa: C901, PLR0912, PLR0915
                 "nucmer": tool.exe_path,
                 "delta_filter": tools.get_delta_filter().exe_path,
             }
-            target_extension = ".filter"
+            targets = [
+                f"all_vs_{Path(_.fasta_filename).stem}.anim" for _ in run.fasta_hashes
+            ]
+            target_extension = None
         case "dnadiff":
             tool = tools.get_nucmer()
             binaries = {

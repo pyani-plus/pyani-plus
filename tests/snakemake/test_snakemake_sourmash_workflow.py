@@ -366,6 +366,7 @@ def test_branchwater_compare_rule(
         # not implemented yet, mode=config["mode"],
         kmersize=config["kmersize"],
         extra=config["extra"],
+        mode=config["mode"],
         create_db=True,
     )
     assert db.is_file()

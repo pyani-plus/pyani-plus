@@ -27,7 +27,7 @@ from pathlib import Path
 
 
 def parse_sourmash_manysearch_csv(
-    manysearch_file: Path, filename_to_hash: dict[str, str]
+    manysearch_file: Path, filename_to_hash: dict[str, str], mode: str
 ) -> Iterator[tuple[str, str, float]]:
     """Parse sourmash-plugin-branchwater manysearch CSV output.
 
@@ -42,7 +42,15 @@ def parse_sourmash_manysearch_csv(
         # In branchwater 0.9.11 column order varies between manysearch and pairwise
         column_query = headers.index("query_name")
         column_subject = headers.index("match_name")
-        column_ani = headers.index("max_containment_ani")
+        if mode == "max-containment":
+            column_ani = headers.index("max_containment_ani")
+        elif mode == "containment":
+            column_ani = headers.index("query_containment_ani")
+            # Should be able to record the subject_containment_ani and record that
+            # for the other half of the matrix, and thus skip half the computation?
+        else:
+            msg = f"Unexpected sourmash mode {mode!r}"
+            raise ValueError(msg)
         # This is fine for max-containment mode, but for plain containment will
         # probably want to capture query_containment_ani & match_containment_ani
         for line in handle:

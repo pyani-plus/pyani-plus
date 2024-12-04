@@ -62,7 +62,16 @@ def test_parser_with_bad_branchwater(tmp_path: str) -> None:
         handle.write("0.9,A.fasta,B.fasta\n")
         handle.write("NaN,B.fasta,B.fasta\n")  # fails self-vs-self 100%
     mock_dict = {"A.fasta": "AAAAAA", "B.fasta": "BBBBBB"}
-    parser = method_branchwater.parse_sourmash_manysearch_csv(mock_csv, mock_dict)
+
+    parser = method_branchwater.parse_sourmash_manysearch_csv(
+        mock_csv, mock_dict, "guess"
+    )
+    with pytest.raises(ValueError, match="Unexpected sourmash mode 'guess'"):
+        next(parser)
+
+    parser = method_branchwater.parse_sourmash_manysearch_csv(
+        mock_csv, mock_dict, "max-containment"
+    )
     assert next(parser) == ("AAAAAA", "AAAAAA", 1.0)
     assert next(parser) == ("AAAAAA", "BBBBBB", 0.9)
     with pytest.raises(
@@ -283,7 +292,7 @@ def test_logging_sourmash(
         method="sourmash",
         program=tool.exe_path.stem,
         version=tool.version,
-        mode=method_sourmash.MODE,
+        mode=method_sourmash.EnumModeSourmash.containment,
         kmersize=method_sourmash.KMER_SIZE,
         extra="scaled=" + str(method_sourmash.SCALED),
         create_db=True,
@@ -324,7 +333,7 @@ def test_logging_sourmash_bad_alignments(
         method="sourmash",
         program=tool.exe_path.stem,
         version=tool.version,
-        mode=method_sourmash.MODE,
+        mode=method_sourmash.EnumModeSourmash.containment,
         kmersize=method_sourmash.KMER_SIZE,
         extra="scaled=" + str(method_sourmash.SCALED),
         create_db=True,

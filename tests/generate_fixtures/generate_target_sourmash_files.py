@@ -90,7 +90,7 @@ subprocess.run(
         "--csv",
         OUT_DIR / "sourmash.csv",
         "--estimate-ani",
-        "--max-containment",
+        "--containment",
         "-k=31",
     ],
     check=True,

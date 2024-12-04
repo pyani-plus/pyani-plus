@@ -58,7 +58,7 @@ def config_sourmash_args(
         # "indir": ... is dynamic
         "cores": snakemake_cores,
         "kmersize": 31,
-        "mode": "max-containment",
+        "mode": "containment",  # default is max-containment
         "extra": "scaled=300",  # default scaled=1000 not suitable for the 3 viruses
     }
 

@@ -57,12 +57,14 @@ def parse_compare_files(compare_file: Path) -> float:
 
 # Constructing a matrix where the MD5 hashes of test genomes are used as both column names and index.
 genome_hashes = {file.stem: utils.file_md5sum(file) for file in INPUT_DIR.glob("*.f*")}
-sorted_hashes = sorted(genome_hashes.values())
 
 # Generate target identity matrix for pyani-plus sourmash tests
 identity_matrix = pd.read_csv(INPUT_DIR / "intermediates/sourmash/sourmash.csv")
 identity_matrix.columns = [genome_hashes[Path(_).stem] for _ in identity_matrix]
 identity_matrix.index = identity_matrix.columns
+
+# We want this sorted by hash
+identity_matrix = identity_matrix.sort_index(axis=0).sort_index(axis=1)
 
 # If ANI values can't be estimated (eg. sourmash 0.0) report None instead
 identity_matrix = identity_matrix.replace(0.0, None)

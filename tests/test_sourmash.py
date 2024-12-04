@@ -45,7 +45,7 @@ def test_parser_with_bad_self_vs_self(tmp_path: str) -> None:
     mock_dict = {"A.fasta": "AAAAAA", "B.fasta": "BBBBBB"}
     parser = method_sourmash.parse_sourmash_compare_csv(mock_csv, mock_dict)
     assert next(parser) == ("AAAAAA", "AAAAAA", 1.0)
-    assert next(parser) == ("AAAAAA", "BBBBBB", 0.99)
+    assert next(parser) == ("BBBBBB", "AAAAAA", 0.99)
     with pytest.raises(
         ValueError, match="Expected sourmash BBBBBB vs self to be one, not 'NaN'"
     ):

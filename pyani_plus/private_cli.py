@@ -1041,6 +1041,7 @@ def log_branchwater(
     _check_tool_version(tools.get_sourmash(), run.configuration)
 
     config_id = run.configuration.configuration_id
+    mode = run.configuration.mode
     filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
 
     # Now do a bulk import... but must skip any pre-existing entries
@@ -1065,7 +1066,7 @@ def log_branchwater(
                 subject_hash,
                 identity,
             ) in method_branchwater.parse_sourmash_manysearch_csv(
-                manysearch, filename_to_hash
+                manysearch, filename_to_hash, mode
             )
         ],
     )

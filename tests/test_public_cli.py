@@ -33,6 +33,7 @@ import pandas as pd
 import pytest
 
 from pyani_plus import db_orm, public_cli, tools
+from pyani_plus.methods.method_sourmash import EnumModeSourmash
 from pyani_plus.utils import file_md5sum
 
 
@@ -370,6 +371,7 @@ def test_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:
         fasta=input_genomes_tiny,
         name="Test Run",
         scaled=300,
+        mode=EnumModeSourmash.containment,
         create_db=True,
     )
     public_cli.export_run(database=tmp_db, outdir=out)
@@ -388,6 +390,7 @@ def test_branchwater(tmp_path: str, input_genomes_tiny: Path) -> None:
         fasta=input_genomes_tiny,
         name="Test Run",
         scaled=300,
+        mode=EnumModeSourmash.containment,
         create_db=True,
     )
     public_cli.export_run(database=tmp_db, outdir=out)

@@ -58,7 +58,7 @@ def config_sourmash_args(
         # "indir": ... is dynamic
         "cores": snakemake_cores,
         "kmersize": 31,
-        "mode": "max-containment",
+        "mode": "containment",  # default is max-containment
         "extra": "scaled=300",  # default scaled=1000 not suitable for the 3 viruses
     }
 
@@ -366,6 +366,7 @@ def test_branchwater_compare_rule(
         # not implemented yet, mode=config["mode"],
         kmersize=config["kmersize"],
         extra=config["extra"],
+        mode=config["mode"],
         create_db=True,
     )
     assert db.is_file()

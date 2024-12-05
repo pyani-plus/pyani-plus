@@ -125,7 +125,8 @@ def test_partial_run(
     capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
 ) -> None:
     """Check list-runs and export-run with mock data including a partial run."""
-    tmp_db = Path(tmp_path) / "list-runs.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "list-runs.sqlite"
     session = db_orm.connect_to_db(tmp_db)
     config = db_orm.db_configuration(
         session, "fastANI", "fastani", "1.2.3", create=True
@@ -138,8 +139,8 @@ def test_partial_run(
         db_orm.db_genome(session, filename, md5, create=True)
 
     # Record 4 of the possible 9 comparisons:
-    for query_hash in list(fasta_to_hash.values())[0:2]:
-        for subject_hash in list(fasta_to_hash.values())[0:2]:
+    for query_hash in list(fasta_to_hash.values())[1:]:
+        for subject_hash in list(fasta_to_hash.values())[1:]:
             db_orm.db_comparison(
                 session,
                 config.configuration_id,
@@ -175,7 +176,7 @@ def test_partial_run(
         status="Done",
         name="Trial C",
         # This run uses just 2/3 genomes, but has all 4/4 = 2*2 comparisons:
-        fasta_to_hash=dict(list(fasta_to_hash.items())[0:2]),
+        fasta_to_hash=dict(list(fasta_to_hash.items())[1:]),
     )
 
     public_cli.list_runs(database=tmp_db)
@@ -187,9 +188,26 @@ def test_partial_run(
 
     # Unlike a typical method calculation, we have not triggered
     # .cache_comparisons() yet, so that will happen in export_run.
-    public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_path)
+    public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_path, label="md5")
     output = capsys.readouterr().out
     assert f"Wrote matrices to {tmp_path}" in output, output
+    with (tmp_dir / "fastANI_identity.tsv").open() as handle:
+        assert (
+            handle.readline()
+            == "\t5584c7029328dc48d33f95f0a78f7e57\t78975d5144a1cd12e98898d573cf6536\n"
+        )
+
+    public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_path, label="stem")
+    output = capsys.readouterr().out
+    assert f"Wrote matrices to {tmp_path}" in output, output
+    with (tmp_dir / "fastANI_identity.tsv").open() as handle:
+        assert handle.readline() == "\tMGV-GENOME-0266457\tOP073605\n"
+
+    public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_path, label="filename")
+    output = capsys.readouterr().out
+    assert f"Wrote matrices to {tmp_path}" in output, output
+    with (tmp_dir / "fastANI_identity.tsv").open() as handle:
+        assert handle.readline() == "\tMGV-GENOME-0266457.fna\tOP073605.fasta\n"
 
     # By construction run 2 is partial, only 4 of 9 matrix entries are
     # defined - this should fail

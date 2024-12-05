@@ -111,7 +111,9 @@ OPT_ARG_TYPE_FRAGSIZE = Annotated[
 OPT_ARG_TYPE_KMERSIZE = Annotated[
     int,
     typer.Option(
-        help="Comparison method k-mer size", rich_help_panel="Method parameters", min=1
+        help="Comparison method k-mer size",
+        rich_help_panel="Method parameters",
+        min=1,
     ),
 ]
 OPT_ARG_TYPE_MINMATCH = Annotated[
@@ -140,14 +142,7 @@ OPT_ARG_TYPE_SOURMASH_MODE = Annotated[
 OPT_ARG_TYPE_SOURMASH_SCALED = Annotated[
     int,
     typer.Option(
-        help="Sets the compression ratio", rich_help_panel="Method parameters", min=1
-    ),
-]
-OPT_ARG_TYPE_SOURMASH_NUM = Annotated[
-    int | None,
-    typer.Option(
-        help="""sets the maximum number of hashes \n
-            Note: num  and scaled options are mutually exclusive and cannot be used together.""",
+        help="Sets the compression ratio",
         rich_help_panel="Method parameters",
         min=1,
     ),
@@ -533,7 +528,6 @@ def sourmash(  # noqa: PLR0913
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     scaled: OPT_ARG_TYPE_SOURMASH_SCALED = method_sourmash.SCALED,  # 1000
-    num: OPT_ARG_TYPE_SOURMASH_NUM = None,  # will override scaled if used
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
 ) -> int:
     """Execute sourmash calculations, logged to a pyANI-plus SQLite3 database."""
@@ -543,7 +537,7 @@ def sourmash(  # noqa: PLR0913
     binaries = {
         "sourmash": tool.exe_path,
     }
-    extra = f"scaled={scaled}" if num is None else f"num={num}"
+    extra = f"scaled={scaled}"
     return start_and_run_method(
         executor,
         temp,
@@ -577,7 +571,6 @@ def branchwater(  # noqa: PLR0913
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     scaled: OPT_ARG_TYPE_SOURMASH_SCALED = method_sourmash.SCALED,  # 1000
-    num: OPT_ARG_TYPE_SOURMASH_NUM = None,  # will override scaled if used
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
 ) -> int:
     """Execute sourmash-plugin-branchwater ANI calculations, logged to a pyANI-plus SQLite3 database."""
@@ -587,7 +580,7 @@ def branchwater(  # noqa: PLR0913
     binaries = {
         "sourmash": tool.exe_path,
     }
-    extra = f"scaled={scaled}" if num is None else f"num={num}"
+    extra = f"scaled={scaled}"
     return start_and_run_method(
         executor,
         temp,

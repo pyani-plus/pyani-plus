@@ -24,47 +24,24 @@ from pyani_plus.workflows import check_input_stems
 indir_files = check_input_stems(config["indir"])
 
 
-def get_genomeA(wildcards):
-    return indir_files[wildcards.genomeA]
-
-
 def get_genomeB(wildcards):
     return indir_files[wildcards.genomeB]
 
 
 # The rule dnadiff runs nucmer, delta-filter, show-diff and show-coords wrappers
-# required to replicate the number of AlignedBases, identity and coverage reported
-# by dnadiff.
-# NOTE: We do not need to construct forward and reverse comparisons within this
-# rule. This is done in the context of pyani_plus by specifying target files in
-# the calling code.
 rule dnadiff:
     params:
         db=config["db"],
         run_id=config["run_id"],
-        nucmer=config["nucmer"],
-        delta_filter=config["delta_filter"],
-        show_diff=config["show_diff"],
-        show_coords=config["show_coords"],
-        indir=config["indir"],
         outdir=config["outdir"],
+        temp=config["temp"],
     input:
-        genomeA=get_genomeA,
         genomeB=get_genomeB,
     output:
-        qdiff="{outdir}/{genomeA}_vs_{genomeB}.qdiff",
-        mcoords="{outdir}/{genomeA}_vs_{genomeB}.mcoords",
+        "{outdir}/all_vs_{genomeB}.dnadiff",
     shell:
         """
-        {params.nucmer} -p {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB} \
-            --maxmatch {input.genomeB} {input.genomeA} > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}_nucmer.log 2>&1 &&
-        {params.delta_filter} \
-            -m {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.delta \
-             > {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter &&
-        {params.show_diff} -qH {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter > {output.qdiff}
-        {params.show_coords} -rclTH {wildcards.outdir}/{wildcards.genomeA}_vs_{wildcards.genomeB}.filter > {output.mcoords} &&
-        .pyani-plus-private-cli log-dnadiff --quiet \
+        .pyani-plus-private-cli compute-column --quiet \
             --database {params.db} --run-id {params.run_id} \
-            --query-fasta {input.genomeA} --subject-fasta {input.genomeB} \
-            --mcoords {output.mcoords} --qdiff {output.qdiff}
+            --subject {input} {params.temp} && touch {output}
         """

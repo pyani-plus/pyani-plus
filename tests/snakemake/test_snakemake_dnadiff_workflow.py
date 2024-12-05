@@ -26,17 +26,13 @@ These tests are intended to be run from the repository root using:
 pytest -v or make test
 """
 
-import shutil
 from pathlib import Path
 
 import pytest
 
 from pyani_plus.private_cli import log_run
 from pyani_plus.tools import (
-    get_delta_filter,
     get_nucmer,
-    get_show_coords,
-    get_show_diff,
 )
 from pyani_plus.workflows import (
     ToolExecutor,
@@ -59,10 +55,6 @@ def config_dnadiff_args(
     return {
         "db": Path(tmp_path) / "db.sqlite",
         "run_id": 1,  # by construction
-        "nucmer": get_nucmer().exe_path,
-        "delta_filter": get_delta_filter().exe_path,
-        "show_coords": get_show_coords().exe_path,
-        "show_diff": get_show_diff().exe_path,
         # "outdir": ... is dynamic
         # "indir": ... is dynamic
         "cores": snakemake_cores,
@@ -118,8 +110,7 @@ def test_dnadiff(
     introduced bugs, so we force re-running the rule by deleting the
     output directory before running the tests.
     """
-    # Remove the output directory to force re-running the snakemake rule
-    shutil.rmtree(dnadiff_targets_outdir, ignore_errors=True)
+    tmp_dir = Path(tmp_path)
 
     nucmer_tool = get_nucmer()
 
@@ -147,46 +138,34 @@ def test_dnadiff(
     )
     assert db.is_file()
 
-    targets = [
-        dnadiff_targets_outdir / fname.name
-        for fname in (input_genomes_tiny / "intermediates/dnadiff").glob("*.mcoords")
-    ]
-
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
         workflow_name="snakemake_dnadiff.smk",
-        targets=targets,
+        targets=[
+            dnadiff_targets_outdir / f"all_vs_{s.stem}.dnadiff"
+            for s in config["indir"].glob("*.f*")
+        ],
         params=config,
-        working_directory=Path(tmp_path),
+        working_directory=tmp_dir,
+        temp=tmp_dir,
     )
 
     # Check nucmer output (.delta) against target fixtures
     for fname in (input_genomes_tiny / "intermediates/dnadiff").glob("*.delta"):
-        assert compare_files_with_skip(fname, dnadiff_targets_outdir / fname.name)
+        assert compare_files_with_skip(fname, tmp_dir / fname.name)
 
     # Check nucmer output (.filter) against target fixtures
     for fname in (input_genomes_tiny / "intermediates/dnadiff").glob("*.filter"):
-        assert compare_files_with_skip(
-            fname,
-            dnadiff_targets_outdir / fname.name,
-        )
+        assert compare_files_with_skip(fname, tmp_dir / fname.name)
 
     # Check showdiff output (.qdiff) against target fixtures
     for fname in (input_genomes_tiny / "intermediates/dnadiff").glob("*.qdiff"):
-        assert compare_files_with_skip(
-            fname,
-            dnadiff_targets_outdir / fname.name,
-            skip=0,
-        )
+        assert compare_files_with_skip(fname, tmp_dir / fname.name, skip=0)
 
     # Check show_coords output (.mcoords) against target fixtures
-    for fname in targets:
-        assert compare_files_with_skip(
-            fname,
-            dnadiff_targets_outdir / fname.name,
-            skip=0,
-        )
+    for fname in (input_genomes_tiny / "intermediates/dnadiff").glob("*.mcoords"):
+        assert compare_files_with_skip(fname, tmp_dir / fname.name, skip=0)
 
     compare_db_matrices(db, input_genomes_tiny / "matrices", absolute_tolerance=5e-5)
 
@@ -208,8 +187,7 @@ def test_dnadiff_bad_alignments(
     introduced bugs, so we force re-running the rule by deleting the
     output directory before running the tests.
     """
-    # Remove the output directory to force re-running the snakemake rule
-    shutil.rmtree(dnadiff_targets_outdir, ignore_errors=True)
+    tmp_dir = Path(tmp_path)
 
     nucmer_tool = get_nucmer()
 
@@ -237,54 +215,42 @@ def test_dnadiff_bad_alignments(
     )
     assert db.is_file()
 
-    targets = [
-        dnadiff_targets_outdir / fname.name
-        for fname in (input_genomes_bad_alignments / "intermediates/dnadiff").glob(
-            "*.mcoords"
-        )
-    ]
-
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
         workflow_name="snakemake_dnadiff.smk",
-        targets=targets,
+        targets=[
+            dnadiff_targets_outdir / f"all_vs_{s.stem}.dnadiff"
+            for s in config["indir"].glob("*.f*")
+        ],
         params=config,
-        working_directory=Path(tmp_path),
+        working_directory=tmp_dir,
+        temp=tmp_dir,
     )
 
     # Check nucmer output (.delta) against target fixtures
     for fname in (input_genomes_bad_alignments / "intermediates/dnadiff").glob(
         "*.delta"
     ):
-        assert compare_files_with_skip(fname, dnadiff_targets_outdir / fname.name)
+        assert compare_files_with_skip(fname, tmp_dir / fname.name)
 
     # Check nucmer output (.filter) against target fixtures
     for fname in (input_genomes_bad_alignments / "intermediates/dnadiff").glob(
         "*.filter"
     ):
-        assert compare_files_with_skip(
-            fname,
-            dnadiff_targets_outdir / fname.name,
-        )
+        assert compare_files_with_skip(fname, tmp_dir / fname.name)
 
     # Check showdiff output (.qdiff) against target fixtures
     for fname in (input_genomes_bad_alignments / "intermediates/dnadiff").glob(
         "*.qdiff"
     ):
-        assert compare_files_with_skip(
-            fname,
-            dnadiff_targets_outdir / fname.name,
-            skip=0,
-        )
+        assert compare_files_with_skip(fname, tmp_dir / fname.name, skip=0)
 
     # Check show_coords output (.mcoords) against target fixtures
-    for fname in targets:
-        assert compare_files_with_skip(
-            fname,
-            dnadiff_targets_outdir / fname.name,
-            skip=0,
-        )
+    for fname in (input_genomes_bad_alignments / "intermediates/dnadiff").glob(
+        "*.mcoords"
+    ):
+        assert compare_files_with_skip(fname, tmp_dir / fname.name, skip=0)
 
     compare_db_matrices(
         db, input_genomes_bad_alignments / "matrices", absolute_tolerance=5e-5

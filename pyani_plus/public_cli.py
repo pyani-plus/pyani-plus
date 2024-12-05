@@ -174,7 +174,6 @@ def start_and_run_method(  # noqa: PLR0913
     method: str,
     fasta: Path,
     targets: list[str],  # filenames without paths
-    target_extension: str | None,
     tool: tools.ExternalToolData,
     binaries: dict[str, Path],
     *,
@@ -245,7 +244,6 @@ def start_and_run_method(  # noqa: PLR0913
         session,
         run,
         targets,
-        target_extension,
         binaries,
     )
 
@@ -258,7 +256,6 @@ def run_method(  # noqa: PLR0913
     session: Session,
     run: db_orm.Run,
     targets: list[str],  # filenames without paths
-    target_extension: str | None,
     binaries: dict[str, Path],
 ) -> int:
     """Run the snakemake workflow for given method and log run to database."""
@@ -290,7 +287,6 @@ def run_method(  # noqa: PLR0913
         print(
             f"Database already has {done} of {n}²={n**2} comparisons, {n**2 - done} needed"
         )
-        done_hashes = {(_.query_hash, _.subject_hash) for _ in run.comparisons()}
         run.status = "Running"
         session.commit()
         session.close()  # Reduce chance of DB locking
@@ -308,15 +304,6 @@ def run_method(  # noqa: PLR0913
             out_path = Path(tmp) / "output"
             params["outdir"] = out_path.resolve()
             target_paths = [out_path / _ for _ in targets]
-            if target_extension:
-                target_paths.extend(
-                    out_path / f"{query.stem}_vs_{subject.stem}{target_extension}"
-                    for query in filename_to_md5
-                    for subject in filename_to_md5
-                    if (filename_to_md5[query], filename_to_md5[subject])
-                    not in done_hashes
-                )
-            del done_hashes
             run_snakemake_with_progress_bar(
                 executor,
                 workflow_name,
@@ -365,12 +352,13 @@ def anim(  # noqa: PLR0913
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
 
-    target_extension = ".filter"
     tool = tools.get_nucmer()
     binaries = {
         "nucmer": tool.exe_path,
         "delta_filter": tools.get_delta_filter().exe_path,
     }
+    fasta_list = check_fasta(fasta)
+
     return start_and_run_method(
         executor,
         temp,
@@ -378,8 +366,7 @@ def anim(  # noqa: PLR0913
         name,
         "ANIm",
         fasta,
-        [],
-        target_extension,
+        [f"all_vs_{Path(_).stem}.anim" for _ in fasta_list],
         tool,
         binaries,
         mode=mode.value,  # turn the enum into a string
@@ -401,7 +388,6 @@ def dnadiff(  # noqa: PLR0913
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
 
-    target_extension = ".qdiff"  # or .mcoords as rule makes both
     # We don't actually call the tool dnadiff (which has its own version),
     # rather we call nucmer, delta-filter, show-diff and show-coords from MUMmer
     tool = tools.get_nucmer()
@@ -411,6 +397,8 @@ def dnadiff(  # noqa: PLR0913
         "show_diff": tools.get_show_diff().exe_path,
         "show_coords": tools.get_show_coords().exe_path,
     }
+    fasta_list = check_fasta(fasta)
+
     return start_and_run_method(
         executor,
         temp,
@@ -418,8 +406,7 @@ def dnadiff(  # noqa: PLR0913
         name,
         "dnadiff",
         fasta,
-        [],
-        target_extension,
+        [f"all_vs_{Path(_).stem}.dnadiff" for _ in fasta_list],
         tool,
         binaries,
     )
@@ -461,7 +448,6 @@ def anib(  # noqa: PLR0913
         "ANIb",
         fasta,
         [f"all_vs_{Path(_).stem}.anib" for _ in fasta_list],
-        None,  # no pairwise target
         tool,
         binaries,
         fragsize=fragsize,
@@ -510,7 +496,6 @@ def fastani(  # noqa: PLR0913
         "fastANI",
         fasta,
         [f"all_vs_{Path(_).stem}.fastani" for _ in fasta_list],
-        None,  # no pairwise targets
         tool,
         binaries,
         fragsize=fragsize,
@@ -554,7 +539,6 @@ def sourmash(  # noqa: PLR0913
         # Can we do e.g. sourmash_max-containment_k=31_scaled=300.csv
         # using [f"sourmash_{mode.value}_k={kmersize}_{extra}.csv"] ?
         ["sourmash.csv"],
-        None,  # no pairwise targets
         tool,
         binaries,
         mode=mode.value,  # turn the enum into a string
@@ -596,7 +580,6 @@ def branchwater(  # noqa: PLR0913
         "branchwater",
         fasta,
         ["branchwater.csv"],
-        None,  # no pairwise targets
         tool,
         binaries,
         mode=mode.value,  # turn the enum into a string
@@ -668,8 +651,6 @@ def resume(  # noqa: C901, PLR0912, PLR0915
     # The params dict has two kinds of entries,
     # - tool paths, which ought to be handled more neatly
     # - config entries, which ought to be named consistently and done centrally
-    targets = []  # mostly unused
-    target_extension: str | None = None  # set for most methods
     match config.method:
         case "fastANI":
             tool = tools.get_fastani()
@@ -681,14 +662,15 @@ def resume(  # noqa: C901, PLR0912, PLR0915
                 f"all_vs_{Path(_.fasta_filename).stem}.fastani"
                 for _ in run.fasta_hashes
             ]
-            target_extension = None
         case "ANIm":
             tool = tools.get_nucmer()
             binaries = {
                 "nucmer": tool.exe_path,
                 "delta_filter": tools.get_delta_filter().exe_path,
             }
-            target_extension = ".filter"
+            targets = [
+                f"all_vs_{Path(_.fasta_filename).stem}.anim" for _ in run.fasta_hashes
+            ]
         case "dnadiff":
             tool = tools.get_nucmer()
             binaries = {
@@ -697,7 +679,10 @@ def resume(  # noqa: C901, PLR0912, PLR0915
                 "show_diff": tools.get_show_diff().exe_path,
                 "show_coords": tools.get_show_coords().exe_path,
             }
-            target_extension = ".qdiff"
+            targets = [
+                f"all_vs_{Path(_.fasta_filename).stem}.dnadiff"
+                for _ in run.fasta_hashes
+            ]
         case "ANIb":
             tool = tools.get_blastn()
             binaries = {
@@ -707,21 +692,18 @@ def resume(  # noqa: C901, PLR0912, PLR0915
             targets = [
                 f"all_vs_{Path(_.fasta_filename).stem}.anib" for _ in run.fasta_hashes
             ]
-            target_extension = None
         case "sourmash":
             tool = tools.get_sourmash()
             binaries = {
                 "sourmash": tool.exe_path,
             }
             targets = ["sourmash.csv"]
-            target_extension = None
         case "branchwater":
             tool = tools.get_sourmash()
             binaries = {
                 "sourmash": tool.exe_path,
             }
             targets = ["branchwater.csv"]
-            target_extension = None
         case _:
             msg = f"ERROR: Unknown method {config.method} for run-id {run_id} in {database}"
             sys.exit(msg)
@@ -765,7 +747,6 @@ def resume(  # noqa: C901, PLR0912, PLR0915
         session,
         run,
         targets,
-        target_extension,
         binaries,
     )
 

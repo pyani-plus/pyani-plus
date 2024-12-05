@@ -26,7 +26,6 @@ These tests are intended to be run from the repository root using:
 pytest -v or make test
 """
 
-import shutil  # We need this for filesystem operations
 from pathlib import Path
 
 # Required to support pytest automated testing
@@ -86,8 +85,8 @@ def compare_files_with_skip(file1: Path, file2: Path, skip: int = 1) -> bool:
 
 def test_rule_ANIm(  # noqa: N802
     input_genomes_tiny: Path,
-    anim_targets_outdir: Path,
     config_anim_args: dict,
+    anim_targets_outdir: Path,
     tmp_path: str,
 ) -> None:
     """Test rule.
@@ -101,14 +100,13 @@ def test_rule_ANIm(  # noqa: N802
     introduced bugs, so we force re-running the rule by deleting the
     output directory before running the tests.
     """
-    # Remove the output directory to force re-running the snakemake rule
-    shutil.rmtree(anim_targets_outdir, ignore_errors=True)
+    tmp_dir = Path(tmp_path)
 
     # Assuming this will match but worker nodes might have a different version
     nucmer_tool = get_nucmer()
 
     config = config_anim_args.copy()
-    config["outdir"] = anim_targets_outdir
+    config["outdir"] = tmp_path
     config["indir"] = input_genomes_tiny
 
     # Setup minimal test DB
@@ -128,29 +126,31 @@ def test_rule_ANIm(  # noqa: N802
     )
     assert db.is_file()
 
-    expected_filter = list((input_genomes_tiny / "intermediates/ANIm").glob("*.filter"))
-    expected_delta = list((input_genomes_tiny / "intermediates/ANIm").glob("*.delta"))
-    targets = [anim_targets_outdir / fname.name for fname in expected_filter]
-
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
         workflow_name="snakemake_anim.smk",
         database=db,
-        run_id=0,  # only needed for progress bar
-        targets=targets,
+        run_id=1,
+        targets=[
+            anim_targets_outdir / f"all_vs_{s.stem}.anim"
+            for s in input_genomes_tiny.glob("*.f*")
+        ],
         params=config,
-        working_directory=Path(tmp_path),
+        working_directory=tmp_dir,
+        temp=tmp_dir,
     )
 
+    # Check the intermediate files
+
     # Check delta-filter output against target fixtures
-    for fname in expected_filter:
-        generated = anim_targets_outdir / fname.name
+    for fname in (input_genomes_tiny / "intermediates/ANIm").glob("*.filter"):
+        generated = tmp_dir / fname.name
         assert compare_files_with_skip(fname, generated)
 
     # Check nucmer output against target fixtures
-    for fname in expected_delta:
-        generated = anim_targets_outdir / fname.name
+    for fname in (input_genomes_tiny / "intermediates/ANIm").glob("*.delta"):
+        generated = tmp_dir / fname.name
         assert compare_files_with_skip(fname, generated)
 
     compare_db_matrices(db, input_genomes_tiny / "matrices")
@@ -158,8 +158,8 @@ def test_rule_ANIm(  # noqa: N802
 
 def test_rule_ANIm_bad_alignments(  # noqa: N802
     input_genomes_bad_alignments: Path,
-    anim_targets_outdir: Path,
     config_anim_args: dict,
+    anim_targets_outdir: Path,
     tmp_path: str,
 ) -> None:
     """Test rule ANIm (bad alignments).
@@ -173,14 +173,13 @@ def test_rule_ANIm_bad_alignments(  # noqa: N802
     introduced bugs, so we force re-running the rule by deleting the
     output directory before running the tests.
     """
-    # Remove the output directory to force re-running the snakemake rule
-    shutil.rmtree(anim_targets_outdir, ignore_errors=True)
+    tmp_dir = Path(tmp_path)
 
     # Assuming this will match but worker nodes might have a different version
     nucmer_tool = get_nucmer()
 
     config = config_anim_args.copy()
-    config["outdir"] = anim_targets_outdir
+    config["outdir"] = tmp_path
     config["indir"] = input_genomes_bad_alignments
 
     # Setup minimal test DB
@@ -195,38 +194,34 @@ def test_rule_ANIm_bad_alignments(  # noqa: N802
         method="ANIm",
         program=nucmer_tool.exe_path.stem,
         version=nucmer_tool.version,
-        mode=config_anim_args["mode"],
+        mode=config["mode"],
         create_db=True,
     )
     assert db.is_file()
-
-    expected_filter = list(
-        (input_genomes_bad_alignments / "intermediates/ANIm").glob("*.filter")
-    )
-    expected_delta = list(
-        (input_genomes_bad_alignments / "intermediates/ANIm").glob("*.delta")
-    )
-    targets = [anim_targets_outdir / fname.name for fname in expected_filter]
 
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
         workflow_name="snakemake_anim.smk",
         database=db,
-        run_id=0,  # only needed for progress bar
-        targets=targets,
+        run_id=1,
+        targets=[
+            anim_targets_outdir / f"all_vs_{s.stem}.anim"
+            for s in input_genomes_bad_alignments.glob("*.f*")
+        ],
         params=config,
-        working_directory=Path(tmp_path),
+        working_directory=tmp_dir,
+        temp=tmp_dir,
     )
 
     # Check delta-filter output against target fixtures
-    for fname in expected_filter:
-        generated = anim_targets_outdir / fname.name
+    for fname in (input_genomes_bad_alignments / "intermediates/ANIm").glob("*.filter"):
+        generated = tmp_dir / fname.name
         assert compare_files_with_skip(fname, generated)
 
     # Check nucmer output against target fixtures
-    for fname in expected_delta:
-        generated = anim_targets_outdir / fname.name
+    for fname in (input_genomes_bad_alignments / "intermediates/ANIm").glob("*.delta"):
+        generated = tmp_dir / fname.name
         assert compare_files_with_skip(fname, generated)
 
     compare_db_matrices(db, input_genomes_bad_alignments / "matrices")

@@ -89,116 +89,14 @@ def test_parse_qdiff_bad_alignments(input_genomes_bad_alignments: Path) -> None:
     )
 
 
-def test_missing_db(
-    tmp_path: str,
-    input_genomes_tiny: Path,
-) -> None:
-    """Check expected error when DB does not exist."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
-    assert not tmp_db.is_file()
-
-    with pytest.raises(SystemExit, match="does not exist"):
-        private_cli.log_dnadiff(
-            database=tmp_db,
-            run_id=1,
-            # These are for the comparison table
-            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            mcoords=input_genomes_tiny
-            / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
-            qdiff=input_genomes_tiny
-            / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff",
-        )
-
-
-def test_bad_query_or_subject(
-    tmp_path: str,
-    input_genomes_tiny: Path,
-) -> None:
-    """Mismatch between query or subject FASTA in show-coords and show-diff output and commandline."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
-    assert not tmp_db.is_file()
-
-    with pytest.raises(
-        SystemExit,
-        match=(
-            "ERROR: Given --query-fasta .*/MGV-GENOME-0266457.fna"
-            " but query in mcoords filename was MGV-GENOME-0264574"
-        ),
-    ):
-        private_cli.log_dnadiff(
-            database=tmp_db,
-            run_id=1,
-            query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            mcoords=input_genomes_tiny
-            / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
-            qdiff=input_genomes_tiny
-            / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff",
-        )
-
-    with pytest.raises(
-        SystemExit,
-        match=(
-            "ERROR: Given --subject-fasta .*/MGV-GENOME-0264574.fas"
-            " but subject in mcoords filename was MGV-GENOME-0266457"
-        ),
-    ):
-        private_cli.log_dnadiff(
-            database=tmp_db,
-            run_id=1,
-            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            mcoords=input_genomes_tiny
-            / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
-            qdiff=input_genomes_tiny
-            / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff",
-        )
-
-    with pytest.raises(
-        SystemExit,
-        match=(
-            "ERROR: Given --query-fasta .*/OP073605.fasta"
-            " but query in qdiff filename was MGV-GENOME-0266457"
-        ),
-    ):
-        private_cli.log_dnadiff(
-            database=tmp_db,
-            run_id=1,
-            query_fasta=input_genomes_tiny / "OP073605.fasta",
-            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            mcoords=input_genomes_tiny
-            / "intermediates/dnadiff/OP073605_vs_MGV-GENOME-0266457.mcoords",
-            qdiff=input_genomes_tiny
-            / "intermediates/dnadiff/MGV-GENOME-0266457_vs_OP073605.qdiff",
-        )
-
-    with pytest.raises(
-        SystemExit,
-        match=(
-            "ERROR: Given --subject-fasta .*/MGV-GENOME-0266457.fna"
-            " but subject in qdiff filename was MGV-GENOME-0264574"
-        ),
-    ):
-        private_cli.log_dnadiff(
-            database=tmp_db,
-            run_id=1,
-            query_fasta=input_genomes_tiny / "OP073605.fasta",
-            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            mcoords=input_genomes_tiny
-            / "intermediates/dnadiff/OP073605_vs_MGV-GENOME-0266457.mcoords",
-            qdiff=input_genomes_tiny
-            / "intermediates/dnadiff/OP073605_vs_MGV-GENOME-0264574.qdiff",
-        )
-
-
-def test_logging_dnadiff(
+def test_running_dnadiff(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
-    """Check can log a dnadiff comparison to DB."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
+    """Check can compute and log column of dnadiff comparisons to DB."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "new.sqlite"
     assert not tmp_db.is_file()
 
     tool = tools.get_nucmer()
@@ -208,7 +106,7 @@ def test_logging_dnadiff(
         database=tmp_db,
         cmdline="pyani-plus dnadiff ...",
         status="Testing",
-        name="Testing log_dnadiff",
+        name="Testing dnadiff",
         method="dnadiff",
         program=tool.exe_path.stem,
         version=tool.version,
@@ -217,101 +115,45 @@ def test_logging_dnadiff(
     output = capsys.readouterr().out
     assert output.endswith("Run identifier 1\n")
 
-    private_cli.log_dnadiff(
-        database=tmp_db,
-        run_id=1,
-        query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-        subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-        mcoords=input_genomes_tiny
-        / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords",
-        qdiff=input_genomes_tiny
-        / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff",
-    )
-
-    # Check the recorded comparison values
     session = db_orm.connect_to_db(tmp_db)
-    assert session.query(db_orm.Comparison).count() == 1
-    comp = session.query(db_orm.Comparison).one()
-    query = "689d3fd6881db36b5e08329cf23cecdd"  # MGV-GENOME-0264574.fas
-    subject = "78975d5144a1cd12e98898d573cf6536"  # MGV-GENOME-0266457.fna
-    pytest.approx(
-        comp.identity,
-        get_matrix_entry(
-            input_genomes_tiny / "matrices" / "dnadiff_identity.tsv", query, subject
-        ),
-        abs=5e-5,
-    )
-    pytest.approx(
-        comp.aln_length,
-        get_matrix_entry(
-            input_genomes_tiny / "matrices" / "dnadiff_aln_lengths.tsv", query, subject
-        ),
-    )
-    pytest.approx(
-        comp.cov_query,
-        get_matrix_entry(
-            input_genomes_tiny / "matrices" / "dnadiff_coverage.tsv", query, subject
-        ),
-    )
-    session.close()
-    tmp_db.unlink()
+    run = session.query(db_orm.Run).one()
+    assert run.run_id == 1
+    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
 
-
-def test_logging_dnadiff_bad_alignments(
-    capsys: pytest.CaptureFixture[str],
-    tmp_path: str,
-    input_genomes_bad_alignments: Path,
-) -> None:
-    """Check can log a dnadiff comparison to DB (bad alignments)."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
-    assert not tmp_db.is_file()
-
-    tool = tools.get_nucmer()
-
-    private_cli.log_run(
-        fasta=input_genomes_bad_alignments,
-        database=tmp_db,
-        cmdline="pyani-plus dnadiff ...",
-        status="Testing",
-        name="Testing log_dnadiff",
-        method="dnadiff",
-        program=tool.exe_path.stem,
-        version=tool.version,
-        create_db=True,
+    subject_hash = list(hash_to_filename)[1]
+    private_cli.dnadiff(
+        tmp_dir,
+        session,
+        run,
+        input_genomes_tiny,
+        hash_to_filename,
+        {},  # not used for dnadiff
+        query_hashes=set(hash_to_filename),  # order should not matter!
+        subject_hash=subject_hash,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
-
-    private_cli.log_dnadiff(
-        database=tmp_db,
-        run_id=1,
-        query_fasta=input_genomes_bad_alignments / "MGV-GENOME-0264574.fas",
-        subject_fasta=input_genomes_bad_alignments / "MGV-GENOME-0357962.fna",
-        mcoords=input_genomes_bad_alignments
-        / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0357962.mcoords",
-        qdiff=input_genomes_bad_alignments
-        / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0357962.qdiff",
-    )
-
-    # Check the recorded comparison values
-    session = db_orm.connect_to_db(tmp_db)
-    assert session.query(db_orm.Comparison).count() == 1
-    comp = session.query(db_orm.Comparison).one()
-    assert all(
-        value is None
-        for value in [
-            comp.identity,
-            comp.aln_length,
-            comp.sim_errors,
-            comp.cov_query,
-            comp.cov_subject,
-        ]
-    )
+    assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004
     assert (
-        comp.query_hash == "689d3fd6881db36b5e08329cf23cecdd"
-    )  # MGV-GENOME-0264574.fas
-    assert (
-        comp.subject_hash == "a30481565b45f6bbc6ce5260503067e0"
-    )  # MGV-GENOME-0357962.fna
+        session.query(db_orm.Comparison)
+        .where(db_orm.Comparison.subject_hash == subject_hash)
+        .count()
+        == 3  # noqa: PLR2004
+    )
+
+    # Check the intermediate files match?
+
+    # No real need to test the ANI values here, will be done elsewhere.
+    for query_hash in hash_to_filename:
+        pytest.approx(
+            get_matrix_entry(
+                input_genomes_tiny / "matrices/dnadiff_identity.tsv",
+                query_hash,
+                subject_hash,
+            )
+            == session.query(db_orm.Comparison)
+            .where(db_orm.Comparison.query_hash == query_hash)
+            .where(db_orm.Comparison.subject_hash == subject_hash)
+            .one()
+            .identity
+        )
     session.close()
     tmp_db.unlink()

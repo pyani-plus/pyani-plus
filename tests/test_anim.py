@@ -26,7 +26,7 @@ These tests are intended to be run from the repository root using:
 make test
 """
 
-# Required to support pytest automated testing
+import filecmp
 from pathlib import Path
 
 import pytest
@@ -83,68 +83,14 @@ def test_aligned_bases_count(aligned_regions: dict) -> None:
     assert method_anim.get_aligned_bases_count(aligned_regions) == 39176  # noqa: PLR2004
 
 
-def test_missing_db(tmp_path: str, input_genomes_tiny: Path) -> None:
-    """Check expected error when DB does not exist."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
-    assert not tmp_db.is_file()
-
-    with pytest.raises(SystemExit, match="does not exist"):
-        private_cli.log_anim(
-            database=tmp_db,
-            run_id=1,
-            # These are for the comparison table
-            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            deltafilter=input_genomes_tiny
-            / "intermediates/ANIm/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
-        )
-
-
-def test_bad_query_or_subject(tmp_path: str, input_genomes_tiny: Path) -> None:
-    """Mismatch between query or subject FASTA in fastANI output and commandline."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
-    assert not tmp_db.is_file()
-
-    with pytest.raises(
-        SystemExit,
-        match=(
-            "ERROR: Given --query-fasta .*/MGV-GENOME-0266457.fna"
-            " but query in deltafilter filename was MGV-GENOME-0264574"
-        ),
-    ):
-        private_cli.log_anim(
-            database=tmp_db,
-            run_id=1,
-            query_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-            deltafilter=input_genomes_tiny
-            / "intermediates/ANIm/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
-        )
-
-    with pytest.raises(
-        SystemExit,
-        match=(
-            "ERROR: Given --subject-fasta .*/MGV-GENOME-0264574.fas"
-            " but subject in deltafilter filename was MGV-GENOME-0266457"
-        ),
-    ):
-        private_cli.log_anim(
-            database=tmp_db,
-            run_id=1,
-            query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            subject_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-            deltafilter=input_genomes_tiny
-            / "intermediates/ANIm/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
-        )
-
-
-def test_logging_anim(
+def test_running_anim(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
-    """Check can log a ANIm comparison to DB."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
+    """Check can compute and log column of ANIm comparisons to DB."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "new.sqlite"
     assert not tmp_db.is_file()
 
     tool = tools.get_nucmer()
@@ -154,7 +100,7 @@ def test_logging_anim(
         database=tmp_db,
         cmdline="pyani-plus anim ...",
         status="Testing",
-        name="Testing log_anim",
+        name="Testing anim",
         method="ANIm",
         program=tool.exe_path.stem,
         version=tool.version,
@@ -164,103 +110,53 @@ def test_logging_anim(
     output = capsys.readouterr().out
     assert output.endswith("Run identifier 1\n")
 
-    private_cli.log_anim(
-        database=tmp_db,
-        run_id=1,
-        query_fasta=input_genomes_tiny / "MGV-GENOME-0264574.fas",
-        subject_fasta=input_genomes_tiny / "MGV-GENOME-0266457.fna",
-        deltafilter=input_genomes_tiny
-        / "intermediates/ANIm/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
-    )
-
-    # Check the recorded comparison values
     session = db_orm.connect_to_db(tmp_db)
-    assert session.query(db_orm.Comparison).count() == 1
-    comp = session.query(db_orm.Comparison).one()
-    query = "689d3fd6881db36b5e08329cf23cecdd"  # MGV-GENOME-0264574.fas
-    subject = "78975d5144a1cd12e98898d573cf6536"  # MGV-GENOME-0266457.fna
-    pytest.approx(
-        comp.identity,
-        get_matrix_entry(
-            input_genomes_tiny / "matrices" / "ANIm_identity.tsv", query, subject
-        ),
-    )
-    pytest.approx(
-        comp.aln_length,
-        get_matrix_entry(
-            input_genomes_tiny / "matrices" / "ANIm_aln_lengths.tsv", query, subject
-        ),
-    )
-    pytest.approx(
-        comp.sim_errors,
-        get_matrix_entry(
-            input_genomes_tiny / "matrices" / "ANIm_sim_errors.tsv", query, subject
-        ),
-    )
-    pytest.approx(
-        comp.cov_query,
-        get_matrix_entry(
-            input_genomes_tiny / "matrices" / "ANIm_coverage.tsv", query, subject
-        ),
-    )
-    session.close()
-    tmp_db.unlink()
+    run = session.query(db_orm.Run).one()
+    assert run.run_id == 1
+    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
 
-
-def test_logging_anim_bad_alignment(
-    capsys: pytest.CaptureFixture[str],
-    tmp_path: str,
-    input_genomes_bad_alignments: Path,
-) -> None:
-    """Check can log a ANIm comparison to DB (bad alignments)."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
-    assert not tmp_db.is_file()
-
-    tool = tools.get_nucmer()
-
-    private_cli.log_run(
-        fasta=input_genomes_bad_alignments,
-        database=tmp_db,
-        cmdline="pyani-plus anim ...",
-        status="Testing",
-        name="Testing log_anim",
-        method="ANIm",
-        program=tool.exe_path.stem,
-        version=tool.version,
-        mode=method_anim.MODE,
-        create_db=True,
+    subject_hash = list(hash_to_filename)[1]
+    private_cli.anim(
+        tmp_dir,
+        session,
+        run,
+        input_genomes_tiny,
+        hash_to_filename,
+        {},  # not used for ANIm
+        query_hashes=set(hash_to_filename),  # order should not matter!
+        subject_hash=subject_hash,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
-
-    private_cli.log_anim(
-        database=tmp_db,
-        run_id=1,
-        query_fasta=input_genomes_bad_alignments / "MGV-GENOME-0264574.fas",
-        subject_fasta=input_genomes_bad_alignments / "MGV-GENOME-0357962.fna",
-        deltafilter=input_genomes_bad_alignments
-        / "intermediates/ANIm/MGV-GENOME-0264574_vs_MGV-GENOME-0357962.filter",
-    )
-
-    # Check the recorded comparison values
-    session = db_orm.connect_to_db(tmp_db)
-    assert session.query(db_orm.Comparison).count() == 1
-    comp = session.query(db_orm.Comparison).one()
-    assert all(
-        value is None
-        for value in [
-            comp.identity,
-            comp.aln_length,
-            comp.sim_errors,
-            comp.cov_query,
-            comp.cov_subject,
-        ]
-    )
+    assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004
     assert (
-        comp.query_hash == "689d3fd6881db36b5e08329cf23cecdd"
-    )  # MGV-GENOME-0264574.fas
-    assert (
-        comp.subject_hash == "a30481565b45f6bbc6ce5260503067e0"
-    )  # MGV-GENOME-0357962.fna
+        session.query(db_orm.Comparison)
+        .where(db_orm.Comparison.subject_hash == subject_hash)
+        .count()
+        == 3  # noqa: PLR2004
+    )
+
+    # Could check nucmer output against target fixtures?
+
+    # Check the intermediate delta-filter files
+    subject_stem = Path(hash_to_filename[subject_hash]).stem
+    for fname in (input_genomes_tiny / "intermediates/ANIb").glob(
+        f"*_vs_{subject_stem}.delta"
+    ):
+        assert (tmp_dir / fname.name).is_file(), list(tmp_dir.glob("*"))
+        assert filecmp.cmp(fname, tmp_dir / fname.name)
+
+    # No real need to test the ANI values here, will be done elsewhere.
+    for query_hash in hash_to_filename:
+        pytest.approx(
+            get_matrix_entry(
+                input_genomes_tiny / "matrices/ANIm_identity.tsv",
+                query_hash,
+                subject_hash,
+            )
+            == session.query(db_orm.Comparison)
+            .where(db_orm.Comparison.query_hash == query_hash)
+            .where(db_orm.Comparison.subject_hash == subject_hash)
+            .one()
+            .identity
+        )
     session.close()
     tmp_db.unlink()

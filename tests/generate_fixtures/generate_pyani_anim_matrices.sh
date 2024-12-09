@@ -52,8 +52,8 @@ echo "Indexing with pyani..."
 #index with pyANI v0.3
 pyani index -i .
 
-#Update the label file so that the columns in the matrices correspond to the genome md5 hash
-awk -F'\t' 'OFS="\t" {$3 = $1; print}' labels.txt > labels_tmp.txt && mv labels_tmp.txt labels.txt
+#Update the label file so that the columns in the matrices correspond to the stem
+awk -F'\t' 'OFS="\t" {$3 = $2; print}' labels.txt > labels_tmp.txt && mv labels_tmp.txt labels.txt
 
 echo "Run ANIm comparisions..."
 pyani anim -i . -o output -v -l output/log.log --name "generate fixtures" --labels labels.txt --classes classes.txt

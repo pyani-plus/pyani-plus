@@ -239,24 +239,24 @@ def test_partial_run(
 
 def test_export_run(tmp_path: str) -> None:
     """Check export run failures."""
-    tmp = Path(tmp_path)
+    tmp_dir = Path(tmp_path)
 
     with pytest.raises(
         SystemExit, match="ERROR: Database /does/not/exist does not exist"
     ):
-        public_cli.export_run(database=Path("/does/not/exist"), outdir=tmp)
+        public_cli.export_run(database=Path("/does/not/exist"), outdir=tmp_dir)
 
     with pytest.raises(
         SystemExit, match="ERROR: Output directory /does/not/exist does not exist"
     ):
         public_cli.export_run(database=":memory:", outdir=Path("/does/not/exist/"))
 
-    tmp_db = Path(tmp_path) / "export.sqlite"
+    tmp_db = tmp_dir / "export.sqlite"
     session = db_orm.connect_to_db(tmp_db)
     with pytest.raises(
         SystemExit, match="ERROR: Database .*/export.sqlite contains no runs."
     ):
-        public_cli.export_run(database=tmp_db, outdir=tmp)
+        public_cli.export_run(database=tmp_db, outdir=tmp_dir)
 
     config = db_orm.db_configuration(
         session, "fastANI", "fastani", "1.2.3", create=True
@@ -281,16 +281,68 @@ def test_export_run(tmp_path: str) -> None:
         SystemExit,
         match="ERROR: Database .*/export.sqlite contains 2 runs, use --run-id to specify which.",
     ):
-        public_cli.export_run(database=tmp_db, outdir=tmp)
+        public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     with pytest.raises(
         SystemExit, match="ERROR: Database .*/export.sqlite has no run-id 3."
     ):
-        public_cli.export_run(database=tmp_db, outdir=tmp, run_id=3)
+        public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=3)
     with pytest.raises(
         SystemExit,
         match="ERROR: Database .*/export.sqlite run-id 1 has no comparisons",
     ):
-        public_cli.export_run(database=tmp_db, outdir=tmp, run_id=1)
+        public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=1)
+    tmp_db.unlink()
+
+
+def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Check export run with duplicated stems.
+
+    This should not happen naturally, it will fail via public CLI.
+    """
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "dup-stems.db"
+    tmp_fasta = tmp_dir / "genomes"
+    tmp_fasta.mkdir()
+    (tmp_fasta / "example.fasta").symlink_to(
+        input_genomes_tiny / "OP073605.fasta",
+    )
+    (tmp_fasta / "example.fna").symlink_to(
+        input_genomes_tiny / "MGV-GENOME-0266457.fna",
+    )
+    (tmp_fasta / "example.fas").symlink_to(
+        input_genomes_tiny / "MGV-GENOME-0264574.fas",
+    )
+
+    tmp_db = tmp_dir / "dup-stems.db"
+    session = db_orm.connect_to_db(tmp_db)
+    config = db_orm.db_configuration(
+        session, "fastANI", "fastani", "1.2.3", create=True
+    )
+    fasta_to_hash = {fasta: file_md5sum(fasta) for fasta in tmp_fasta.glob("*.f*")}
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        fasta_directory=input_genomes_tiny,
+        status="Partial",
+        name="Trial B",
+        fasta_to_hash=fasta_to_hash,
+    )
+    for query_hash in list(fasta_to_hash.values())[1:]:
+        for subject_hash in list(fasta_to_hash.values())[1:]:
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query_hash,
+                subject_hash,
+                1.0 if query_hash == subject_hash else 0.99,
+                12345,
+            )
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Duplicate filename stems, consider using MD5 labelling.",
+    ):
+        public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=1)
     tmp_db.unlink()
 
 

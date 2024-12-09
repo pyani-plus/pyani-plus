@@ -809,7 +809,7 @@ def export_run(  # noqa: C901, PLR0912, PLR0915
             click_type=click.Choice(["md5", "filename", "stem"]),
             help="How to label the genomes",
         ),
-    ] = "md5",
+    ] = "stem",
 ) -> int:
     """Export any single run from the given pyANI-plus SQLite3 database.
 
@@ -889,10 +889,18 @@ def export_run(  # noqa: C901, PLR0912, PLR0915
     ):
         if label == "filename":
             mapping = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+            # Duplicate filenames should be impossible (blocked from creation
+            # as we attempt a folder name as input)
         elif label == "stem":
             mapping = {
                 _.genome_hash: Path(_.fasta_filename).stem for _ in run.fasta_hashes
             }
+            if len(set(mapping.values())) < len(mapping):
+                # This can happen, e.g. assembly.fasta and assembly.fna,
+                # which would most likely be a mistake by the user.
+                sys.exit(
+                    "ERROR: Duplicate filename stems, consider using MD5 labelling."
+                )
         else:
             mapping = None
         if mapping:

@@ -32,6 +32,7 @@ import tempfile
 from pathlib import Path
 from typing import Annotated
 
+import click
 import pandas as pd
 import typer
 from rich.console import Console
@@ -801,13 +802,21 @@ def list_runs(
 
 
 @app.command()
-def export_run(  # noqa: C901
+def export_run(  # noqa: C901, PLR0912, PLR0915
     database: REQ_ARG_TYPE_DATABASE,
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: Annotated[
         int | None,
         typer.Option(help="Which run to report (optional if DB contains only one)"),
     ] = None,
+    # Would like to replace this with Literal["md5", "filename", "stem"] once typer updated
+    label: Annotated[
+        str,
+        typer.Option(
+            click_type=click.Choice(["md5", "filename", "stem"]),
+            help="How to label the genomes",
+        ),
+    ] = "md5",
 ) -> int:
     """Export any single run from the given pyANI-plus SQLite3 database.
 
@@ -877,11 +886,27 @@ def export_run(  # noqa: C901
     # Question: Should we offer MD5 alternatives, and how? e.g. filename or labels
     # (seems more suited to a report command offering tables and plots)
     method = run.configuration.method
-    run.identities.to_csv(outdir / f"{method}_identity.tsv", sep="\t")
-    run.aln_length.to_csv(outdir / f"{method}_aln_lengths.tsv", sep="\t")
-    run.sim_errors.to_csv(outdir / f"{method}_sim_errors.tsv", sep="\t")
-    run.cov_query.to_csv(outdir / f"{method}_query_cov.tsv", sep="\t")
-    run.hadamard.to_csv(outdir / f"{method}_hadamard.tsv", sep="\t")
+
+    for matrix, filename in (
+        (run.identities, f"{method}_identity.tsv"),
+        (run.aln_length, f"{method}_aln_lengths.tsv"),
+        (run.sim_errors, f"{method}_sim_errors.tsv"),
+        (run.cov_query, f"{method}_query_cov.tsv"),
+        (run.hadamard, f"{method}_hadamard.tsv"),
+    ):
+        if label == "filename":
+            mapping = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+        elif label == "stem":
+            mapping = {
+                _.genome_hash: Path(_.fasta_filename).stem for _ in run.fasta_hashes
+            }
+        else:
+            mapping = None
+        if mapping:
+            matrix.rename(index=mapping, columns=mapping, inplace=True)  # noqa: PD002
+            matrix.sort_index(axis=0, inplace=True)  # noqa: PD002
+            matrix.sort_index(axis=1, inplace=True)  # noqa: PD002
+        matrix.to_csv(outdir / filename, sep="\t")
 
     print(f"Wrote matrices to {outdir}/{method}_*.tsv")
 

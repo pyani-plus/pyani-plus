@@ -159,28 +159,6 @@ NONE_ARG_TYPE_EXTRA = Annotated[
 ]
 
 
-def _lookup_run_query_subject(
-    session: Session, run_id: int, query_fasta: Path, subject_fasta: Path
-) -> tuple[db_orm.Run, str, str]:
-    """Find run row in ORM, and lookup MD5 of query and subject FASTA files."""
-    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-    query_md5 = (
-        session.query(db_orm.RunGenomeAssociation)
-        .where(db_orm.RunGenomeAssociation.run_id == run_id)
-        .where(db_orm.RunGenomeAssociation.fasta_filename == query_fasta.name)
-        .one()
-        .genome_hash
-    )
-    subject_md5 = (
-        session.query(db_orm.RunGenomeAssociation)
-        .where(db_orm.RunGenomeAssociation.run_id == run_id)
-        .where(db_orm.RunGenomeAssociation.fasta_filename == subject_fasta.name)
-        .one()
-        .genome_hash
-    )
-    return run, query_md5, subject_md5
-
-
 def _check_tool_version(
     tool: tools.ExternalToolData, configuration: db_orm.Configuration
 ) -> None:

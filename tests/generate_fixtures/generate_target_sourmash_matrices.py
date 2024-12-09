@@ -38,8 +38,6 @@ from pathlib import Path
 
 import pandas as pd
 
-from pyani_plus import utils
-
 # Paths to directories (eg, input, output)
 INPUT_DIR, OUT_DIR = Path(sys.argv[1]), Path(sys.argv[2])
 
@@ -55,13 +53,9 @@ def parse_compare_files(compare_file: Path) -> float:
     return compare_results.iloc[0, -1]
 
 
-# Constructing a matrix where the MD5 hashes of test genomes are used as both column names and index.
-genome_hashes = {file.stem: utils.file_md5sum(file) for file in INPUT_DIR.glob("*.f*")}
-sorted_hashes = sorted(genome_hashes.values())
-
 # Generate target identity matrix for pyani-plus sourmash tests
 identity_matrix = pd.read_csv(INPUT_DIR / "intermediates/sourmash/sourmash.csv")
-identity_matrix.columns = [genome_hashes[Path(_).stem] for _ in identity_matrix]
+identity_matrix.columns = [Path(_).stem for _ in identity_matrix]
 identity_matrix.index = identity_matrix.columns
 
 # If ANI values can't be estimated (eg. sourmash 0.0) report None instead

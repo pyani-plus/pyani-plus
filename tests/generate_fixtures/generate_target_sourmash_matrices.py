@@ -57,16 +57,34 @@ def parse_compare_files(compare_file: Path) -> float:
 
 # Constructing a matrix where the MD5 hashes of test genomes are used as both column names and index.
 genome_hashes = {file.stem: utils.file_md5sum(file) for file in INPUT_DIR.glob("*.f*")}
-sorted_hashes = sorted(genome_hashes.values())
 
 # Generate target identity matrix for pyani-plus sourmash tests
 identity_matrix = pd.read_csv(INPUT_DIR / "intermediates/sourmash/sourmash.csv")
 identity_matrix.columns = [genome_hashes[Path(_).stem] for _ in identity_matrix]
 identity_matrix.index = identity_matrix.columns
 
+# We want this sorted by hash, and transposed (see below)
+identity_matrix = identity_matrix.sort_index(axis=0).sort_index(axis=1).T
+
+# Quoting https://sourmash.readthedocs.io/en/latest/command-line.html#sourmash-compare-compare-many-signatures
+#
+#   Note: compare by default produces a symmetric similarity matrix that can be
+#   used for clustering in downstream tasks. With --containment, however, this
+#   matrix is no longer symmetric and cannot formally be used for clustering.
+#
+#   The containment matrix is organized such that the value in row A for column B
+#   is the containment of the B'th sketch in the A'th sketch, i.e.
+#
+#   C(A, B) = B.contained_by(A)
+#
+# See also the sourmash branchwater output which has explicit query and subject
+# columns, and query_containment and subject_containment.
+#
+# I interpret this as column B is the query, row A is the subject - which is the
+# transpose of the convention we are using.
+
 # If ANI values can't be estimated (eg. sourmash 0.0) report None instead
 identity_matrix = identity_matrix.replace(0.0, None)
-
 
 matrices_directory = OUT_DIR
 Path(matrices_directory).mkdir(parents=True, exist_ok=True)

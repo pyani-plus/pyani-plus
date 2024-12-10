@@ -133,13 +133,6 @@ OPT_ARG_TYPE_ANIM_MODE = Annotated[
         rich_help_panel="Method parameters",
     ),
 ]
-OPT_ARG_TYPE_SOURMASH_MODE = Annotated[
-    method_sourmash.EnumModeSourmash,
-    typer.Option(
-        help="Compare mode for sourmash",
-        rich_help_panel="Method parameters",
-    ),
-]
 OPT_ARG_TYPE_SOURMASH_SCALED = Annotated[
     int,
     typer.Option(
@@ -507,12 +500,10 @@ def sourmash(  # noqa: PLR0913
     *,
     # These are for the run table:
     name: OPT_ARG_TYPE_RUN_NAME = None,
-    # These are all for the configuration table:
-    # The mode here is not optional - must pick one!
-    mode: OPT_ARG_TYPE_SOURMASH_MODE = method_sourmash.MODE,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
+    # For the config table:
     scaled: OPT_ARG_TYPE_SOURMASH_SCALED = method_sourmash.SCALED,  # 1000
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
 ) -> int:
@@ -531,12 +522,11 @@ def sourmash(  # noqa: PLR0913
         name,
         "sourmash",
         fasta,
-        # Can we do e.g. sourmash_max-containment_k=31_scaled=300.csv
-        # using [f"sourmash_{mode.value}_k={kmersize}_{extra}.csv"] ?
+        # Can we do e.g. sourmash_k=31_scaled=300.csv
+        # using [f"sourmash_k={kmersize}_{extra}.csv"] ?
         ["sourmash.csv"],
         tool,
         binaries,
-        mode=mode.value,  # turn the enum into a string
         kmersize=kmersize,
         extra=extra,
     )
@@ -549,12 +539,10 @@ def branchwater(  # noqa: PLR0913
     *,
     # These are for the run table:
     name: OPT_ARG_TYPE_RUN_NAME = None,
-    # These are all for the configuration table:
-    # The mode here is not optional - must pick one!
-    mode: OPT_ARG_TYPE_SOURMASH_MODE = method_sourmash.MODE,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
+    # These are for the configuration table:
     scaled: OPT_ARG_TYPE_SOURMASH_SCALED = method_sourmash.SCALED,  # 1000
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
 ) -> int:
@@ -576,7 +564,6 @@ def branchwater(  # noqa: PLR0913
         ["branchwater.csv"],
         tool,
         binaries,
-        mode=mode.value,  # turn the enum into a string
         kmersize=kmersize,
         extra=extra,
     )

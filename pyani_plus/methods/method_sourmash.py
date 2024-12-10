@@ -24,29 +24,24 @@
 # Set Up
 import sys
 from collections.abc import Iterator
-from enum import Enum
 from pathlib import Path
 
-
-class EnumModeSourmash(str, Enum):
-    """Enum for the --mode command line argument passed to sourmash."""
-
-    max_containment = "max-containment"  # default
-    containment = "containment"
-
-
-MODE = EnumModeSourmash.max_containment  # constant for CLI default
 SCALED = 1000
 KMER_SIZE = 31  # default
 
 
 def parse_sourmash_compare_csv(
     compare_file: Path, filename_to_hash: dict[str, str]
-) -> Iterator[tuple[str, str, float | None]]:
+) -> Iterator[tuple[str, str, float | None, float | None]]:
     """Parse sourmash compare all-vs-all CSV output.
 
-    Returns tuples of (query_hash, subject_hash, estimated ANI).
+    Assumes this is query-containment, and will infer the max-containment.
+
+    Returns tuples of (query_hash, subject_hash, query-containment,
+    max-containmenet) were the containment values of zero are mapped to
+    None (to become null in the database).
     """
+    query_containment: dict[tuple[str, str], float] = {}
     with compare_file.open() as handle:
         headers = handle.readline().rstrip("\n").split(",")
         if len(headers) != len(filename_to_hash):
@@ -69,33 +64,47 @@ def parse_sourmash_compare_csv(
                     f"Expected sourmash {query} vs self to be one, not {values[row]!r}"
                 )
                 raise ValueError(msg)
-            for col, ani in enumerate(values):
-                yield query, hashes[col], None if float(ani) == 0.0 else float(ani)
+            for col, value in enumerate(values):
+                query_containment[query, hashes[col]] = float(value)
+    # Now that we have parsed the whole matrix,
+    # can infer the max-containment
+    for (query, subject), containment in query_containment.items():
+        max_containment = max(containment, query_containment[subject, query])
+        yield (
+            query,
+            subject,
+            containment if containment else None,
+            max_containment if max_containment else None,
+        )
 
 
 def parse_sourmash_manysearch_csv(
     manysearch_file: Path,
     filename_to_hash: dict[str, str],
     expected_pairs: set[tuple[str, str]],
-) -> Iterator[tuple[str, str, float | None]]:
+) -> Iterator[tuple[str, str, float | None, float | None]]:
     """Parse sourmash-plugin-branchwater manysearch CSV output.
 
-    Returns tuples of (query_hash, subject_hash, estimated ANI).
+    Returns tuples of (query_hash, subject_hash, query-containment ANI
+    estimate, max-containment ANI estimate).
 
     Any pairs not in the file are inferred to be failed alignments.
     """
-    column_query = 0
-    column_subject = 2
-    column_ani = 14  # use mode, here assuming max-containment!
+    column_query = column_subject = column_query_cont = column_max_cont = 0
     with manysearch_file.open() as handle:
         line = handle.readline().rstrip("\n")
         headers = line.split(",")
-        # In branchwater 0.9.11 column order varies between manysearch and pairwise
-        column_query = headers.index("query_name")
-        column_subject = headers.index("match_name")
-        column_ani = headers.index("max_containment_ani")
-        # This is fine for max-containment mode, but for plain containment will
-        # probably want to capture query_containment_ani & match_containment_ani
+        try:
+            # In branchwater 0.9.11 column order varies between manysearch and pairwise
+            column_query = headers.index("query_name")
+            column_subject = headers.index("match_name")
+            # Should be query_containment_ani, but that means transposing
+            # the sourmash.csv compared to our identity matrix
+            column_query_cont = headers.index("match_containment_ani")
+            column_max_cont = headers.index("max_containment_ani")
+        except ValueError:
+            msg = f"ERROR - Missing expected fields in sourmash manysearch header: {line!r}"
+            sys.exit(msg)
         for line in handle:
             line = line.rstrip("\n")  # noqa: PLW2901
             if not line:
@@ -103,11 +112,11 @@ def parse_sourmash_manysearch_csv(
             values = line.split(",")
             if (
                 values[column_query] == values[column_subject]
-                and values[column_ani] != "1.0"
+                and values[column_max_cont] != "1.0"
             ):
                 msg = (
-                    f"Expected branchwater {filename_to_hash[values[column_query]]}"
-                    f" vs self to be one, not {values[column_ani]!r}"
+                    f"Expected sourmash manysearch {filename_to_hash[values[column_query]]}"
+                    f" vs self to be one, not {values[column_max_cont]!r}"
                 )
                 raise ValueError(msg)
             query_hash = filename_to_hash[values[column_query]]
@@ -117,8 +126,13 @@ def parse_sourmash_manysearch_csv(
             else:
                 msg = f"Did not expect {query_hash} vs {subject_hash} in {manysearch_file.name}"
                 raise ValueError(msg)
-            yield (query_hash, subject_hash, float(values[column_ani]))
-    # Even if the file was empty, we infer any remaining pairs
-    # are failed alignments:
+            yield (
+                query_hash,
+                subject_hash,
+                float(values[column_query_cont]),
+                float(values[column_max_cont]),
+            )
+    # Even if the file was empty (bar the header),
+    # we infer any remaining pairs are failed alignments:
     for query_hash, subject_hash in expected_pairs:
-        yield query_hash, subject_hash, None
+        yield query_hash, subject_hash, None, None

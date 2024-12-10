@@ -35,6 +35,21 @@ from pyani_plus import db_orm, private_cli, tools
 from pyani_plus.methods import method_sourmash
 
 
+def test_parser_with_self_vs_self(tmp_path: str) -> None:
+    """Check self-vs-self is one in sourmash compare parser."""
+    mock_csv = Path(tmp_path) / "faked.csv"
+    with mock_csv.open("w") as handle:
+        handle.write("A.fasta,B.fasta\n")
+        handle.write("1.0,0.98\n")
+        handle.write("0.99,1.0\n")
+    mock_dict = {"A.fasta": "AAAAAA", "B.fasta": "BBBBBB"}
+    parser = method_sourmash.parse_sourmash_compare_csv(mock_csv, mock_dict)
+    assert next(parser) == ("AAAAAA", "AAAAAA", 1.0, 1.0)
+    assert next(parser) == ("AAAAAA", "BBBBBB", 0.98, 0.99)
+    assert next(parser) == ("BBBBBB", "AAAAAA", 0.99, 0.99)
+    assert next(parser) == ("BBBBBB", "BBBBBB", 1.0, 1.0)
+
+
 def test_parser_with_bad_self_vs_self(tmp_path: str) -> None:
     """Check self-vs-self is one in sourmash compare parser."""
     mock_csv = Path(tmp_path) / "faked.csv"
@@ -44,8 +59,6 @@ def test_parser_with_bad_self_vs_self(tmp_path: str) -> None:
         handle.write("0.99,NaN\n")
     mock_dict = {"A.fasta": "AAAAAA", "B.fasta": "BBBBBB"}
     parser = method_sourmash.parse_sourmash_compare_csv(mock_csv, mock_dict)
-    assert next(parser) == ("AAAAAA", "AAAAAA", 1.0)
-    assert next(parser) == ("AAAAAA", "BBBBBB", 0.99)
     with pytest.raises(
         ValueError, match="Expected sourmash BBBBBB vs self to be one, not 'NaN'"
     ):
@@ -56,11 +69,13 @@ def test_parser_with_bad_branchwater(tmp_path: str) -> None:
     """Check self-vs-self is one in sourmash compare parser."""
     mock_csv = Path(tmp_path) / "faked.csv"
     with mock_csv.open("w") as handle:
-        handle.write("max_containment_ani,query_name,match_name\n")
+        handle.write(
+            "max_containment_ani,query_name,match_name,match_containment_ani\n"
+        )
         handle.write("\n")  # parser will skip blank lines
-        handle.write("1.0,A.fasta,A.fasta\n")
-        handle.write("0.9,A.fasta,B.fasta\n")
-        handle.write("NaN,B.fasta,B.fasta\n")  # fails self-vs-self 100%
+        handle.write("1.0,A.fasta,A.fasta,1.0\n")
+        handle.write("0.9,A.fasta,B.fasta,0.85\n")
+        handle.write("NaN,B.fasta,B.fasta,NaN\n")  # fails self-vs-self 100%
     mock_dict = {"A.fasta": "AAAAAA", "B.fasta": "BBBBBB"}
     expected = {
         ("AAAAAA", "AAAAAA"),
@@ -71,10 +86,11 @@ def test_parser_with_bad_branchwater(tmp_path: str) -> None:
     parser = method_sourmash.parse_sourmash_manysearch_csv(
         mock_csv, mock_dict, expected
     )
-    assert next(parser) == ("AAAAAA", "AAAAAA", 1.0)
-    assert next(parser) == ("AAAAAA", "BBBBBB", 0.9)
+    assert next(parser) == ("AAAAAA", "AAAAAA", 1.0, 1.0)
+    assert next(parser) == ("AAAAAA", "BBBBBB", 0.85, 0.9)
     with pytest.raises(
-        ValueError, match="Expected branchwater BBBBBB vs self to be one, not 'NaN'"
+        ValueError,
+        match="Expected sourmash manysearch BBBBBB vs self to be one, not 'NaN'",
     ):
         next(parser)
 
@@ -82,9 +98,27 @@ def test_parser_with_bad_branchwater(tmp_path: str) -> None:
     parser = method_sourmash.parse_sourmash_manysearch_csv(
         mock_csv, mock_dict, {("AAAAAA", "AAAAAA")}
     )
-    assert next(parser) == ("AAAAAA", "AAAAAA", 1.0)
+    assert next(parser) == ("AAAAAA", "AAAAAA", 1.0, 1.0)
     with pytest.raises(
         ValueError, match="Did not expect AAAAAA vs BBBBBB in faked.csv"
+    ):
+        next(parser)
+
+
+def test_parser_with_bad_header(tmp_path: str) -> None:
+    """Check sourmash branchwater parser with bad header."""
+    mock_csv = Path(tmp_path) / "faked.csv"
+    with mock_csv.open("w") as handle:
+        # Sourmash branchwater does not use subject_containment_ani,
+        # rather they have query_containment_ani and match_containment_ani
+        handle.write(
+            "max_containment_ani,query_name,match_name,subject_containment_ani\n"
+        )
+    parser = method_sourmash.parse_sourmash_manysearch_csv(mock_csv, {}, set())
+    with pytest.raises(
+        SystemExit,
+        match="ERROR - Missing expected fields in sourmash manysearch header: "
+        "'max_containment_ani,query_name,match_name,subject_containment_ani'",
     ):
         next(parser)
 
@@ -138,7 +172,6 @@ def test_bad_query_or_subject(
         method="sourmash",
         program=tool.exe_path.name,
         version=tool.version,
-        mode=method_sourmash.MODE,
         kmersize=method_sourmash.KMER_SIZE,
         extra="scaled=" + str(method_sourmash.SCALED),
         create_db=True,
@@ -188,7 +221,6 @@ def test_wrong_size(
         method="sourmash",
         program=tool.exe_path.name,
         version=tool.version,
-        mode=method_sourmash.MODE,
         kmersize=method_sourmash.KMER_SIZE,
         extra="scaled=" + str(method_sourmash.SCALED),
         create_db=True,
@@ -225,7 +257,6 @@ def test_logging_wrong_version_sourmash(
         method="sourmash",
         program="sourmash",
         version="42",
-        mode=method_sourmash.MODE,
         kmersize=method_sourmash.KMER_SIZE,
         extra="scaled=" + str(method_sourmash.SCALED),
         create_db=True,
@@ -262,7 +293,6 @@ def test_logging_wrong_version_branchwater(
         method="branchwater",
         program="sourmash",
         version="42",
-        mode=method_sourmash.MODE,
         kmersize=method_sourmash.KMER_SIZE,
         extra="scaled=" + str(method_sourmash.SCALED),
         create_db=True,
@@ -301,7 +331,6 @@ def test_logging_sourmash(
         method="sourmash",
         program=tool.exe_path.stem,
         version=tool.version,
-        mode=method_sourmash.MODE,
         kmersize=method_sourmash.KMER_SIZE,
         extra="scaled=" + str(method_sourmash.SCALED),
         create_db=True,
@@ -342,7 +371,6 @@ def test_logging_sourmash_bad_alignments(
         method="sourmash",
         program=tool.exe_path.stem,
         version=tool.version,
-        mode=method_sourmash.MODE,
         kmersize=method_sourmash.KMER_SIZE,
         extra="scaled=" + str(method_sourmash.SCALED),
         create_db=True,

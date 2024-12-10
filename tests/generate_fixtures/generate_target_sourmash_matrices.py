@@ -54,15 +54,20 @@ def parse_compare_files(compare_file: Path) -> float:
 
 
 # Generate target identity matrix for pyani-plus sourmash tests
-identity_matrix = pd.read_csv(INPUT_DIR / "intermediates/sourmash/sourmash.csv")
-identity_matrix.columns = [Path(_).stem for _ in identity_matrix]
-identity_matrix.index = identity_matrix.columns
-identity_matrix = identity_matrix.sort_index(axis=0).sort_index(axis=1)
+matrix = pd.read_csv(INPUT_DIR / "intermediates/sourmash/sourmash.csv")
+matrix.columns = [Path(_).stem for _ in matrix]
+matrix.index = matrix.columns
+matrix = matrix.sort_index(axis=0).sort_index(axis=1)
 
 # If ANI values can't be estimated (eg. sourmash 0.0) report None instead
-identity_matrix = identity_matrix.replace(0.0, None)
-
+matrix = matrix.replace(0.0, None)
 
 matrices_directory = OUT_DIR
 Path(matrices_directory).mkdir(parents=True, exist_ok=True)
-identity_matrix.to_csv(matrices_directory / "sourmash_identity.tsv", sep="\t")
+
+# We map sourmash query-containment to our query-coverage:
+matrix.to_csv(matrices_directory / "sourmash_coverage.tsv", sep="\t")
+
+# Now convert this to max-containment which maps to our identity:
+matrix = matrix.where(matrix > matrix.T, matrix.T)
+matrix.to_csv(matrices_directory / "sourmash_identity.tsv", sep="\t")

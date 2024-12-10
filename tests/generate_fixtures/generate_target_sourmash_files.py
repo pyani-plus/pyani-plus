@@ -39,8 +39,8 @@ However, these settings fail to estimate ANI values for the current test
 set (viral genomes). For testing purposes, we will set the parameters to
 "k=31,scaled=300", which does return an estimation of ANI.
 
-sourmash compare runs with --max-containment parameter to compare signatures
-and estimate ANI.
+sourmash compare runs with --containment parameter to compare signatures
+and estimate ANI (we infer the --max-containment value).
 """
 
 # Imports
@@ -91,7 +91,7 @@ subprocess.run(
         "--csv",
         OUT_DIR / "sourmash.csv",
         "--estimate-ani",
-        "--max-containment",
+        "--containment",
         "-k=31",
     ],
     check=True,

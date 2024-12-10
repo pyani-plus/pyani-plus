@@ -58,7 +58,6 @@ def config_sourmash_args(
         # "indir": ... is dynamic
         "cores": snakemake_cores,
         "kmersize": 31,
-        "mode": "max-containment",
         "extra": "scaled=300",  # default scaled=1000 not suitable for the 3 viruses
     }
 
@@ -212,7 +211,6 @@ def test_compare_rule(
         method="sourmash",
         program=sourmash_tool.exe_path.stem,
         version=sourmash_tool.version,
-        mode=config["mode"],
         kmersize=config["kmersize"],
         extra=config["extra"],
         create_db=True,
@@ -279,7 +277,6 @@ def test_compare_rule_bad_alignments(
         method="sourmash",
         program=sourmash_tool.exe_path.stem,
         version=sourmash_tool.version,
-        mode=config["mode"],
         kmersize=config["kmersize"],
         extra=config["extra"],
         create_db=True,
@@ -363,7 +360,6 @@ def test_branchwater_compare_rule(
         method="branchwater",
         program=sourmash_tool.exe_path.stem,
         version=sourmash_tool.version,
-        # not implemented yet, mode=config["mode"],
         kmersize=config["kmersize"],
         extra=config["extra"],
         create_db=True,

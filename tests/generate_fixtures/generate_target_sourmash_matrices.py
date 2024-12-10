@@ -63,6 +63,7 @@ sorted_hashes = sorted(genome_hashes.values())
 identity_matrix = pd.read_csv(INPUT_DIR / "intermediates/sourmash/sourmash.csv")
 identity_matrix.columns = [genome_hashes[Path(_).stem] for _ in identity_matrix]
 identity_matrix.index = identity_matrix.columns
+identity_matrix = identity_matrix.sort_index(axis=0).sort_index(axis=1)
 
 # If ANI values can't be estimated (eg. sourmash 0.0) report None instead
 identity_matrix = identity_matrix.replace(0.0, None)

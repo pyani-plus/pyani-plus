@@ -75,10 +75,11 @@ for genome in inputs.values():
             "dna",
             "-p",
             "k=31,scaled=300",
-            genome,
+            genome.resolve().relative_to(OUT_DIR.resolve(), walk_up=True),
             "-o",
-            OUT_DIR / (genome.stem + ".sig"),
+            genome.stem + ".sig",
         ],
+        cwd=str(OUT_DIR),  # so paths in .sig file are relative
         check=True,
     )
 

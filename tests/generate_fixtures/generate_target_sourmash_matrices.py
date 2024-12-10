@@ -59,16 +59,39 @@ def parse_compare_files(compare_file: Path) -> float:
 genome_hashes = {file.stem: utils.file_md5sum(file) for file in INPUT_DIR.glob("*.f*")}
 sorted_hashes = sorted(genome_hashes.values())
 
-# Generate target identity matrix for pyani-plus sourmash tests
-identity_matrix = pd.read_csv(INPUT_DIR / "intermediates/sourmash/sourmash.csv")
-identity_matrix.columns = [genome_hashes[Path(_).stem] for _ in identity_matrix]
-identity_matrix.index = identity_matrix.columns
-identity_matrix = identity_matrix.sort_index(axis=0).sort_index(axis=1)
+# Generate query-containment matrix for pyani-plus sourmash tests
+matrix = pd.read_csv(INPUT_DIR / "intermediates/sourmash/sourmash.csv")
+matrix.columns = [genome_hashes[Path(_).stem] for _ in matrix]
+matrix.index = matrix.columns
+matrix = matrix.sort_index(axis=0).sort_index(axis=1).T
+# Note we transpose sourmash.csv compared to our own matrices!
+#
+# Quoting https://sourmash.readthedocs.io/en/latest/command-line.html#sourmash-compare-compare-many-signatures
+#
+#   Note: compare by default produces a symmetric similarity matrix that can be
+#   used for clustering in downstream tasks. With --containment, however, this
+#   matrix is no longer symmetric and cannot formally be used for clustering.
+#
+#   The containment matrix is organized such that the value in row A for column B
+#   is the containment of the B'th sketch in the A'th sketch, i.e.
+#
+#   C(A, B) = B.contained_by(A)
+#
+# See also the sourmash branchwater output which has explicit query and subject
+# columns, and query_containment and subject_containment.
+#
+# I interpret this as column B is the query, row A is the subject - which is the
+# transpose of the convention we are using.
 
 # If ANI values can't be estimated (eg. sourmash 0.0) report None instead
-identity_matrix = identity_matrix.replace(0.0, None)
-
+matrix = matrix.replace(0.0, None)
 
 matrices_directory = OUT_DIR
 Path(matrices_directory).mkdir(parents=True, exist_ok=True)
-identity_matrix.to_csv(matrices_directory / "sourmash_identity.tsv", sep="\t")
+
+# We map sourmash query-containment to our query-coverage:
+matrix.to_csv(matrices_directory / "sourmash_coverage.tsv", sep="\t")
+
+# Now convert this to max-containment which maps to our identity:
+matrix = matrix.where(matrix > matrix.T, matrix.T)
+matrix.to_csv(matrices_directory / "sourmash_identity.tsv", sep="\t")

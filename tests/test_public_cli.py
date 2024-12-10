@@ -639,7 +639,6 @@ def test_resume_partial_sourmash(
         tool.version,
         kmersize=31,  # must be 31 to match the sig files in fixtures
         extra="scaled=300",
-        mode="containment",
         create=True,
     )
 
@@ -702,7 +701,6 @@ def test_resume_partial_branchwater(
         tool.version,
         kmersize=31,  # must be 31 to match the sig files in fixtures
         extra="scaled=300",
-        mode="containment",
         create=True,
     )
 

@@ -1023,7 +1023,8 @@ def log_sourmash(
             {
                 "query_hash": query_hash,
                 "subject_hash": subject_hash,
-                "identity": identity,
+                "identity": max_containment,
+                "cov_query": query_containment,
                 "configuration_id": config_id,
                 "uname_system": uname_system,
                 "uname_release": uname_release,
@@ -1032,7 +1033,8 @@ def log_sourmash(
             for (
                 query_hash,
                 subject_hash,
-                identity,
+                query_containment,
+                max_containment,
             ) in method_sourmash.parse_sourmash_compare_csv(compare, filename_to_hash)
         ],
     )
@@ -1092,7 +1094,8 @@ def log_branchwater(
             {
                 "query_hash": query_hash,
                 "subject_hash": subject_hash,
-                "identity": identity,
+                "identity": max_containment,
+                "cov_query": query_containment,
                 "configuration_id": config_id,
                 "uname_system": uname_system,
                 "uname_release": uname_release,
@@ -1101,7 +1104,8 @@ def log_branchwater(
             for (
                 query_hash,
                 subject_hash,
-                identity,
+                query_containment,
+                max_containment,
             ) in method_branchwater.parse_sourmash_manysearch_csv(
                 manysearch, filename_to_hash
             )

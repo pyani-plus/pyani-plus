@@ -53,7 +53,6 @@ rule compare:
         db=config["db"],
         run_id=config["run_id"],
         outdir=config["outdir"],
-        mode=config["mode"],
         kmersize=config["kmersize"],
         extra=config["extra"],  # This will consist of either `scaled=X` or `num=X`.
     input:
@@ -65,7 +64,7 @@ rule compare:
     shell:
         """
         sourmash compare --quiet --csv {output} --estimate-ani \
-            --{params.mode} -k {params.kmersize} {input} &&
+            --containment -k {params.kmersize} {input} &&
         .pyani-plus-private-cli log-sourmash --quiet \
             --database {params.db} --run-id {params.run_id} \
             --compare {output}

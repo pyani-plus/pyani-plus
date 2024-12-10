@@ -40,6 +40,9 @@ def parse_sourmash_compare_csv(
     Returns tuples of (query_hash, subject_hash, query-containment,
     max-containmenet) were the containment values of zero are mapped to
     None (to become null in the database).
+
+    Note we are taking the transpose of the sourmash matrix in order to
+    follow our queries as rows, subjects as columns convention.
     """
     query_containment: dict[tuple[str, str], float] = {}
     with compare_file.open() as handle:
@@ -55,17 +58,15 @@ def parse_sourmash_compare_csv(
         except KeyError as err:
             msg = f"CSV file {compare_file} contained reference to {err!s} which is not in the run"
             sys.exit(msg)
-        for row, query in enumerate(hashes):
+        for row, subject in enumerate(hashes):
             values = handle.readline().rstrip("\n").split(",")
             if values[row] != "1.0":
                 # This could happen due to a bug in sourmash, or a glitch in the
                 # parser if we're not looking at the matrix element we think we are?
-                msg = (
-                    f"Expected sourmash {query} vs self to be one, not {values[row]!r}"
-                )
+                msg = f"Expected sourmash {subject} vs self to be one, not {values[row]!r}"
                 raise ValueError(msg)
             for col, value in enumerate(values):
-                query_containment[query, hashes[col]] = float(value)
+                query_containment[hashes[col], subject] = float(value)
     # Now that we have parsed the whole matrix,
     # can infer the max-containment
     for (query, subject), containment in query_containment.items():
@@ -98,9 +99,7 @@ def parse_sourmash_manysearch_csv(
             # In branchwater 0.9.11 column order varies between manysearch and pairwise
             column_query = headers.index("query_name")
             column_subject = headers.index("match_name")
-            # Should be query_containment_ani, but that means transposing
-            # the sourmash.csv compared to our identity matrix
-            column_query_cont = headers.index("match_containment_ani")
+            column_query_cont = headers.index("query_containment_ani")
             column_max_cont = headers.index("max_containment_ani")
         except ValueError:
             msg = f"ERROR - Missing expected fields in sourmash manysearch header: {line!r}"

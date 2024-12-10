@@ -24,29 +24,24 @@
 # Set Up
 import sys
 from collections.abc import Iterator
-from enum import Enum
 from pathlib import Path
 
-
-class EnumModeSourmash(str, Enum):
-    """Enum for the --mode command line argument passed to sourmash."""
-
-    max_containment = "max-containment"  # default
-    containment = "containment"
-
-
-MODE = EnumModeSourmash.max_containment  # constant for CLI default
 SCALED = 1000
 KMER_SIZE = 31  # default
 
 
 def parse_sourmash_compare_csv(
     compare_file: Path, filename_to_hash: dict[str, str]
-) -> Iterator[tuple[str, str, float | None]]:
+) -> Iterator[tuple[str, str, float | None, float | None]]:
     """Parse sourmash compare all-vs-all CSV output.
 
-    Returns tuples of (query_hash, subject_hash, estimated ANI).
+    Assumes this is query-containment, and will infer the max-containment.
+
+    Returns tuples of (query_hash, subject_hash, query-containment,
+    max-containmenet) were the containment values of zero are mapped to
+    None (to become null in the database).
     """
+    query_containment: dict[tuple[str, str], float] = {}
     with compare_file.open() as handle:
         headers = handle.readline().rstrip("\n").split(",")
         if len(headers) != len(filename_to_hash):
@@ -69,5 +64,15 @@ def parse_sourmash_compare_csv(
                     f"Expected sourmash {query} vs self to be one, not {values[row]!r}"
                 )
                 raise ValueError(msg)
-            for col, ani in enumerate(values):
-                yield query, hashes[col], None if float(ani) == 0.0 else float(ani)
+            for col, value in enumerate(values):
+                query_containment[query, hashes[col]] = float(value)
+    # Now that we have parsed the whole matrix,
+    # can infer the max-containment
+    for (query, subject), containment in query_containment.items():
+        max_containment = max(containment, query_containment[subject, query])
+        yield (
+            query,
+            subject,
+            containment if containment else None,
+            max_containment if max_containment else None,
+        )

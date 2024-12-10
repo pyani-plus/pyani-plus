@@ -37,25 +37,18 @@ for FASTA in ../../../tests/fixtures/viral_example/*.f*; do
     ln -s "$FASTA" "${FASTA##*/}"
 done
 
-# This gives use MD5 spaces filename with extension:
-#     md5sum -- *.f*
-# This drops the extension (assuming only one dot present):
-#     cut -f 1 -d "."
-# This swaps the field order and turns it into a sed search-and-replace command:
-#     awk '{print "s/" $2 "/" $1 "/g"}'
-md5sum -- *.f* | cut -f 1 -d "." | awk '{print "s/" $2 "/" $1 "/g"}' > rename.txt
-
 echo "Run ANIb comparisions..."
 mkdir output
 average_nucleotide_identity.py -m ANIb -i . -o output -v -l ANIb.log --force # --labels labels.txt --classes classes.txt
 
 echo "Collecting output for test fixtures..."
 # The output names here are based on pyANI v0.3 conventions, the pyani-plus names are shorter
-sed -f rename.txt output/ANIb_percentage_identity.tab > ../../fixtures/viral_example/matrices/ANIb_identity.tsv
-sed -f rename.txt output/ANIb_alignment_coverage.tab > ../../fixtures/viral_example/matrices/ANIb_coverage.tsv
-sed -f rename.txt output/ANIb_alignment_lengths.tab > ../../fixtures/viral_example/matrices/ANIb_aln_lengths.tsv
-sed -f rename.txt output/ANIb_hadamard.tab > ../../fixtures/viral_example/matrices/ANIb_hadamard.tsv
-sed -f rename.txt output/ANIb_similarity_errors.tab > ../../fixtures/viral_example/matrices/ANIb_sim_errors.tsv
+# Note the legacy pyANI output is not sorted by filename stem
+mv output/ANIb_percentage_identity.tab ../../fixtures/viral_example/matrices/ANIb_identity.tsv
+mv output/ANIb_alignment_coverage.tab ../../fixtures/viral_example/matrices/ANIb_coverage.tsv
+mv output/ANIb_alignment_lengths.tab ../../fixtures/viral_example/matrices/ANIb_aln_lengths.tsv
+mv output/ANIb_hadamard.tab ../../fixtures/viral_example/matrices/ANIb_hadamard.tsv
+mv output/ANIb_similarity_errors.tab ../../fixtures/viral_example/matrices/ANIb_sim_errors.tsv
 
 #Remove temp subdir
 cd ..

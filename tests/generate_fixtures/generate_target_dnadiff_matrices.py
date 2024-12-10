@@ -69,8 +69,6 @@ from pathlib import Path
 
 import pandas as pd
 
-from pyani_plus import utils
-
 INPUT_DIR, OUT_DIR = Path(sys.argv[1]), Path(sys.argv[2])
 
 
@@ -97,20 +95,17 @@ def parse_dnadiff_report(dnadiff_report: Path) -> tuple[int, Decimal, Decimal]:
 
 
 # Constructing a matrix where the MD5 hashes of test genomes are used as both column names and index.
-genome_hashes = {file.stem: utils.file_md5sum(file) for file in INPUT_DIR.glob("*.f*")}
-sorted_hashes = sorted(genome_hashes.values())
-aln_lengths_matrix = pd.DataFrame(index=sorted_hashes, columns=sorted_hashes)
-coverage_matrix = pd.DataFrame(index=sorted_hashes, columns=sorted_hashes)
-identity_matrix = pd.DataFrame(index=sorted_hashes, columns=sorted_hashes)
-sim_errors = pd.DataFrame(index=sorted_hashes, columns=sorted_hashes)
+sorted_stems = sorted(file.stem for file in INPUT_DIR.glob("*.f*"))
+aln_lengths_matrix = pd.DataFrame(index=sorted_stems, columns=sorted_stems)
+coverage_matrix = pd.DataFrame(index=sorted_stems, columns=sorted_stems)
+identity_matrix = pd.DataFrame(index=sorted_stems, columns=sorted_stems)
+sim_errors = pd.DataFrame(index=sorted_stems, columns=sorted_stems)
 
 # Appending information to matrices
 report_files = (INPUT_DIR / "intermediates/dnadiff").glob("*.report")
 
 for file in report_files:
     query, subject = file.stem.split("_vs_")
-    query_hash = genome_hashes[query]
-    subject_hash = genome_hashes[subject]
     aligned_bases, query_coverage, avg_identity = parse_dnadiff_report(file)
 
     # Set all values to None if all metrics are zero
@@ -127,10 +122,10 @@ for file in report_files:
 
     # Assign values to matrices
     (
-        aln_lengths_matrix.loc[query_hash, subject_hash],
-        coverage_matrix.loc[query_hash, subject_hash],
-        identity_matrix.loc[query_hash, subject_hash],
-        sim_errors.loc[query_hash, subject_hash],
+        aln_lengths_matrix.loc[query, subject],
+        coverage_matrix.loc[query, subject],
+        identity_matrix.loc[query, subject],
+        sim_errors.loc[query, subject],
     ) = values
 
 

@@ -33,15 +33,16 @@ def compare_matrix(
 ) -> None:
     """Compare output matrix to expected values from given TSV file.
 
-    The output from legacy pyANI v0.3 should be using MD5 captions,
-    but will have appended colon-index to them. Also the order will
-    be different, the current ORM returns the matrix sorted by MD5.
+    The expected output files should now all be using filename stems
+    as labels (matching our default export-run output). However, the
+    sort order may differ.
 
     Any absolute_tolerance is only used for floats.
     """
 
     def strip_colon(text: str) -> str:
         """Drop anything after a colon."""
+        assert ":" not in text, text
         return text.split(":", 1)[0] if ":" in text else text
 
     # Using converters to fix the row names (in column 0)
@@ -54,7 +55,9 @@ def compare_matrix(
         .sort_index(axis=0)
         .sort_index(axis=1)
     )
-    assert list(matrix_df.columns) == list(expected_df.columns)
+    assert list(matrix_df.columns) == list(
+        expected_df.columns
+    ), f"{list(matrix_df.columns)} vs {list(expected_df.columns)}"
     if not expected_df.dtypes.equals(matrix_df.dtypes):
         # This happens with some old pyANI output using floats for ints
         # Cast both to float
@@ -66,6 +69,15 @@ def compare_matrix(
         pd.testing.assert_frame_equal(
             matrix_df, expected_df, obj=matrix_path.stem, atol=absolute_tolerance
         )
+
+
+def label_with_stems(matrix: pd.DataFrame, mapping: dict[str, str]) -> pd.DataFrame:
+    """Relabel and sort a dataframe matrix."""
+    return (
+        matrix.rename(index=mapping, columns=mapping)
+        .sort_index(axis=0)
+        .sort_index(axis=1)
+    )
 
 
 def compare_db_matrices(
@@ -106,30 +118,35 @@ def compare_db_matrices(
     assert matrices_path.is_dir()
     method = run.configuration.method
 
+    md5_to_stem = {_.genome_hash: Path(_.fasta_filename).stem for _ in run.fasta_hashes}
+
     if method == "branchwater":
         method = "sourmash"  # branchwater should be just faster sourmash
 
     checked = False
     if (matrices_path / f"{method}_identity.tsv").is_file():
         compare_matrix(
-            run.identities,
+            label_with_stems(run.identities, md5_to_stem),
             matrices_path / f"{method}_identity.tsv",
             absolute_tolerance=absolute_tolerance,
         )
         checked = True
     if (matrices_path / f"{method}_aln_lengths.tsv").is_file():
-        compare_matrix(run.aln_length, matrices_path / f"{method}_aln_lengths.tsv")
+        compare_matrix(
+            label_with_stems(run.aln_length, md5_to_stem),
+            matrices_path / f"{method}_aln_lengths.tsv",
+        )
         checked = True
     if (matrices_path / f"{method}_coverage.tsv").is_file():
         compare_matrix(
-            run.cov_query,
+            label_with_stems(run.cov_query, md5_to_stem),
             matrices_path / f"{method}_coverage.tsv",
             absolute_tolerance=absolute_tolerance,
         )
         checked = True
     if (matrices_path / f"{method}_hadamard.tsv").is_file():
         compare_matrix(
-            run.hadamard,
+            label_with_stems(run.hadamard, md5_to_stem),
             matrices_path / f"{method}_hadamard.tsv",
             absolute_tolerance=absolute_tolerance,
         )
@@ -137,12 +154,15 @@ def compare_db_matrices(
     if (matrices_path / f"{method}_sim_errors.tsv").is_file():
         if method == "dnadiff" and "/viral_example/matrices" in str(matrices_path):
             compare_matrix(
-                run.sim_errors,
+                label_with_stems(run.sim_errors, md5_to_stem),
                 matrices_path / f"{method}_sim_errors.tsv",
                 absolute_tolerance=1.33,
             )
             checked = True
         else:
-            compare_matrix(run.sim_errors, matrices_path / f"{method}_sim_errors.tsv")
+            compare_matrix(
+                label_with_stems(run.sim_errors, md5_to_stem),
+                matrices_path / f"{method}_sim_errors.tsv",
+            )
         checked = True
     assert checked, f"Missing expected matrices in {matrices_path}"

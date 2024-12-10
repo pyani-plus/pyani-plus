@@ -142,12 +142,12 @@ def test_running_dnadiff(
     # Check the intermediate files match?
 
     # No real need to test the ANI values here, will be done elsewhere.
-    for query_hash in hash_to_filename:
+    for query_hash, query_filename in hash_to_filename.items():
         pytest.approx(
             get_matrix_entry(
                 input_genomes_tiny / "matrices/dnadiff_identity.tsv",
-                query_hash,
-                subject_hash,
+                Path(query_filename).stem,
+                Path(hash_to_filename[subject_hash]).stem,
             )
             == session.query(db_orm.Comparison)
             .where(db_orm.Comparison.query_hash == query_hash)

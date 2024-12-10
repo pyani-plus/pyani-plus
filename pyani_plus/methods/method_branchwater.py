@@ -42,9 +42,7 @@ def parse_sourmash_manysearch_csv(
             # In branchwater 0.9.11 column order varies between manysearch and pairwise
             column_query = headers.index("query_name")
             column_subject = headers.index("match_name")
-            # Should be query_containment_ani, but that means transposing
-            # the sourmash.csv compared to our identity matrix
-            column_query_cont = headers.index("match_containment_ani")
+            column_query_cont = headers.index("query_containment_ani")
             column_max_cont = headers.index("max_containment_ani")
         except ValueError:
             msg = f"ERROR - Missing expected fields in branchwater header: {line!r}"

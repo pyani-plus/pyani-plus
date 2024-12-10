@@ -45,8 +45,8 @@ def test_parser_with_self_vs_self(tmp_path: str) -> None:
     mock_dict = {"A.fasta": "AAAAAA", "B.fasta": "BBBBBB"}
     parser = method_sourmash.parse_sourmash_compare_csv(mock_csv, mock_dict)
     assert next(parser) == ("AAAAAA", "AAAAAA", 1.0, 1.0)
-    assert next(parser) == ("AAAAAA", "BBBBBB", 0.98, 0.99)
-    assert next(parser) == ("BBBBBB", "AAAAAA", 0.99, 0.99)
+    assert next(parser) == ("BBBBBB", "AAAAAA", 0.98, 0.99)
+    assert next(parser) == ("AAAAAA", "BBBBBB", 0.99, 0.99)
     assert next(parser) == ("BBBBBB", "BBBBBB", 1.0, 1.0)
 
 
@@ -70,7 +70,7 @@ def test_parser_with_bad_branchwater(tmp_path: str) -> None:
     mock_csv = Path(tmp_path) / "faked.csv"
     with mock_csv.open("w") as handle:
         handle.write(
-            "max_containment_ani,query_name,match_name,match_containment_ani\n"
+            "max_containment_ani,query_name,match_name,query_containment_ani\n"
         )
         handle.write("\n")  # parser will skip blank lines
         handle.write("1.0,A.fasta,A.fasta,1.0\n")

@@ -1,0 +1,3 @@
+query_name,query_md5,match_name,containment,intersect_hashes,ksize,scaled,moltype,match_md5,jaccard,max_containment,query_containment_ani,match_containment_ani,average_containment_ani,max_containment_ani
+MGV-GENOME-0264574.fas,8cf3615dcb9671c99f43e4afb7e0f9e8,MGV-GENOME-0264574.fas,1.0,111,31,300,DNA,8cf3615dcb9671c99f43e4afb7e0f9e8,1.0,1.0,1.0,1.0,1.0,1.0
+MGV-GENOME-0357962.fna,94eb3e03e3df9b6276bf59c6ca2ec37e,MGV-GENOME-0357962.fna,1.0,270,31,300,DNA,94eb3e03e3df9b6276bf59c6ca2ec37e,1.0,1.0,1.0,1.0,1.0,1.0

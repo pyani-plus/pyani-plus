@@ -371,4 +371,13 @@ def test_branchwater_compare_rule(
         working_directory=Path(tmp_path),
     )
 
+    # Check output against target fixture
+    with (tmp_dir / "output/branchwater.csv").open() as handle:
+        generated = sorted(handle.readlines())
+    with (
+        input_genomes_tiny / "intermediates/sourmash/manysearch.csv"
+    ).open() as handle:
+        expected = sorted(handle.readlines())
+    assert generated == expected
+
     compare_db_matrices(db, input_genomes_tiny / "matrices")

@@ -102,3 +102,38 @@ subprocess.run(
     ],
     check=True,
 )
+
+# This is the faster sourmash branchwater manysearch route,
+# used to check our intermediate files
+subprocess.run(
+    [
+        sourmash.exe_path,
+        "sig",
+        "collect",
+        "--quiet",
+        "-F",
+        "csv",
+        "-o",
+        "all_sigs.csv",
+        *sorted(_.name for _ in OUT_DIR.glob("*.sig")),
+    ],
+    cwd=OUT_DIR,
+    check=True,
+)
+subprocess.run(
+    [
+        sourmash.exe_path,
+        "scripts",
+        "manysearch",
+        "-m",
+        "DNA",
+        "--quiet",
+        "-o",
+        "manysearch.csv",
+        "all_sigs.csv",
+        "all_sigs.csv",
+    ],
+    cwd=OUT_DIR,
+    check=True,
+)
+(OUT_DIR / "all_sigs.csv").unlink()

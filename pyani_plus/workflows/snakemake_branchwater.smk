@@ -48,8 +48,8 @@ rule sketch:
         "sourmash scripts singlesketch -I DNA -p 'k={params.kmersize},{params.extra}' {input} -o {output} > {output}.log 2>&1"
 
 
-# The compare rule runs the branchwater equivalent of "sourmash compare"
-rule compare:
+# The manysearch rule runs the branchwater equivalent of "sourmash compare"
+rule manysearch:
     params:
         db=config["db"],
         run_id=config["run_id"],
@@ -58,7 +58,7 @@ rule compare:
     input:
         expand("{{outdir}}/{genome}.sig", genome=sorted(indir_files)),
     output:
-        "{outdir}/branchwater.csv",
+        "{outdir}/manysearch.csv",
     shell:
         """
         sourmash sig collect --quiet -F csv -o all_sigs.csv {input} > {output}.log 2>&1 &&

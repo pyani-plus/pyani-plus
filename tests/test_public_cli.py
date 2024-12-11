@@ -489,7 +489,9 @@ def test_resume_partial_fastani(
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
     assert "Resuming run-id 1, the only run" in output, output
-    assert "Database already has 8 of 3²=9 comparisons, 1 needed" in output, output
+    assert (
+        "Database already has 8 of 3²=9 fastANI comparisons, 1 needed" in output
+    ), output
 
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
@@ -553,7 +555,7 @@ def test_resume_partial_anib(
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
     assert "Resuming run-id 1, the only run" in output, output
-    assert "Database already has 8 of 3²=9 comparisons, 1 needed" in output, output
+    assert "Database already has 8 of 3²=9 ANIb comparisons, 1 needed" in output, output
 
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
@@ -617,7 +619,7 @@ def test_resume_partial_anim(
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
     assert "Resuming run-id 1, the only run" in output, output
-    assert "Database already has 8 of 3²=9 comparisons, 1 needed" in output, output
+    assert "Database already has 8 of 3²=9 ANIm comparisons, 1 needed" in output, output
 
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
@@ -680,7 +682,9 @@ def test_resume_partial_sourmash(
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
     assert "Resuming run-id 1, the only run" in output, output
-    assert "Database already has 4 of 3²=9 comparisons, 5 needed" in output, output
+    assert (
+        "Database already has 4 of 3²=9 sourmash comparisons, 5 needed" in output
+    ), output
 
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
@@ -743,7 +747,9 @@ def test_resume_partial_branchwater(
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
     assert "Resuming run-id 1, the only run" in output, output
-    assert "Database already has 4 of 3²=9 comparisons, 5 needed" in output, output
+    assert (
+        "Database already has 4 of 3²=9 branchwater comparisons, 5 needed" in output
+    ), output
 
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
@@ -890,7 +896,7 @@ def test_resume_complete(
             assert "Resuming run-id 1, the only run" in output, output
         else:
             assert f"Resuming run-id {index+1}, the latest run" in output, output
-        assert "Database already has all 3²=9 comparisons" in output, output
+        assert f"Database already has all 3²=9 {method} comparisons" in output, output
 
 
 def test_resume_fasta_gone(
@@ -965,7 +971,7 @@ def test_resume_fasta_gone(
     (tmp_indir / Path(missing).name).symlink_to(Path(missing))
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
-    assert "Database already has all 3²=9 comparisons" in output, output
+    assert "Database already has all 3²=9 ANIb comparisons" in output, output
 
     # Should work even with extra FASTA files, real world use case:
     # Using input directory like /mnt/shared/genomes
@@ -976,4 +982,4 @@ def test_resume_fasta_gone(
         handle.write(">recently-added-genome\nACGTACGTAGT\n")
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
-    assert "Database already has all 3²=9 comparisons" in output, output
+    assert "Database already has all 3²=9 ANIb comparisons" in output, output

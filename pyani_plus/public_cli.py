@@ -278,10 +278,10 @@ def run_method(  # noqa: PLR0913
     done = run.comparisons().count()
     n = len(filename_to_md5)
     if done == n**2:
-        print(f"Database already has all {n}²={n**2} comparisons")
+        print(f"Database already has all {n}²={n**2} {method} comparisons")
     else:
         print(
-            f"Database already has {done} of {n}²={n**2} comparisons, {n**2 - done} needed"
+            f"Database already has {done} of {n}²={n**2} {method} comparisons, {n**2 - done} needed"
         )
         run.status = "Running"
         session.commit()
@@ -320,13 +320,13 @@ def run_method(  # noqa: PLR0913
         done = run.comparisons().count()
 
     if done != n**2:
-        msg = f"ERROR: Only have {done} of {n}²={n**2} comparisons needed"
+        msg = f"ERROR: Only have {done} of {n}²={n**2} {method} comparisons needed"
         sys.exit(msg)
 
     run.cache_comparisons()  # will this needs a progress bar too with large n?
     run.status = "Done"
     session.commit()
-    print(f"Completed run-id {run_id} with {n} genomes in database {database}")
+    print(f"Completed {method} run-id {run_id} with {n} genomes in database {database}")
     session.close()
     return 0
 

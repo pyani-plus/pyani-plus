@@ -76,6 +76,10 @@ for genome in inputs.values():
             "-p",
             "k=31,scaled=300",
             genome.resolve().relative_to(OUT_DIR.resolve(), walk_up=True),
+            # Seems branchwater requires the name field, which by default is set to
+            # the filename (without path) by sourmash scripts singlesketch
+            "--name",
+            genome.name,
             "-o",
             genome.stem + ".sig",
         ],
@@ -83,6 +87,8 @@ for genome in inputs.values():
         check=True,
     )
 
+# This is the traditional sourmash compare output,
+# which is used to generate the expected matrices
 subprocess.run(
     [
         sourmash.exe_path,

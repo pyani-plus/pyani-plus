@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 """Snakemake workflow for sourmash"""
+from pathlib import Path
 from pyani_plus.workflows import check_input_stems
 
 indir_files = check_input_stems(config["indir"])
@@ -33,7 +34,7 @@ def get_genomeB(wildcards):
     return indir_files[wildcards.genomeB]
 
 
-# The sketch_dna rule runs sourmash sketch
+# The sketch_dna rule runs the sourmach branchwater equivalent to "sourmash sketch"
 rule sketch:
     params:
         indir=config["indir"],
@@ -45,7 +46,7 @@ rule sketch:
     output:
         "{outdir}/{genomeA}.sig",
     shell:
-        "sourmash sketch dna -p 'k={params.kmersize},{params.extra}' {input} -o {output} > {output}.log 2>&1"
+        "sourmash scripts singlesketch -I DNA -p 'k={params.kmersize},{params.extra}' {input} -o {output} > {output}.log 2>&1"
 
 
 rule compare:

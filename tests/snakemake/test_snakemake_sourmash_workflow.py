@@ -63,10 +63,7 @@ def config_sourmash_args(
 
 
 def compare_sourmash_sig_files(file1: Path, file2: Path) -> bool:
-    """Compare two .sig files, considering only the stem in the filename field.
-
-    Also ignores name field if missing in either file (branchwater quirk).
-    """
+    """Compare two .sig files, ignoring the path part of the filename entry."""
     with Path.open(file1) as f1:
         data1 = json.load(f1)
 
@@ -83,10 +80,7 @@ def compare_sourmash_sig_files(file1: Path, file2: Path) -> bool:
         keys = set(entry1).union(entry2)
         for key in keys:
             if key == "filename":
-                assert Path(entry1[key]).stem == Path(entry2[key]).stem
-            elif key == "name" and (key not in entry2 or key not in entry1):
-                # Known to be missing in branchwater
-                pass
+                assert Path(entry1[key]).name == Path(entry2[key]).name
             else:
                 assert (
                     entry1[key] == entry2[key]

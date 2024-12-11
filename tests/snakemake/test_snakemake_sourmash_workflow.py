@@ -366,13 +366,13 @@ def test_branchwater_compare_rule(
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
         workflow_name="snakemake_branchwater.smk",
-        targets=[tmp_dir / "output/branchwater.csv"],
+        targets=[tmp_dir / "output/manysearch.csv"],
         params=config,
         working_directory=Path(tmp_path),
     )
 
     # Check output against target fixture
-    with (tmp_dir / "output/branchwater.csv").open() as handle:
+    with (tmp_dir / "output/manysearch.csv").open() as handle:
         generated = sorted(handle.readlines())
     with (
         input_genomes_tiny / "intermediates/sourmash/manysearch.csv"

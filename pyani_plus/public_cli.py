@@ -561,7 +561,7 @@ def branchwater(  # noqa: PLR0913
         name,
         "branchwater",
         fasta,
-        ["branchwater.csv"],
+        ["manysearch.csv"],
         tool,
         binaries,
         kmersize=kmersize,
@@ -684,7 +684,7 @@ def resume(  # noqa: C901, PLR0912, PLR0915
             binaries = {
                 "sourmash": tool.exe_path,
             }
-            targets = ["branchwater.csv"]
+            targets = ["manysearch.csv"]
         case _:
             msg = f"ERROR: Unknown method {config.method} for run-id {run_id} in {database}"
             sys.exit(msg)

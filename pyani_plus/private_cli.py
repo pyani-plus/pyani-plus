@@ -41,7 +41,6 @@ from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
 from pyani_plus.methods import (
     method_anib,
     method_anim,
-    method_branchwater,
     method_dnadiff,
     method_fastani,
     method_sourmash,
@@ -1117,7 +1116,7 @@ def log_branchwater(
                 query_hash,
                 subject_hash,
                 identity,
-            ) in method_branchwater.parse_sourmash_manysearch_csv(
+            ) in method_sourmash.parse_sourmash_manysearch_csv(
                 manysearch, filename_to_hash
             )
         ],

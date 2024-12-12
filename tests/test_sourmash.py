@@ -32,7 +32,7 @@ from pathlib import Path
 import pytest
 
 from pyani_plus import db_orm, private_cli, tools
-from pyani_plus.methods import method_branchwater, method_sourmash
+from pyani_plus.methods import method_sourmash
 
 
 def test_parser_with_bad_self_vs_self(tmp_path: str) -> None:
@@ -62,7 +62,7 @@ def test_parser_with_bad_branchwater(tmp_path: str) -> None:
         handle.write("0.9,A.fasta,B.fasta\n")
         handle.write("NaN,B.fasta,B.fasta\n")  # fails self-vs-self 100%
     mock_dict = {"A.fasta": "AAAAAA", "B.fasta": "BBBBBB"}
-    parser = method_branchwater.parse_sourmash_manysearch_csv(mock_csv, mock_dict)
+    parser = method_sourmash.parse_sourmash_manysearch_csv(mock_csv, mock_dict)
     assert next(parser) == ("AAAAAA", "AAAAAA", 1.0)
     assert next(parser) == ("AAAAAA", "BBBBBB", 0.9)
     with pytest.raises(

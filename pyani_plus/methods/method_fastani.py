@@ -31,18 +31,26 @@ MAX_RATIO_DIFF = 10.0  # Default fastANI maximum ratio difference
 
 
 def parse_fastani_file(
-    filename: Path, filename_to_hash: dict[str, str]
-) -> Iterator[tuple[str, str, float, int, int]]:
+    filename: Path,
+    filename_to_hash: dict[str, str],
+    expected_pairs: set[tuple[str, str]],
+) -> Iterator[tuple[str, str, float | None, int | None, int | None]]:
     """Parse a multi-line fastANI output file extracting key fields as a tuple.
 
     Returns tuples of (query genome (hash), reference/subject genome (hash),
-    ANI estimate (float), orthologous matches (int), sequence fragments).
+    ANI estimate (float or None), orthologous matches (int or None), and
+    sequence fragments (float or None)).
 
     :param filename: Path, path to the input file
+    :param filename_to_hash: Dict, mapping filename stems to MD5 hashes
+    :param expected_pairs: Set, expected (query hash, subject hash) pairs
 
     Extracts the ANI estimate (which we return in the range 0 to 1), the
     number of orthologous matches (int), and the number of sequence
     fragments considered from the fastANI output file (int).
+
+    Failed alignments are inferred by not appearing in the file), and get
+    None values.
 
     Example fastANI comparison, three queries vs one reference:
 
@@ -54,33 +62,59 @@ def parse_fastani_file(
     >>> fname = Path(
     ...     "tests/fixtures/viral_example/intermediates/fastANI/all_vs_OP073605.fastani"
     ... )
-    >>> for query, subject, ani, matches, frags in parse_fastani_file(fname, mapping):
+    >>> expected = {(_, "C") for _ in ("A", "B", "C")}
+    >>> for query, subject, ani, matches, frags in parse_fastani_file(
+    ...     fname, mapping, expected
+    ... ):
     ...     print(f"{query} vs {subject} gave {100*ani:0.1f}%")
     A vs C gave 99.9%
     B vs C gave 99.5%
     C vs C gave 100.0%
 
-    Empty files trigger an exception:
+    All the query-subject pairs in the file must be in expected_pairs:
 
-    >>> fname = Path("/dev/null")
-    >>> for query, subject, ani, matches, frags in parse_fastani_file(fname, mapping):
-    ...     print(f"{query} vs {subject} gave {100*ani:0.1f}%")
+    >>> for query, subject, ani, matches, frags in parse_fastani_file(
+    ...     fname, mapping, {("A", "B"), ("B", "A")}
+    ... ):
+    ...     print(
+    ...         f"{query} vs {subject} gave {100*ani:0.1f}%"
+    ...         if ani
+    ...         else f"{query} vs {subject} gave {ani}"
+    ...     )
     Traceback (most recent call last):
       ...
-    ValueError: Input file /dev/null is empty
+    ValueError: Did not expect A vs C in all_vs_OP073605.fastani
+
+    Any pairs not in the file are inferred to be failed alignments, even
+    for empty files:
+
+    >>> fname = Path("/dev/null")
+    >>> for query, subject, ani, matches, frags in parse_fastani_file(
+    ...     fname, mapping, {("A", "B")}
+    ... ):
+    ...     print(query, subject, ani, matches, frags)
+    A B None None None
     """
-    empty = True
     with filename.open() as handle:
         for line in handle:
             parts = line.strip().split()
+            query_hash = filename_to_hash[Path(parts[0]).name]
+            subject_hash = filename_to_hash[Path(parts[1]).name]
+            if (query_hash, subject_hash) in expected_pairs:
+                expected_pairs.remove((query_hash, subject_hash))
+            else:
+                msg = (
+                    f"Did not expect {query_hash} vs {subject_hash} in {filename.name}"
+                )
+                raise ValueError(msg)
             yield (
-                filename_to_hash[Path(parts[0]).name],
-                filename_to_hash[Path(parts[1]).name],
+                query_hash,
+                subject_hash,
                 0.01 * float(parts[2]),
                 int(parts[3]),
                 int(parts[4]),
             )
-            empty = False
-    if empty:
-        msg = f"Input file {filename} is empty"
-        raise ValueError(msg)
+    # Even if the file was empty, we infer any remaining pairs
+    # are failed alignments:
+    for query_hash, subject_hash in expected_pairs:
+        yield query_hash, subject_hash, None, None, None

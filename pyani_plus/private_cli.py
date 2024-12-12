@@ -567,9 +567,15 @@ def fastani(  # noqa: PLR0913
                 "subject_hash": subject_hash,
                 "identity": identity,
                 # Proxy values:
-                "aln_length": round(run.configuration.fragsize * orthologous_matches),
-                "sim_errors": fragments - orthologous_matches,
-                "cov_query": float(orthologous_matches) / fragments,
+                "aln_length": None
+                if orthologous_matches is None
+                else round(run.configuration.fragsize * orthologous_matches),
+                "sim_errors": None
+                if fragments is None or orthologous_matches is None
+                else fragments - orthologous_matches,
+                "cov_query": None
+                if fragments is None or orthologous_matches is None
+                else orthologous_matches / fragments,
                 "configuration_id": config_id,
                 "uname_system": uname_system,
                 "uname_release": uname_release,
@@ -581,7 +587,12 @@ def fastani(  # noqa: PLR0913
                 identity,
                 orthologous_matches,
                 fragments,
-            ) in method_fastani.parse_fastani_file(tmp_output, filename_to_hash)
+            ) in method_fastani.parse_fastani_file(
+                tmp_output,
+                filename_to_hash,
+                # This is used to infer failed alignments:
+                expected_pairs={(_, subject_hash) for _ in query_hashes},
+            )
         ],
     )
     session.commit()

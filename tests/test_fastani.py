@@ -37,13 +37,7 @@ from pyani_plus.methods.method_fastani import parse_fastani_file
 def test_bad_path() -> None:
     """Confirm giving an empty path etc fails."""
     with pytest.raises(FileNotFoundError, match="No such file or directory:"):
-        list(parse_fastani_file(Path("/does/not/exist"), {}))
-
-
-def test_empty_path() -> None:
-    """Confirm giving an empty path etc fails."""
-    with pytest.raises(ValueError, match="Input file /dev/null is empty"):
-        list(parse_fastani_file(Path("/dev/null"), {}))
+        list(parse_fastani_file(Path("/does/not/exist"), {}, set()))
 
 
 def test_running_fastani(

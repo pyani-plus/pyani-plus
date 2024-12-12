@@ -43,7 +43,6 @@ def do_comparison(
 ) -> db_orm.Run:
     """Execute an ANI method and return the run."""
     with tempfile.NamedTemporaryFile(suffix=".db") as tmp_db:
-        # Should we accept **kwargs too? e.g. ANIb fragsize
         method(
             database=tmp_db.name,
             fasta=fasta_dir,

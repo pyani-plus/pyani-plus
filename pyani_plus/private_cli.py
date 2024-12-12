@@ -811,8 +811,12 @@ def anib(  # noqa: PLR0913
                     "identity": identity,
                     "aln_length": aln_length,
                     "sim_errors": sim_errors,
-                    "cov_query": float(aln_length) / query_length,
-                    "cov_subject": float(aln_length) / subject_length,
+                    "cov_query": None
+                    if aln_length is None
+                    else aln_length / query_length,
+                    "cov_subject": None
+                    if aln_length is None
+                    else aln_length / subject_length,
                     "configuration_id": config_id,
                     "uname_system": uname_system,
                     "uname_release": uname_release,

@@ -79,7 +79,7 @@ def fragment_fasta_file(
         raise ValueError(msg)
 
 
-def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
+def parse_blastn_file(blastn: Path) -> tuple[float | None, int | None, int | None]:
     """Extract the ANI etc from a blastn output file using the ANIb method.
 
     Parses the BLAST tabular output file, taking only rows with a query coverage
@@ -104,6 +104,8 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
     ...     f"Identity {100*identity:0.1f}% over length {length} with {sim_errors} errors"
     ... )
     Identity 100.0% over length 39253 with 0 errors
+
+    Returns (None, None, None) for no acceptable alignment.
     """
     total_pid_100 = 0.0
     total_count = 0
@@ -151,7 +153,7 @@ def parse_blastn_file(blastn: Path) -> tuple[float, int, int]:
     # are differentially filtered out in JSpecies and here. This is often
     # on the basis of rounding differences (e.g. coverage being close to 70%).
     return (
-        total_pid_100 / (total_count * 100) if total_count else 0,
-        total_aln_length,
-        total_sim_errors,
+        total_pid_100 / (total_count * 100) if total_count else None,
+        total_aln_length if total_count else None,
+        total_sim_errors if total_count else None,
     )

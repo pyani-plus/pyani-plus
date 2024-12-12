@@ -41,7 +41,6 @@ from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
 from pyani_plus.methods import (
     method_anib,
     method_anim,
-    method_branchwater,
     method_dnadiff,
     method_fastani,
     method_sourmash,
@@ -567,9 +566,15 @@ def fastani(  # noqa: PLR0913
                 "subject_hash": subject_hash,
                 "identity": identity,
                 # Proxy values:
-                "aln_length": round(run.configuration.fragsize * orthologous_matches),
-                "sim_errors": fragments - orthologous_matches,
-                "cov_query": float(orthologous_matches) / fragments,
+                "aln_length": None
+                if orthologous_matches is None
+                else round(run.configuration.fragsize * orthologous_matches),
+                "sim_errors": None
+                if fragments is None or orthologous_matches is None
+                else fragments - orthologous_matches,
+                "cov_query": None
+                if fragments is None or orthologous_matches is None
+                else orthologous_matches / fragments,
                 "configuration_id": config_id,
                 "uname_system": uname_system,
                 "uname_release": uname_release,
@@ -581,7 +586,12 @@ def fastani(  # noqa: PLR0913
                 identity,
                 orthologous_matches,
                 fragments,
-            ) in method_fastani.parse_fastani_file(tmp_output, filename_to_hash)
+            ) in method_fastani.parse_fastani_file(
+                tmp_output,
+                filename_to_hash,
+                # This is used to infer failed alignments:
+                expected_pairs={(_, subject_hash) for _ in query_hashes},
+            )
         ],
     )
     session.commit()
@@ -811,8 +821,12 @@ def anib(  # noqa: PLR0913
                     "identity": identity,
                     "aln_length": aln_length,
                     "sim_errors": sim_errors,
-                    "cov_query": float(aln_length) / query_length,
-                    "cov_subject": float(aln_length) / subject_length,
+                    "cov_query": None
+                    if aln_length is None
+                    else aln_length / query_length,
+                    "cov_subject": None
+                    if aln_length is None
+                    else aln_length / subject_length,
                     "configuration_id": config_id,
                     "uname_system": uname_system,
                     "uname_release": uname_release,
@@ -1102,8 +1116,15 @@ def log_branchwater(
                 query_hash,
                 subject_hash,
                 identity,
-            ) in method_branchwater.parse_sourmash_manysearch_csv(
-                manysearch, filename_to_hash
+            ) in method_sourmash.parse_sourmash_manysearch_csv(
+                manysearch,
+                filename_to_hash,
+                # This is used to infer failed alignments:
+                expected_pairs={
+                    (q, s)
+                    for q in filename_to_hash.values()
+                    for s in filename_to_hash.values()
+                },
             )
         ],
     )

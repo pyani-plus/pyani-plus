@@ -62,7 +62,7 @@ def test_empty_path(tmp_path: str) -> None:
 
 def test_parse_blastn_empty() -> None:
     """Check parsing of empty BLASTN tabular file."""
-    assert method_anib.parse_blastn_file(Path("/dev/null")) == (0, 0, 0)
+    assert method_anib.parse_blastn_file(Path("/dev/null")) == (None, None, None)
 
 
 def test_parse_blastn_bad(input_genomes_tiny: Path) -> None:

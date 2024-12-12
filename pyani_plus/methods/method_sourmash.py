@@ -71,3 +71,54 @@ def parse_sourmash_compare_csv(
                 raise ValueError(msg)
             for col, ani in enumerate(values):
                 yield query, hashes[col], None if float(ani) == 0.0 else float(ani)
+
+
+def parse_sourmash_manysearch_csv(
+    manysearch_file: Path,
+    filename_to_hash: dict[str, str],
+    expected_pairs: set[tuple[str, str]],
+) -> Iterator[tuple[str, str, float | None]]:
+    """Parse sourmash-plugin-branchwater manysearch CSV output.
+
+    Returns tuples of (query_hash, subject_hash, estimated ANI).
+
+    Any pairs not in the file are inferred to be failed alignments.
+    """
+    column_query = 0
+    column_subject = 2
+    column_ani = 14  # use mode, here assuming max-containment!
+    with manysearch_file.open() as handle:
+        line = handle.readline().rstrip("\n")
+        headers = line.split(",")
+        # In branchwater 0.9.11 column order varies between manysearch and pairwise
+        column_query = headers.index("query_name")
+        column_subject = headers.index("match_name")
+        column_ani = headers.index("max_containment_ani")
+        # This is fine for max-containment mode, but for plain containment will
+        # probably want to capture query_containment_ani & match_containment_ani
+        for line in handle:
+            line = line.rstrip("\n")  # noqa: PLW2901
+            if not line:
+                continue
+            values = line.split(",")
+            if (
+                values[column_query] == values[column_subject]
+                and values[column_ani] != "1.0"
+            ):
+                msg = (
+                    f"Expected branchwater {filename_to_hash[values[column_query]]}"
+                    f" vs self to be one, not {values[column_ani]!r}"
+                )
+                raise ValueError(msg)
+            query_hash = filename_to_hash[values[column_query]]
+            subject_hash = filename_to_hash[values[column_subject]]
+            if (query_hash, subject_hash) in expected_pairs:
+                expected_pairs.remove((query_hash, subject_hash))
+            else:
+                msg = f"Did not expect {query_hash} vs {subject_hash} in {manysearch_file.name}"
+                raise ValueError(msg)
+            yield (query_hash, subject_hash, float(values[column_ani]))
+    # Even if the file was empty, we infer any remaining pairs
+    # are failed alignments:
+    for query_hash, subject_hash in expected_pairs:
+        yield query_hash, subject_hash, None

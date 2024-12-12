@@ -182,9 +182,10 @@ def test_partial_run(
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 3 analysis runs in " in output, output
-    assert " 0/0=0² │ Empty " in output, output
-    assert " 4/9=3² │ Partial " in output, output
-    assert " 4/4=2² │ Done " in output, output
+    assert " Method  ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
+    assert " fastANI │    0 │    0 │    0 │  0=0² │ Empty " in output, output
+    assert " fastANI │    4 │    0 │    5 │  9=3² │ Partial " in output, output
+    assert " fastANI │    4 │    0 │    0 │  4=2² │ Done " in output, output
 
     # Unlike a typical method calculation, we have not triggered
     # .cache_comparisons() yet, so that will happen in export_run.
@@ -484,7 +485,8 @@ def test_resume_partial_fastani(
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 1 analysis runs in " in output, output
-    assert " 8/9=3² │ Partial " in output, output
+    assert " Method  ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
+    assert " fastANI │    8 │    0 │    1 │  9=3² │ Partial " in output, output
 
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
@@ -496,7 +498,7 @@ def test_resume_partial_fastani(
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 1 analysis runs in " in output, output
-    assert " 9/9=3² │ Done " in output, output
+    assert " fastANI │    9 │    0 │    0 │  9=3² │ Done " in output, output
 
 
 def test_resume_partial_anib(
@@ -550,7 +552,8 @@ def test_resume_partial_anib(
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 1 analysis runs in " in output, output
-    assert " 8/9=3² │ Partial " in output, output
+    assert " Method ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
+    assert " ANIb   │    8 │    0 │    1 │  9=3² │ Partial " in output, output
 
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
@@ -560,7 +563,7 @@ def test_resume_partial_anib(
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 1 analysis runs in " in output, output
-    assert " 9/9=3² │ Done " in output, output
+    assert " ANIb   │    9 │    0 │    0 │  9=3² │ Done " in output, output
 
 
 def test_resume_partial_anim(
@@ -614,7 +617,8 @@ def test_resume_partial_anim(
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 1 analysis runs in " in output, output
-    assert " 8/9=3² │ Partial " in output, output
+    assert " Method ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
+    assert " ANIm   │    8 │    0 │    1 │  9=3² │ Partial " in output, output
 
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
@@ -624,7 +628,7 @@ def test_resume_partial_anim(
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 1 analysis runs in " in output, output
-    assert " 9/9=3² │ Done " in output, output
+    assert " ANIm   │    9 │    0 │    0 │  9=3² │ Done " in output, output
 
 
 def test_resume_partial_sourmash(
@@ -677,7 +681,8 @@ def test_resume_partial_sourmash(
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 1 analysis runs in " in output, output
-    assert " 4/9=3² │ Partial " in output, output
+    assert " Method   ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
+    assert " sourmash │    4 │    0 │    5 │  9=3² │ Partial " in output, output
 
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
@@ -689,7 +694,7 @@ def test_resume_partial_sourmash(
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 1 analysis runs in " in output, output
-    assert " 9/9=3² │ Done " in output, output
+    assert " sourmash │    9 │    0 │    0 │  9=3² │ Done " in output, output
 
 
 def test_resume_partial_branchwater(
@@ -742,7 +747,8 @@ def test_resume_partial_branchwater(
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 1 analysis runs in " in output, output
-    assert " 4/9=3² │ Partial " in output, output
+    assert " Method   ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
+    assert " branchw… │    4 │    0 │    5 │  9=3² │ Partial " in output, output
 
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
@@ -754,7 +760,10 @@ def test_resume_partial_branchwater(
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
     assert " 1 analysis runs in " in output, output
-    assert " 9/9=3² │ Done " in output, output
+    # Note the layout shifted from the above as the status column
+    # can be narrower giving a character more for the method:
+    assert " Method    ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status" in output, output
+    assert " branchwa… │    9 │    0 │    0 │  9=3² │ Done " in output, output
 
 
 def test_resume_dir_gone(tmp_path: str, input_genomes_tiny: Path) -> None:

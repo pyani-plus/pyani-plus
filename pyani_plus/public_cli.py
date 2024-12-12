@@ -764,7 +764,10 @@ def list_runs(
     table.add_column("ID", justify="right", no_wrap=True)
     table.add_column("Date")
     table.add_column("Method")
-    table.add_column(Text("Comparisons", justify="left"), justify="right", no_wrap=True)
+    table.add_column(Text("Done", justify="left"), justify="right", no_wrap=True)
+    table.add_column(Text("Null", justify="left"), justify="right", no_wrap=True)
+    table.add_column(Text("Miss", justify="left"), justify="right", no_wrap=True)
+    table.add_column(Text("Total", justify="left"), justify="right", no_wrap=True)
     table.add_column("Status")
     table.add_column("Name")
     # Would be nice to report {conf.program} {conf.version} too,
@@ -772,19 +775,21 @@ def list_runs(
     for run in runs:
         conf = run.configuration
         n = run.genomes.count()
+        total = n**2
         done = run.comparisons().count()
-        comparison_summary = f"{done}/{n**2}={n}²"
-        if done == 0:
-            comparison_summary = Text(comparison_summary, style="red")
-        elif done != n**2:
-            comparison_summary = Text(comparison_summary, style="yellow")
-        else:
-            comparison_summary = Text(comparison_summary, style="green")
+        # Using is None does not work as expected, must use == None
+        nulls = run.comparisons().where(db_orm.Comparison.identity == None).count()  # noqa: E711
         table.add_row(
             str(run.run_id),
             str(run.date.date()),
             conf.method,
-            comparison_summary,
+            Text(
+                f"{done - nulls}",
+                style="green" if done == total and not nulls else "yellow",
+            ),
+            Text(f"{nulls}", style="red" if nulls else "green"),
+            Text(f"{total - done}", style="yellow" if done < total else "green"),
+            f"{n**2}={n}²",
             run.status,
             run.name,
         )

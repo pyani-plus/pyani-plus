@@ -74,11 +74,15 @@ def parse_sourmash_compare_csv(
 
 
 def parse_sourmash_manysearch_csv(
-    manysearch_file: Path, filename_to_hash: dict[str, str]
-) -> Iterator[tuple[str, str, float]]:
+    manysearch_file: Path,
+    filename_to_hash: dict[str, str],
+    expected_pairs: set[tuple[str, str]],
+) -> Iterator[tuple[str, str, float | None]]:
     """Parse sourmash-plugin-branchwater manysearch CSV output.
 
     Returns tuples of (query_hash, subject_hash, estimated ANI).
+
+    Any pairs not in the file are inferred to be failed alignments.
     """
     column_query = 0
     column_subject = 2
@@ -106,8 +110,15 @@ def parse_sourmash_manysearch_csv(
                     f" vs self to be one, not {values[column_ani]!r}"
                 )
                 raise ValueError(msg)
-            yield (
-                filename_to_hash[values[column_query]],
-                filename_to_hash[values[column_subject]],
-                float(values[column_ani]),
-            )
+            query_hash = filename_to_hash[values[column_query]]
+            subject_hash = filename_to_hash[values[column_subject]]
+            if (query_hash, subject_hash) in expected_pairs:
+                expected_pairs.remove((query_hash, subject_hash))
+            else:
+                msg = f"Did not expect {query_hash} vs {subject_hash} in {manysearch_file.name}"
+                raise ValueError(msg)
+            yield (query_hash, subject_hash, float(values[column_ani]))
+    # Even if the file was empty, we infer any remaining pairs
+    # are failed alignments:
+    for query_hash, subject_hash in expected_pairs:
+        yield query_hash, subject_hash, None

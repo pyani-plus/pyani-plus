@@ -62,11 +62,29 @@ def test_parser_with_bad_branchwater(tmp_path: str) -> None:
         handle.write("0.9,A.fasta,B.fasta\n")
         handle.write("NaN,B.fasta,B.fasta\n")  # fails self-vs-self 100%
     mock_dict = {"A.fasta": "AAAAAA", "B.fasta": "BBBBBB"}
-    parser = method_sourmash.parse_sourmash_manysearch_csv(mock_csv, mock_dict)
+    expected = {
+        ("AAAAAA", "AAAAAA"),
+        ("AAAAAA", "BBBBBB"),
+        ("BBBBBB", "AAAAAA"),
+        ("BBBBBB", "BBBBBB"),
+    }
+    parser = method_sourmash.parse_sourmash_manysearch_csv(
+        mock_csv, mock_dict, expected
+    )
     assert next(parser) == ("AAAAAA", "AAAAAA", 1.0)
     assert next(parser) == ("AAAAAA", "BBBBBB", 0.9)
     with pytest.raises(
         ValueError, match="Expected branchwater BBBBBB vs self to be one, not 'NaN'"
+    ):
+        next(parser)
+
+    # Now tell it just expect one entry...
+    parser = method_sourmash.parse_sourmash_manysearch_csv(
+        mock_csv, mock_dict, {("AAAAAA", "AAAAAA")}
+    )
+    assert next(parser) == ("AAAAAA", "AAAAAA", 1.0)
+    with pytest.raises(
+        ValueError, match="Did not expect AAAAAA vs BBBBBB in faked.csv"
     ):
         next(parser)
 

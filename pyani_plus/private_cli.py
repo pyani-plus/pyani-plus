@@ -1117,7 +1117,14 @@ def log_branchwater(
                 subject_hash,
                 identity,
             ) in method_sourmash.parse_sourmash_manysearch_csv(
-                manysearch, filename_to_hash
+                manysearch,
+                filename_to_hash,
+                # This is used to infer failed alignments:
+                expected_pairs={
+                    (q, s)
+                    for q in filename_to_hash.values()
+                    for s in filename_to_hash.values()
+                },
             )
         ],
     )

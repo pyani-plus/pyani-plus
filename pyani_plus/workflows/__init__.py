@@ -31,6 +31,7 @@ from time import sleep
 from rich.progress import Progress
 from snakemake.cli import args_to_api, parse_args
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 
 from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, db_orm
 
@@ -98,9 +99,13 @@ def progress_bar_via_db_comparisons(
         while done < total:
             sleep(interval)
             # Have there been any DB changes?
-            db_version = (
-                session.connection().execute(text("PRAGMA data_version;")).one()[0]
-            )
+            try:
+                db_version = (
+                    session.connection().execute(text("PRAGMA data_version;")).one()[0]
+                )
+            except OperationalError:
+                # Probably another process is updating the DB, try again soon
+                continue
             if old_db_version == db_version:
                 continue
             old_db_version = db_version

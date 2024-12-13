@@ -630,6 +630,7 @@ def anim(  # noqa: PLR0913
     )
     subject_stem = Path(hash_to_filename[subject_hash]).stem
 
+    db_entries = []
     for query_hash in query_hashes:
         query_length = (
             session.query(db_orm.Genome)
@@ -682,30 +683,31 @@ def anim(  # noqa: PLR0913
             method_anim.parse_delta(deltafilter)
         )
 
-        session.execute(
-            sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
-            [
-                {
-                    "query_hash": query_hash,
-                    "subject_hash": subject_hash,
-                    "identity": identity,
-                    "aln_length": query_aligned_bases,
-                    "sim_errors": sim_errors,
-                    "cov_query": None
-                    if query_aligned_bases is None
-                    else float(query_aligned_bases) / query_length,
-                    "cov_subject": None
-                    if subject_aligned_bases is None
-                    else float(subject_aligned_bases) / subject_length,
-                    "configuration_id": config_id,
-                    "uname_system": uname_system,
-                    "uname_release": uname_release,
-                    "uname_machine": uname_machine,
-                }
-            ],
+        db_entries.append(
+            {
+                "query_hash": query_hash,
+                "subject_hash": subject_hash,
+                "identity": identity,
+                "aln_length": query_aligned_bases,
+                "sim_errors": sim_errors,
+                "cov_query": None
+                if query_aligned_bases is None
+                else float(query_aligned_bases) / query_length,
+                "cov_subject": None
+                if subject_aligned_bases is None
+                else float(subject_aligned_bases) / subject_length,
+                "configuration_id": config_id,
+                "uname_system": uname_system,
+                "uname_release": uname_release,
+                "uname_machine": uname_machine,
+            }
         )
 
-        session.commit()
+    # To reduce DB contention log the entire column in one go:
+    session.execute(
+        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(), db_entries
+    )
+    session.commit()
     return 0
 
 
@@ -762,6 +764,7 @@ def anib(  # noqa: PLR0913
         ],
     )
 
+    db_entries = []
     for query_hash in query_hashes:
         query_stem = Path(hash_to_filename[query_hash]).stem
         tmp_tsv = tmp_dir / f"{query_stem}_vs_{subject_stem}.tsv"
@@ -812,30 +815,29 @@ def anib(  # noqa: PLR0913
             .length
         )
 
-        session.execute(
-            sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
-            [
-                {
-                    "query_hash": query_hash,
-                    "subject_hash": subject_hash,
-                    "identity": identity,
-                    "aln_length": aln_length,
-                    "sim_errors": sim_errors,
-                    "cov_query": None
-                    if aln_length is None
-                    else aln_length / query_length,
-                    "cov_subject": None
-                    if aln_length is None
-                    else aln_length / subject_length,
-                    "configuration_id": config_id,
-                    "uname_system": uname_system,
-                    "uname_release": uname_release,
-                    "uname_machine": uname_machine,
-                }
-            ],
+        db_entries.append(
+            {
+                "query_hash": query_hash,
+                "subject_hash": subject_hash,
+                "identity": identity,
+                "aln_length": aln_length,
+                "sim_errors": sim_errors,
+                "cov_query": None if aln_length is None else aln_length / query_length,
+                "cov_subject": None
+                if aln_length is None
+                else aln_length / subject_length,
+                "configuration_id": config_id,
+                "uname_system": uname_system,
+                "uname_release": uname_release,
+                "uname_machine": uname_machine,
+            }
         )
 
-        session.commit()
+    # To reduce DB contention log the entire column in one go:
+    session.execute(
+        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(), db_entries
+    )
+    session.commit()
     return 0
 
 
@@ -866,6 +868,7 @@ def dnadiff(  # noqa: PLR0913
     config_id = run.configuration.configuration_id
     subject_stem = Path(hash_to_filename[subject_hash]).stem
 
+    db_entries = []
     for query_hash in query_hashes:
         query_length = (
             session.query(db_orm.Genome)
@@ -963,26 +966,27 @@ def dnadiff(  # noqa: PLR0913
             else ((aligned_bases_with_gaps or 0) - (gap_lengths or 0)) / query_length
         )
 
-        session.execute(
-            sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
-            [
-                {
-                    "query_hash": query_hash,
-                    "subject_hash": subject_hash,
-                    "identity": identity,
-                    "aln_length": aln_length,
-                    "sim_errors": sim_errors,
-                    "cov_query": cov_query,
-                    "cov_subject": None,
-                    "configuration_id": config_id,
-                    "uname_system": uname_system,
-                    "uname_release": uname_release,
-                    "uname_machine": uname_machine,
-                }
-            ],
+        db_entries.append(
+            {
+                "query_hash": query_hash,
+                "subject_hash": subject_hash,
+                "identity": identity,
+                "aln_length": aln_length,
+                "sim_errors": sim_errors,
+                "cov_query": cov_query,
+                "cov_subject": None,
+                "configuration_id": config_id,
+                "uname_system": uname_system,
+                "uname_release": uname_release,
+                "uname_machine": uname_machine,
+            }
         )
 
-        session.commit()
+    # To reduce DB contention log the entire column in one go:
+    session.execute(
+        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(), db_entries
+    )
+    session.commit()
     return 0
 
 
@@ -1050,7 +1054,6 @@ def log_sourmash(
             ) in method_sourmash.parse_sourmash_compare_csv(compare, filename_to_hash)
         ],
     )
-
     session.commit()
     return 0
 

@@ -1,1 +1,1 @@
-The `tools` directory contains dummy mock tests designed for version testing of third-party tools. It also includes examples of faulty tools that are either not executable or do not provide version information.
+The `tools` directory contains mock tools designed for version testing of third-party tools. It also includes examples of faulty tools that are either not executable or do not provide version information.

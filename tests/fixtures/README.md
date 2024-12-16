@@ -1,0 +1,1 @@
+This `fixtures` directory contains a variety of test sets, including sequence data and intermediate files, intended for use and testing with pyANI-plus. Each test set includes separate `README.md` file that provides detailed context for each case.

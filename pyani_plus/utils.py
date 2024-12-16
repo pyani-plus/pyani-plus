@@ -38,19 +38,19 @@ def str_md5sum(text: str, encoding: str = "ascii") -> str:
     Behaves like the command line tool ``md5sum``, giving a 32 character
     hexadecimal representation of the MD5 checksum of the file contents::
 
-        $ md5sum tests/fixtures/sequences/NC_002696.fasta
-        f19cb07198a41a4406a22b2f57a6b5e7  tests/fixtures/sequences/NC_002696.fasta
+        $ md5sum tests/fixtures/bacterial_example/NC_002696.fasta
+        f19cb07198a41a4406a22b2f57a6b5e7  tests/fixtures/bacterial_example/NC_002696.fasta
 
     In Python:
 
-        >>> with open("tests/fixtures/sequences/NC_002696.fasta") as handle:
+        >>> with open("tests/fixtures/bacterial_example/NC_002696.fasta") as handle:
         ...     text = handle.read()
         >>> str_md5sum(text)
         'f19cb07198a41a4406a22b2f57a6b5e7'
 
     This particular example would be more consise using the sister function:
 
-        >>> file_md5sum("tests/fixtures/sequences/NC_002696.fasta")
+        >>> file_md5sum("tests/fixtures/bacterial_example/NC_002696.fasta")
         'f19cb07198a41a4406a22b2f57a6b5e7'
 
     The MD5 checksum is used in pyANI-plus on input FASTA format sequence files.

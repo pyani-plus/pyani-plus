@@ -41,16 +41,13 @@ sequences in the query too.
 """
 
 # Imports
-import shutil
 import subprocess
 import sys
-import tempfile
 from itertools import product
 from pathlib import Path
 
 from pyani_plus.tools import (
     get_delta_filter,
-    get_dnadiff,
     get_nucmer,
     get_show_coords,
     get_show_diff,
@@ -82,9 +79,7 @@ nucmer = get_nucmer()
 delta_filter = get_delta_filter()
 show_coords = get_show_coords()
 show_diff = get_show_diff()
-dnadiff = get_dnadiff()
 print(f"Using nucmer {nucmer.version} at {nucmer.exe_path}")
-print(f"Using dnadiff {dnadiff.version} at {dnadiff.exe_path}")
 
 for genomes in comparisons:
     stem = "_vs_".join(genomes)
@@ -122,15 +117,3 @@ for genomes in comparisons:
             check=True,
             stdout=ofh,
         )
-    with tempfile.TemporaryDirectory() as tmp:
-        subprocess.run(
-            [
-                dnadiff.exe_path,
-                "-p",
-                tmp + "/" + stem,
-                inputs[genomes[1]],
-                inputs[genomes[0]],
-            ],
-            check=True,
-        )
-        shutil.move(tmp + "/" + stem + ".report", OUT_DIR / (stem + ".report"))

@@ -63,13 +63,25 @@ from line[11], and AvgIdentity from line[23].
 """
 
 import re
+import subprocess
 import sys
+import tempfile
 from decimal import Decimal
+from itertools import product
 from pathlib import Path
 
 import pandas as pd
 
+from pyani_plus.tools import get_dnadiff
+
 INPUT_DIR, OUT_DIR = Path(sys.argv[1]), Path(sys.argv[2])
+
+# Constructing a matrix where the stems of test genomes are used as both column names and index.
+sorted_stems = sorted(file.stem for file in INPUT_DIR.glob("*.f*"))
+aln_lengths_matrix = pd.DataFrame(index=sorted_stems, columns=sorted_stems)
+coverage_matrix = pd.DataFrame(index=sorted_stems, columns=sorted_stems)
+identity_matrix = pd.DataFrame(index=sorted_stems, columns=sorted_stems)
+sim_errors = pd.DataFrame(index=sorted_stems, columns=sorted_stems)
 
 
 def parse_dnadiff_report(dnadiff_report: Path) -> tuple[int, Decimal, Decimal]:
@@ -94,41 +106,56 @@ def parse_dnadiff_report(dnadiff_report: Path) -> tuple[int, Decimal, Decimal]:
     return (aligned_bases, query_coverage, avg_identity)
 
 
-# Constructing a matrix where the MD5 hashes of test genomes are used as both column names and index.
-sorted_stems = sorted(file.stem for file in INPUT_DIR.glob("*.f*"))
-aln_lengths_matrix = pd.DataFrame(index=sorted_stems, columns=sorted_stems)
-coverage_matrix = pd.DataFrame(index=sorted_stems, columns=sorted_stems)
-identity_matrix = pd.DataFrame(index=sorted_stems, columns=sorted_stems)
-sim_errors = pd.DataFrame(index=sorted_stems, columns=sorted_stems)
+dnadiff = get_dnadiff()
+print(f"Using nucmer {dnadiff.version} at {dnadiff.exe_path}")
 
-# Appending information to matrices
-report_files = (INPUT_DIR / "intermediates/dnadiff").glob("*.report")
 
-for file in report_files:
-    query, subject = file.stem.split("_vs_")
-    aligned_bases, query_coverage, avg_identity = parse_dnadiff_report(file)
+# Running comparisons (all vs all)
+inputs = {_.stem: _ for _ in sorted(Path(INPUT_DIR).glob("*.f*"))}
+comparisons = product(inputs, inputs)
 
-    # Set all values to None if all metrics are zero
-    values = (
-        (None, None, None, None)
-        if aligned_bases == 0 and query_coverage == 0 and avg_identity == 0
-        else (
-            aligned_bases,
-            query_coverage,
-            avg_identity,
-            round(aligned_bases * (1 - avg_identity)),
+# Generate and parse .report files
+for query, subject in comparisons:
+    stem = f"{query}_vs_{subject}"
+    # Running dnadiff and saving output to temp file
+    with tempfile.TemporaryDirectory() as tmp:
+        subprocess.run(
+            [
+                dnadiff.exe_path,
+                "-p",
+                tmp + "/" + stem,
+                inputs[subject],
+                inputs[query],
+            ],
+            check=True,
         )
-    )
+        # Extracting values from .report files
+        aligned_bases, query_coverage, avg_identity = parse_dnadiff_report(
+            Path(tmp + "/" + stem + ".report")
+        )
 
-    # Assign values to matrices
-    (
-        aln_lengths_matrix.loc[query, subject],
-        coverage_matrix.loc[query, subject],
-        identity_matrix.loc[query, subject],
-        sim_errors.loc[query, subject],
-    ) = values
+        # Set all values to None if all metrics are zero
+        values = (
+            (None, None, None, None)
+            if aligned_bases == 0 and query_coverage == 0 and avg_identity == 0
+            else (
+                aligned_bases,
+                query_coverage,
+                avg_identity,
+                round(aligned_bases * (1 - avg_identity)),
+            )
+        )
+
+        # Assign values to matrices
+        (
+            aln_lengths_matrix.loc[query, subject],
+            coverage_matrix.loc[query, subject],
+            identity_matrix.loc[query, subject],
+            sim_errors.loc[query, subject],
+        ) = values
 
 
+# Save matrices
 matrices_directory = OUT_DIR
 matrices_directory.mkdir(parents=True, exist_ok=True)
 

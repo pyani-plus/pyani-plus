@@ -40,19 +40,18 @@ FRAGSIZE = 1020  # Default ANIb fragment size
 MIN_COVERAGE = 0.7
 MIN_IDENTITY = 0.3
 
-# We do NOT use the standard 12 columns, but a custom 15 cols as per old pyANI
 # std = qaccver saccver pident length mismatch gapopen qstart qend sstart send evalue bitscore
-BLAST_COLUMNS = (
-    "qseqid sseqid length mismatch pident nident"
-    " qlen slen qstart qend sstart send positive ppos gaps"
-).split()
+# We do NOT use the standard 12 columns, nor a custom 15 cols as per old pyANI,
+# but a minimal set of only 7 (the 6 used fields plus subject id for debugging).
+BLAST_COLUMNS = ("qseqid sseqid pident length mismatch qlen gaps").split()
 
 # Precompute the column indexes once
+BLAST_COL_QUERY = BLAST_COLUMNS.index("qseqid")  # alternative to qaccver in std
+BLAST_COL_PIDENT = BLAST_COLUMNS.index("pident")  # in std 12 columns
+BLAST_COL_LENGTH = BLAST_COLUMNS.index("length")  # in std 12 columns
+BLAST_COL_MISMATCH = BLAST_COLUMNS.index("mismatch")  # in std 12 columns
 BLAST_COL_QLEN = BLAST_COLUMNS.index("qlen")
-BLAST_COL_LENGTH = BLAST_COLUMNS.index("length")
 BLAST_COL_GAPS = BLAST_COLUMNS.index("gaps")
-BLAST_COL_MISMATCH = BLAST_COLUMNS.index("mismatch")
-BLAST_COL_PIDENT = BLAST_COLUMNS.index("pident")
 
 
 def fragment_fasta_file(
@@ -121,7 +120,7 @@ def parse_blastn_file(blastn: Path) -> tuple[float | None, int | None, int | Non
                     f"Found {len(fields)} columns in {blastn}, not {len(BLAST_COLUMNS)}"
                 )
                 raise ValueError(msg)
-            query = fields[0]
+            query = fields[BLAST_COL_QUERY]
             if not query.startswith("frag"):
                 msg = f"BLAST output should be using fragmented queries, not {query}"
                 raise ValueError(msg)

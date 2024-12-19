@@ -68,7 +68,7 @@ def test_parse_blastn_empty() -> None:
 def test_parse_blastn_bad(input_genomes_tiny: Path) -> None:
     """Check parsing something which isn't a BLAST TSV files fails."""
     with pytest.raises(
-        ValueError, match="Found 1 columns in .*/MGV-GENOME-0264574.fas, not 15"
+        ValueError, match="Found 1 columns in .*/MGV-GENOME-0264574.fas, not 7"
     ):
         method_anib.parse_blastn_file(input_genomes_tiny / "MGV-GENOME-0264574.fas")
 
@@ -77,7 +77,7 @@ def test_parse_blastn_bad_query(tmp_path: str) -> None:
     """Check parsing TSV not using frag#### fails."""
     fake = Path(tmp_path) / "fake.tsv"
     with fake.open("w") as handle:
-        handle.write("\t".join(["bad-query", "subject"] + ["0"] * 13))
+        handle.write("\t".join(["bad-query", "subject"] + ["0"] * 5))
     with pytest.raises(
         ValueError,
         match="BLAST output should be using fragmented queries, not bad-query",

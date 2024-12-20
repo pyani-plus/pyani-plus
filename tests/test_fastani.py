@@ -82,7 +82,7 @@ def test_running_fastani(
         input_genomes_tiny,
         hash_to_filename,
         filename_to_hash,
-        query_hashes=set(hash_to_filename),
+        query_hashes=list(hash_to_filename),
         subject_hash=list(hash_to_filename)[1],
     )
     assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004

@@ -432,6 +432,42 @@ def test_fastani(tmp_path: str, input_genomes_tiny: Path) -> None:
     )
 
 
+def test_fastani_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
+    """Check fastANI run (gzipped bacteria)."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "example.sqlite"
+    public_cli.fastani(
+        database=tmp_db,
+        fasta=input_gzip_bacteria,
+        name="Test Run",
+        create_db=True,
+        temp=tmp_dir,
+    )
+
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
+    compare_matrix_files(
+        input_gzip_bacteria / "matrices" / "fastANI_identity.tsv",
+        tmp_dir / "fastANI_identity.tsv",
+    )
+
+
+def test_sourmash_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
+    """Check sourmash run (gzipped bacteria)."""
+    out = Path(tmp_path)
+    tmp_db = out / "example.sqlite"
+    public_cli.sourmash(
+        database=tmp_db,
+        fasta=input_gzip_bacteria,
+        name="Test Run",
+        create_db=True,
+    )
+    public_cli.export_run(database=tmp_db, outdir=out)
+    compare_matrix_files(
+        input_gzip_bacteria / "matrices" / "sourmash_identity.tsv",
+        out / "sourmash_identity.tsv",
+    )
+
+
 def test_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check sourmash run (default settings except scaled=300)."""
     out = Path(tmp_path)

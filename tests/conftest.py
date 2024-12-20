@@ -99,3 +99,9 @@ def input_genomes_tiny() -> Path:
 def input_genomes_bad_alignments() -> Path:
     """Path to small set of two bad alignments input genomes."""
     return FIXTUREPATH / "bad_alignments"
+
+
+@pytest.fixture
+def input_gzip_bacteria() -> Path:
+    """Path to small set of four gzipped bacterial input genomes."""
+    return FIXTUREPATH / "bacterial_example"

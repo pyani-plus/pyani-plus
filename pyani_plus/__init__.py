@@ -39,7 +39,7 @@ from rich.progress import (
 __version__ = "0.0.1"
 
 # The following are assorted centrally defined constants:
-FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}
+FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}  # we'll consider .fasta.gz etc too
 PROGRESS_BAR_COLUMNS = [
     TextColumn("[progress.description]{task.description}"),
     BarColumn(),

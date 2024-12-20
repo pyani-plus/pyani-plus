@@ -29,6 +29,7 @@ used), and reporting on a finished analysis (exporting tables and plots).
 
 import sys
 import tempfile
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Annotated
 
@@ -87,12 +88,30 @@ OPT_ARG_TYPE_RUN_NAME = Annotated[
         help="Run name. Default is 'N genomes using METHOD'.", show_default=False
     ),
 ]
+OPT_ARG_TYPE_TEMP_WORKFLOW = Annotated[
+    Path | None,
+    typer.Option(
+        help="Directory to use for temporary workflow coordination files, which"
+        " for debugging purposes will not be deleted. For clusters this must be"
+        " on a shared drive. Default behaviour is to use a system specified"
+        " temporary directory (for the local executor) or a temporary directory"
+        " under the present direct (for clusters), and remove this afterwards.",
+        rich_help_panel="Debugging",
+        show_default=False,
+        exists=True,
+        dir_okay=True,
+        file_okay=False,
+    ),
+]
 OPT_ARG_TYPE_TEMP = Annotated[
     Path | None,
     typer.Option(
-        help="Directory to use for intermediate files, which will not be deleted."
-        " Default behaviour is to use a system specified temporary directory and"
+        help="Directory to use for intermediate files, which for debugging"
+        " purposes will not be deleted. For clusters this must be on a shared"
+        " drive. Default behaviour is to use a system specified temporary"
+        " directory (specific to the compute-node when using a cluster) and"
         " remove this afterwards.",
+        rich_help_panel="Debugging",
         show_default=False,
         exists=True,
         dir_okay=True,
@@ -158,6 +177,7 @@ app = typer.Typer(
 def start_and_run_method(  # noqa: PLR0913
     executor: ToolExecutor,
     temp: Path | None,
+    workflow_temp: Path | None,
     database: Path,
     name: str | None,
     method: str,
@@ -228,6 +248,7 @@ def start_and_run_method(  # noqa: PLR0913
     return run_method(
         executor,
         temp,
+        workflow_temp,
         filename_to_md5,
         database,
         session,
@@ -240,6 +261,7 @@ def start_and_run_method(  # noqa: PLR0913
 def run_method(  # noqa: PLR0913
     executor: ToolExecutor,
     temp: Path | None,
+    workflow_temp: Path | None,
     filename_to_md5: dict[Path, str],
     database: Path,
     session: Session,
@@ -286,9 +308,13 @@ def run_method(  # noqa: PLR0913
         # output directories must be viewable from all the worker nodes too.
         # i.e. Can't use a temp directory on the head node.
         # We might want to make this explicitly configurable, e.g. to /mnt/scratch/
-        with tempfile.TemporaryDirectory(
-            prefix="pyani-plus_", dir=None if executor.value == "local" else "."
-        ) as tmp:
+        with (
+            nullcontext(workflow_temp)
+            if workflow_temp
+            else tempfile.TemporaryDirectory(
+                prefix="pyani-plus_", dir=None if executor.value == "local" else "."
+            ) as tmp
+        ):
             work_path = Path(tmp) / "working"
             out_path = Path(tmp) / "output"
             params["outdir"] = out_path.resolve()
@@ -337,6 +363,7 @@ def anim(  # noqa: PLR0913
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
+    wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
 ) -> int:
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -351,6 +378,7 @@ def anim(  # noqa: PLR0913
     return start_and_run_method(
         executor,
         temp,
+        wtemp,
         database,
         name,
         "ANIm",
@@ -373,6 +401,7 @@ def dnadiff(  # noqa: PLR0913
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
+    wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
 ) -> int:
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -391,6 +420,7 @@ def dnadiff(  # noqa: PLR0913
     return start_and_run_method(
         executor,
         temp,
+        wtemp,
         database,
         name,
         "dnadiff",
@@ -414,6 +444,7 @@ def anib(  # noqa: PLR0913
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
+    wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
 ) -> int:
     """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -432,6 +463,7 @@ def anib(  # noqa: PLR0913
     return start_and_run_method(
         executor,
         temp,
+        wtemp,
         database,
         name,
         "ANIb",
@@ -467,6 +499,7 @@ def fastani(  # noqa: PLR0913
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
+    wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -480,6 +513,7 @@ def fastani(  # noqa: PLR0913
     return start_and_run_method(
         executor,
         temp,
+        wtemp,
         database,
         name,
         "fastANI",
@@ -503,6 +537,7 @@ def sourmash(  # noqa: PLR0913
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
+    wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
     # For the config table:
     scaled: OPT_ARG_TYPE_SOURMASH_SCALED = method_sourmash.SCALED,  # 1000
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
@@ -518,6 +553,7 @@ def sourmash(  # noqa: PLR0913
     return start_and_run_method(
         executor,
         temp,
+        wtemp,
         database,
         name,
         "sourmash",
@@ -542,6 +578,7 @@ def branchwater(  # noqa: PLR0913
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
+    wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
     # These are for the configuration table:
     scaled: OPT_ARG_TYPE_SOURMASH_SCALED = method_sourmash.SCALED,  # 1000
     kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
@@ -557,6 +594,7 @@ def branchwater(  # noqa: PLR0913
     return start_and_run_method(
         executor,
         temp,
+        wtemp,
         database,
         name,
         "branchwater",
@@ -579,6 +617,7 @@ def resume(  # noqa: C901, PLR0912, PLR0915
     ] = None,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
+    wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
 ) -> int:
     """Resume any (partial) run already logged in the database.
 
@@ -723,6 +762,7 @@ def resume(  # noqa: C901, PLR0912, PLR0915
     return run_method(
         executor,
         temp,
+        wtemp,
         filename_to_md5,
         database,
         session,

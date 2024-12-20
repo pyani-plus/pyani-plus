@@ -29,6 +29,7 @@ import os
 import platform
 import sys
 import tempfile
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Annotated
 
@@ -382,7 +383,7 @@ def log_comparison(  # noqa: PLR0913
 
 
 @app.command()
-def compute_column(  # noqa: C901, PLR0912
+def compute_column(  # noqa: C901
     database: REQ_ARG_TYPE_DATABASE,
     run_id: REQ_ARG_TYPE_RUN_ID,
     subject: Annotated[
@@ -474,23 +475,11 @@ def compute_column(  # noqa: C901, PLR0912
     if not fasta_dir.is_absolute():
         fasta_dir = (database.parent / fasta_dir).absolute()
 
-    if temp:
-        # Use the specified temp-directory (and do not clean up)
+    # Either use the specified temp-directory (and do not clean up),
+    # or use a system temp-directory (and do clean up)
+    with nullcontext(temp) if temp else tempfile.TemporaryDirectory() as tmp_dir:
         return compute(
-            temp,
-            session,
-            run,
-            fasta_dir,
-            hash_to_filename,
-            filename_to_hash,
-            query_hashes,
-            subject_hash,
-            quiet=quiet,
-        )
-    # Use a system temp-directory (and do clean up)
-    with tempfile.TemporaryDirectory() as sys_temp:
-        return compute(
-            Path(sys_temp),
+            Path(tmp_dir),
             session,
             run,
             fasta_dir,

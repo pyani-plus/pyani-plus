@@ -34,7 +34,7 @@ def get_genomeB(wildcards):
     return indir_files[wildcards.genomeB]
 
 
-# The sketch_dna rule runs the sourmach branchwater equivalent to "sourmash sketch"
+# The sketch rule runs the sourmach branchwater equivalent of "sourmash sketch"
 rule sketch:
     params:
         indir=config["indir"],
@@ -49,24 +49,22 @@ rule sketch:
         "sourmash scripts singlesketch -I DNA -p 'k={params.kmersize},{params.extra}' {input} -o {output} > {output}.log 2>&1"
 
 
+# The compare rule runs the branchwater equivalent of "sourmash compare"
 rule compare:
     params:
         db=config["db"],
         run_id=config["run_id"],
         outdir=config["outdir"],
-        kmersize=config["kmersize"],
         extra=config["extra"],  # This will consist of either `scaled=X` or `num=X`.
     input:
         expand("{{outdir}}/{genome}.sig", genome=sorted(indir_files)),
     output:
-        # e.g. sourmash_max-containment_k=31_scaled=300.csv
-        #"{outdir}/sourmash_{params.mode}_k={params.kmersize}_{params.extra}.csv",
-        "{outdir}/sourmash.csv",
+        "{outdir}/manysearch.csv",
     shell:
         """
-        sourmash compare --quiet --csv {output} --estimate-ani \
-            --containment -k {params.kmersize} {input} &&
+        sourmash sig collect --quiet -F csv -o all_sigs.csv {input} > {output}.log 2>&1 &&
+        sourmash scripts manysearch -m DNA --quiet -t 0 -o {output} all_sigs.csv all_sigs.csv >> {output}.log 2>&1 &&
         .pyani-plus-private-cli log-sourmash --quiet \
             --database {params.db} --run-id {params.run_id} \
-            --compare {output}
+            --manysearch {output}
         """

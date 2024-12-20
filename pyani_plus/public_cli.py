@@ -580,7 +580,7 @@ def resume(  # noqa: C901, PLR0912, PLR0915
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
 ) -> int:
-    """Resume any (paritual) run already logged in the database.
+    """Resume any (partial) run already logged in the database.
 
     If the run was already complete, this should have no effect.
 

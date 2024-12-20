@@ -96,6 +96,7 @@ OPT_ARG_TYPE_TEMP_WORKFLOW = Annotated[
         " on a shared drive. Default behaviour is to use a system specified"
         " temporary directory (for the local executor) or a temporary directory"
         " under the present direct (for clusters), and remove this afterwards.",
+        rich_help_panel="Debugging",
         show_default=False,
         exists=True,
         dir_okay=True,
@@ -110,6 +111,7 @@ OPT_ARG_TYPE_TEMP = Annotated[
         " drive. Default behaviour is to use a system specified temporary"
         " directory (specific to the compute-node when using a cluster) and"
         " remove this afterwards.",
+        rich_help_panel="Debugging",
         show_default=False,
         exists=True,
         dir_okay=True,

@@ -27,6 +27,7 @@ pytest -v
 """
 
 import contextlib
+import gzip
 import signal
 import subprocess
 import time
@@ -42,12 +43,12 @@ GENOMES = 100
 
 @pytest.fixture(scope="session")
 def large_set_of_bacterial_chunks(
-    tmp_path_factory: pytest.TempPathFactory, input_bacteria: Path
+    tmp_path_factory: pytest.TempPathFactory, input_gzip_bacteria: Path
 ) -> Path:
     """Make a directory of FASTA files, each a chunk of bacteria."""
     fasta_dir = tmp_path_factory.mktemp(f"{GENOMES}_faked_bacteria")
     # Make input dataset of fragments of a bacteria
-    with (input_bacteria / "NC_010338.fna").open() as handle:
+    with gzip.open(input_gzip_bacteria / "NC_010338.fna.gz", "rt") as handle:
         title, seq = next(SimpleFastaParser(handle))
     for i in range(GENOMES):
         offset = i * 1000

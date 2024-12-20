@@ -21,6 +21,7 @@
 # THE SOFTWARE.
 """Assorted utility functions used within the pyANI-plus software."""
 
+import gzip
 import hashlib
 import os
 import subprocess
@@ -36,21 +37,23 @@ def str_md5sum(text: str, encoding: str = "ascii") -> str:
     :param text:  String for hashing
 
     Behaves like the command line tool ``md5sum``, giving a 32 character
-    hexadecimal representation of the MD5 checksum of the file contents::
+    hexadecimal representation of the MD5 checksum of the given text::
 
-        $ md5sum tests/fixtures/bacterial_example/NC_002696.fasta
-        f19cb07198a41a4406a22b2f57a6b5e7  tests/fixtures/bacterial_example/NC_002696.fasta
+        $ cat tests/fixtures/bacterial_example/NC_002696.fasta.gz | gunzip | md5sum
+        f19cb07198a41a4406a22b2f57a6b5e7  -
 
     In Python:
 
-        >>> with open("tests/fixtures/bacterial_example/NC_002696.fasta") as handle:
+        >>> with gzip.open(
+        ...     "tests/fixtures/bacterial_example/NC_002696.fasta.gz", "rt"
+        ... ) as handle:
         ...     text = handle.read()
         >>> str_md5sum(text)
         'f19cb07198a41a4406a22b2f57a6b5e7'
 
     This particular example would be more consise using the sister function:
 
-        >>> file_md5sum("tests/fixtures/bacterial_example/NC_002696.fasta")
+        >>> file_md5sum("tests/fixtures/bacterial_example/NC_002696.fasta.gz")
         'f19cb07198a41a4406a22b2f57a6b5e7'
 
     The MD5 checksum is used in pyANI-plus on input FASTA format sequence files.
@@ -67,8 +70,9 @@ def file_md5sum(filename: Path | str) -> str:
 
     :param filename:  Path or string, path to file for hashing
 
-    Behaves like the command line tool ``md5sum``, giving a 32 character
-    hexadecimal representation of the MD5 checksum of the file contents::
+    For uncompressed files behaves like the command line tool ``md5sum``,
+    giving a 32 character hexadecimal representation of the MD5 checksum
+    of the file contents::
 
         $ md5sum tests/fixtures/viral_example/OP073605.fasta
         5584c7029328dc48d33f95f0a78f7e57  tests/fixtures/viral_example/OP073605.fasta
@@ -77,6 +81,17 @@ def file_md5sum(filename: Path | str) -> str:
 
         >>> file_md5sum("tests/fixtures/viral_example/OP073605.fasta")
         '5584c7029328dc48d33f95f0a78f7e57'
+
+    However, for gzip compressed files, it returns the MD5 of the decompressed
+    contents::
+
+        $ cat tests/fixtures/bacterial_example/NC_011916.fas.gz | gunzip | md5sum
+        9d72a8fb513cf9cc8cc6605a0ad4e837  -
+
+    In Python:
+
+        >>> file_md5sum("tests/fixtures/bacterial_example/NC_011916.fas.gz")
+        '9d72a8fb513cf9cc8cc6605a0ad4e837'
 
     This is used in pyANI-plus on input FASTA format sequence files, to give a
     fingerprint of the file contents allowing us to cache and reused comparison
@@ -88,9 +103,14 @@ def file_md5sum(filename: Path | str) -> str:
     # S324 Probable use of insecure hash functions in `hashlib`: `md5`
     hash_md5 = hashlib.md5()  # noqa: S324
     try:
-        with fname.open("rb") as fhandle:
-            for chunk in iter(lambda: fhandle.read(65536), b""):
-                hash_md5.update(chunk)
+        try:
+            with gzip.open(fname, "rb") as fhandle:
+                for chunk in iter(lambda: fhandle.read(65536), b""):
+                    hash_md5.update(chunk)
+        except gzip.BadGzipFile:
+            with fname.open("rb") as fhandle:
+                for chunk in iter(lambda: fhandle.read(65536), b""):
+                    hash_md5.update(chunk)
     except FileNotFoundError:
         msg = f"Input file {fname} is not a file or symlink"
         raise ValueError(msg) from None

@@ -27,6 +27,7 @@ Python objects.
 """
 
 import datetime
+import gzip
 import platform
 from io import StringIO
 from pathlib import Path
@@ -654,11 +655,20 @@ def db_genome(
 
     length = 0
     description = None
-    with Path(fasta_filename).open() as handle:
-        for title, seq in SimpleFastaParser(handle):
-            length += len(seq)
-            if description is None:
-                description = title  # Just use first entry
+
+    try:
+        with gzip.open(fasta_filename, "rt") as handle:
+            for title, seq in SimpleFastaParser(handle):
+                length += len(seq)
+                if description is None:
+                    description = title  # Just use first entry
+    except gzip.BadGzipFile:
+        with Path(fasta_filename).open() as handle:
+            for title, seq in SimpleFastaParser(handle):
+                length += len(seq)
+                if description is None:
+                    description = title  # Just use first entry
+
     genome = Genome(
         genome_hash=md5,
         path=str(fasta_filename),

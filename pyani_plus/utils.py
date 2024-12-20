@@ -152,6 +152,7 @@ def check_fasta(fasta: Path) -> list[Path]:
     fasta_names: list[Path] = []
     for pattern in FASTA_EXTENSIONS:
         fasta_names.extend(fasta.glob("*" + pattern))
+        fasta_names.extend(fasta.glob("*" + pattern + ".gz"))
     if not fasta_names:
         msg = f"ERROR: No FASTA input genomes under {fasta} with extensions {', '.join(FASTA_EXTENSIONS)}"
         sys.exit(msg)

@@ -714,7 +714,7 @@ def anim(  # noqa: PLR0913
 
             # Waiting to log the whole column does reduce DB contention and
             # seems to avoid locking problems, but also means zero feedback.
-            # Logging every 25 entries are any similar fixed size seems likely
+            # Logging every 25 entries or any similar fixed size seems likely
             # to risk locking. The following should result in staggered commits:
             if query_hash == subject_hash:
                 try:
@@ -867,7 +867,7 @@ def anib(  # noqa: PLR0913
 
             # Waiting to log the whole column does reduce DB contention and
             # seems to avoid locking problems, but also means zero feedback.
-            # Logging every 25 entries are any similar fixed size seems likely
+            # Logging every 25 entries or any similar fixed size seems likely
             # to risk locking. The following should result in staggered commits:
             if query_hash == subject_hash:
                 try:
@@ -1038,7 +1038,7 @@ def dnadiff(  # noqa: C901, PLR0913, PLR0915
 
             # Waiting to log the whole column does reduce DB contention and
             # seems to avoid locking problems, but also means zero feedback.
-            # Logging every 25 entries are any similar fixed size seems likely
+            # Logging every 25 entries or any similar fixed size seems likely
             # to risk locking. The following should result in staggered commits:
             if query_hash == subject_hash:
                 try:

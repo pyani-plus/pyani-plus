@@ -27,6 +27,7 @@ snakemake, for example from worker nodes, to log results to the database.
 
 import os
 import platform
+import signal
 import sys
 import tempfile
 from contextlib import nullcontext
@@ -415,6 +416,10 @@ def compute_column(  # noqa: C901
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
+    # We want to receive any SIGINT as a KeyboardInterrupt even if we
+    # are run via a bash shell or other non-interactive setting:
+    signal.signal(signal.SIGINT, signal.default_int_handler)
+
     session = db_orm.connect_to_db(database)
     run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
     config = run.configuration
@@ -639,92 +644,98 @@ def anim(  # noqa: PLR0913
     subject_stem = Path(hash_to_filename[subject_hash]).stem
 
     db_entries = []
-    for query_hash in query_hashes:
-        query_length = (
-            session.query(db_orm.Genome)
-            .where(db_orm.Genome.genome_hash == query_hash)
-            .one()
-            .length
-        )
-        query_stem = Path(hash_to_filename[query_hash]).stem
+    try:
+        for query_hash in query_hashes:
+            query_length = (
+                session.query(db_orm.Genome)
+                .where(db_orm.Genome.genome_hash == query_hash)
+                .one()
+                .length
+            )
+            query_stem = Path(hash_to_filename[query_hash]).stem
 
-        stem = tmp_dir / f"{query_stem}_vs_{subject_stem}"
-        delta = tmp_dir / f"{query_stem}_vs_{subject_stem}.delta"
-        deltafilter = tmp_dir / f"{query_stem}_vs_{subject_stem}.filter"
+            stem = tmp_dir / f"{query_stem}_vs_{subject_stem}"
+            delta = tmp_dir / f"{query_stem}_vs_{subject_stem}.delta"
+            deltafilter = tmp_dir / f"{query_stem}_vs_{subject_stem}.filter"
 
-        if not quiet:
-            print(f"INFO: Calling nucmer for {delta.name}")
+            if not quiet:
+                print(f"INFO: Calling nucmer for {delta.name}")
 
-        # Here mode will be "mum" (default) or "maxmatch", meaning nucmer --mum etc.
-        check_output(
-            [
-                str(nucmer.exe_path),
-                "-p",
-                str(stem),
-                f"--{mode}",
-                # subject THEN query:
-                str(fasta_dir / hash_to_filename[subject_hash]),
-                str(fasta_dir / hash_to_filename[query_hash]),
-            ],
-        )
-        if not delta.is_file():
-            msg = f"ERROR: nucmer didn't make {delta}"
-            sys.exit(msg)
+            # Here mode will be "mum" (default) or "maxmatch", meaning nucmer --mum etc.
+            check_output(
+                [
+                    str(nucmer.exe_path),
+                    "-p",
+                    str(stem),
+                    f"--{mode}",
+                    # subject THEN query:
+                    str(fasta_dir / hash_to_filename[subject_hash]),
+                    str(fasta_dir / hash_to_filename[query_hash]),
+                ],
+            )
+            if not delta.is_file():
+                msg = f"ERROR: nucmer didn't make {delta}"
+                sys.exit(msg)
 
-        if not quiet:
-            print(f"INFO: Calling delta filter for {deltafilter.name}")
+            if not quiet:
+                print(f"INFO: Calling delta filter for {deltafilter.name}")
 
-        # The constant -1 option is used for 1-to-1 alignments in the delta-filter,
-        # with no other options available for the end user.
-        output = check_output(
-            [
-                str(delta_filter.exe_path),
-                "-1",
-                str(delta),
-            ],
-        )
-        # Don't really need to write this to disk except to help with testing intermediates
-        with deltafilter.open("w") as handle:
-            handle.write(output)
+            # The constant -1 option is used for 1-to-1 alignments in the delta-filter,
+            # with no other options available for the end user.
+            output = check_output(
+                [
+                    str(delta_filter.exe_path),
+                    "-1",
+                    str(delta),
+                ],
+            )
+            # Don't really need to write this to disk except to help with testing intermediates
+            with deltafilter.open("w") as handle:
+                handle.write(output)
 
-        query_aligned_bases, subject_aligned_bases, identity, sim_errors = (
-            method_anim.parse_delta(deltafilter)
-        )
+            query_aligned_bases, subject_aligned_bases, identity, sim_errors = (
+                method_anim.parse_delta(deltafilter)
+            )
 
-        db_entries.append(
-            {
-                "query_hash": query_hash,
-                "subject_hash": subject_hash,
-                "identity": identity,
-                "aln_length": query_aligned_bases,
-                "sim_errors": sim_errors,
-                "cov_query": None
-                if query_aligned_bases is None
-                else float(query_aligned_bases) / query_length,
-                "cov_subject": None
-                if subject_aligned_bases is None
-                else float(subject_aligned_bases) / subject_length,
-                "configuration_id": config_id,
-                "uname_system": uname_system,
-                "uname_release": uname_release,
-                "uname_machine": uname_machine,
-            }
-        )
+            db_entries.append(
+                {
+                    "query_hash": query_hash,
+                    "subject_hash": subject_hash,
+                    "identity": identity,
+                    "aln_length": query_aligned_bases,
+                    "sim_errors": sim_errors,
+                    "cov_query": None
+                    if query_aligned_bases is None
+                    else float(query_aligned_bases) / query_length,
+                    "cov_subject": None
+                    if subject_aligned_bases is None
+                    else float(subject_aligned_bases) / subject_length,
+                    "configuration_id": config_id,
+                    "uname_system": uname_system,
+                    "uname_release": uname_release,
+                    "uname_machine": uname_machine,
+                }
+            )
 
-        # Waiting to log the whole column does reduce DB contention and
-        # seems to avoid locking problems, but also means zero feedback.
-        # Logging every 25 entries or any similar fixed size seems likely
-        # to risk locking. The following should result in staggered commits:
-        if query_hash == subject_hash:
-            try:
-                session.execute(
-                    sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
-                    db_entries,
-                )
-                session.commit()
-                db_entries = []
-            except OperationalError:
-                pass
+            # Waiting to log the whole column does reduce DB contention and
+            # seems to avoid locking problems, but also means zero feedback.
+            # Logging every 25 entries or any similar fixed size seems likely
+            # to risk locking. The following should result in staggered commits:
+            if query_hash == subject_hash:
+                try:
+                    session.execute(
+                        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
+                        db_entries,
+                    )
+                    session.commit()
+                    db_entries = []
+                except OperationalError:
+                    pass
+
+    except KeyboardInterrupt:
+        # Try to abort gracefully without wasting the work done.
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
+        sys.stderr.write(msg)
 
     if db_entries:
         session.execute(
@@ -791,88 +802,95 @@ def anib(  # noqa: PLR0913
     )
 
     db_entries = []
-    for query_hash in query_hashes:
-        query_stem = Path(hash_to_filename[query_hash]).stem
-        tmp_tsv = tmp_dir / f"{query_stem}_vs_{subject_stem}.tsv"
+    try:
+        for query_hash in query_hashes:
+            query_stem = Path(hash_to_filename[query_hash]).stem
+            tmp_tsv = tmp_dir / f"{query_stem}_vs_{subject_stem}.tsv"
 
-        # Potential race condition if other columns are being computed with the
-        # same tmp_dir - so give the fragments file a unique name using PID:
-        tmp_frag_query = (
-            tmp_dir / f"{query_stem}-fragments-{fragsize}-pid{os.getpid()}.fna"
-        )
+            # Potential race condition if other columns are being computed with the
+            # same tmp_dir - so give the fragments file a unique name using PID:
+            tmp_frag_query = (
+                tmp_dir / f"{query_stem}-fragments-{fragsize}-pid{os.getpid()}.fna"
+            )
 
-        method_anib.fragment_fasta_file(
-            fasta_dir / hash_to_filename[query_hash],
-            tmp_frag_query,
-            fragsize,
-        )
+            method_anib.fragment_fasta_file(
+                fasta_dir / hash_to_filename[query_hash],
+                tmp_frag_query,
+                fragsize,
+            )
 
-        if not quiet:
-            print(f"INFO: Calling blastn for {query_stem} vs {subject_stem}")
+            if not quiet:
+                print(f"INFO: Calling blastn for {query_stem} vs {subject_stem}")
 
-        check_output(
-            [
-                str(tool.exe_path),
-                "-query",
-                str(tmp_frag_query),
-                "-db",
-                str(tmp_db),
-                "-out",
-                str(tmp_tsv),
-                "-task",
-                "blastn",
-                "-outfmt",
-                outfmt,
-                "-xdrop_gap_final",
-                "150",
-                "-dust",
-                "no",
-                "-evalue",
-                "1e-15",
-            ],
-        )
+            check_output(
+                [
+                    str(tool.exe_path),
+                    "-query",
+                    str(tmp_frag_query),
+                    "-db",
+                    str(tmp_db),
+                    "-out",
+                    str(tmp_tsv),
+                    "-task",
+                    "blastn",
+                    "-outfmt",
+                    outfmt,
+                    "-xdrop_gap_final",
+                    "150",
+                    "-dust",
+                    "no",
+                    "-evalue",
+                    "1e-15",
+                ],
+            )
 
-        identity, aln_length, sim_errors = method_anib.parse_blastn_file(tmp_tsv)
+            identity, aln_length, sim_errors = method_anib.parse_blastn_file(tmp_tsv)
 
-        query_length = (
-            session.query(db_orm.Genome)
-            .where(db_orm.Genome.genome_hash == query_hash)
-            .one()
-            .length
-        )
+            query_length = (
+                session.query(db_orm.Genome)
+                .where(db_orm.Genome.genome_hash == query_hash)
+                .one()
+                .length
+            )
 
-        db_entries.append(
-            {
-                "query_hash": query_hash,
-                "subject_hash": subject_hash,
-                "identity": identity,
-                "aln_length": aln_length,
-                "sim_errors": sim_errors,
-                "cov_query": None if aln_length is None else aln_length / query_length,
-                "cov_subject": None
-                if aln_length is None
-                else aln_length / subject_length,
-                "configuration_id": config_id,
-                "uname_system": uname_system,
-                "uname_release": uname_release,
-                "uname_machine": uname_machine,
-            }
-        )
+            db_entries.append(
+                {
+                    "query_hash": query_hash,
+                    "subject_hash": subject_hash,
+                    "identity": identity,
+                    "aln_length": aln_length,
+                    "sim_errors": sim_errors,
+                    "cov_query": None
+                    if aln_length is None
+                    else aln_length / query_length,
+                    "cov_subject": None
+                    if aln_length is None
+                    else aln_length / subject_length,
+                    "configuration_id": config_id,
+                    "uname_system": uname_system,
+                    "uname_release": uname_release,
+                    "uname_machine": uname_machine,
+                }
+            )
 
-        # Waiting to log the whole column does reduce DB contention and
-        # seems to avoid locking problems, but also means zero feedback.
-        # Logging every 25 entries or any similar fixed size seems likely
-        # to risk locking. The following should result in staggered commits:
-        if query_hash == subject_hash:
-            try:
-                session.execute(
-                    sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
-                    db_entries,
-                )
-                session.commit()
-                db_entries = []
-            except OperationalError:
-                pass
+            # Waiting to log the whole column does reduce DB contention and
+            # seems to avoid locking problems, but also means zero feedback.
+            # Logging every 25 entries or any similar fixed size seems likely
+            # to risk locking. The following should result in staggered commits:
+            if query_hash == subject_hash:
+                try:
+                    session.execute(
+                        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
+                        db_entries,
+                    )
+                    session.commit()
+                    db_entries = []
+                except OperationalError:
+                    pass
+    except KeyboardInterrupt:
+        # Try to abort gracefully without wasting the work done.
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
+        sys.stderr.write(msg)
 
     if db_entries:
         session.execute(
@@ -882,7 +900,7 @@ def anib(  # noqa: PLR0913
     return 0
 
 
-def dnadiff(  # noqa: PLR0913, PLR0915
+def dnadiff(  # noqa: C901, PLR0913, PLR0915
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
@@ -910,133 +928,140 @@ def dnadiff(  # noqa: PLR0913, PLR0915
     subject_stem = Path(hash_to_filename[subject_hash]).stem
 
     db_entries = []
-    for query_hash in query_hashes:
-        query_length = (
-            session.query(db_orm.Genome)
-            .where(db_orm.Genome.genome_hash == query_hash)
-            .one()
-            .length
-        )
-        query_stem = Path(hash_to_filename[query_hash]).stem
-
-        stem = tmp_dir / f"{query_stem}_vs_{subject_stem}"
-        delta = tmp_dir / f"{query_stem}_vs_{subject_stem}.delta"
-        deltafilter = tmp_dir / f"{query_stem}_vs_{subject_stem}.filter"
-        qdiff = tmp_dir / f"{query_stem}_vs_{subject_stem}.qdiff"
-        mcoords = tmp_dir / f"{query_stem}_vs_{subject_stem}.mcoords"
-
-        if not quiet:
-            print(f"INFO: Calling nucmer for {delta.name}")
-        # This should not be run in the same tmp_dir as ANIm, as the nucmer output will clash
-        check_output(
-            [
-                str(nucmer.exe_path),
-                "-p",
-                str(stem),
-                "--maxmatch",
-                # subject THEN query:
-                str(fasta_dir / hash_to_filename[subject_hash]),
-                str(fasta_dir / hash_to_filename[query_hash]),
-            ],
-        )
-        if not delta.is_file():
-            msg = f"ERROR: nucmer didn't make {delta}"
-            sys.exit(msg)
-
-        if not quiet:
-            print(f"INFO: Calling delta-filter for {deltafilter.name}")
-        output = check_output(
-            [
-                str(delta_filter.exe_path),
-                "-m",
-                str(delta),
-            ],
-        )
-        # May be able to avoid writing this to disk, but helps with testing intermediates
-        with deltafilter.open("w") as handle:
-            handle.write(output)
-
-        if not quiet:
-            print(f"INFO: Calling show-diff for {qdiff.name}")
-        output = check_output(
-            [
-                str(show_diff.exe_path),
-                "-qH",
-                str(deltafilter),
-            ],
-        )
-        # May be able to avoid writing this to disk, but helps with testing intermediates
-        with qdiff.open("w") as handle:
-            handle.write(output)
-
-        if not quiet:
-            print(f"INFO: Calling show-coords for {mcoords.name}")
-        output = check_output(
-            [
-                str(show_coords.exe_path),
-                "-rclTH",
-                str(deltafilter),
-            ],
-        )
-        # May be able to avoid writing this to disk, but helps with testing intermediates
-        with mcoords.open("w") as handle:
-            handle.write(output)
-
-        identity, aligned_bases_with_gaps = method_dnadiff.parse_mcoords(mcoords)
-        gap_lengths = method_dnadiff.parse_qdiff(qdiff)
-
-        # For comparisons of closely related genomes, qdiff files might
-        # be empty as there are no gaps in the alignments. In this case, we
-        # want to treat gap_lengths as 0. In cases of comparisons
-        # of distantly related genomes, we report gap_lengths as None.
-        aln_length = (
-            None
-            if gap_lengths is None and aligned_bases_with_gaps is None
-            else (aligned_bases_with_gaps or 0) - (gap_lengths or 0)
-        )
-        sim_errors = (
-            None
-            if identity is None or aligned_bases_with_gaps is None
-            else round(
-                ((aligned_bases_with_gaps or 0) - (gap_lengths or 0)) * (1 - identity)
+    try:
+        for query_hash in query_hashes:
+            query_length = (
+                session.query(db_orm.Genome)
+                .where(db_orm.Genome.genome_hash == query_hash)
+                .one()
+                .length
             )
-        )
-        cov_query = (
-            None
-            if aligned_bases_with_gaps is None or query_length == 0
-            else ((aligned_bases_with_gaps or 0) - (gap_lengths or 0)) / query_length
-        )
+            query_stem = Path(hash_to_filename[query_hash]).stem
 
-        db_entries.append(
-            {
-                "query_hash": query_hash,
-                "subject_hash": subject_hash,
-                "identity": identity,
-                "aln_length": aln_length,
-                "sim_errors": sim_errors,
-                "cov_query": cov_query,
-                "cov_subject": None,
-                "configuration_id": config_id,
-                "uname_system": uname_system,
-                "uname_release": uname_release,
-                "uname_machine": uname_machine,
-            }
-        )
+            stem = tmp_dir / f"{query_stem}_vs_{subject_stem}"
+            delta = tmp_dir / f"{query_stem}_vs_{subject_stem}.delta"
+            deltafilter = tmp_dir / f"{query_stem}_vs_{subject_stem}.filter"
+            qdiff = tmp_dir / f"{query_stem}_vs_{subject_stem}.qdiff"
+            mcoords = tmp_dir / f"{query_stem}_vs_{subject_stem}.mcoords"
 
-        # Waiting to log the whole column does reduce DB contention and
-        # seems to avoid locking problems, but also means zero feedback.
-        # Logging every 25 entries or any similar fixed size seems likely
-        # to risk locking. The following should result in staggered commits:
-        if query_hash == subject_hash:
-            try:
-                session.execute(
-                    sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
-                    db_entries,
+            if not quiet:
+                print(f"INFO: Calling nucmer for {delta.name}")
+            # This should not be run in the same tmp_dir as ANIm, as the nucmer output will clash
+            check_output(
+                [
+                    str(nucmer.exe_path),
+                    "-p",
+                    str(stem),
+                    "--maxmatch",
+                    # subject THEN query:
+                    str(fasta_dir / hash_to_filename[subject_hash]),
+                    str(fasta_dir / hash_to_filename[query_hash]),
+                ],
+            )
+            if not delta.is_file():
+                msg = f"ERROR: nucmer didn't make {delta}"
+                sys.exit(msg)
+
+            if not quiet:
+                print(f"INFO: Calling delta-filter for {deltafilter.name}")
+            output = check_output(
+                [
+                    str(delta_filter.exe_path),
+                    "-m",
+                    str(delta),
+                ],
+            )
+            # May be able to avoid writing this to disk, but helps with testing intermediates
+            with deltafilter.open("w") as handle:
+                handle.write(output)
+
+            if not quiet:
+                print(f"INFO: Calling show-diff for {qdiff.name}")
+            output = check_output(
+                [
+                    str(show_diff.exe_path),
+                    "-qH",
+                    str(deltafilter),
+                ],
+            )
+            # May be able to avoid writing this to disk, but helps with testing intermediates
+            with qdiff.open("w") as handle:
+                handle.write(output)
+
+            if not quiet:
+                print(f"INFO: Calling show-coords for {mcoords.name}")
+            output = check_output(
+                [
+                    str(show_coords.exe_path),
+                    "-rclTH",
+                    str(deltafilter),
+                ],
+            )
+            # May be able to avoid writing this to disk, but helps with testing intermediates
+            with mcoords.open("w") as handle:
+                handle.write(output)
+
+            identity, aligned_bases_with_gaps = method_dnadiff.parse_mcoords(mcoords)
+            gap_lengths = method_dnadiff.parse_qdiff(qdiff)
+
+            # For comparisons of closely related genomes, qdiff files might
+            # be empty as there are no gaps in the alignments. In this case, we
+            # want to treat gap_lengths as 0. In cases of comparisons
+            # of distantly related genomes, we report gap_lengths as None.
+            aln_length = (
+                None
+                if gap_lengths is None and aligned_bases_with_gaps is None
+                else (aligned_bases_with_gaps or 0) - (gap_lengths or 0)
+            )
+            sim_errors = (
+                None
+                if identity is None or aligned_bases_with_gaps is None
+                else round(
+                    ((aligned_bases_with_gaps or 0) - (gap_lengths or 0))
+                    * (1 - identity)
                 )
-                session.commit()
-                db_entries = []
-            except OperationalError:
-                pass
+            )
+            cov_query = (
+                None
+                if aligned_bases_with_gaps is None or query_length == 0
+                else ((aligned_bases_with_gaps or 0) - (gap_lengths or 0))
+                / query_length
+            )
+
+            db_entries.append(
+                {
+                    "query_hash": query_hash,
+                    "subject_hash": subject_hash,
+                    "identity": identity,
+                    "aln_length": aln_length,
+                    "sim_errors": sim_errors,
+                    "cov_query": cov_query,
+                    "cov_subject": None,
+                    "configuration_id": config_id,
+                    "uname_system": uname_system,
+                    "uname_release": uname_release,
+                    "uname_machine": uname_machine,
+                }
+            )
+
+            # Waiting to log the whole column does reduce DB contention and
+            # seems to avoid locking problems, but also means zero feedback.
+            # Logging every 25 entries or any similar fixed size seems likely
+            # to risk locking. The following should result in staggered commits:
+            if query_hash == subject_hash:
+                try:
+                    session.execute(
+                        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
+                        db_entries,
+                    )
+                    session.commit()
+                    db_entries = []
+                except OperationalError:
+                    pass
+    except KeyboardInterrupt:
+        # Try to abort gracefully without wasting the work done.
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
+        sys.stderr.write(msg)
 
     if db_entries:
         session.execute(

@@ -420,6 +420,11 @@ def compute_column(  # noqa: C901
     # are run via a bash shell or other non-interactive setting:
     signal.signal(signal.SIGINT, signal.default_int_handler)
 
+    # Under SLURM when a job is cancelled via scancel, it sends SIGTERM
+    # for a graceful shutdown then 30s later a SIGKILL hard kill.
+    # For simplicity, treat SIGTERM as a KeyboardInterrupt too.
+    signal.signal(signal.SIGTERM, signal.default_int_handler)
+
     session = db_orm.connect_to_db(database)
     run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
     config = run.configuration

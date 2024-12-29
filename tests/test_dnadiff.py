@@ -128,7 +128,7 @@ def test_running_dnadiff(
         input_genomes_tiny,
         hash_to_filename,
         {},  # not used for dnadiff
-        query_hashes=set(hash_to_filename),  # order should not matter!
+        query_hashes=list(hash_to_filename),  # order should not matter!
         subject_hash=subject_hash,
     )
     assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004

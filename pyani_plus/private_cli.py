@@ -35,6 +35,7 @@ from typing import Annotated
 import typer
 from rich.progress import Progress
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
@@ -443,10 +444,12 @@ def compute_column(  # noqa: C901, PLR0912
         del column
 
     # What comparisons are needed?
-    query_hashes: set[str] = set(hash_to_filename).difference(
-        comp.query_hash
-        for comp in run.comparisons().where(
-            db_orm.Comparison.subject_hash == subject_hash
+    query_hashes: list[str] = sorted(
+        set(hash_to_filename).difference(
+            comp.query_hash
+            for comp in run.comparisons().where(
+                db_orm.Comparison.subject_hash == subject_hash
+            )
         )
     )
 
@@ -509,7 +512,7 @@ def fastani(  # noqa: PLR0913
     fasta_dir: Path,
     hash_to_filename: dict[str, Path],
     filename_to_hash: dict[str, str],
-    query_hashes: set[str],
+    query_hashes: list[str],
     subject_hash: str,
     *,
     quiet: bool = False,
@@ -605,7 +608,7 @@ def anim(  # noqa: PLR0913
     fasta_dir: Path,
     hash_to_filename: dict[str, Path],
     filename_to_hash: dict[str, str],  # noqa: ARG001
-    query_hashes: set[str],
+    query_hashes: list[str],
     subject_hash: str,
     *,
     quiet: bool = False,
@@ -703,11 +706,26 @@ def anim(  # noqa: PLR0913
             }
         )
 
-    # To reduce DB contention log the entire column in one go:
-    session.execute(
-        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(), db_entries
-    )
-    session.commit()
+        # Waiting to log the whole column does reduce DB contention and
+        # seems to avoid locking problems, but also means zero feedback.
+        # Logging every 25 entries or any similar fixed size seems likely
+        # to risk locking. The following should result in staggered commits:
+        if query_hash == subject_hash:
+            try:
+                session.execute(
+                    sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
+                    db_entries,
+                )
+                session.commit()
+                db_entries = []
+            except OperationalError:
+                pass
+
+    if db_entries:
+        session.execute(
+            sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(), db_entries
+        )
+        session.commit()
     return 0
 
 
@@ -718,7 +736,7 @@ def anib(  # noqa: PLR0913
     fasta_dir: Path,
     hash_to_filename: dict[str, Path],
     filename_to_hash: dict[str, str],  # noqa: ARG001
-    query_hashes: set[str],
+    query_hashes: list[str],
     subject_hash: str,
     *,
     quiet: bool = False,
@@ -833,22 +851,37 @@ def anib(  # noqa: PLR0913
             }
         )
 
-    # To reduce DB contention log the entire column in one go:
-    session.execute(
-        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(), db_entries
-    )
-    session.commit()
+        # Waiting to log the whole column does reduce DB contention and
+        # seems to avoid locking problems, but also means zero feedback.
+        # Logging every 25 entries or any similar fixed size seems likely
+        # to risk locking. The following should result in staggered commits:
+        if query_hash == subject_hash:
+            try:
+                session.execute(
+                    sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
+                    db_entries,
+                )
+                session.commit()
+                db_entries = []
+            except OperationalError:
+                pass
+
+    if db_entries:
+        session.execute(
+            sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(), db_entries
+        )
+        session.commit()
     return 0
 
 
-def dnadiff(  # noqa: PLR0913
+def dnadiff(  # noqa: PLR0913, PLR0915
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
     fasta_dir: Path,
     hash_to_filename: dict[str, Path],
     filename_to_hash: dict[str, str],  # noqa: ARG001
-    query_hashes: set[str],
+    query_hashes: list[str],
     subject_hash: str,
     *,
     quiet: bool = False,
@@ -982,11 +1015,26 @@ def dnadiff(  # noqa: PLR0913
             }
         )
 
-    # To reduce DB contention log the entire column in one go:
-    session.execute(
-        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(), db_entries
-    )
-    session.commit()
+        # Waiting to log the whole column does reduce DB contention and
+        # seems to avoid locking problems, but also means zero feedback.
+        # Logging every 25 entries or any similar fixed size seems likely
+        # to risk locking. The following should result in staggered commits:
+        if query_hash == subject_hash:
+            try:
+                session.execute(
+                    sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
+                    db_entries,
+                )
+                session.commit()
+                db_entries = []
+            except OperationalError:
+                pass
+
+    if db_entries:
+        session.execute(
+            sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(), db_entries
+        )
+        session.commit()
     return 0
 
 

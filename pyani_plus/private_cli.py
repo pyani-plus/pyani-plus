@@ -679,8 +679,8 @@ def anim(  # noqa: PLR0913
                 ],
             )
             if not delta.is_file():
-                msg = f"ERROR: nucmer didn't make {delta}"
-                sys.exit(msg)
+                msg = f"ERROR: nucmer didn't make {delta}"  # pragma: no cover
+                sys.exit(msg)  # pragma: no cover
 
             if not quiet:
                 print(f"INFO: Calling delta filter for {deltafilter.name}")
@@ -964,8 +964,8 @@ def dnadiff(  # noqa: C901, PLR0913, PLR0915
                 ],
             )
             if not delta.is_file():
-                msg = f"ERROR: nucmer didn't make {delta}"
-                sys.exit(msg)
+                msg = f"ERROR: nucmer didn't make {delta}"  # pragma: no cover
+                sys.exit(msg)  # pragma: no cover
 
             if not quiet:
                 print(f"INFO: Calling delta-filter for {deltafilter.name}")

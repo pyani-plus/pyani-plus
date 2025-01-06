@@ -103,9 +103,9 @@ def progress_bar_via_db_comparisons(
                 db_version = (
                     session.connection().execute(text("PRAGMA data_version;")).one()[0]
                 )
-            except OperationalError:
+            except OperationalError:  # pragma: no cover
                 # Probably another process is updating the DB, try again soon
-                continue
+                continue  # pragma: no cover
             if old_db_version == db_version:
                 continue
             old_db_version = db_version

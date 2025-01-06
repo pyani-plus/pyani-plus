@@ -571,6 +571,167 @@ def test_compute_column_bad_args(
         )
 
 
+def test_compute_column_bad_anib(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Check how compute_column handles bad ANIb settings."""
+    tmp_db = Path(tmp_path) / "anib.sqlite"
+    assert not tmp_db.is_file()
+
+    tool = tools.get_blastn()
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus guessing ...",
+        status="Testing",
+        name="Testing compute-column",
+        method="ANIb",
+        program=tool.exe_path.stem,
+        version=tool.version,
+        # fragsize=...,  <-- missing!
+        create_db=True,
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: ANIb run-id 1 is missing fragsize parameter",
+    ):
+        private_cli.compute_column(
+            database=tmp_db,
+            run_id=1,
+            subject="0",
+        )
+
+
+def test_compute_column_bad_anim(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Check how compute_column handles bad ANIm settings."""
+    tmp_db = Path(tmp_path) / "anim.sqlite"
+    assert not tmp_db.is_file()
+
+    tool = tools.get_nucmer()
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus guessing ...",
+        status="Testing",
+        name="Testing compute-column",
+        method="ANIm",
+        program=tool.exe_path.stem,
+        version=tool.version,
+        # mode=...,  <-- missing!
+        create_db=True,
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: ANIm run-id 1 is missing mode parameter",
+    ):
+        private_cli.compute_column(
+            database=tmp_db,
+            run_id=1,
+            subject="0",
+        )
+
+
+def test_compute_column_bad_fastani(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Check how compute_column handles bad fastani settings."""
+    tmp_db = Path(tmp_path) / "fastani.sqlite"
+    assert not tmp_db.is_file()
+
+    tool = tools.get_fastani()
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus guessing ...",
+        status="Testing",
+        name="Testing compute-column",
+        method="fastANI",
+        program=tool.exe_path.stem,
+        version=tool.version,
+        # fragsize=...,  <-- missing!
+        create_db=True,
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: fastANI run-id 1 is missing fragsize parameter",
+    ):
+        private_cli.compute_column(
+            database=tmp_db,
+            run_id=1,
+            subject="0",
+        )
+
+    tool = tools.get_fastani()
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus guessing ...",
+        status="Testing",
+        name="Testing compute-column",
+        method="fastANI",
+        program=tool.exe_path.stem,
+        version=tool.version,
+        fragsize=1000,
+        # kmersize=...,  <-- missing!
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 2\n")
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: fastANI run-id 2 is missing kmersize parameter",
+    ):
+        private_cli.compute_column(
+            database=tmp_db,
+            run_id=2,
+            subject="0",
+        )
+
+    tool = tools.get_fastani()
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus guessing ...",
+        status="Testing",
+        name="Testing compute-column",
+        method="fastANI",
+        program=tool.exe_path.stem,
+        version=tool.version,
+        fragsize=1000,
+        kmersize=9,
+        # minmatch=..., <-- missing!
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 3\n")
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: fastANI run-id 3 is missing minmatch parameter",
+    ):
+        private_cli.compute_column(
+            database=tmp_db,
+            run_id=3,
+            subject="0",
+        )
+
+
 def test_compute_column_fastani(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,

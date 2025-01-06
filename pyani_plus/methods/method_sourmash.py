@@ -1,6 +1,6 @@
 # The MIT License
 #
-# Copyright (c) 2024 University of Strathclyde
+# Copyright (c) 2024-2025 University of Strathclyde
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -89,7 +89,9 @@ def parse_sourmash_manysearch_csv(
     Returns tuples of (query_hash, subject_hash, query-containment ANI
     estimate, max-containment ANI estimate).
 
-    Any pairs not in the file are inferred to be failed alignments.
+    Any pairs not in the file are inferred to be failed alignments.  As we are
+    using reporting threshold zero, this only applies to corner cases where
+    there are no common k-mers.
     """
     column_query = column_subject = column_query_cont = column_max_cont = 0
     with manysearch_file.open() as handle:

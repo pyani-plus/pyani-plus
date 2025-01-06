@@ -516,6 +516,18 @@ def fastani(  # noqa: PLR0913
     _check_tool_version(tool, run.configuration)
 
     config_id = run.configuration.configuration_id
+    fragsize = run.configuration.fragsize
+    if not fragsize:
+        msg = f"ERROR: fastANI run-id {run.run_id} is missing fragsize parameter"
+        sys.exit(msg)
+    kmersize = run.configuration.kmersize
+    if not kmersize:
+        msg = f"ERROR: fastANI run-id {run.run_id} is missing kmersize parameter"
+        sys.exit(msg)
+    minmatch = run.configuration.minmatch
+    if not minmatch:
+        msg = f"ERROR: fastANI run-id {run.run_id} is missing minmatch parameter"
+        sys.exit(msg)
 
     tmp_output = tmp_dir / f"queries_vs_{subject_hash}.csv"
     tmp_queries = tmp_dir / f"queries_vs_{subject_hash}.txt"
@@ -539,11 +551,11 @@ def fastani(  # noqa: PLR0913
             "-o",
             str(tmp_output),
             "--fragLen",
-            str(run.configuration.fragsize),
+            str(fragsize),
             "-k",
-            str(run.configuration.kmersize),
+            str(kmersize),
             "--minFraction",
-            str(run.configuration.minmatch),
+            str(minmatch),
         ],
     )
 
@@ -614,6 +626,10 @@ def anim(  # noqa: PLR0913
 
     config_id = run.configuration.configuration_id
     mode = run.configuration.mode
+    if not mode:
+        msg = f"ERROR: ANIm run-id {run.run_id} is missing mode parameter"
+        sys.exit(msg)
+
     subject_length = (
         session.query(db_orm.Genome)
         .where(db_orm.Genome.genome_hash == subject_hash)
@@ -741,6 +757,9 @@ def anib(  # noqa: PLR0913
 
     config_id = run.configuration_id
     fragsize = run.configuration.fragsize
+    if not fragsize:
+        msg = f"ERROR: ANIb run-id {run.run_id} is missing fragsize parameter"
+        sys.exit(msg)
     subject_length = (
         session.query(db_orm.Genome)
         .where(db_orm.Genome.genome_hash == subject_hash)

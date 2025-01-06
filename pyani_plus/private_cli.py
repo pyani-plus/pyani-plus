@@ -734,8 +734,8 @@ def anim(  # noqa: PLR0913
                     )
                     session.commit()
                     db_entries = []
-                except OperationalError:
-                    pass
+                except OperationalError:  # pragma: no cover
+                    pass  # pragma: no cover
 
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
@@ -890,8 +890,8 @@ def anib(  # noqa: PLR0913
                     )
                     session.commit()
                     db_entries = []
-                except OperationalError:
-                    pass
+                except OperationalError:  # pragma: no cover
+                    pass  # pragma: no cover
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
         msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
@@ -1061,8 +1061,8 @@ def dnadiff(  # noqa: C901, PLR0913, PLR0915
                     )
                     session.commit()
                     db_entries = []
-                except OperationalError:
-                    pass
+                except OperationalError:  # pragma: no cover
+                    pass  # pragma: no cover
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
         msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"

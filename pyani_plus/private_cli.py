@@ -499,7 +499,7 @@ def fastani(  # noqa: PLR0913
     session: Session,
     run: db_orm.Run,
     fasta_dir: Path,
-    hash_to_filename: dict[str, Path],
+    hash_to_filename: dict[str, str],
     filename_to_hash: dict[str, str],
     query_hashes: list[str],
     subject_hash: str,
@@ -607,7 +607,7 @@ def anim(  # noqa: PLR0913
     session: Session,
     run: db_orm.Run,
     fasta_dir: Path,
-    hash_to_filename: dict[str, Path],
+    hash_to_filename: dict[str, str],
     filename_to_hash: dict[str, str],  # noqa: ARG001
     query_hashes: list[str],
     subject_hash: str,
@@ -739,7 +739,7 @@ def anib(  # noqa: PLR0913
     session: Session,
     run: db_orm.Run,
     fasta_dir: Path,
-    hash_to_filename: dict[str, Path],
+    hash_to_filename: dict[str, str],
     filename_to_hash: dict[str, str],  # noqa: ARG001
     query_hashes: list[str],
     subject_hash: str,
@@ -887,7 +887,7 @@ def dnadiff(  # noqa: PLR0913, PLR0915
     session: Session,
     run: db_orm.Run,
     fasta_dir: Path,
-    hash_to_filename: dict[str, Path],
+    hash_to_filename: dict[str, str],
     filename_to_hash: dict[str, str],  # noqa: ARG001
     query_hashes: list[str],
     subject_hash: str,

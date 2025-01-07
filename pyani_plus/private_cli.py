@@ -25,8 +25,10 @@ The commands defined here are intended to be used from within pyANI-plus via
 snakemake, for example from worker nodes, to log results to the database.
 """
 
+import gzip
 import os
 import platform
+import shutil
 import signal
 import sys
 import tempfile
@@ -750,7 +752,7 @@ def anim(  # noqa: PLR0913
     return 0
 
 
-def anib(  # noqa: PLR0913
+def anib(  # noqa: C901,PLR0913,PLR0915
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
@@ -782,8 +784,22 @@ def anib(  # noqa: PLR0913
         .one()
         .length
     )
-    subject_stem = Path(hash_to_filename[subject_hash]).stem
     outfmt = "6 " + " ".join(method_anib.BLAST_COLUMNS)
+
+    if hash_to_filename[subject_hash].endswith(".gz"):
+        # We must decompress the FASTA file for makeblastdb,
+        # could use stdin (default input), but simpler to
+        # make a temp file:
+        subject_fasta = tmp_dir / hash_to_filename[subject_hash][:-3]
+        subject_stem = subject_fasta.stem
+        with (
+            gzip.open(fasta_dir / hash_to_filename[subject_hash], "rb") as f_in,
+            subject_fasta.open("wb") as f_out,
+        ):
+            shutil.copyfileobj(f_in, f_out)
+    else:
+        subject_stem = Path(hash_to_filename[subject_hash]).stem
+        subject_fasta = fasta_dir / hash_to_filename[subject_hash]
 
     tmp_db = tmp_dir / f"{subject_stem}"  # prefix for BLAST DB
 
@@ -794,7 +810,7 @@ def anib(  # noqa: PLR0913
         [
             str(tools.get_makeblastdb().exe_path),
             "-in",
-            str(fasta_dir / hash_to_filename[subject_hash]),
+            str(subject_fasta),
             "-input_type",
             "fasta",
             "-dbtype",
@@ -805,6 +821,9 @@ def anib(  # noqa: PLR0913
             str(tmp_db),
         ],
     )
+
+    if hash_to_filename[subject_hash].endswith(".gz"):
+        subject_fasta.unlink()  # remove our decompressed copy
 
     db_entries = []
     try:

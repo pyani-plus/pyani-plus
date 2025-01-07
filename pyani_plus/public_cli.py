@@ -34,7 +34,6 @@ from pathlib import Path
 from typing import Annotated
 
 import click
-import pandas as pd
 import typer
 from rich.console import Console
 from rich.progress import Progress
@@ -902,9 +901,6 @@ def export_run(  # noqa: C901, PLR0912, PLR0915
 
     if run.identities is None:
         run.cache_comparisons()
-    if not isinstance(run.identities, pd.DataFrame):
-        msg = f"ERROR: Could not access identities matrix from JSON for {run_id}"
-        sys.exit(msg)
 
     # Question: Should we export a plain text of JSON summary of the configuration etc?
     # Question: Should we include the run-id in the filenames name?

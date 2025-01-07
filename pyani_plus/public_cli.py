@@ -339,8 +339,9 @@ def run_method(  # noqa: PLR0913
         done = run.comparisons().count()
 
     if done != n**2:
-        msg = f"ERROR: Only have {done} of {n}²={n**2} {method} comparisons needed"
-        sys.exit(msg)
+        # There is no obvious way to test this hypothetical failure:
+        msg = f"ERROR: Only have {done} of {n}²={n**2} {method} comparisons needed"  # pragma: no cover
+        sys.exit(msg)  # pragma: no cover
 
     run.cache_comparisons()  # will this needs a progress bar too with large n?
     run.status = "Done"

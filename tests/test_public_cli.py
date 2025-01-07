@@ -27,6 +27,8 @@ pytest -v
 """
 
 import filecmp
+import gzip
+import shutil
 from pathlib import Path
 
 import pandas as pd
@@ -34,6 +36,21 @@ import pytest
 
 from pyani_plus import db_orm, public_cli, tools
 from pyani_plus.utils import file_md5sum
+
+
+@pytest.fixture(scope="session")
+def gzipped_tiny_example(
+    tmp_path_factory: pytest.TempPathFactory, input_genomes_tiny: Path
+) -> Path:
+    """Make a gzipped version of the viral directory of FASTA files."""
+    gzip_dir = tmp_path_factory.mktemp("gzipped_" + input_genomes_tiny.stem)
+    for fasta in input_genomes_tiny.glob("*.f*"):
+        with (
+            (input_genomes_tiny / fasta).open("rb") as f_in,
+            gzip.open(str(gzip_dir / (fasta.name + ".gz")), "wb") as f_out,
+        ):
+            shutil.copyfileobj(f_in, f_out)
+    return gzip_dir
 
 
 # This is very similar to the functions under tests/snakemake/__init__.py
@@ -403,6 +420,36 @@ def test_anib(tmp_path: str, input_genomes_tiny: Path) -> None:
     for file in (input_genomes_tiny / "intermediates/ANIb").glob("*_vs_*.tsv"):
         assert filecmp.cmp(file, tmp_dir / file), f"Wrong blastn output in {file.name}"
 
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
+    compare_matrix_files(
+        input_genomes_tiny / "matrices" / "ANIb_identity.tsv",
+        tmp_dir / "ANIb_identity.tsv",
+    )
+
+
+def test_anib_gzip(
+    tmp_path: str, input_genomes_tiny: Path, gzipped_tiny_example: Path
+) -> None:
+    """Check ANIb run (gzipped)."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "example.sqlite"
+    public_cli.anib(
+        database=tmp_db,
+        fasta=gzipped_tiny_example,
+        name="Test Run",
+        create_db=True,
+        temp=tmp_dir,
+    )
+
+    # The fragment files should match those expected without gzip compression!
+    for file in (input_genomes_tiny / "intermediates/ANIb").glob("*.f*"):
+        assert filecmp.cmp(file, tmp_dir / file), f"Wrong fragmented FASTA {file.name}"
+
+    # The intermediate TSV files should match too
+    for file in (input_genomes_tiny / "intermediates/ANIb").glob("*_vs_*.tsv"):
+        assert filecmp.cmp(file, tmp_dir / file), f"Wrong blastn output in {file.name}"
+
+    # Since the matrices are labelled by stem, they should match too:
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "ANIb_identity.tsv",

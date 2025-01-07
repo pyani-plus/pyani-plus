@@ -31,6 +31,21 @@ from pathlib import Path
 from pyani_plus import FASTA_EXTENSIONS
 
 
+def filename_stem(filename: str) -> str:
+    """Return the basename (stem) of a filename considering gzip suffix.
+
+    Modified Pathlib stem to consider .gz as well.
+
+    >>> filename_stem("/path/example.fna")
+    'example'
+    >>> filename_stem("relative/path/example.fna.gz")
+    'example'
+    """
+    if "/" in filename:
+        filename = filename.rsplit("/", 1)[1]
+    return Path(filename[:-3]).stem if filename.endswith(".gz") else Path(filename).stem
+
+
 def str_md5sum(text: str, encoding: str = "ascii") -> str:
     """Return the MD5 checksum hash digest of the passed string.
 

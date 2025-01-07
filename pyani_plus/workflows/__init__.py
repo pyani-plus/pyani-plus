@@ -136,6 +136,7 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     In quiet or spinner mode the DB is only accessed except by the workflow
     itself, and need not be passed to this function.
     """
+    success = False
     # Including the --temp as part of the parameter as a way to avoid
     # adding --temp without an argument:
     if temp:
@@ -202,27 +203,19 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
         )
         p.start()
 
-        # Call snakemake!
-        try:
-            success = args_to_api(args, parser)
-        except KeyboardInterrupt:
-            p.terminate()
-            p.join()
-            # Ensure exit message starts on a new line after interrupted progress bar
-            print()  # noqa: T201
-            msg = "User aborted with keyboard interrupt"
-            sys.exit(msg)
-        except Exception as err:  # noqa: BLE001
-            p.terminate()
-            # Ensure traceback starts on a new line after interrupted progress bar
-            print()  # noqa: T201
-            raise err from None
+        # Call snakemake! This seems to catch in KeyboardInterrupt itself
+        success = args_to_api(args, parser)
 
         if p.is_alive():
-            # Should have finished, but perhaps final update is pending...
+            # Progress bar should have finished, perhaps final update pending...
             sleep(interval)
             p.terminate()
         p.join()
 
     if not success:
-        sys.exit("Snakemake workflow failed")
+        # Writing a reliable test to trigger this has proved difficult,
+        # so marking this as not expecting any test coverage.
+
+        # Ensure exit message starts on a new line after interrupted progress bar
+        print()  # pragma: no cover  # noqa: T201
+        sys.exit("Snakemake workflow failed")  # pragma: no cover

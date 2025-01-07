@@ -670,7 +670,8 @@ def db_genome(
     # may have added it in the meantime
     old_genome = session.query(Genome).where(Genome.genome_hash == md5).one_or_none()
     if old_genome is not None:
-        return old_genome
+        # We do have a test for this, but it does not trigger reliably :(
+        return old_genome  # pragma: no cover
 
     session.add(genome)
     session.commit()

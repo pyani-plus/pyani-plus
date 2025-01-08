@@ -370,15 +370,52 @@ def test_anim(tmp_path: str, input_genomes_tiny: Path) -> None:
     public_cli.anim(
         database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=True
     )
-    # Now do it again - it should reuse the calculations:
-    public_cli.anim(
-        database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=False
-    )
-    public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=1)  # have two runs
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=1)
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "ANIm_identity.tsv",
         tmp_dir / "ANIm_identity.tsv",
     )
+
+    # Now do it again - it should reuse the calculations:
+    session = db_orm.connect_to_db(tmp_db)
+    count = session.query(db_orm.Comparison).count()
+    session.close()
+
+    public_cli.anim(
+        database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=False
+    )
+
+    session = db_orm.connect_to_db(tmp_db)
+    assert count == session.query(db_orm.Comparison).count()
+    session.close()
+
+
+def test_anim_gzip(
+    tmp_path: str, input_genomes_tiny: Path, gzipped_tiny_example: Path
+) -> None:
+    """Check ANIm run (gzipped)."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "example.sqlite"
+    public_cli.anim(
+        database=tmp_db, fasta=gzipped_tiny_example, name="Test Run", create_db=True
+    )
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=1)
+    compare_matrix_files(
+        input_genomes_tiny / "matrices" / "ANIm_identity.tsv",
+        tmp_dir / "ANIm_identity.tsv",
+    )
+
+    # Now do it again but with the decompressed files - it should reuse the calculations:
+    session = db_orm.connect_to_db(tmp_db)
+    count = session.query(db_orm.Comparison).count()
+    session.close()
+
+    public_cli.anim(
+        database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=False
+    )
+    session = db_orm.connect_to_db(tmp_db)
+    assert count == session.query(db_orm.Comparison).count()
+    session.close()
 
 
 def test_dnadiff(tmp_path: str, input_genomes_tiny: Path) -> None:
@@ -387,6 +424,27 @@ def test_dnadiff(tmp_path: str, input_genomes_tiny: Path) -> None:
     tmp_db = tmp_dir / "example.sqlite"
     # Leaving out name, so can check the default worked
     public_cli.dnadiff(database=tmp_db, fasta=input_genomes_tiny, create_db=True)
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
+    # Fuzzy, 0.9963 from dnadiff tool != 0.9962661747 from our code
+    compare_matrix_files(
+        input_genomes_tiny / "matrices" / "dnadiff_identity.tsv",
+        tmp_dir / "dnadiff_identity.tsv",
+        atol=5e-5,
+    )
+    session = db_orm.connect_to_db(tmp_db)
+    run = session.query(db_orm.Run).one()
+    assert run.name == "3 genomes using dnadiff"
+    session.close()
+
+
+def test_dnadiff_gzip(
+    tmp_path: str, input_genomes_tiny: Path, gzipped_tiny_example: Path
+) -> None:
+    """Check dnadiff run (gzipped)."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "example.sqlite"
+    # Leaving out name, so can check the default worked
+    public_cli.dnadiff(database=tmp_db, fasta=gzipped_tiny_example, create_db=True)
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     # Fuzzy, 0.9963 from dnadiff tool != 0.9962661747 from our code
     compare_matrix_files(

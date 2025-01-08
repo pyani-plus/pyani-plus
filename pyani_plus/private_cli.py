@@ -614,7 +614,7 @@ def fastani(  # noqa: PLR0913
     return 0
 
 
-def anim(  # noqa: PLR0913
+def anim(  # noqa: C901, PLR0912, PLR0913, PLR0915
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
@@ -648,7 +648,18 @@ def anim(  # noqa: PLR0913
         .one()
         .length
     )
-    subject_stem = Path(hash_to_filename[subject_hash]).stem
+    if hash_to_filename[subject_hash].endswith(".gz"):
+        # We must decompress the subject FASTA file for nucmer
+        subject_fasta = tmp_dir / hash_to_filename[subject_hash][:-3]
+        subject_stem = subject_fasta.stem
+        with (
+            gzip.open(fasta_dir / hash_to_filename[subject_hash], "rb") as f_in,
+            subject_fasta.open("wb") as f_out,
+        ):
+            shutil.copyfileobj(f_in, f_out)
+    else:
+        subject_stem = Path(hash_to_filename[subject_hash]).stem
+        subject_fasta = fasta_dir / hash_to_filename[subject_hash]
 
     db_entries = []
     try:
@@ -659,7 +670,26 @@ def anim(  # noqa: PLR0913
                 .one()
                 .length
             )
-            query_stem = Path(hash_to_filename[query_hash]).stem
+            if hash_to_filename[query_hash].endswith(".gz"):
+                # We must decompress the query FASTA file for nucmer
+                # (although we can reuse the subject file for self-vs-self)
+                query_fasta = tmp_dir / hash_to_filename[query_hash][:-3]
+                query_stem = query_fasta.stem
+                if query_hash != subject_hash:
+                    # We're using the original FASTA name (less .gz) for subject.
+                    # Another thread may create/delete that FASTA name for our query
+                    # - so make a unique name for the temp file:
+                    query_fasta = tmp_dir / f"{query_stem}_vs_{subject_stem}.fasta"
+                    with (
+                        gzip.open(
+                            fasta_dir / hash_to_filename[query_hash], "rb"
+                        ) as f_in,
+                        query_fasta.open("wb") as f_out,
+                    ):
+                        shutil.copyfileobj(f_in, f_out)
+            else:
+                query_stem = Path(hash_to_filename[query_hash]).stem
+                query_fasta = fasta_dir / hash_to_filename[query_hash]
 
             stem = tmp_dir / f"{query_stem}_vs_{subject_stem}"
             delta = tmp_dir / f"{query_stem}_vs_{subject_stem}.delta"
@@ -676,8 +706,8 @@ def anim(  # noqa: PLR0913
                     str(stem),
                     f"--{mode}",
                     # subject THEN query:
-                    str(fasta_dir / hash_to_filename[subject_hash]),
-                    str(fasta_dir / hash_to_filename[query_hash]),
+                    str(subject_fasta),
+                    str(query_fasta),
                 ],
             )
             if not delta.is_file():
@@ -738,6 +768,8 @@ def anim(  # noqa: PLR0913
                     db_entries = []
                 except OperationalError:  # pragma: no cover
                     pass  # pragma: no cover
+            elif hash_to_filename[query_hash].endswith(".gz"):
+                query_fasta.unlink()  # remove our decompressed copy
 
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
@@ -921,10 +953,11 @@ def anib(  # noqa: C901,PLR0913,PLR0915
             sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(), db_entries
         )
         session.commit()
+
     return 0
 
 
-def dnadiff(  # noqa: C901, PLR0913, PLR0915
+def dnadiff(  # noqa: C901, PLR0912, PLR0913, PLR0915
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
@@ -949,7 +982,18 @@ def dnadiff(  # noqa: C901, PLR0913, PLR0915
     _check_tool_version(nucmer, run.configuration)
 
     config_id = run.configuration.configuration_id
-    subject_stem = Path(hash_to_filename[subject_hash]).stem
+    if hash_to_filename[subject_hash].endswith(".gz"):
+        # We must decompress the subject FASTA file for nucmer
+        subject_fasta = tmp_dir / hash_to_filename[subject_hash][:-3]
+        subject_stem = subject_fasta.stem
+        with (
+            gzip.open(fasta_dir / hash_to_filename[subject_hash], "rb") as f_in,
+            subject_fasta.open("wb") as f_out,
+        ):
+            shutil.copyfileobj(f_in, f_out)
+    else:
+        subject_stem = Path(hash_to_filename[subject_hash]).stem
+        subject_fasta = fasta_dir / hash_to_filename[subject_hash]
 
     db_entries = []
     try:
@@ -960,7 +1004,26 @@ def dnadiff(  # noqa: C901, PLR0913, PLR0915
                 .one()
                 .length
             )
-            query_stem = Path(hash_to_filename[query_hash]).stem
+            if hash_to_filename[query_hash].endswith(".gz"):
+                # We must decompress the query FASTA file for nucmer
+                # (although we can reuse the subject file for self-vs-self)
+                query_fasta = tmp_dir / hash_to_filename[query_hash][:-3]
+                query_stem = query_fasta.stem
+                if query_hash != subject_hash:
+                    # We're using the original FASTA name (less .gz) for subject.
+                    # Another thread may create/delete that FASTA name for our query
+                    # - so make a unique name for the temp file:
+                    query_fasta = tmp_dir / f"{query_stem}_vs_{subject_stem}.fasta"
+                    with (
+                        gzip.open(
+                            fasta_dir / hash_to_filename[query_hash], "rb"
+                        ) as f_in,
+                        query_fasta.open("wb") as f_out,
+                    ):
+                        shutil.copyfileobj(f_in, f_out)
+            else:
+                query_stem = Path(hash_to_filename[query_hash]).stem
+                query_fasta = fasta_dir / hash_to_filename[query_hash]
 
             stem = tmp_dir / f"{query_stem}_vs_{subject_stem}"
             delta = tmp_dir / f"{query_stem}_vs_{subject_stem}.delta"
@@ -978,8 +1041,8 @@ def dnadiff(  # noqa: C901, PLR0913, PLR0915
                     str(stem),
                     "--maxmatch",
                     # subject THEN query:
-                    str(fasta_dir / hash_to_filename[subject_hash]),
-                    str(fasta_dir / hash_to_filename[query_hash]),
+                    str(subject_fasta),
+                    str(query_fasta),
                 ],
             )
             if not delta.is_file():
@@ -1082,6 +1145,8 @@ def dnadiff(  # noqa: C901, PLR0913, PLR0915
                     db_entries = []
                 except OperationalError:  # pragma: no cover
                     pass  # pragma: no cover
+            elif hash_to_filename[query_hash].endswith(".gz"):
+                query_fasta.unlink()  # remove our decompressed copy
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
         msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
@@ -1092,6 +1157,10 @@ def dnadiff(  # noqa: C901, PLR0913, PLR0915
             sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(), db_entries
         )
         session.commit()
+
+    if hash_to_filename[subject_hash].endswith(".gz"):
+        subject_fasta.unlink()  # remove our decompressed copy
+
     return 0
 
 

@@ -640,11 +640,11 @@ def resume(  # noqa: C901, PLR0912, PLR0915
         if count == 1:
             run = runs.one()
             run_id = run.run_id
-            print(f"INFO: Resuming run-id {run_id}, the only run in the {database}")
+            print(f"INFO: Resuming run-id {run_id}, the only run in {database}")
         elif count:
             run = runs.order_by(db_orm.Run.run_id.desc()).first()
             run_id = run.run_id
-            print(f"INFO: Resuming run-id {run_id}, the latest run in the {database}")
+            print(f"INFO: Resuming run-id {run_id}, the latest run in {database}")
         else:
             msg = f"ERROR: Database {database} contains no runs."
             sys.exit(msg)

@@ -29,6 +29,7 @@ Python objects.
 import datetime
 import gzip
 import platform
+import sys
 from io import StringIO
 from pathlib import Path
 
@@ -617,7 +618,7 @@ def db_configuration(  # noqa: PLR0913
     return config
 
 
-def db_genome(
+def db_genome(  # noqa: C901
     session: Session, fasta_filename: Path | str, md5: str, *, create: bool = False
 ) -> Genome:
     """Return a genome table entry, or add and return it if not already there.
@@ -644,6 +645,8 @@ def db_genome(
     Traceback (most recent call last):
     ...
     sqlalchemy.exc.NoResultFound: Requested genome not already in DB
+
+    FASTA files with gzip compression are fine, but must have the .gz extension.
     """
     old_genome = session.query(Genome).where(Genome.genome_hash == md5).one_or_none()
     if old_genome is not None:
@@ -662,7 +665,13 @@ def db_genome(
                 length += len(seq)
                 if description is None:
                     description = title  # Just use first entry
+            if not str(fasta_filename).endswith(".gz"):
+                msg = f"ERROR: No .gz ending, but {Path(fasta_filename).name} is gzip compressed"
+                sys.exit(msg)
     except gzip.BadGzipFile:
+        if str(fasta_filename).endswith(".gz"):
+            msg = f"ERROR: Has .gz ending, but {Path(fasta_filename).name} is NOT gzip compressed"
+            sys.exit(msg)
         with Path(fasta_filename).open() as handle:
             for title, seq in SimpleFastaParser(handle):
                 length += len(seq)

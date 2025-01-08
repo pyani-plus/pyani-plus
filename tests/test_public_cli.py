@@ -365,8 +365,8 @@ def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
 
 def test_anim(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check ANIm run."""
-    out = Path(tmp_path)
-    tmp_db = out / "example.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "example.sqlite"
     public_cli.anim(
         database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=True
     )
@@ -374,24 +374,24 @@ def test_anim(tmp_path: str, input_genomes_tiny: Path) -> None:
     public_cli.anim(
         database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=False
     )
-    public_cli.export_run(database=tmp_db, outdir=out, run_id=1)  # have two runs
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=1)  # have two runs
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "ANIm_identity.tsv",
-        out / "ANIm_identity.tsv",
+        tmp_dir / "ANIm_identity.tsv",
     )
 
 
 def test_dnadiff(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check dnadiff run (default settings)."""
-    out = Path(tmp_path)
-    tmp_db = out / "example.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "example.sqlite"
     # Leaving out name, so can check the default worked
     public_cli.dnadiff(database=tmp_db, fasta=input_genomes_tiny, create_db=True)
-    public_cli.export_run(database=tmp_db, outdir=out)
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     # Fuzzy, 0.9963 from dnadiff tool != 0.9962661747 from our code
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "dnadiff_identity.tsv",
-        out / "dnadiff_identity.tsv",
+        tmp_dir / "dnadiff_identity.tsv",
         atol=5e-5,
     )
     session = db_orm.connect_to_db(tmp_db)
@@ -500,25 +500,25 @@ def test_fastani_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
 
 def test_sourmash_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
     """Check sourmash run (gzipped bacteria)."""
-    out = Path(tmp_path)
-    tmp_db = out / "example.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "example.sqlite"
     public_cli.sourmash(
         database=tmp_db,
         fasta=input_gzip_bacteria,
         name="Test Run",
         create_db=True,
     )
-    public_cli.export_run(database=tmp_db, outdir=out)
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     compare_matrix_files(
         input_gzip_bacteria / "matrices" / "sourmash_identity.tsv",
-        out / "sourmash_identity.tsv",
+        tmp_dir / "sourmash_identity.tsv",
     )
 
 
 def test_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check sourmash run (default settings except scaled=300)."""
-    out = Path(tmp_path)
-    tmp_db = out / "example.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "example.sqlite"
     public_cli.sourmash(
         database=tmp_db,
         fasta=input_genomes_tiny,
@@ -526,17 +526,17 @@ def test_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:
         scaled=300,
         create_db=True,
     )
-    public_cli.export_run(database=tmp_db, outdir=out)
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "sourmash_identity.tsv",
-        out / "sourmash_identity.tsv",
+        tmp_dir / "sourmash_identity.tsv",
     )
 
 
 def test_branchwater(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check sourmash run (default settings except scaled=300)."""
-    out = Path(tmp_path)
-    tmp_db = out / "example.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "example.sqlite"
     public_cli.branchwater(
         database=tmp_db,
         fasta=input_genomes_tiny,
@@ -544,26 +544,26 @@ def test_branchwater(tmp_path: str, input_genomes_tiny: Path) -> None:
         scaled=300,
         create_db=True,
     )
-    public_cli.export_run(database=tmp_db, outdir=out)
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     # Should match the sourmash output (but computed quicker)
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "sourmash_identity.tsv",
-        out / "branchwater_identity.tsv",
+        tmp_dir / "branchwater_identity.tsv",
     )
 
 
 def test_fastani_dups(tmp_path: str) -> None:
     """Check fastANI run (duplicate FASTA inputs)."""
-    tmp = Path(tmp_path)
-    tmp_db = tmp / "example.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "example.sqlite"
     for name in ("alpha", "beta", "gamma"):
-        with (tmp / (name + ".fasta")).open("w") as handle:
+        with (tmp_dir / (name + ".fasta")).open("w") as handle:
             handle.write(">genome\nACGTACGT\n")
     with pytest.raises(
         SystemExit, match="ERROR - Multiple genomes with same MD5 checksum"
     ):
         public_cli.fastani(
-            database=tmp_db, fasta=tmp, name="Test duplicates fail", create_db=True
+            database=tmp_db, fasta=tmp_dir, name="Test duplicates fail", create_db=True
         )
 
 
@@ -1045,9 +1045,10 @@ def test_resume_fasta_gone(
     capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
 ) -> None:
     """Check resume error handling when a FASTA file is missing."""
-    tmp_indir = Path(tmp_path) / "input"
+    tmp_dir = Path(tmp_path)
+    tmp_indir = tmp_dir / "input"
     tmp_indir.mkdir()
-    tmp_db = Path(tmp_path) / "resume.sqlite"
+    tmp_db = tmp_dir / "resume.sqlite"
     session = db_orm.connect_to_db(tmp_db)
     tool = tools.get_blastn()
     config = db_orm.db_configuration(

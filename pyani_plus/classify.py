@@ -53,8 +53,12 @@ def construct_complete_graph(database: Path, run_id: int) -> nx.Graph:
     # Connect to the database and export identity and covergae matrices for a given run
     session = db_orm.connect_to_db(database)
     run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+    mapping = {_.genome_hash: Path(_.fasta_filename).stem for _ in run.fasta_hashes}
+
     identity = run.identities
+    identity.rename(index=mapping, columns=mapping, inplace=True)  # noqa: PD002
     cov = run.cov_query
+    cov.rename(index=mapping, columns=mapping, inplace=True)  # noqa: PD002
 
     # Get list of nodes for a graph (eg. genome hashes) and a list of comparisons (eg. genome A vs genome B)
     nodes = cov.columns
@@ -71,7 +75,7 @@ def construct_complete_graph(database: Path, run_id: int) -> nx.Graph:
         datadict = {
             "genome1": genome1,
             "genome2": genome2,
-            "cov_query": min(cov[genome1][genome2], cov[genome2][genome1]),
+            "coverage": min(cov[genome1][genome2], cov[genome2][genome1]),
             "identity": np.mean(
                 [identity[genome1][genome2], identity[genome2][genome1]]
             ),
@@ -81,7 +85,7 @@ def construct_complete_graph(database: Path, run_id: int) -> nx.Graph:
     node_data = pd.DataFrame(rows)
 
     return nx.from_pandas_edgelist(
-        node_data, "genome1", "genome2", ["cov_query", "identity"]
+        node_data, "genome1", "genome2", ["coverage", "identity"]
     )
 
 
@@ -107,7 +111,7 @@ def analyse_subgraphs(graph: nx.Graph) -> list[ClusterInfo]:
 
     subgraphs_info = []
     for subgraph in subgraphs:
-        nodes = list(subgraph.nodes)
+        nodes = sorted(subgraph.nodes)
         n_nodes = len(nodes)
         edges = list(subgraph.edges(data=True))
 
@@ -117,8 +121,12 @@ def analyse_subgraphs(graph: nx.Graph) -> list[ClusterInfo]:
         is_singleton = n_nodes == 1
 
         # Get minimum attributes (eg. coverage and identity) if edges exist
-        min_cov = min((attrs["cov_query"] for _, _, attrs in edges), default=None)
-        min_identity = min((attrs["identity"] for _, _, attrs in edges), default=None)
+        min_cov = min(
+            (attrs["coverage"] for node1, node2, attrs in edges), default=None
+        )
+        min_identity = min(
+            (attrs["identity"] for node1, node2, attrs in edges), default=None
+        )
 
         subgraphs_info.append(
             ClusterInfo(

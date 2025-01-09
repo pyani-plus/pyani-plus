@@ -22,14 +22,14 @@
 """Code to implement the classify method indetnded to identify cliques within a set of genomes."""
 
 from itertools import combinations
-from pathlib import Path
 from typing import NamedTuple
 
 import networkx as nx  # type: ignore  # noqa: PGH003
 import numpy as np  # type: ignore  # noqa: PGH003
 import pandas as pd
 
-from pyani_plus import db_orm
+ATTRIBUTE = "coverage"
+THRESHOLD = 0.5  # default
 
 
 class ClusterInfo(NamedTuple):
@@ -43,25 +43,17 @@ class ClusterInfo(NamedTuple):
     singleton: bool
 
 
-def construct_complete_graph(database: Path, run_id: int) -> nx.Graph:
+def construct_complete_graph(
+    cov_matrix: pd.DataFrame, id_matrix: pd.DataFrame
+) -> nx.Graph:
     """Return a complete graph representing ANI results.
 
     Constructs an undirected complete graph for the ANI results of a given run_id.
     Nodes represent genome hashes, and edges correspond to pairwise comparisons,
     with weights assigned based on minimum coverage and average identity.
     """
-    # Connect to the database and export identity and covergae matrices for a given run
-    session = db_orm.connect_to_db(database)
-    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-    mapping = {_.genome_hash: Path(_.fasta_filename).stem for _ in run.fasta_hashes}
-
-    identity = run.identities
-    identity.rename(index=mapping, columns=mapping, inplace=True)  # noqa: PD002
-    cov = run.cov_query
-    cov.rename(index=mapping, columns=mapping, inplace=True)  # noqa: PD002
-
     # Get list of nodes for a graph (eg. genome hashes) and a list of comparisons (eg. genome A vs genome B)
-    nodes = cov.columns
+    nodes = cov_matrix.columns
     comparisons = list(combinations(nodes, 2))
 
     # Construct a complete graph for the results. Since the methods are not symmetrical
@@ -75,9 +67,9 @@ def construct_complete_graph(database: Path, run_id: int) -> nx.Graph:
         datadict = {
             "genome1": genome1,
             "genome2": genome2,
-            "coverage": min(cov[genome1][genome2], cov[genome2][genome1]),
+            "coverage": min(cov_matrix[genome1][genome2], cov_matrix[genome2][genome1]),
             "identity": np.mean(
-                [identity[genome1][genome2], identity[genome2][genome1]]
+                [id_matrix[genome1][genome2], id_matrix[genome2][genome1]]
             ),
         }
         rows.append(datadict)
@@ -90,7 +82,7 @@ def construct_complete_graph(database: Path, run_id: int) -> nx.Graph:
 
 
 def remove_edges_below_threshold(
-    graph: nx.Graph, attribute: str, threshold: float
+    graph: nx.Graph, attribute: str | None, threshold: float | None
 ) -> nx.Graph:
     """Return a graph where edges with weights of the specified attribute fall below the given threshold."""
     edges_to_remove = [

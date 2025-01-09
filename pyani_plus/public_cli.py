@@ -43,7 +43,7 @@ from rich.text import Text
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
-from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, db_orm, tools
+from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, classify, db_orm, tools
 from pyani_plus.methods import method_anib, method_anim, method_fastani, method_sourmash
 from pyani_plus.utils import available_cores, check_db, check_fasta, file_md5sum
 from pyani_plus.workflows import (
@@ -172,6 +172,23 @@ OPT_ARG_TYPE_EXECUTOR = Annotated[
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
+OPT_ARG_TYPE_ATTRIBUTE = Annotated[
+    str | None,
+    typer.Option(
+        help="Attribute for genome classification (coverage or identity)",
+        rich_help_panel="Method parameters",
+    ),
+]
+
+OPT_ARG_TYPE_THRESHOLD = Annotated[
+    float | None,
+    typer.Option(
+        help="minimum %attribute (coverage or identity) for an edge",
+        rich_help_panel="Method parameters",
+        min=0.0,
+        max=1.0,
+    ),
+]
 
 
 def start_and_run_method(  # noqa: PLR0913
@@ -942,6 +959,106 @@ def export_run(  # noqa: C901, PLR0912, PLR0915
         matrix.to_csv(outdir / filename, sep="\t")
 
     print(f"Wrote matrices to {outdir}/{method}_*.tsv")
+
+    session.close()
+    return 0
+
+
+@app.command()
+def classify_genomes(  # noqa: C901, PLR0912, PLR0915
+    database: REQ_ARG_TYPE_DATABASE,
+    outdir: REQ_ARG_TYPE_OUTDIR,
+    run_id: Annotated[
+        int | None,
+        typer.Option(help="Which run to report (optional if DB contains only one)"),
+    ] = None,
+    attribute: OPT_ARG_TYPE_ATTRIBUTE = classify.ATTRIBUTE,  # 1000
+    threshold: OPT_ARG_TYPE_THRESHOLD = classify.THRESHOLD,
+) -> int:
+    """Classify genomes into clusters based on ANI results."""
+    if not outdir.is_dir():
+        msg = f"ERROR: Output directory {outdir} does not exist"
+        sys.exit(msg)
+
+    if database == ":memory:" or not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+
+    session = db_orm.connect_to_db(database)
+
+    if run_id is None:
+        runs = session.query(db_orm.Run)
+        count = runs.count()
+        if count == 1:
+            run = runs.one()
+            run_id = run.run_id
+            print(f"INFO: Reporting on run-id {run_id} from {database}")
+        elif count:
+            msg = (
+                f"ERROR: Database {database} contains {count} runs,"
+                " use --run-id to specify which."
+                " Use the list-runs command for more information."
+            )
+            sys.exit(msg)
+        else:
+            msg = f"ERROR: Database {database} contains no runs."
+            sys.exit(msg)
+    else:
+        try:
+            run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+        except NoResultFound:
+            msg = (
+                f"ERROR: Database {database} has no run-id {run_id}."
+                " Use the list-runs command for more information."
+            )
+            sys.exit(msg)
+
+    done = run.comparisons().count()
+    n = run.genomes.count()
+    if not done:
+        msg = f"ERROR: Database {database} run-id {run_id} has no comparisons"
+        sys.exit(msg)
+    elif done < n**2:
+        # Would it be useful to allow partial export, perhaps with a --force option?
+        # Indicate this with blank strings?
+        msg = (
+            f"ERROR: Database {database} run-id {run_id} has only {done} of {n}²={n**2}"
+            f" comparisons, {n**2 - done} needed"
+        )
+        sys.exit(msg)
+
+    if run.identities is None:
+        run.cache_comparisons()
+    if not isinstance(run.identities, pd.DataFrame):
+        msg = f"ERROR: Could not access identities matrix from JSON for {run_id}"
+        sys.exit(msg)
+
+    if run.cov_query is None:
+        run.cache_comparisons()
+    if not isinstance(run.cov_query, pd.DataFrame):
+        msg = f"ERROR: Could not access coverage matrix from JSON for {run_id}"
+        sys.exit(msg)
+
+    # Connect to the database and export identity and covergae matrices for a given run
+    session = db_orm.connect_to_db(database)
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+    mapping = {_.genome_hash: Path(_.fasta_filename).stem for _ in run.fasta_hashes}
+
+    identity = run.identities
+    identity.rename(index=mapping, columns=mapping, inplace=True)  # noqa: PD002
+    cov = run.cov_query
+    cov.rename(index=mapping, columns=mapping, inplace=True)  # noqa: PD002
+
+    # Construct a graph and get cluster information
+    complete_graph = classify.construct_complete_graph(cov, identity)
+    graph_removed_edges = classify.remove_edges_below_threshold(
+        complete_graph, attribute, threshold
+    )
+    subgraph_info = classify.analyse_subgraphs(graph_removed_edges)
+
+    cluster_df = pd.DataFrame(subgraph_info)
+    cluster_df["members"] = cluster_df["members"].apply(lambda x: ",".join(x))
+    cluster_df.to_csv(outdir / "cluster_info.tsv", sep="\t", index=False)
 
     session.close()
     return 0

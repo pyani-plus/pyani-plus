@@ -30,6 +30,7 @@ from pathlib import Path
 
 import networkx as nx  # type: ignore  # noqa: PGH003
 import networkx.algorithms.isomorphism as iso
+import pandas as pd
 import pytest
 
 from pyani_plus import classify
@@ -54,7 +55,7 @@ def expected_complete_graph() -> nx.Graph:
             "coverage": 0.6774176803,
         },
         ("OP073605", "MGV-GENOME-0266457"): {
-            "identity": 0.9946424059000001,
+            "identity": 0.9946424059,
             "coverage": 0.68465,
         },
         ("MGV-GENOME-0264574", "MGV-GENOME-0266457"): {
@@ -76,7 +77,7 @@ def expected_cluster_info() -> classify.ClusterInfo:
         n_nodes=3,
         members=sorted(["OP073605", "MGV-GENOME-0264574", "MGV-GENOME-0266457"]),
         min_cov=0.6774176803,
-        min_identity=0.9946424059000001,
+        min_identity=0.9946424059,
         clique=True,
         singleton=False,
     )
@@ -86,13 +87,20 @@ def test_construct_complete_graph(
     input_genomes_tiny: Path, expected_complete_graph: nx.Graph
 ) -> None:
     """Check construction of complete graph."""
+    # Matrices
+    cov_matrix = pd.read_csv(
+        input_genomes_tiny / "matrices/ANIm_coverage.tsv", sep="\t", index_col=0
+    )
+    id_matrix = pd.read_csv(
+        input_genomes_tiny / "matrices/ANIm_identity.tsv", sep="\t", index_col=0
+    )
     # Comparison function for a numerical edge attribute.
     edge_match = iso.numerical_edge_match("coverage", "identity")
 
     # Check the isomorphism of a graph with the edge_match function
     assert nx.is_isomorphic(
         expected_complete_graph,
-        classify.construct_complete_graph(input_genomes_tiny / "viral_database.db", 1),
+        classify.construct_complete_graph(cov_matrix, id_matrix),
         edge_match=edge_match,
     )
 
@@ -101,10 +109,14 @@ def test_edges_below_threshold(
     input_genomes_tiny: Path, expected_complete_graph: nx.Graph
 ) -> None:
     """Check removal of edges below specified threshold."""
-    edge_match = iso.numerical_edge_match("coverage", "identity")
-    complete_graph = classify.construct_complete_graph(
-        input_genomes_tiny / "viral_database.db", 1
+    cov_matrix = pd.read_csv(
+        input_genomes_tiny / "matrices/ANIm_coverage.tsv", sep="\t", index_col=0
     )
+    id_matrix = pd.read_csv(
+        input_genomes_tiny / "matrices/ANIm_identity.tsv", sep="\t", index_col=0
+    )
+    edge_match = iso.numerical_edge_match("coverage", "identity")
+    complete_graph = classify.construct_complete_graph(cov_matrix, id_matrix)
 
     # No edges have a weight below 50% coverage, so none should be removed,
     # ensuring the final graph matches the expected complete graph.
@@ -119,7 +131,11 @@ def test_analyse_subgraphs(
     input_genomes_tiny: Path, expected_cluster_info: classify.ClusterInfo
 ) -> None:
     """Check classification of subgraphs in a graph."""
-    complete_graph = classify.construct_complete_graph(
-        input_genomes_tiny / "viral_database.db", 1
+    cov_matrix = pd.read_csv(
+        input_genomes_tiny / "matrices/ANIm_coverage.tsv", sep="\t", index_col=0
     )
+    id_matrix = pd.read_csv(
+        input_genomes_tiny / "matrices/ANIm_identity.tsv", sep="\t", index_col=0
+    )
+    complete_graph = classify.construct_complete_graph(cov_matrix, id_matrix)
     assert expected_cluster_info == classify.analyse_subgraphs(complete_graph)[0]

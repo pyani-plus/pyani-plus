@@ -300,7 +300,6 @@ def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
     This should not happen naturally, it will fail via public CLI.
     """
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "dup-stems.db"
     tmp_fasta = tmp_dir / "genomes"
     tmp_fasta.mkdir()
     (tmp_fasta / "example.fasta").symlink_to(
@@ -338,12 +337,14 @@ def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
                 1.0 if query_hash == subject_hash else 0.99,
                 12345,
             )
+    session.commit()
+    session.close()
+
     with pytest.raises(
         SystemExit,
         match="ERROR: Duplicate filename stems, consider using MD5 labelling.",
     ):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=1)
-    tmp_db.unlink()
 
 
 def test_anim(tmp_path: str, input_genomes_tiny: Path) -> None:

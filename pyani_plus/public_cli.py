@@ -39,7 +39,6 @@ from rich.console import Console
 from rich.progress import Progress
 from rich.table import Table
 from rich.text import Text
-from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
 from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
@@ -51,6 +50,7 @@ from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_FRAGSIZE,
     OPT_ARG_TYPE_KMERSIZE,
     OPT_ARG_TYPE_MINMATCH,
+    OPT_ARG_TYPE_RUN_ID,
     OPT_ARG_TYPE_RUN_NAME,
     OPT_ARG_TYPE_SOURMASH_SCALED,
     OPT_ARG_TYPE_TEMP,
@@ -515,10 +515,7 @@ def branchwater(  # noqa: PLR0913
 def resume(  # noqa: C901, PLR0912, PLR0915
     database: REQ_ARG_TYPE_DATABASE,
     *,
-    run_id: Annotated[
-        int | None,
-        typer.Option(help="Which run to resume (defaults to most recent)"),
-    ] = None,
+    run_id: OPT_ARG_TYPE_RUN_ID = None,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
@@ -538,31 +535,10 @@ def resume(  # noqa: C901, PLR0912, PLR0915
         sys.exit(msg)
 
     session = db_orm.connect_to_db(database)
+    run = db_orm.load_run(session, run_id)
     if run_id is None:
-        runs = session.query(db_orm.Run)
-        count = runs.count()
-        if count == 1:
-            run = runs.one()
-            run_id = run.run_id
-            print(f"INFO: Resuming run-id {run_id}, the only run in {database}")
-        elif count:
-            run = runs.order_by(db_orm.Run.run_id.desc()).first()
-            run_id = run.run_id
-            print(f"INFO: Resuming run-id {run_id}, the latest run in {database}")
-        else:
-            msg = f"ERROR: Database {database} contains no runs."
-            sys.exit(msg)
-    else:
-        try:
-            run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-        except NoResultFound:
-            msg = (
-                f"ERROR: Database {database} has no run-id {run_id}."
-                " Use the list-runs command for more information."
-            )
-            sys.exit(msg)
-        print(f"INFO: Resuming run-id {run_id} in the {database}")
-
+        run_id = run.run_id  # relevant if was None
+        print(f"INFO: Resuming run-id {run_id}")
     config = run.configuration
     print(
         f"INFO: This is a {config.method} run on {run.genomes.count()} genomes, "
@@ -731,13 +707,10 @@ def list_runs(
 
 
 @app.command()
-def export_run(  # noqa: C901, PLR0912, PLR0915
+def export_run(
     database: REQ_ARG_TYPE_DATABASE,
     outdir: REQ_ARG_TYPE_OUTDIR,
-    run_id: Annotated[
-        int | None,
-        typer.Option(help="Which run to report (optional if DB contains only one)"),
-    ] = None,
+    run_id: OPT_ARG_TYPE_RUN_ID = None,
     # Would like to replace this with Literal["md5", "filename", "stem"] once typer updated
     label: Annotated[
         str,
@@ -761,56 +734,14 @@ def export_run(  # noqa: C901, PLR0912, PLR0915
         sys.exit(msg)
 
     session = db_orm.connect_to_db(database)
-
+    run = db_orm.load_run(session, run_id, check_complete=True)
     if run_id is None:
-        runs = session.query(db_orm.Run)
-        count = runs.count()
-        if count == 1:
-            run = runs.one()
-            run_id = run.run_id
-            print(f"INFO: Reporting on run-id {run_id} from {database}")
-        elif count:
-            msg = (
-                f"ERROR: Database {database} contains {count} runs,"
-                " use --run-id to specify which."
-                " Use the list-runs command for more information."
-            )
-            sys.exit(msg)
-        else:
-            msg = f"ERROR: Database {database} contains no runs."
-            sys.exit(msg)
-    else:
-        try:
-            run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-        except NoResultFound:
-            msg = (
-                f"ERROR: Database {database} has no run-id {run_id}."
-                " Use the list-runs command for more information."
-            )
-            sys.exit(msg)
-
-    done = run.comparisons().count()
-    n = run.genomes.count()
-    if not done:
-        msg = f"ERROR: Database {database} run-id {run_id} has no comparisons"
-        sys.exit(msg)
-    elif done < n**2:
-        # Would it be useful to allow partial export, perhaps with a --force option?
-        # Indicate this with blank strings?
-        msg = (
-            f"ERROR: Database {database} run-id {run_id} has only {done} of {n}²={n**2}"
-            f" comparisons, {n**2 - done} needed"
-        )
-        sys.exit(msg)
-
-    if run.identities is None:
-        run.cache_comparisons()
+        run_id = run.run_id
+        print(f"INFO: Exporting run-id {run_id}")
 
     # Question: Should we export a plain text of JSON summary of the configuration etc?
     # Question: Should we include the run-id in the filenames name?
     # Question: Should we match the property in filenames to old pyANI (e.g. coverage)?
-    # Question: Should we offer MD5 alternatives, and how? e.g. filename or labels
-    # (seems more suited to a report command offering tables and plots)
     method = run.configuration.method
 
     for matrix, filename in (
@@ -820,6 +751,12 @@ def export_run(  # noqa: C901, PLR0912, PLR0915
         (run.cov_query, f"{method}_query_cov.tsv"),
         (run.hadamard, f"{method}_hadamard.tsv"),
     ):
+        if matrix is None:
+            # This is mainly for mypy to assert the matrix is not None
+            msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
+            sys.exit(msg)  # pragma: no cover
+
+        mapping = None  # default with md5 labels
         if label == "filename":
             mapping = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
             # Duplicate filenames should be impossible (blocked from creation
@@ -834,12 +771,11 @@ def export_run(  # noqa: C901, PLR0912, PLR0915
                 sys.exit(
                     "ERROR: Duplicate filename stems, consider using MD5 labelling."
                 )
-        else:
-            mapping = None
         if mapping:
             matrix.rename(index=mapping, columns=mapping, inplace=True)  # noqa: PD002
             matrix.sort_index(axis=0, inplace=True)  # noqa: PD002
             matrix.sort_index(axis=1, inplace=True)  # noqa: PD002
+
         matrix.to_csv(outdir / filename, sep="\t")
 
     print(f"Wrote matrices to {outdir}/{method}_*.tsv")

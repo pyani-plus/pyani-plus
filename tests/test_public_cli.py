@@ -126,14 +126,12 @@ def test_resume_empty(tmp_path: str) -> None:
     session = db_orm.connect_to_db(tmp_db)
     session.close()
 
-    with pytest.raises(
-        SystemExit, match="ERROR: Database .*/resume-empty.sqlite contains no runs."
-    ):
+    with pytest.raises(SystemExit, match="ERROR: Database contains no runs."):
         public_cli.resume(database=tmp_db)
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: Database .*/resume-empty.sqlite has no run-id 1.",
+        match="ERROR: Database has no run-id 1.",
     ):
         public_cli.resume(database=tmp_db, run_id=1)
 
@@ -231,9 +229,7 @@ def test_partial_run(
     # defined - this should fail
     with pytest.raises(
         SystemExit,
-        match=(
-            "ERROR: Database .*/list-runs.sqlite run-id 2 has only 4 of 3²=9 comparisons, 5 needed"
-        ),
+        match=("ERROR: run-id 2 has only 4 of 3²=9 comparisons, 5 needed"),
     ):
         public_cli.export_run(database=tmp_db, run_id=2, outdir=tmp_path)
 
@@ -254,7 +250,7 @@ def test_partial_run(
     tmp_db.unlink()
 
 
-def test_export_run(tmp_path: str) -> None:
+def test_export_run_failures(tmp_path: str) -> None:
     """Check export run failures."""
     tmp_dir = Path(tmp_path)
 
@@ -270,9 +266,7 @@ def test_export_run(tmp_path: str) -> None:
 
     tmp_db = tmp_dir / "export.sqlite"
     session = db_orm.connect_to_db(tmp_db)
-    with pytest.raises(
-        SystemExit, match="ERROR: Database .*/export.sqlite contains no runs."
-    ):
+    with pytest.raises(SystemExit, match="ERROR: Database contains no runs."):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir)
 
     config = db_orm.db_configuration(
@@ -294,20 +288,19 @@ def test_export_run(tmp_path: str) -> None:
         status="Empty",
         name="Trial B",
     )
-    with pytest.raises(
-        SystemExit,
-        match="ERROR: Database .*/export.sqlite contains 2 runs, use --run-id to specify which.",
-    ):
-        public_cli.export_run(database=tmp_db, outdir=tmp_dir)
-    with pytest.raises(
-        SystemExit, match="ERROR: Database .*/export.sqlite has no run-id 3."
-    ):
+    with pytest.raises(SystemExit, match="ERROR: Database has no run-id 3."):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=3)
     with pytest.raises(
         SystemExit,
-        match="ERROR: Database .*/export.sqlite run-id 1 has no comparisons",
+        match="ERROR: run-id 1 has no comparisons",
     ):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=1)
+    # Should default to latest run, run-id 2
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: run-id 2 has no comparisons",
+    ):
+        public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     tmp_db.unlink()
 
 
@@ -361,7 +354,7 @@ def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
         SystemExit,
         match="ERROR: Duplicate filename stems, consider using MD5 labelling.",
     ):
-        public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=1)
+        public_cli.export_run(database=tmp_db, outdir=tmp_dir)
 
 
 def test_anim(tmp_path: str, input_genomes_tiny: Path) -> None:
@@ -684,7 +677,7 @@ def test_resume_partial_fastani(
 
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
-    assert "Resuming run-id 1, the only run" in output, output
+    assert "Resuming run-id 1\n" in output, output
     assert (
         "Database already has 8 of 3²=9 fastANI comparisons, 1 needed" in output
     ), output
@@ -751,7 +744,7 @@ def test_resume_partial_anib(
 
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
-    assert "Resuming run-id 1, the only run" in output, output
+    assert "Resuming run-id 1\n" in output, output
     assert "Database already has 8 of 3²=9 ANIb comparisons, 1 needed" in output, output
 
     public_cli.list_runs(database=tmp_db)
@@ -816,7 +809,7 @@ def test_resume_partial_anim(
 
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
-    assert "Resuming run-id 1, the only run" in output, output
+    assert "Resuming run-id 1\n" in output, output
     assert "Database already has 8 of 3²=9 ANIm comparisons, 1 needed" in output, output
 
     public_cli.list_runs(database=tmp_db)
@@ -879,7 +872,7 @@ def test_resume_partial_sourmash(
 
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
-    assert "Resuming run-id 1, the only run" in output, output
+    assert "Resuming run-id 1\n" in output, output
     assert (
         "Database already has 4 of 3²=9 sourmash comparisons, 5 needed" in output
     ), output
@@ -944,7 +937,7 @@ def test_resume_partial_branchwater(
 
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
-    assert "Resuming run-id 1, the only run" in output, output
+    assert "Resuming run-id 1\n" in output, output
     assert (
         "Database already has 4 of 3²=9 branchwater comparisons, 5 needed" in output
     ), output
@@ -1093,10 +1086,7 @@ def test_resume_complete(
         )
         public_cli.resume(database=tmp_db)
         output = capsys.readouterr().out
-        if index == 0:
-            assert "Resuming run-id 1, the only run" in output, output
-        else:
-            assert f"Resuming run-id {index+1}, the latest run" in output, output
+        assert f"Resuming run-id {index+1}\n" in output, output
         assert f"Database already has all 3²=9 {method} comparisons" in output, output
 
 

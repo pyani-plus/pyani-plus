@@ -305,7 +305,7 @@ def test_export_run_failures(tmp_path: str) -> None:
 
 
 def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
-    """Check export run with duplicated stems.
+    """Check export and plot run with duplicated stems.
 
     This should not happen naturally, it will fail via public CLI.
     """
@@ -327,18 +327,18 @@ def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
     config = db_orm.db_configuration(
         session, "fastANI", "fastani", "1.2.3", create=True
     )
-    fasta_to_hash = {fasta: file_md5sum(fasta) for fasta in tmp_fasta.glob("*.f*")}
+    fasta_to_hash = {fasta: file_md5sum(fasta) for fasta in tmp_fasta.glob("*.fa*")}
     db_orm.add_run(
         session,
         config,
         cmdline="pyani fastani ...",
         fasta_directory=input_genomes_tiny,
-        status="Partial",
+        status="Done",
         name="Trial B",
         fasta_to_hash=fasta_to_hash,
     )
-    for query_hash in list(fasta_to_hash.values())[1:]:
-        for subject_hash in list(fasta_to_hash.values())[1:]:
+    for query_hash in list(fasta_to_hash.values()):
+        for subject_hash in list(fasta_to_hash.values()):
             db_orm.db_comparison(
                 session,
                 config.configuration_id,
@@ -355,6 +355,65 @@ def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
         match="ERROR: Duplicate filename stems, consider using MD5 labelling.",
     ):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir)
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Duplicate filename stems, consider using MD5 labelling.",
+    ):
+        public_cli.plot_run(database=tmp_db, outdir=tmp_dir)
+
+
+def test_plot_run_failures(tmp_path: str) -> None:
+    """Check plot run failures."""
+    tmp_dir = Path(tmp_path)
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Database /does/not/exist does not exist"
+    ):
+        public_cli.plot_run(database=Path("/does/not/exist"), outdir=tmp_dir)
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Output directory /does/not/exist does not exist"
+    ):
+        public_cli.plot_run(database=":memory:", outdir=Path("/does/not/exist/"))
+
+    tmp_db = tmp_dir / "export.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
+    with pytest.raises(SystemExit, match="ERROR: Database contains no runs."):
+        public_cli.plot_run(database=tmp_db, outdir=tmp_dir)
+
+    config = db_orm.db_configuration(
+        session, "fastANI", "fastani", "1.2.3", create=True
+    )
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        fasta_directory=Path("/does/not/exist"),
+        status="Empty",
+        name="Trial A",
+    )
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        fasta_directory=Path("/does/not/exist"),
+        status="Empty",
+        name="Trial B",
+    )
+    with pytest.raises(SystemExit, match="ERROR: Database has no run-id 3."):
+        public_cli.plot_run(database=tmp_db, outdir=tmp_dir, run_id=3)
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: run-id 1 has no comparisons",
+    ):
+        public_cli.plot_run(database=tmp_db, outdir=tmp_dir, run_id=1)
+    # Should default to latest run, run-id 2
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: run-id 2 has no comparisons",
+    ):
+        public_cli.plot_run(database=tmp_db, outdir=tmp_dir)
 
 
 def test_anim(tmp_path: str, input_genomes_tiny: Path) -> None:
@@ -583,6 +642,26 @@ def test_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:
         input_genomes_tiny / "matrices" / "sourmash_identity.tsv",
         tmp_dir / "sourmash_identity.tsv",
     )
+    plot_out = tmp_dir / "plots"
+    plot_out.mkdir()
+    public_cli.plot_run(database=tmp_db, outdir=plot_out)
+    assert sorted(_.name for _ in plot_out.glob("*")) == [
+        "sourmash_hadamard.jpg",
+        "sourmash_hadamard.pdf",
+        "sourmash_hadamard.png",
+        "sourmash_hadamard.svg",
+        "sourmash_hadamard.tsv",
+        "sourmash_identity.jpg",
+        "sourmash_identity.pdf",
+        "sourmash_identity.png",
+        "sourmash_identity.svg",
+        "sourmash_identity.tsv",
+        "sourmash_query_cov.jpg",
+        "sourmash_query_cov.pdf",
+        "sourmash_query_cov.png",
+        "sourmash_query_cov.svg",
+        "sourmash_query_cov.tsv",
+    ]
 
 
 def test_branchwater(tmp_path: str, input_genomes_tiny: Path) -> None:
@@ -1175,3 +1254,149 @@ def test_resume_fasta_gone(
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
     assert "Database already has all 3²=9 ANIb comparisons" in output, output
+
+
+def test_plot_skip_nulls(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
+    """Check export-run behaviour when have null values."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "plot_null.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
+    config = db_orm.db_configuration(
+        session,
+        "guessing",
+        "gestimator",
+        "1.2.3b4",
+        kmersize=51,
+        fragsize=999,
+        minmatch=0.25,
+        create=True,
+    )
+
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+
+    # Record all of the possible comparisons, leaving coverage null
+    genomes = list(fasta_to_hash.values())
+    for query_hash in genomes:
+        for subject_hash in genomes:
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query_hash,
+                subject_hash,
+                1.0 if query_hash is subject_hash else 0.99,
+                12345,
+            )
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani guessing ...",
+        fasta_directory=input_genomes_tiny,
+        status="Partial",
+        name="Test plotting when some data is null",
+        fasta_to_hash=fasta_to_hash,
+    )
+    session.close()
+
+    plot_out = tmp_dir / "plots"
+    plot_out.mkdir()
+    public_cli.plot_run(database=tmp_db, outdir=plot_out)
+
+    stdout, stderr = capsys.readouterr()
+    assert (
+        "WARNING: Cannot plot query_cov as matrix contains 9 nulls (out of 3²=9 guessing comparisons)\n"
+        in stderr
+    ), stderr
+    assert (
+        "WARNING: Cannot plot hadamard as matrix contains 9 nulls (out of 3²=9 guessing comparisons)\n"
+        in stderr
+    ), stderr
+    assert "Wrote 1 heatmaps" in stdout
+    assert sorted(_.name for _ in plot_out.glob("*")) == [
+        "guessing_identity.jpg",
+        "guessing_identity.pdf",
+        "guessing_identity.png",
+        "guessing_identity.svg",
+        "guessing_identity.tsv",
+    ]
+
+
+def test_plot_bad_nulls(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
+    """Check export-run behaviour when have null values except on diagonal."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "plot_null.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
+    config = db_orm.db_configuration(
+        session,
+        "guessing",
+        "gestimator",
+        "1.2.3b4",
+        kmersize=51,
+        fragsize=999,
+        minmatch=0.25,
+        create=True,
+    )
+
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.fa*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+
+    # Record all of the possible comparisons, leaving coverage null
+    genomes = list(fasta_to_hash.values())
+    for query_hash in genomes:
+        for subject_hash in genomes:
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query_hash,
+                subject_hash,
+                1.0 if query_hash is subject_hash else None,
+                12345,
+                cov_query=1.0 if query_hash is subject_hash else None,
+            )
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani guessing ...",
+        fasta_directory=input_genomes_tiny,
+        status="Partial",
+        name="Test plotting when off-diagonal is null",
+        fasta_to_hash=fasta_to_hash,
+    )
+    session.close()
+
+    plot_out = tmp_dir / "plots"
+    plot_out.mkdir()
+
+    with pytest.raises(
+        SystemExit,
+        match=(r"ERROR: Unable to plot any heatmaps \(check for nulls\)"),
+    ):
+        public_cli.plot_run(database=tmp_db, outdir=plot_out)
+
+    stderr = capsys.readouterr().err
+    assert (
+        "WARNING: Cannot plot identity as matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
+        in stderr
+    ), stderr
+    assert (
+        "WARNING: Cannot plot query_cov as matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
+        in stderr
+    ), stderr
+    assert (
+        "WARNING: Cannot plot hadamard as matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
+        in stderr
+    ), stderr

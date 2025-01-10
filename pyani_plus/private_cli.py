@@ -50,7 +50,7 @@ from pyani_plus.methods import (
     method_fastani,
     method_sourmash,
 )
-from pyani_plus.public_cli import (
+from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_CREATE_DB,
     OPT_ARG_TYPE_TEMP,
     REQ_ARG_TYPE_DATABASE,

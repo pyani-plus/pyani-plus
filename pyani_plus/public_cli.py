@@ -42,8 +42,23 @@ from rich.text import Text
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
-from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, db_orm, tools
+from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
 from pyani_plus.methods import method_anib, method_anim, method_fastani, method_sourmash
+from pyani_plus.public_cli_args import (
+    OPT_ARG_TYPE_ANIM_MODE,
+    OPT_ARG_TYPE_CREATE_DB,
+    OPT_ARG_TYPE_EXECUTOR,
+    OPT_ARG_TYPE_FRAGSIZE,
+    OPT_ARG_TYPE_KMERSIZE,
+    OPT_ARG_TYPE_MINMATCH,
+    OPT_ARG_TYPE_RUN_NAME,
+    OPT_ARG_TYPE_SOURMASH_SCALED,
+    OPT_ARG_TYPE_TEMP,
+    OPT_ARG_TYPE_TEMP_WORKFLOW,
+    REQ_ARG_TYPE_DATABASE,
+    REQ_ARG_TYPE_FASTA_DIR,
+    REQ_ARG_TYPE_OUTDIR,
+)
 from pyani_plus.utils import (
     available_cores,
     check_db,
@@ -56,123 +71,6 @@ from pyani_plus.workflows import (
     ToolExecutor,
     run_snakemake_with_progress_bar,
 )
-
-# Reused required command line arguments (which have no default)
-REQ_ARG_TYPE_DATABASE = Annotated[
-    Path,
-    typer.Option(
-        help="Path to pyANI-plus SQLite3 database",
-        show_default=False,
-        dir_okay=False,
-        file_okay=True,
-    ),
-]
-REQ_ARG_TYPE_OUTDIR = Annotated[
-    Path,
-    typer.Option(
-        help="Output directory",
-        show_default=False,
-        exists=True,
-        dir_okay=True,
-        file_okay=False,
-    ),
-]
-REQ_ARG_TYPE_FASTA_DIR = Annotated[
-    Path,
-    typer.Argument(
-        help=f"Directory of FASTA files (extensions {', '.join(sorted(FASTA_EXTENSIONS))})",
-        show_default=False,
-    ),
-]
-
-# Reused optional command line arguments (defined with a default):
-OPT_ARG_TYPE_RUN_NAME = Annotated[
-    # Using None to mean the dynamic default value here:
-    str | None,
-    typer.Option(
-        help="Run name. Default is 'N genomes using METHOD'.", show_default=False
-    ),
-]
-OPT_ARG_TYPE_TEMP_WORKFLOW = Annotated[
-    Path | None,
-    typer.Option(
-        help="Directory to use for temporary workflow coordination files, which"
-        " for debugging purposes will not be deleted. For clusters this must be"
-        " on a shared drive. Default behaviour is to use a system specified"
-        " temporary directory (for the local executor) or a temporary directory"
-        " under the present direct (for clusters), and remove this afterwards.",
-        rich_help_panel="Debugging",
-        show_default=False,
-        exists=True,
-        dir_okay=True,
-        file_okay=False,
-    ),
-]
-OPT_ARG_TYPE_TEMP = Annotated[
-    Path | None,
-    typer.Option(
-        help="Directory to use for intermediate files, which for debugging"
-        " purposes will not be deleted. For clusters this must be on a shared"
-        " drive. Default behaviour is to use a system specified temporary"
-        " directory (specific to the compute-node when using a cluster) and"
-        " remove this afterwards.",
-        rich_help_panel="Debugging",
-        show_default=False,
-        exists=True,
-        dir_okay=True,
-        file_okay=False,
-    ),
-]
-OPT_ARG_TYPE_FRAGSIZE = Annotated[
-    int,
-    typer.Option(
-        help="Comparison method fragment size",
-        rich_help_panel="Method parameters",
-        min=1,
-    ),
-]
-# fastANI has maximum (and default) k-mer size 16,
-# so defined separately with max=16
-OPT_ARG_TYPE_KMERSIZE = Annotated[
-    int,
-    typer.Option(
-        help="Comparison method k-mer size",
-        rich_help_panel="Method parameters",
-        min=1,
-    ),
-]
-OPT_ARG_TYPE_MINMATCH = Annotated[
-    float,
-    typer.Option(
-        help="Comparison method min-match",
-        rich_help_panel="Method parameters",
-        min=0.0,
-        max=1.0,
-    ),
-]
-OPT_ARG_TYPE_ANIM_MODE = Annotated[
-    method_anim.EnumModeANIm,
-    typer.Option(
-        help="Nucmer mode for ANIm",
-        rich_help_panel="Method parameters",
-    ),
-]
-OPT_ARG_TYPE_SOURMASH_SCALED = Annotated[
-    int,
-    typer.Option(
-        help="Sets the compression ratio",
-        rich_help_panel="Method parameters",
-        min=1,
-    ),
-]
-
-OPT_ARG_TYPE_CREATE_DB = Annotated[
-    # Listing name(s) explicitly to avoid automatic matching --no-create-db
-    bool, typer.Option("--create-db", help="Create database if does not exist")
-]
-OPT_ARG_TYPE_EXECUTOR = Annotated[
-    ToolExecutor, typer.Option(help="How should the internal tools be run?")
-]
 
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},

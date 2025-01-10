@@ -55,6 +55,8 @@ from sqlalchemy.orm import (
     sessionmaker,
 )
 
+from pyani_plus.utils import filename_stem
+
 
 class Base(DeclarativeBase):
     """Base class for SQLAlchemy ORM declarations.
@@ -507,6 +509,44 @@ class Run(Base):
         if not self.df_hadamard:
             return None
         return pd.read_json(StringIO(self.df_hadamard), orient="split", dtype=float)
+
+    def relabelled_matrix(
+        self, matrix: pd.DataFrame, label: str = "md5"
+    ) -> pd.DataFrame:
+        """Convert a default MD5 based matrix of this run to another labelling.
+
+        Here the matrix argument could be from ``.identities`` or similar, while
+        the label can be "filename", "stem", or "md5" (default and a no-op).
+
+        >>> run = Run()  # typically loaded from a DB
+        >>> unknown_sorted_idn = run.relabelled_matrix(run.identities, "unknown")
+        Traceback (most recent call last):
+        ...
+        ValueError: Unexpected label scheme 'unknown'
+        """
+        if label == "md5":
+            return matrix
+        if label == "filename":
+            mapping = {_.genome_hash: _.fasta_filename for _ in self.fasta_hashes}
+            # Duplicate filenames should be impossible (blocked from creation
+            # as we only accept a folder name as input)
+        elif label == "stem":
+            mapping = {
+                _.genome_hash: filename_stem(_.fasta_filename)
+                for _ in self.fasta_hashes
+            }
+            if len(set(mapping.values())) < len(mapping):
+                # This can happen, e.g. assembly.fasta and assembly.fna,
+                # which would most likely be a mistake by the user.
+                msg = "Duplicate filename stems, consider using MD5 labelling."
+                raise ValueError(msg)
+        else:
+            msg = f"Unexpected label scheme {label!r}"
+            raise ValueError(msg)
+        matrix.rename(index=mapping, columns=mapping, inplace=True)  # noqa: PD002
+        matrix.sort_index(axis=0, inplace=True)  # noqa: PD002
+        matrix.sort_index(axis=1, inplace=True)  # noqa: PD002
+        return matrix
 
     def __repr__(self) -> str:
         """Return abridged string representation of Run table object."""

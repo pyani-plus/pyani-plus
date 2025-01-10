@@ -64,7 +64,6 @@ from pyani_plus.utils import (
     check_db,
     check_fasta,
     file_md5sum,
-    filename_stem,
 )
 from pyani_plus.workflows import (
     ShowProgress,
@@ -756,25 +755,11 @@ def export_run(
             msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
             sys.exit(msg)  # pragma: no cover
 
-        mapping = None  # default with md5 labels
-        if label == "filename":
-            mapping = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
-            # Duplicate filenames should be impossible (blocked from creation
-            # as we attempt a folder name as input)
-        elif label == "stem":
-            mapping = {
-                _.genome_hash: filename_stem(_.fasta_filename) for _ in run.fasta_hashes
-            }
-            if len(set(mapping.values())) < len(mapping):
-                # This can happen, e.g. assembly.fasta and assembly.fna,
-                # which would most likely be a mistake by the user.
-                sys.exit(
-                    "ERROR: Duplicate filename stems, consider using MD5 labelling."
-                )
-        if mapping:
-            matrix.rename(index=mapping, columns=mapping, inplace=True)  # noqa: PD002
-            matrix.sort_index(axis=0, inplace=True)  # noqa: PD002
-            matrix.sort_index(axis=1, inplace=True)  # noqa: PD002
+        try:
+            matrix = run.relabelled_matrix(matrix, label)  # noqa: PLW2901
+        except ValueError as err:
+            msg = f"ERROR: {err}"
+            sys.exit(msg)
 
         matrix.to_csv(outdir / filename, sep="\t")
 

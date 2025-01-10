@@ -87,7 +87,7 @@ def compare_fastani_files(file1: Path, file2: Path) -> bool:
     return True
 
 
-def test_snakemake_rule_fastani(
+def test_rule_fastani(
     capsys: pytest.CaptureFixture[str],
     input_genomes_tiny: Path,
     fastani_targets_outdir: Path,
@@ -146,7 +146,7 @@ def test_snakemake_rule_fastani(
     compare_db_matrices(db, input_genomes_tiny / "matrices")
 
 
-def test_snakemake_duplicate_stems(
+def test_duplicate_stems(
     fastani_targets_outdir: Path,
     config_fastani_args: dict,
     tmp_path: str,

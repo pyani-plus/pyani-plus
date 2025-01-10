@@ -710,7 +710,6 @@ def add_run(  # noqa: PLR0913
     """Add and return a new run table entry.
 
     Will make a near-duplicate if there is a match there already!
-
     """
     run = Run(
         configuration_id=configuration.configuration_id,
@@ -736,6 +735,54 @@ def add_run(  # noqa: PLR0913
             ],
         )
     session.commit()
+    return run
+
+
+def load_run(
+    session: Session, run_id: int | None, *, check_complete: bool = False
+) -> Run:
+    """Load specified or latest Run from the DB.
+
+    Will error if the database contains no runs, or does not contain the run
+    requested.
+
+    If asked to check the run is complete, will confirm there are N² comparisons
+    for N genomes. Again, will error if not. It will also confirm the matrix has
+    been cached, and if not it will do that.
+    """
+    if run_id is None:
+        run = session.query(Run).order_by(Run.run_id.desc()).first()
+        if run is None:
+            msg = "ERROR: Database contains no runs."
+            raise SystemExit(msg)  # should we use sys.exit, or a different exception?
+        run_id = run.run_id
+    else:
+        try:
+            run = session.query(Run).where(Run.run_id == run_id).one()
+        except NoResultFound:
+            msg = (
+                f"ERROR: Database has no run-id {run_id}."
+                " Use the list-runs command for more information."
+            )
+            raise SystemExit(msg) from None
+
+    if check_complete:
+        done = run.comparisons().count()
+        n = run.genomes.count()
+        if not done:
+            msg = f"ERROR: run-id {run_id} has no comparisons"
+            raise SystemExit(msg)
+        if done < n**2:
+            # Would it be useful to allow partial export, perhaps with a --force option?
+            # Indicate this with blank strings?
+            msg = (
+                f"ERROR: run-id {run_id} has only {done} of {n}²={n**2}"
+                f" comparisons, {n**2 - done} needed"
+            )
+            raise SystemExit(msg)
+        if run.identities is None:
+            run.cache_comparisons()
+
     return run
 
 

@@ -769,5 +769,106 @@ def export_run(
     return 0
 
 
+@app.command()
+def plot_run(  # noqa: C901
+    database: REQ_ARG_TYPE_DATABASE,
+    outdir: REQ_ARG_TYPE_OUTDIR,
+    run_id: OPT_ARG_TYPE_RUN_ID = None,
+    # Would like to replace this with Literal["md5", "filename", "stem"] once typer updated
+    label: Annotated[
+        str,
+        typer.Option(
+            click_type=click.Choice(["md5", "filename", "stem"]),
+            help="How to label the genomes",
+        ),
+    ] = "stem",
+) -> int:
+    """Plot heatmaps and distributions for any single run.
+
+    The output directory must already exist. The heatmap files will be named
+    <method>_<property>.<extension> and any pre-existing files will be overwritten.
+    """
+    if not outdir.is_dir():
+        msg = f"ERROR: Output directory {outdir} does not exist"
+        sys.exit(msg)
+
+    if database == ":memory:" or not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+
+    session = db_orm.connect_to_db(database)
+    run = db_orm.load_run(session, run_id, check_complete=True)
+    if run_id is None:
+        run_id = run.run_id
+        print(f"INFO: Plotting run-id {run_id}")
+
+    method = run.configuration.method
+
+    heatmaps_done = 0
+    for matrix, name in (
+        (run.identities, "identity"),
+        (run.cov_query, "query_cov"),
+        (run.hadamard, "hadamard"),
+    ):
+        if matrix is None:
+            # This is mainly for mypy to assert the matrix is not None
+            msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
+            sys.exit(msg)  # pragma: no cover
+
+        nulls = int(matrix.isnull().sum().sum())
+        n = len(matrix)
+        if nulls:
+            msg = (
+                f"WARNING: Cannot plot {name} as matrix contains {nulls} nulls"
+                f" (out of {n}²={n**2} {method} comparisons)\n"
+            )
+            sys.stderr.write(msg)
+            continue
+
+        try:
+            matrix = run.relabelled_matrix(matrix, label)  # noqa: PLW2901
+        except ValueError as err:
+            msg = f"ERROR: {err}"
+            sys.exit(msg)
+
+        # Next cluster the matrix & prepare the figure (move code to new file)
+        import warnings
+
+        import seaborn as sns
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=(
+                    "scipy.cluster: The symmetric non-negative hollow observation"
+                    " matrix looks suspiciously like an uncondensed distance matrix"
+                ),
+            )
+            figure = sns.clustermap(matrix)
+
+        for ext in ("tsv", "png", "jpg", "svg", "pdf"):
+            filename = outdir / f"{method}_{name}.{ext}"
+            if ext == "tsv":
+                # Apply the clustering reordering to match the figure:
+                matrix = matrix.iloc[  # noqa: PLW2901
+                    figure.dendrogram_row.reordered_ind,
+                    figure.dendrogram_row.reordered_ind,
+                ]
+                matrix.to_csv(filename, sep="\t")
+            else:
+                figure.savefig(filename)
+
+        heatmaps_done += 1
+        # Next want to plot distributions of the scores (scatter plots)
+
+    if not heatmaps_done:
+        msg = "ERROR: Unable to plot any heatmaps (check for nulls)"
+        sys.exit(msg)
+    print(f"Wrote {heatmaps_done} heatmaps to {outdir}/{method}_*.*")
+
+    session.close()
+    return 0
+
+
 if __name__ == "__main__":
     sys.exit(app())  # pragma: no cover

@@ -788,7 +788,8 @@ def load_run(
 
     If asked to check the run is complete, will confirm there are N² comparisons
     for N genomes. Again, will error if not. It will also confirm the matrix has
-    been cached, and if not it will do that.
+    been cached, and if not it will call ``.cache_comparisons()`` to do that,
+    and then call ``session.commit()``.
     """
     if run_id is None:
         run = session.query(Run).order_by(Run.run_id.desc()).first()
@@ -822,6 +823,7 @@ def load_run(
             raise SystemExit(msg)
         if run.identities is None:
             run.cache_comparisons()
+            session.commit()
 
     return run
 

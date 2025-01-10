@@ -1109,7 +1109,7 @@ def test_classify_db(
     """Check classify working example."""
     tmp_dir = Path(tmp_path)
     db = input_genomes_tiny / "viral_database.db"
-    public_cli.classify_genomes(database=db, run_id=1, outdir=tmp_path)
+    public_cli.classify_genomes(database=db, run_id=1, outdir=tmp_dir)
 
     output = capsys.readouterr().out
     assert f"Wrote classify output to {tmp_path}" in output, output

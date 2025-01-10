@@ -102,7 +102,7 @@ def compare_sourmash_ani_files(data1: Path, data2: Path) -> bool:
     return csv1.equals(csv2)
 
 
-def compare_sourmash_ani_files_bad_alignments(data1: Path, data2: Path) -> bool:
+def compare_sourmash_ani_files_bad_align(data1: Path, data2: Path) -> bool:
     """Compare two .csv files returned by sourmash compare."""
     # Read the .csv files into DataFrames
     csv1 = pd.read_csv(data1)
@@ -231,7 +231,7 @@ def test_compare_rule(
     compare_db_matrices(db, input_genomes_tiny / "matrices")
 
 
-def test_compare_rule_bad_alignments(
+def test_compare_rule_bad_align(
     capsys: pytest.CaptureFixture[str],
     sourmash_targets_compare_outdir: Path,
     config_sourmash_args: dict,
@@ -289,7 +289,7 @@ def test_compare_rule_bad_alignments(
     )
 
     # Check output against target fixture
-    assert compare_sourmash_ani_files_bad_alignments(
+    assert compare_sourmash_ani_files_bad_align(
         sourmash_targets_compare_outdir / "sourmash.csv",
         input_genomes_bad_alignments / "intermediates/sourmash/sourmash.csv",
     )

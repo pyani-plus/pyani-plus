@@ -170,7 +170,7 @@ def test_dnadiff(
     compare_db_matrices(db, input_genomes_tiny / "matrices", absolute_tolerance=5e-5)
 
 
-def test_dnadiff_bad_alignments(
+def test_dnadiff_bad_align(
     input_genomes_bad_alignments: Path,
     dnadiff_targets_outdir: Path,
     config_dnadiff_args: dict,

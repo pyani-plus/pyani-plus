@@ -1042,3 +1042,79 @@ def test_resume_fasta_gone(
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
     assert "Database already has all 3²=9 ANIb comparisons" in output, output
+
+
+def test_classify(tmp_path: str) -> None:
+    """Check classify run failures."""
+    tmp_dir = Path(tmp_path)
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Database /does/not/exist does not exist"
+    ):
+        public_cli.classify_genomes(database=Path("/does/not/exist"), outdir=tmp_dir)
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Output directory /does/not/exist does not exist"
+    ):
+        public_cli.classify_genomes(
+            database=":memory:", outdir=Path("/does/not/exist/")
+        )
+
+    tmp_db = tmp_dir / "export.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
+    with pytest.raises(
+        SystemExit, match="ERROR: Database .*/export.sqlite contains no runs."
+    ):
+        public_cli.classify_genomes(database=tmp_db, outdir=tmp_dir)
+
+    config = db_orm.db_configuration(
+        session, "fastANI", "fastani", "1.2.3", create=True
+    )
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        fasta_directory=Path("/does/not/exist"),
+        status="Empty",
+        name="Trial A",
+    )
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        fasta_directory=Path("/does/not/exist"),
+        status="Empty",
+        name="Trial B",
+    )
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Database .*/export.sqlite contains 2 runs, use --run-id to specify which.",
+    ):
+        public_cli.classify_genomes(database=tmp_db, outdir=tmp_dir)
+    with pytest.raises(
+        SystemExit, match="ERROR: Database .*/export.sqlite has no run-id 3."
+    ):
+        public_cli.classify_genomes(database=tmp_db, outdir=tmp_dir, run_id=3)
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Database .*/export.sqlite run-id 1 has no comparisons",
+    ):
+        public_cli.classify_genomes(database=tmp_db, outdir=tmp_dir, run_id=1)
+    tmp_db.unlink()
+
+
+def test_classify_db(
+    capsys: pytest.CaptureFixture[str], input_genomes_tiny: Path, tmp_path: Path
+) -> None:
+    """Check classify working example."""
+    tmp_dir = Path(tmp_path)
+    db = input_genomes_tiny / "viral_database.db"
+    public_cli.classify_genomes(database=db, run_id=1, outdir=tmp_path)
+
+    output = capsys.readouterr().out
+    assert f"Wrote classify output to {tmp_path}" in output, output
+    with (tmp_dir / "aniM_classify.tsv").open() as handle:
+        assert (
+            handle.readline()
+            == "n_nodes\tmembers\tmin_cov\tmin_identity\tclique\tsingleton\n"
+        )

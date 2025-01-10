@@ -1056,10 +1056,12 @@ def classify_genomes(  # noqa: C901, PLR0912, PLR0915
     )
     subgraph_info = classify.analyse_subgraphs(graph_removed_edges)
 
+    method = run.configuration.method
     cluster_df = pd.DataFrame(subgraph_info)
     cluster_df["members"] = cluster_df["members"].apply(lambda x: ",".join(x))
-    cluster_df.to_csv(outdir / "cluster_info.tsv", sep="\t", index=False)
+    cluster_df.to_csv(outdir / f"{method}_classify.tsv", sep="\t", index=False)
 
+    print(f"Wrote classify output to {outdir}/{method}_*.tsv")
     session.close()
     return 0
 

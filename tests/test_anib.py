@@ -31,8 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus import db_orm, private_cli, tools
-from pyani_plus.methods import method_anib
+from pyani_plus import db_orm, method_anib, private_cli, tools
 
 from . import get_matrix_entry
 

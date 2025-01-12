@@ -42,8 +42,16 @@ from rich.text import Text
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
-from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, db_orm, tools
-from pyani_plus.methods import method_anib, method_anim, method_fastani, method_sourmash
+from pyani_plus import (
+    FASTA_EXTENSIONS,
+    PROGRESS_BAR_COLUMNS,
+    db_orm,
+    method_anib,
+    method_anim,
+    method_fastani,
+    method_sourmash,
+    tools,
+)
 from pyani_plus.utils import available_cores, check_db, check_fasta, file_md5sum
 from pyani_plus.workflows import (
     ShowProgress,

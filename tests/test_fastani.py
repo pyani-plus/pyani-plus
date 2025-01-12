@@ -31,7 +31,7 @@ from pathlib import Path
 import pytest
 
 from pyani_plus import db_orm, private_cli, tools
-from pyani_plus.methods.method_fastani import parse_fastani_file
+from pyani_plus.method_fastani import parse_fastani_file
 
 
 def test_bad_path() -> None:

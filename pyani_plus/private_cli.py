@@ -40,13 +40,15 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
-from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
-from pyani_plus.methods import (
+from pyani_plus import (
+    PROGRESS_BAR_COLUMNS,
+    db_orm,
     method_anib,
     method_anim,
     method_dnadiff,
     method_fastani,
     method_sourmash,
+    tools,
 )
 from pyani_plus.public_cli import (
     OPT_ARG_TYPE_CREATE_DB,

@@ -32,9 +32,11 @@ import platform
 import sys
 from io import StringIO
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import numpy as np
-import pandas as pd
+if TYPE_CHECKING:
+    import pandas as pd  # noqa: TC004
+
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 from sqlalchemy import (
     ForeignKey,
@@ -394,6 +396,9 @@ class Run(Base):
 
         The caller must commit the updated Run object to the database explicitly!
         """
+        import numpy as np  # lazy import as slow and not generally required
+        import pandas as pd  # lazy import as slow and not generally required
+
         hashes = sorted(association.genome_hash for association in self.fasta_hashes)
         size = len(hashes)
         identity = np.full([size, size], np.nan, float)
@@ -442,6 +447,9 @@ class Run(Base):
         """
         if not self.df_identity:
             return None
+
+        import pandas as pd  # lazy import as slow and not generally required
+
         return pd.read_json(StringIO(self.df_identity), orient="split", dtype=float)
 
     @property
@@ -458,6 +466,9 @@ class Run(Base):
         """
         if not self.df_cov_query:
             return None
+
+        import pandas as pd  # lazy import as slow and not generally required
+
         return pd.read_json(StringIO(self.df_cov_query), orient="split", dtype=float)
 
     @property
@@ -474,6 +485,9 @@ class Run(Base):
         """
         if not self.df_aln_length:
             return None
+
+        import pandas as pd  # lazy import as slow and not generally required
+
         return pd.read_json(StringIO(self.df_aln_length), orient="split")
 
     @property
@@ -490,6 +504,9 @@ class Run(Base):
         """
         if not self.df_sim_errors:
             return None
+
+        import pandas as pd  # lazy import as slow and not generally required
+
         return pd.read_json(StringIO(self.df_sim_errors), orient="split")
 
     @property
@@ -508,6 +525,9 @@ class Run(Base):
         # computing it from the cached identity and coverage data-frames?
         if not self.df_hadamard:
             return None
+
+        import pandas as pd  # lazy import as slow and not generally required
+
         return pd.read_json(StringIO(self.df_hadamard), orient="split", dtype=float)
 
     def relabelled_matrix(

@@ -30,55 +30,6 @@ SCALED = 1000
 KMER_SIZE = 31  # default
 
 
-def parse_sourmash_compare_csv(
-    compare_file: Path, filename_to_hash: dict[str, str]
-) -> Iterator[tuple[str, str, float | None, float | None]]:
-    """Parse sourmash compare all-vs-all CSV output.
-
-    Assumes this is query-containment, and will infer the max-containment.
-
-    Returns tuples of (query_hash, subject_hash, query-containment,
-    max-containmenet) were the containment values of zero are mapped to
-    None (to become null in the database).
-
-    Note we are taking the transpose of the sourmash matrix in order to
-    follow our queries as rows, subjects as columns convention.
-    """
-    query_containment: dict[tuple[str, str], float] = {}
-    with compare_file.open() as handle:
-        headers = handle.readline().rstrip("\n").split(",")
-        if len(headers) != len(filename_to_hash):
-            msg = (
-                "Expected sourmash compare CSV to have"
-                f" {len(filename_to_hash)} columns, not {len(headers)}"
-            )
-            sys.exit(msg)
-        try:
-            hashes = [filename_to_hash[Path(_).name] for _ in headers]
-        except KeyError as err:
-            msg = f"CSV file {compare_file} contained reference to {err!s} which is not in the run"
-            sys.exit(msg)
-        for row, subject in enumerate(hashes):
-            values = handle.readline().rstrip("\n").split(",")
-            if values[row] != "1.0":
-                # This could happen due to a bug in sourmash, or a glitch in the
-                # parser if we're not looking at the matrix element we think we are?
-                msg = f"Expected sourmash {subject} vs self to be one, not {values[row]!r}"
-                raise ValueError(msg)
-            for col, value in enumerate(values):
-                query_containment[hashes[col], subject] = float(value)
-    # Now that we have parsed the whole matrix,
-    # can infer the max-containment
-    for (query, subject), containment in query_containment.items():
-        max_containment = max(containment, query_containment[subject, query])
-        yield (
-            query,
-            subject,
-            containment if containment else None,
-            max_containment if max_containment else None,
-        )
-
-
 def parse_sourmash_manysearch_csv(
     manysearch_file: Path,
     filename_to_hash: dict[str, str],
@@ -104,7 +55,7 @@ def parse_sourmash_manysearch_csv(
             column_query_cont = headers.index("query_containment_ani")
             column_max_cont = headers.index("max_containment_ani")
         except ValueError:
-            msg = f"ERROR - Missing expected fields in sourmash manysearch header: {line!r}"
+            msg = f"ERROR - Missing expected fields in sourmash manysearch header, found: {line!r}"
             sys.exit(msg)
         for line in handle:
             line = line.rstrip("\n")  # noqa: PLW2901
@@ -120,13 +71,21 @@ def parse_sourmash_manysearch_csv(
                     f" vs self to be one, not {values[column_max_cont]!r}"
                 )
                 raise ValueError(msg)
-            query_hash = filename_to_hash[values[column_query]]
-            subject_hash = filename_to_hash[values[column_subject]]
+            try:
+                query_hash = filename_to_hash[values[column_query]]
+                subject_hash = filename_to_hash[values[column_subject]]
+            except KeyError:
+                msg = (
+                    f"Sourmash manysearch CSV file {manysearch_file.name}"
+                    f" contained unknown query_name '{values[column_query]}'"
+                    f" and/or unknown match_name '{values[column_subject]}'"
+                )
+                raise ValueError(msg) from None
             if (query_hash, subject_hash) in expected_pairs:
                 expected_pairs.remove((query_hash, subject_hash))
             else:
                 msg = f"Did not expect {query_hash} vs {subject_hash} in {manysearch_file.name}"
-                raise ValueError(msg)
+                raise ValueError(msg) from None
             yield (
                 query_hash,
                 subject_hash,

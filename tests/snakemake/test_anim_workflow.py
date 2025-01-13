@@ -156,7 +156,7 @@ def test_rule_ANIm(  # noqa: N802
     compare_db_matrices(db, input_genomes_tiny / "matrices")
 
 
-def test_rule_ANIm_bad_alignments(  # noqa: N802
+def test_rule_ANIm_bad_align(  # noqa: N802
     input_genomes_bad_alignments: Path,
     config_anim_args: dict,
     anim_targets_outdir: Path,

@@ -79,7 +79,7 @@ def compare_blast_json(file_a: Path, file_b: Path) -> bool:
     return True
 
 
-def test_snakemake_rule_anib(
+def test_rule_anib(
     input_genomes_tiny: Path,
     anib_targets_outdir: Path,
     config_anib_args: dict,

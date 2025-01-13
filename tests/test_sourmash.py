@@ -32,7 +32,7 @@ from pathlib import Path
 import pytest
 
 from pyani_plus import db_orm, private_cli, tools
-from pyani_plus.methods import method_sourmash
+from pyani_plus.methods import sourmash as method_sourmash
 
 
 def test_parser_with_self_vs_self(tmp_path: str) -> None:

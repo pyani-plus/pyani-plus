@@ -32,7 +32,7 @@ from pathlib import Path
 import pytest
 
 from pyani_plus import db_orm, private_cli, tools, utils
-from pyani_plus.methods import method_anim
+from pyani_plus.methods import anim as method_anim
 
 from . import get_matrix_entry
 

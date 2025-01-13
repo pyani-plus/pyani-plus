@@ -32,7 +32,7 @@ from pathlib import Path
 import pytest
 
 from pyani_plus import db_orm, private_cli, tools
-from pyani_plus.methods import method_dnadiff
+from pyani_plus.methods import dnadiff as method_dnadiff
 
 from . import get_matrix_entry
 

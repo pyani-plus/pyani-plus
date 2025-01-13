@@ -42,7 +42,10 @@ from rich.text import Text
 from sqlalchemy.orm import Session
 
 from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
-from pyani_plus.methods import method_anib, method_anim, method_fastani, method_sourmash
+from pyani_plus.methods import anib as method_anib
+from pyani_plus.methods import anim as method_anim
+from pyani_plus.methods import fastani as method_fastani
+from pyani_plus.methods import sourmash as method_sourmash
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_ANIM_MODE,
     OPT_ARG_TYPE_CREATE_DB,

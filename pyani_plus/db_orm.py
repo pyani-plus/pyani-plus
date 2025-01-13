@@ -35,7 +35,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    import pandas as pd  # noqa: TC004
+    from pandas import DataFrame  # pragma: no cover
+else:
+    # fake DataFrame return value annotation to make pytest happy:
+    from typing import Any
+
+    DataFrame = Any
 
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 from sqlalchemy import (
@@ -397,7 +402,7 @@ class Run(Base):
         The caller must commit the updated Run object to the database explicitly!
         """
         import numpy as np  # lazy import as slow and not generally required
-        import pandas as pd  # lazy import as slow and not generally required
+        from pandas import DataFrame  # lazy import as slow and not generally required
 
         hashes = sorted(association.genome_hash for association in self.fasta_hashes)
         size = len(hashes)
@@ -413,28 +418,28 @@ class Run(Base):
             aln_length[row, col] = comp.aln_length
             sim_errors[row, col] = comp.sim_errors
         # Hadamard matrix is (element wise) identity * coverage
-        self.df_hadamard = pd.DataFrame(
+        self.df_hadamard = DataFrame(
             data=identity * cov_query, index=hashes, columns=hashes, dtype=float
         ).to_json(orient="split")
-        self.df_identity = pd.DataFrame(
+        self.df_identity = DataFrame(
             data=identity, index=hashes, columns=hashes, dtype=float
         ).to_json(orient="split")
         del identity
-        self.df_cov_query = pd.DataFrame(
+        self.df_cov_query = DataFrame(
             data=cov_query, index=hashes, columns=hashes, dtype=float
         ).to_json(orient="split")
         del cov_query
-        self.df_aln_length = pd.DataFrame(
+        self.df_aln_length = DataFrame(
             data=aln_length, index=hashes, columns=hashes, dtype=float
         ).to_json(orient="split")
         del aln_length
-        self.df_sim_errors = pd.DataFrame(
+        self.df_sim_errors = DataFrame(
             data=sim_errors, index=hashes, columns=hashes, dtype=float
         ).to_json(orient="split")
         del sim_errors
 
     @property
-    def identities(self) -> pd.DataFrame | None:
+    def identities(self) -> DataFrame | None:
         """All-vs-all percentage identity matrix for the run from the cached JSON.
 
         If cached, returns an N by N float matrix of percentage identities for the N genomes
@@ -448,12 +453,12 @@ class Run(Base):
         if not self.df_identity:
             return None
 
-        import pandas as pd  # lazy import as slow and not generally required
+        from pandas import read_json  # lazy import as slow and not generally required
 
-        return pd.read_json(StringIO(self.df_identity), orient="split", dtype=float)
+        return read_json(StringIO(self.df_identity), orient="split", dtype=float)
 
     @property
-    def cov_query(self) -> pd.DataFrame | None:
+    def cov_query(self) -> DataFrame | None:
         """All-vs-all query-coverage matrix for the run from the cached JSON.
 
         If cached, returns an N by N float matrix of percentage identities for the N genomes
@@ -467,12 +472,12 @@ class Run(Base):
         if not self.df_cov_query:
             return None
 
-        import pandas as pd  # lazy import as slow and not generally required
+        from pandas import read_json  # lazy import as slow and not generally required
 
-        return pd.read_json(StringIO(self.df_cov_query), orient="split", dtype=float)
+        return read_json(StringIO(self.df_cov_query), orient="split", dtype=float)
 
     @property
-    def aln_length(self) -> pd.DataFrame | None:
+    def aln_length(self) -> DataFrame | None:
         """All-vs-all alignment length matrix for the run from the cached JSON.
 
         If cached, returns an N by N integer matrix of alignment lengths for the N genomes
@@ -486,12 +491,12 @@ class Run(Base):
         if not self.df_aln_length:
             return None
 
-        import pandas as pd  # lazy import as slow and not generally required
+        from pandas import read_json  # lazy import as slow and not generally required
 
-        return pd.read_json(StringIO(self.df_aln_length), orient="split")
+        return read_json(StringIO(self.df_aln_length), orient="split")
 
     @property
-    def sim_errors(self) -> pd.DataFrame | None:
+    def sim_errors(self) -> DataFrame | None:
         """All-vs-all similarity errors matrix for the run from the cached JSON.
 
         If cached, returns an N by N integer matrix of similarity errors for the N genomes
@@ -505,12 +510,12 @@ class Run(Base):
         if not self.df_sim_errors:
             return None
 
-        import pandas as pd  # lazy import as slow and not generally required
+        from pandas import read_json  # lazy import as slow and not generally required
 
-        return pd.read_json(StringIO(self.df_sim_errors), orient="split")
+        return read_json(StringIO(self.df_sim_errors), orient="split")
 
     @property
-    def hadamard(self) -> pd.DataFrame | None:
+    def hadamard(self) -> DataFrame | None:
         """All-vs-all Hadamard matrix (identity times coverage) for the run from the cached JSON.
 
         If cached, returns an N by N Hadamard matrix for the N genomes in the run as a
@@ -526,13 +531,11 @@ class Run(Base):
         if not self.df_hadamard:
             return None
 
-        import pandas as pd  # lazy import as slow and not generally required
+        from pandas import read_json  # lazy import as slow and not generally required
 
-        return pd.read_json(StringIO(self.df_hadamard), orient="split", dtype=float)
+        return read_json(StringIO(self.df_hadamard), orient="split", dtype=float)
 
-    def relabelled_matrix(
-        self, matrix: pd.DataFrame, label: str = "md5"
-    ) -> pd.DataFrame:
+    def relabelled_matrix(self, matrix: DataFrame, label: str = "md5") -> DataFrame:
         """Convert a default MD5 based matrix of this run to another labelling.
 
         Here the matrix argument could be from ``.identities`` or similar, while

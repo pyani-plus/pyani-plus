@@ -757,9 +757,9 @@ def test_resume_partial_fastani(
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
     assert "Resuming run-id 1\n" in output, output
-    assert (
-        "Database already has 8 of 3²=9 fastANI comparisons, 1 needed" in output
-    ), output
+    assert "Database already has 8 of 3²=9 fastANI comparisons, 1 needed" in output, (
+        output
+    )
 
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
@@ -952,9 +952,9 @@ def test_resume_partial_sourmash(
     public_cli.resume(database=tmp_db)
     output = capsys.readouterr().out
     assert "Resuming run-id 1\n" in output, output
-    assert (
-        "Database already has 4 of 3²=9 sourmash comparisons, 5 needed" in output
-    ), output
+    assert "Database already has 4 of 3²=9 sourmash comparisons, 5 needed" in output, (
+        output
+    )
 
     public_cli.list_runs(database=tmp_db)
     output = capsys.readouterr().out
@@ -1165,7 +1165,7 @@ def test_resume_complete(
         )
         public_cli.resume(database=tmp_db)
         output = capsys.readouterr().out
-        assert f"Resuming run-id {index+1}\n" in output, output
+        assert f"Resuming run-id {index + 1}\n" in output, output
         assert f"Database already has all 3²=9 {method} comparisons" in output, output
 
 

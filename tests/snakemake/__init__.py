@@ -55,9 +55,9 @@ def compare_matrix(
         .sort_index(axis=0)
         .sort_index(axis=1)
     )
-    assert list(matrix_df.columns) == list(
-        expected_df.columns
-    ), f"{list(matrix_df.columns)} vs {list(expected_df.columns)}"
+    assert list(matrix_df.columns) == list(expected_df.columns), (
+        f"{list(matrix_df.columns)} vs {list(expected_df.columns)}"
+    )
     if not expected_df.dtypes.equals(matrix_df.dtypes):
         # This happens with some old pyANI output using floats for ints
         # Cast both to float
@@ -106,13 +106,13 @@ def compare_db_matrices(
     """
     session = db_orm.connect_to_db(database_path)
     run = session.query(db_orm.Run).one()
-    assert (
-        session.query(db_orm.Configuration).count() == 1
-    ), f"Expected one configuration, not {session.query(db_orm.Configuration).count()}"
+    assert session.query(db_orm.Configuration).count() == 1, (
+        f"Expected one configuration, not {session.query(db_orm.Configuration).count()}"
+    )
     n = run.genomes.count()
-    assert (
-        run.comparisons().count() == n**2
-    ), f"Expected {n}²={n**2} comparisons, not {run.comparisons().count()}"
+    assert run.comparisons().count() == n**2, (
+        f"Expected {n}²={n**2} comparisons, not {run.comparisons().count()}"
+    )
     run.cache_comparisons()  # could be all NaN if constructed in steps
     assert run.identities is not None
     assert matrices_path.is_dir()

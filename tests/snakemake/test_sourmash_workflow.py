@@ -82,9 +82,9 @@ def compare_sourmash_sig_files(file1: Path, file2: Path) -> bool:
             if key == "filename":
                 assert Path(entry1[key]).name == Path(entry2[key]).name
             else:
-                assert (
-                    entry1[key] == entry2[key]
-                ), f"{key} {entry1[key]!r}!={entry2[key]!r}"
+                assert entry1[key] == entry2[key], (
+                    f"{key} {entry1[key]!r}!={entry2[key]!r}"
+                )
 
     return True
 

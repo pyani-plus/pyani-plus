@@ -363,8 +363,8 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
                 "Comparison(comparison_id=None,"
                 f" query_hash={a!r}, subject_hash={b!r},"
                 f" configuration_id={config.configuration_id},"
-                f" identity={0.99 if a==b else 0.96},"
-                f" aln_length={4996 if a==b else 4975},"
+                f" identity={0.99 if a == b else 0.96},"
+                f" aln_length={4996 if a == b else 4975},"
                 " sim_errors=None, cov_query=None, cov_subject=None,"
                 " uname_system='Darwin', uname_release='21.6.0', uname_machine='arm64')"
             )

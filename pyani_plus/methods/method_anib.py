@@ -99,7 +99,7 @@ def parse_blastn_file(blastn: Path) -> tuple[float | None, int | None, int | Non
     >>> fname = "tests/fixtures/viral_example/intermediates/ANIb/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv"
     >>> identity, length, sim_errors = parse_blastn_file(Path(fname))
     >>> print(
-    ...     f"Identity {100*identity:0.1f}% over length {length} with {sim_errors} errors"
+    ...     f"Identity {100 * identity:0.1f}% over length {length} with {sim_errors} errors"
     ... )
     Identity 99.5% over length 39169 with 215 errors
 
@@ -108,7 +108,7 @@ def parse_blastn_file(blastn: Path) -> tuple[float | None, int | None, int | Non
     >>> fname = "tests/fixtures/viral_example/intermediates/ANIb/MGV-GENOME-0264574_vs_MGV-GENOME-0264574.tsv"
     >>> identity, length, sim_errors = parse_blastn_file(Path(fname))
     >>> print(
-    ...     f"Identity {100*identity:0.1f}% over length {length} with {sim_errors} errors"
+    ...     f"Identity {100 * identity:0.1f}% over length {length} with {sim_errors} errors"
     ... )
     Identity 100.0% over length 39253 with 0 errors
 

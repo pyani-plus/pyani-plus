@@ -53,7 +53,7 @@ def large_set_of_bacterial_chunks(
     for i in range(GENOMES):
         offset = i * 1000
         with (fasta_dir / f"genome{i}.fasta").open("w") as handle:
-            handle.write(f">genome{i}\n{seq[offset:offset+500000]}\n")
+            handle.write(f">genome{i}\n{seq[offset : offset + 500000]}\n")
     return fasta_dir
 
 
@@ -122,12 +122,12 @@ def test_compute_column_sigint_anib(
     if done < genomes:
         assert "Interrupted, will attempt to log" in output, output
     else:
-        assert (
-            0 < done < genomes
-        ), f"Expected partial ANIb progress, not {done}/{genomes} and return {rc}"
-    assert (
-        rc == 0
-    ), f"Expecting return 0 on clean interruption, got {rc} with {done} done"
+        assert 0 < done < genomes, (
+            f"Expected partial ANIb progress, not {done}/{genomes} and return {rc}"
+        )
+    assert rc == 0, (
+        f"Expecting return 0 on clean interruption, got {rc} with {done} done"
+    )
 
 
 def test_compute_column_sigint_dnadiff(
@@ -184,12 +184,12 @@ def test_compute_column_sigint_dnadiff(
     if done < genomes:
         assert "Interrupted, will attempt to log" in output, output
     else:
-        assert (
-            0 < done < genomes
-        ), f"Expected partial dnadiff progress, not {done}/{genomes} and return {rc}"
-    assert (
-        rc == 0
-    ), f"Expecting return 0 on clean interruption, got {rc} with {done} done"
+        assert 0 < done < genomes, (
+            f"Expected partial dnadiff progress, not {done}/{genomes} and return {rc}"
+        )
+    assert rc == 0, (
+        f"Expecting return 0 on clean interruption, got {rc} with {done} done"
+    )
 
 
 def test_compute_column_sigint_anim(
@@ -247,9 +247,9 @@ def test_compute_column_sigint_anim(
     if done < genomes:
         assert "Interrupted, will attempt to log" in output, output
     else:
-        assert (
-            0 < done < genomes
-        ), f"Expected partial ANIb progress, not {done}/{genomes} and return {rc}"
-    assert (
-        rc == 0
-    ), f"Expecting return 0 on clean interruption, got {rc} with {done} done"
+        assert 0 < done < genomes, (
+            f"Expected partial ANIb progress, not {done}/{genomes} and return {rc}"
+        )
+    assert rc == 0, (
+        f"Expecting return 0 on clean interruption, got {rc} with {done} done"
+    )

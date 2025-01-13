@@ -32,7 +32,7 @@ from pathlib import Path
 import pytest
 
 from pyani_plus import db_orm, private_cli, tools, utils
-from pyani_plus.methods import method_anim
+from pyani_plus.methods import anim
 
 from . import get_matrix_entry
 
@@ -56,7 +56,7 @@ def genome_hashes(input_genomes_tiny: Path) -> dict:
 
 def test_delta_parsing(input_genomes_tiny: Path) -> None:
     """Check parsing of test NUCmer .delta/.filter file."""
-    assert method_anim.parse_delta(
+    assert anim.parse_delta(
         input_genomes_tiny
         / "intermediates/ANIm/689d3fd6881db36b5e08329cf23cecdd_vs_78975d5144a1cd12e98898d573cf6536.filter",
     ) == (
@@ -67,12 +67,12 @@ def test_delta_parsing(input_genomes_tiny: Path) -> None:
     )
 
     with pytest.raises(ValueError, match="Empty delta file from nucmer, /dev/null"):
-        method_anim.parse_delta(Path("/dev/null"))
+        anim.parse_delta(Path("/dev/null"))
 
 
 def test_bad_alignments_parsing(input_genomes_bad_alignments: Path) -> None:
     """Check parsing of test NUCmer .delta/.filter file."""
-    assert method_anim.parse_delta(
+    assert anim.parse_delta(
         input_genomes_bad_alignments
         / "intermediates/ANIm/689d3fd6881db36b5e08329cf23cecdd_vs_a30481565b45f6bbc6ce5260503067e0.filter",
     ) == (None, None, None, None)
@@ -80,7 +80,7 @@ def test_bad_alignments_parsing(input_genomes_bad_alignments: Path) -> None:
 
 def test_aligned_bases_count(aligned_regions: dict) -> None:
     """Check only aligned bases in non-overlapping regions are counted."""
-    assert method_anim.get_aligned_bases_count(aligned_regions) == 39176  # noqa: PLR2004
+    assert anim.get_aligned_bases_count(aligned_regions) == 39176  # noqa: PLR2004
 
 
 def test_running_anim(
@@ -104,7 +104,7 @@ def test_running_anim(
         method="ANIm",
         program=tool.exe_path.stem,
         version=tool.version,
-        mode=method_anim.MODE,
+        mode=anim.MODE,
         create_db=True,
     )
     output = capsys.readouterr().out
@@ -116,7 +116,7 @@ def test_running_anim(
     hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
 
     subject_hash = list(hash_to_filename)[1]
-    private_cli.anim(
+    private_cli.compute_anim(
         tmp_dir,
         session,
         run,

@@ -32,7 +32,7 @@ from pathlib import Path
 import pytest
 
 from pyani_plus import db_orm, private_cli, tools
-from pyani_plus.methods import method_sourmash
+from pyani_plus.methods import sourmash
 
 
 def test_parser_with_self_vs_self(tmp_path: str) -> None:
@@ -43,7 +43,7 @@ def test_parser_with_self_vs_self(tmp_path: str) -> None:
         handle.write("1.0,0.98\n")
         handle.write("0.99,1.0\n")
     mock_dict = {"A.fasta": "AAAAAA", "B.fasta": "BBBBBB"}
-    parser = method_sourmash.parse_sourmash_compare_csv(mock_csv, mock_dict)
+    parser = sourmash.parse_sourmash_compare_csv(mock_csv, mock_dict)
     assert next(parser) == ("AAAAAA", "AAAAAA", 1.0, 1.0)
     assert next(parser) == ("BBBBBB", "AAAAAA", 0.98, 0.99)
     assert next(parser) == ("AAAAAA", "BBBBBB", 0.99, 0.99)
@@ -58,7 +58,7 @@ def test_parser_with_bad_self_vs_self(tmp_path: str) -> None:
         handle.write("1.0,0.99\n")
         handle.write("0.99,NaN\n")
     mock_dict = {"A.fasta": "AAAAAA", "B.fasta": "BBBBBB"}
-    parser = method_sourmash.parse_sourmash_compare_csv(mock_csv, mock_dict)
+    parser = sourmash.parse_sourmash_compare_csv(mock_csv, mock_dict)
     with pytest.raises(
         ValueError, match="Expected sourmash BBBBBB vs self to be one, not 'NaN'"
     ):
@@ -83,9 +83,7 @@ def test_parser_with_bad_branchwater(tmp_path: str) -> None:
         ("BBBBBB", "AAAAAA"),
         ("BBBBBB", "BBBBBB"),
     }
-    parser = method_sourmash.parse_sourmash_manysearch_csv(
-        mock_csv, mock_dict, expected
-    )
+    parser = sourmash.parse_sourmash_manysearch_csv(mock_csv, mock_dict, expected)
     assert next(parser) == ("AAAAAA", "AAAAAA", 1.0, 1.0)
     assert next(parser) == ("AAAAAA", "BBBBBB", 0.85, 0.9)
     with pytest.raises(
@@ -95,7 +93,7 @@ def test_parser_with_bad_branchwater(tmp_path: str) -> None:
         next(parser)
 
     # Now tell it just expect one entry...
-    parser = method_sourmash.parse_sourmash_manysearch_csv(
+    parser = sourmash.parse_sourmash_manysearch_csv(
         mock_csv, mock_dict, {("AAAAAA", "AAAAAA")}
     )
     assert next(parser) == ("AAAAAA", "AAAAAA", 1.0, 1.0)
@@ -114,7 +112,7 @@ def test_parser_with_bad_header(tmp_path: str) -> None:
         handle.write(
             "max_containment_ani,query_name,match_name,subject_containment_ani\n"
         )
-    parser = method_sourmash.parse_sourmash_manysearch_csv(mock_csv, {}, set())
+    parser = sourmash.parse_sourmash_manysearch_csv(mock_csv, {}, set())
     with pytest.raises(
         SystemExit,
         match="ERROR - Missing expected fields in sourmash manysearch header: "
@@ -172,8 +170,8 @@ def test_bad_query_or_subject(
         method="sourmash",
         program=tool.exe_path.name,
         version=tool.version,
-        kmersize=method_sourmash.KMER_SIZE,
-        extra="scaled=" + str(method_sourmash.SCALED),
+        kmersize=sourmash.KMER_SIZE,
+        extra="scaled=" + str(sourmash.SCALED),
         create_db=True,
     )
     output = capsys.readouterr().out
@@ -221,8 +219,8 @@ def test_wrong_size(
         method="sourmash",
         program=tool.exe_path.name,
         version=tool.version,
-        kmersize=method_sourmash.KMER_SIZE,
-        extra="scaled=" + str(method_sourmash.SCALED),
+        kmersize=sourmash.KMER_SIZE,
+        extra="scaled=" + str(sourmash.SCALED),
         create_db=True,
     )
     output = capsys.readouterr().out
@@ -257,8 +255,8 @@ def test_logging_wrong_version_sourmash(
         method="sourmash",
         program="sourmash",
         version="42",
-        kmersize=method_sourmash.KMER_SIZE,
-        extra="scaled=" + str(method_sourmash.SCALED),
+        kmersize=sourmash.KMER_SIZE,
+        extra="scaled=" + str(sourmash.SCALED),
         create_db=True,
     )
     output = capsys.readouterr().out
@@ -293,8 +291,8 @@ def test_logging_wrong_version_branchwater(
         method="branchwater",
         program="sourmash",
         version="42",
-        kmersize=method_sourmash.KMER_SIZE,
-        extra="scaled=" + str(method_sourmash.SCALED),
+        kmersize=sourmash.KMER_SIZE,
+        extra="scaled=" + str(sourmash.SCALED),
         create_db=True,
     )
     output = capsys.readouterr().out
@@ -331,8 +329,8 @@ def test_logging_sourmash(
         method="sourmash",
         program=tool.exe_path.stem,
         version=tool.version,
-        kmersize=method_sourmash.KMER_SIZE,
-        extra="scaled=" + str(method_sourmash.SCALED),
+        kmersize=sourmash.KMER_SIZE,
+        extra="scaled=" + str(sourmash.SCALED),
         create_db=True,
     )
     output = capsys.readouterr().out
@@ -371,8 +369,8 @@ def test_logging_sourmash_bad_alignments(
         method="sourmash",
         program=tool.exe_path.stem,
         version=tool.version,
-        kmersize=method_sourmash.KMER_SIZE,
-        extra="scaled=" + str(method_sourmash.SCALED),
+        kmersize=sourmash.KMER_SIZE,
+        extra="scaled=" + str(sourmash.SCALED),
         create_db=True,
     )
     output = capsys.readouterr().out

@@ -75,19 +75,19 @@ def test_self_vs_self_anim(capsys: pytest.CaptureFixture[str], tmp_path: str) ->
     )
     assert len(list(seq_dir.glob("*.f*"))) == 1
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.anim)
+    comp = do_self_compare(capsys, seq_dir, public_cli.cli_anim)
     assert comp.identity == 0.9963070429965708, comp  # noqa: PLR2004
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.dnadiff)
+    comp = do_self_compare(capsys, seq_dir, public_cli.cli_dnadiff)
     assert comp.identity == 1.0, comp
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.anib)
+    comp = do_self_compare(capsys, seq_dir, public_cli.cli_anib)
     assert comp.identity == 1.0, comp
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.fastani)
+    comp = do_self_compare(capsys, seq_dir, public_cli.cli_fastani)
     assert comp.identity == 1.0, comp
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.sourmash)
+    comp = do_self_compare(capsys, seq_dir, public_cli.cli_sourmash)
     assert comp.identity == 1.0, comp
 
 
@@ -107,17 +107,17 @@ def test_self_vs_self_fastani(
     )
     assert len(list(seq_dir.glob("*.f*"))) == 1
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.anim)
+    comp = do_self_compare(capsys, seq_dir, public_cli.cli_anim)
     assert comp.identity == 1.0, comp
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.dnadiff)
+    comp = do_self_compare(capsys, seq_dir, public_cli.cli_dnadiff)
     assert comp.identity == 1.0, comp
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.anib)
+    comp = do_self_compare(capsys, seq_dir, public_cli.cli_anib)
     assert comp.identity == 1.0, comp
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.fastani)
+    comp = do_self_compare(capsys, seq_dir, public_cli.cli_fastani)
     assert comp.identity == 0.999953, comp  # noqa: PLR2004
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.sourmash)
+    comp = do_self_compare(capsys, seq_dir, public_cli.cli_sourmash)
     assert comp.identity == 1.0, comp

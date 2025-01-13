@@ -32,7 +32,7 @@ from typing import Annotated
 import typer
 
 from pyani_plus import FASTA_EXTENSIONS
-from pyani_plus.methods.method_anim import EnumModeANIm
+from pyani_plus.methods.anim import EnumModeANIm
 from pyani_plus.workflows import ToolExecutor
 
 # Reused required command line arguments (which have no default)

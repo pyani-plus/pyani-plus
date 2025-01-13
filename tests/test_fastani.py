@@ -31,7 +31,7 @@ from pathlib import Path
 import pytest
 
 from pyani_plus import db_orm, private_cli, tools
-from pyani_plus.methods.method_fastani import parse_fastani_file
+from pyani_plus.methods.fastani import parse_fastani_file
 
 
 def test_bad_path() -> None:
@@ -75,7 +75,7 @@ def test_running_fastani(
     filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
     hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
 
-    private_cli.fastani(
+    private_cli.compute_fastani(
         tmp_dir,
         session,
         run,

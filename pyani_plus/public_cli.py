@@ -42,7 +42,7 @@ from rich.text import Text
 from sqlalchemy.orm import Session
 
 from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
-from pyani_plus.methods import method_anib, method_anim, method_fastani, method_sourmash
+from pyani_plus.methods import anib, anim, fastani, sourmash
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_ANIM_MODE,
     OPT_ARG_TYPE_CREATE_DB,
@@ -254,8 +254,8 @@ def run_method(  # noqa: PLR0913
     return 0
 
 
-@app.command(rich_help_panel="ANI methods")
-def anim(  # noqa: PLR0913
+@app.command("anim", rich_help_panel="ANI methods")
+def cli_anim(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     *,
@@ -263,7 +263,7 @@ def anim(  # noqa: PLR0913
     name: OPT_ARG_TYPE_RUN_NAME = None,
     # Does not use fragsize, kmersize, or minmatch
     # The mode here is not optional - must pick one!
-    mode: OPT_ARG_TYPE_ANIM_MODE = method_anim.MODE,
+    mode: OPT_ARG_TYPE_ANIM_MODE = anim.MODE,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
@@ -294,8 +294,8 @@ def anim(  # noqa: PLR0913
     )
 
 
-@app.command(rich_help_panel="ANI methods")
-def dnadiff(  # noqa: PLR0913
+@app.command("dnadiff", rich_help_panel="ANI methods")
+def cli_dnadiff(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     *,
@@ -335,15 +335,15 @@ def dnadiff(  # noqa: PLR0913
     )
 
 
-@app.command(rich_help_panel="ANI methods")
-def anib(  # noqa: PLR0913
+@app.command("anib", rich_help_panel="ANI methods")
+def cli_anib(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
     *,
     name: OPT_ARG_TYPE_RUN_NAME = None,
     # These are all for the configuration table:
-    fragsize: OPT_ARG_TYPE_FRAGSIZE = method_anib.FRAGSIZE,
+    fragsize: OPT_ARG_TYPE_FRAGSIZE = anib.FRAGSIZE,
     # Does not use mode, kmersize, or minmatch
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
@@ -379,15 +379,15 @@ def anib(  # noqa: PLR0913
     )
 
 
-@app.command(rich_help_panel="ANI methods")
-def fastani(  # noqa: PLR0913
+@app.command("fastani", rich_help_panel="ANI methods")
+def cli_fastani(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     *,
     # These are for the run table:
     name: OPT_ARG_TYPE_RUN_NAME = None,
     # These are all for the configuration table:
-    fragsize: OPT_ARG_TYPE_FRAGSIZE = method_fastani.FRAG_LEN,
+    fragsize: OPT_ARG_TYPE_FRAGSIZE = fastani.FRAG_LEN,
     # Does not use mode
     # Don't use OPT_ARG_TYPE_KMERSIZE as want to include max=16
     kmersize: Annotated[
@@ -398,8 +398,8 @@ def fastani(  # noqa: PLR0913
             min=1,
             max=16,
         ),
-    ] = method_fastani.KMER_SIZE,
-    minmatch: OPT_ARG_TYPE_MINMATCH = method_fastani.MIN_FRACTION,
+    ] = fastani.KMER_SIZE,
+    minmatch: OPT_ARG_TYPE_MINMATCH = fastani.MIN_FRACTION,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
@@ -431,8 +431,8 @@ def fastani(  # noqa: PLR0913
     )
 
 
-@app.command(rich_help_panel="ANI methods")
-def sourmash(  # noqa: PLR0913
+@app.command("sourmash", rich_help_panel="ANI methods")
+def cli_sourmash(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     *,
@@ -443,8 +443,8 @@ def sourmash(  # noqa: PLR0913
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
     # For the config table:
-    scaled: OPT_ARG_TYPE_SOURMASH_SCALED = method_sourmash.SCALED,  # 1000
-    kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
+    scaled: OPT_ARG_TYPE_SOURMASH_SCALED = sourmash.SCALED,  # 1000
+    kmersize: OPT_ARG_TYPE_KMERSIZE = sourmash.KMER_SIZE,
 ) -> int:
     """Execute sourmash calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
@@ -472,8 +472,8 @@ def sourmash(  # noqa: PLR0913
     )
 
 
-@app.command(rich_help_panel="ANI methods")
-def branchwater(  # noqa: PLR0913
+@app.command("branchwater", rich_help_panel="ANI methods")
+def cli_branchwater(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     *,
@@ -484,8 +484,8 @@ def branchwater(  # noqa: PLR0913
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
     # These are for the configuration table:
-    scaled: OPT_ARG_TYPE_SOURMASH_SCALED = method_sourmash.SCALED,  # 1000
-    kmersize: OPT_ARG_TYPE_KMERSIZE = method_sourmash.KMER_SIZE,
+    scaled: OPT_ARG_TYPE_SOURMASH_SCALED = sourmash.SCALED,  # 1000
+    kmersize: OPT_ARG_TYPE_KMERSIZE = sourmash.KMER_SIZE,
 ) -> int:
     """Execute sourmash-plugin-branchwater ANI calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)

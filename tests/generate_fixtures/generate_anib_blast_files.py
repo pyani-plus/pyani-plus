@@ -38,7 +38,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from pyani_plus.methods.method_anib import BLAST_COLUMNS
+from pyani_plus.methods.anib import BLAST_COLUMNS
 from pyani_plus.tools import get_blastn, get_makeblastdb
 
 # Paths to directories (eg, input sequences, delta and filter)

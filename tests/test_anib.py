@@ -32,7 +32,7 @@ from pathlib import Path
 import pytest
 
 from pyani_plus import db_orm, private_cli, tools
-from pyani_plus.methods import method_anib
+from pyani_plus.methods import anib
 
 from . import get_matrix_entry
 
@@ -42,12 +42,12 @@ def test_bad_path(tmp_path: str) -> None:
     with pytest.raises(
         FileNotFoundError, match="No such file or directory: '/does/not/exist'"
     ):
-        method_anib.parse_blastn_file(Path("/does/not/exist"))
+        anib.parse_blastn_file(Path("/does/not/exist"))
 
     with pytest.raises(
         FileNotFoundError, match="No such file or directory: '/does/not/exist'"
     ):
-        method_anib.fragment_fasta_file(
+        anib.fragment_fasta_file(
             Path("/does/not/exist"), Path(tmp_path) / "frags.fna", 1020
         )
 
@@ -55,14 +55,12 @@ def test_bad_path(tmp_path: str) -> None:
 def test_empty_path(tmp_path: str) -> None:
     """Confirm fragmenting an empty path fails."""
     with pytest.raises(ValueError, match="No sequences found in /dev/null"):
-        method_anib.fragment_fasta_file(
-            Path("/dev/null"), Path(tmp_path) / "frags.fna", 1020
-        )
+        anib.fragment_fasta_file(Path("/dev/null"), Path(tmp_path) / "frags.fna", 1020)
 
 
 def test_parse_blastn_empty() -> None:
     """Check parsing of empty BLASTN tabular file."""
-    assert method_anib.parse_blastn_file(Path("/dev/null")) == (None, None, None)
+    assert anib.parse_blastn_file(Path("/dev/null")) == (None, None, None)
 
 
 def test_parse_blastn_bad(input_genomes_tiny: Path) -> None:
@@ -70,7 +68,7 @@ def test_parse_blastn_bad(input_genomes_tiny: Path) -> None:
     with pytest.raises(
         ValueError, match="Found 1 columns in .*/MGV-GENOME-0264574.fas, not 7"
     ):
-        method_anib.parse_blastn_file(input_genomes_tiny / "MGV-GENOME-0264574.fas")
+        anib.parse_blastn_file(input_genomes_tiny / "MGV-GENOME-0264574.fas")
 
 
 def test_parse_blastn_bad_query(tmp_path: str) -> None:
@@ -82,14 +80,14 @@ def test_parse_blastn_bad_query(tmp_path: str) -> None:
         ValueError,
         match="BLAST output should be using fragmented queries, not bad-query",
     ):
-        method_anib.parse_blastn_file(fake)
+        anib.parse_blastn_file(fake)
 
 
 def test_parse_blastn(input_genomes_tiny: Path) -> None:
     """Check parsing of BLASTN tabular file."""
     # Function returns tuple of mean percentage identity, total alignment length, and
     # total mismatches/gaps:
-    assert method_anib.parse_blastn_file(
+    assert anib.parse_blastn_file(
         input_genomes_tiny
         / "intermediates/ANIb/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tsv"
     ) == (0.9945938461538462, 39169, 215)
@@ -126,7 +124,7 @@ def test_running_anib(
         method="ANIb",
         program=tool.exe_path.stem,
         version=tool.version,
-        fragsize=method_anib.FRAGSIZE,  # will be used by default in log_anib
+        fragsize=anib.FRAGSIZE,  # will be used by default in log_anib
         create_db=True,
     )
     output = capsys.readouterr().out
@@ -138,7 +136,7 @@ def test_running_anib(
     hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
 
     subject_hash = list(hash_to_filename)[1]
-    private_cli.anib(
+    private_cli.compute_anib(
         tmp_dir,
         session,
         run,

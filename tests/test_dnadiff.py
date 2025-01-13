@@ -32,7 +32,7 @@ from pathlib import Path
 import pytest
 
 from pyani_plus import db_orm, private_cli, tools
-from pyani_plus.methods import method_dnadiff
+from pyani_plus.methods import dnadiff
 
 from . import get_matrix_entry
 
@@ -56,7 +56,7 @@ def test_parse_mcoords(
     input_genomes_tiny: Path, expected_mcoords_output: tuple[float, int]
 ) -> None:
     """Check parsing of test mcoords file."""
-    assert expected_mcoords_output == method_dnadiff.parse_mcoords(
+    assert expected_mcoords_output == dnadiff.parse_mcoords(
         input_genomes_tiny
         / "intermediates/dnadiff/689d3fd6881db36b5e08329cf23cecdd_vs_78975d5144a1cd12e98898d573cf6536.mcoords"
     )
@@ -64,7 +64,7 @@ def test_parse_mcoords(
 
 def test_parse_mcoords_bad_alignment(input_genomes_bad_alignments: Path) -> None:
     """Check parsing of test mcoords file for bad alignments example."""
-    assert method_dnadiff.parse_mcoords(
+    assert dnadiff.parse_mcoords(
         input_genomes_bad_alignments
         / "intermediates/dnadiff/689d3fd6881db36b5e08329cf23cecdd_vs_a30481565b45f6bbc6ce5260503067e0.mcoords"
     ) == (None, None)
@@ -72,7 +72,7 @@ def test_parse_mcoords_bad_alignment(input_genomes_bad_alignments: Path) -> None
 
 def test_parse_qdiff(input_genomes_tiny: Path, expected_gap_lengths_qry: int) -> None:
     """Check parsing of test qdiff file."""
-    assert expected_gap_lengths_qry == method_dnadiff.parse_qdiff(
+    assert expected_gap_lengths_qry == dnadiff.parse_qdiff(
         input_genomes_tiny
         / "intermediates/dnadiff/689d3fd6881db36b5e08329cf23cecdd_vs_78975d5144a1cd12e98898d573cf6536.qdiff"
     )
@@ -81,7 +81,7 @@ def test_parse_qdiff(input_genomes_tiny: Path, expected_gap_lengths_qry: int) ->
 def test_parse_qdiff_bad_alignments(input_genomes_bad_alignments: Path) -> None:
     """Check parsing of test qdiff file for bad alignments example."""
     assert (
-        method_dnadiff.parse_qdiff(
+        dnadiff.parse_qdiff(
             input_genomes_bad_alignments
             / "intermediates/dnadiff/689d3fd6881db36b5e08329cf23cecdd_vs_a30481565b45f6bbc6ce5260503067e0.qdiff"
         )
@@ -121,7 +121,7 @@ def test_running_dnadiff(
     hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
 
     subject_hash = list(hash_to_filename)[1]
-    private_cli.dnadiff(
+    private_cli.compute_dnadiff(
         tmp_dir,
         session,
         run,

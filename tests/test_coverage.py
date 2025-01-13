@@ -110,7 +110,7 @@ def test_coverage(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
     #
     # Comparing the JSON serialised dataframe directly from the DB
 
-    run = do_comparison(capsys, seq_dir, public_cli.anim)
+    run = do_comparison(capsys, seq_dir, public_cli.cli_anim)
     assert run.df_identity == (
         "{"
         f'"columns":{checksums},"index":{checksums},"data":'
@@ -122,7 +122,7 @@ def test_coverage(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
         "[[1.0,1.0,null],[0.2963686823,1.0,0.7036313177],[null,1.0,1.0]]}"
     )  # expected pattern of 100%, 30%, 70% or null.
 
-    run = do_comparison(capsys, seq_dir, public_cli.dnadiff)
+    run = do_comparison(capsys, seq_dir, public_cli.cli_dnadiff)
     assert run.df_identity == (
         "{"
         f'"columns":{checksums},"index":{checksums},"data":'
@@ -134,7 +134,7 @@ def test_coverage(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
         "[[1.0,1.0,null],[0.2963686823,1.0,0.7036313177],[null,1.0,1.0]]}"
     )
 
-    run = do_comparison(capsys, seq_dir, public_cli.anib)
+    run = do_comparison(capsys, seq_dir, public_cli.cli_anib)
     assert run.df_identity == (
         "{"
         f'"columns":{checksums},"index":{checksums},"data":'
@@ -148,7 +148,12 @@ def test_coverage(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
 
     # Deliberately trying some non-default settings with fastANI
     run = do_comparison(
-        capsys, seq_dir, public_cli.fastani, kmersize=15, fragsize=2000, minmatch=0.15
+        capsys,
+        seq_dir,
+        public_cli.cli_fastani,
+        kmersize=15,
+        fragsize=2000,
+        minmatch=0.15,
     )
     # The large contig is a non-100% self test case for fastANI
     assert run.df_identity == (
@@ -163,7 +168,7 @@ def test_coverage(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
     )  # 25% and 75% rather than 30% and 70% expected via bp
 
     # Doesn't "work" with default scaling - nulls except for diagonal,
-    run = do_comparison(capsys, seq_dir, public_cli.branchwater, scaled=50)
+    run = do_comparison(capsys, seq_dir, public_cli.cli_branchwater, scaled=50)
     assert run.df_identity == (
         "{"
         f'"columns":{checksums},"index":{checksums},"data":'
@@ -177,7 +182,7 @@ def test_coverage(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
     )
 
     # Doesn't "work" with default scaling - nulls except for diagonal,
-    run = do_comparison(capsys, seq_dir, public_cli.sourmash, scaled=50)
+    run = do_comparison(capsys, seq_dir, public_cli.cli_sourmash, scaled=50)
     assert run.df_identity == (
         "{"
         f'"columns":{checksums},"index":{checksums},"data":'

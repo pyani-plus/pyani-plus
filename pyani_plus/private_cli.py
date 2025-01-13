@@ -43,13 +43,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
-from pyani_plus.methods import (
-    method_anib,
-    method_anim,
-    method_dnadiff,
-    method_fastani,
-    method_sourmash,
-)
+from pyani_plus.methods import anib, anim, dnadiff, fastani, sourmash
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_CREATE_DB,
     OPT_ARG_TYPE_TEMP,
@@ -474,10 +468,10 @@ def compute_column(  # noqa: C901
     # Will probably want to move each of these functions to the relevant method module...
     try:
         compute = {
-            "fastANI": fastani,
-            "ANIb": anib,
-            "ANIm": anim,
-            "dnadiff": dnadiff,
+            "fastANI": compute_fastani,
+            "ANIb": compute_anib,
+            "ANIm": compute_anim,
+            "dnadiff": compute_dnadiff,
         }[method]
     except KeyError:
         msg = f"ERROR: Unknown method {method} for run-id {run_id} in {database}"
@@ -506,7 +500,7 @@ def compute_column(  # noqa: C901
         )
 
 
-def fastani(  # noqa: PLR0913
+def compute_fastani(  # noqa: PLR0913
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
@@ -602,7 +596,7 @@ def fastani(  # noqa: PLR0913
                 identity,
                 orthologous_matches,
                 fragments,
-            ) in method_fastani.parse_fastani_file(
+            ) in fastani.parse_fastani_file(
                 tmp_output,
                 filename_to_hash,
                 # This is used to infer failed alignments:
@@ -614,7 +608,7 @@ def fastani(  # noqa: PLR0913
     return 0
 
 
-def anim(  # noqa: C901, PLR0912, PLR0913, PLR0915
+def compute_anim(  # noqa: C901, PLR0912, PLR0913, PLR0915
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
@@ -737,7 +731,7 @@ def anim(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 handle.write(output)
 
             query_aligned_bases, subject_aligned_bases, identity, sim_errors = (
-                method_anim.parse_delta(deltafilter)
+                anim.parse_delta(deltafilter)
             )
 
             db_entries.append(
@@ -795,7 +789,7 @@ def anim(  # noqa: C901, PLR0912, PLR0913, PLR0915
     return 0
 
 
-def anib(  # noqa: C901, PLR0913, PLR0915
+def compute_anib(  # noqa: C901, PLR0913, PLR0915
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
@@ -827,7 +821,7 @@ def anib(  # noqa: C901, PLR0913, PLR0915
         .one()
         .length
     )
-    outfmt = "6 " + " ".join(method_anib.BLAST_COLUMNS)
+    outfmt = "6 " + " ".join(anib.BLAST_COLUMNS)
 
     # makeblastdb does not handle spaces in filenames, neither quoted nor
     # escaped as slash-space. Therefore symlink or decompress to <MD5>.fasta:
@@ -880,7 +874,7 @@ def anib(  # noqa: C901, PLR0913, PLR0915
                 tmp_dir / f"{query_hash}-fragments-{fragsize}-pid{os.getpid()}.fna"
             )
 
-            method_anib.fragment_fasta_file(
+            anib.fragment_fasta_file(
                 fasta_dir / hash_to_filename[query_hash],
                 tmp_frag_query,
                 fragsize,
@@ -914,7 +908,7 @@ def anib(  # noqa: C901, PLR0913, PLR0915
                 ],
             )
 
-            identity, aln_length, sim_errors = method_anib.parse_blastn_file(tmp_tsv)
+            identity, aln_length, sim_errors = anib.parse_blastn_file(tmp_tsv)
 
             query_length = (
                 session.query(db_orm.Genome)
@@ -972,7 +966,7 @@ def anib(  # noqa: C901, PLR0913, PLR0915
     return 0
 
 
-def dnadiff(  # noqa: C901, PLR0912, PLR0913, PLR0915
+def compute_dnadiff(  # noqa: C901, PLR0912, PLR0913, PLR0915
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
@@ -1115,8 +1109,8 @@ def dnadiff(  # noqa: C901, PLR0912, PLR0913, PLR0915
             with mcoords.open("w") as handle:
                 handle.write(output)
 
-            identity, aligned_bases_with_gaps = method_dnadiff.parse_mcoords(mcoords)
-            gap_lengths = method_dnadiff.parse_qdiff(qdiff)
+            identity, aligned_bases_with_gaps = dnadiff.parse_mcoords(mcoords)
+            gap_lengths = dnadiff.parse_qdiff(qdiff)
 
             # For comparisons of closely related genomes, qdiff files might
             # be empty as there are no gaps in the alignments. In this case, we
@@ -1255,7 +1249,7 @@ def log_sourmash(
                 subject_hash,
                 query_containment,
                 max_containment,
-            ) in method_sourmash.parse_sourmash_compare_csv(compare, filename_to_hash)
+            ) in sourmash.parse_sourmash_compare_csv(compare, filename_to_hash)
         ],
     )
     session.commit()
@@ -1325,7 +1319,7 @@ def log_branchwater(
                 subject_hash,
                 query_containment,
                 max_containment,
-            ) in method_sourmash.parse_sourmash_manysearch_csv(
+            ) in sourmash.parse_sourmash_manysearch_csv(
                 manysearch,
                 filename_to_hash,
                 # This is used to infer failed alignments:

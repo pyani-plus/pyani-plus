@@ -498,7 +498,7 @@ def test_anim(
     # DB name with spaces, single quotes, emoji, in path & filename
     (tmp_dir / "user's 🔎 output").mkdir()
     tmp_db = tmp_dir / "user's 🔎 output" / "anim's 📦.sqlite"
-    public_cli.anim(
+    public_cli.cli_anim(
         database=tmp_db,
         fasta=evil_example,
         name="Spaces etc",
@@ -512,7 +512,7 @@ def test_anim(
     session.close()
 
     # Now do it again - it should reuse the calculations:
-    public_cli.anim(
+    public_cli.cli_anim(
         database=tmp_db,
         fasta=input_genomes_tiny,
         name="Simple names",
@@ -539,7 +539,7 @@ def test_anim_gzip(
     tmp_dir = Path(tmp_path) / "ANIm's gzip test 📦"
     tmp_dir.mkdir()
     tmp_db = tmp_dir / "anim's inputs are gzipped.sqlite"
-    public_cli.anim(
+    public_cli.cli_anim(
         database=tmp_db, fasta=gzipped_tiny_example, name="Test Run", create_db=True
     )
     public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=1)
@@ -553,7 +553,7 @@ def test_anim_gzip(
     count = session.query(db_orm.Comparison).count()
     session.close()
 
-    public_cli.anim(
+    public_cli.cli_anim(
         database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=False
     )
     session = db_orm.connect_to_db(tmp_db)
@@ -572,7 +572,7 @@ def test_dnadiff(
     tmp_dir.mkdir()
     tmp_db = tmp_dir / "dnadiff test.sqlite"
     # Leaving out name, so can check the default worked
-    public_cli.dnadiff(database=tmp_db, fasta=evil_example, create_db=True)
+    public_cli.cli_dnadiff(database=tmp_db, fasta=evil_example, create_db=True)
     output = capsys.readouterr().out
     assert "Database already has 0 of 3²=9 dnadiff comparisons, 9 needed\n" in output
     session = db_orm.connect_to_db(tmp_db)
@@ -581,7 +581,7 @@ def test_dnadiff(
     session.close()
 
     # Now do it again - it should reuse the calculations:
-    public_cli.dnadiff(
+    public_cli.cli_dnadiff(
         database=tmp_db,
         fasta=input_genomes_tiny,
         name="Simple names",
@@ -606,7 +606,7 @@ def test_dnadiff_gzip(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "dnadiff's inputs are gzipped.sqlite"
     # Leaving out name, so can check the default worked
-    public_cli.dnadiff(database=tmp_db, fasta=gzipped_tiny_example, create_db=True)
+    public_cli.cli_dnadiff(database=tmp_db, fasta=gzipped_tiny_example, create_db=True)
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     # Fuzzy, 0.9963 from dnadiff tool != 0.9962661747 from our code
     compare_matrix_files(
@@ -630,7 +630,7 @@ def test_anib(
     tmp_dir = Path(tmp_path) / "ANIb-test-🎱"  # no spaces! makeblastdb -out breaks
     tmp_dir.mkdir()
     tmp_db = tmp_dir / "anib test.sqlite"
-    public_cli.anib(
+    public_cli.cli_anib(
         database=tmp_db,
         fasta=evil_example,
         name="Spaces etc",
@@ -641,7 +641,7 @@ def test_anib(
     assert "Database already has 0 of 3²=9 ANIb comparisons, 9 needed\n" in output
 
     # Run it again, nothing to recompute but easier to check output
-    public_cli.anib(
+    public_cli.cli_anib(
         database=tmp_db,
         fasta=input_genomes_tiny,
         name="Simple names",
@@ -665,7 +665,7 @@ def test_anib_gzip(
     tmp_dir = Path(tmp_path) / "a:b'c;d-😞"  # no spaces for makeblastdb -out
     tmp_dir.mkdir()
     tmp_db = tmp_dir / "anib's inputs are gzipped.sqlite"
-    public_cli.anib(
+    public_cli.cli_anib(
         database=tmp_db,
         fasta=gzipped_tiny_example,
         name="Test Run",
@@ -699,7 +699,7 @@ def test_fastani(
     tmp_dir = Path(tmp_path) / "fastANI's test 🏎️"
     tmp_dir.mkdir()
     tmp_db = tmp_dir / "fastani's test.sqlite"
-    public_cli.fastani(
+    public_cli.cli_fastani(
         database=tmp_db,
         fasta=evil_example,
         name="Spaces etc",
@@ -710,7 +710,7 @@ def test_fastani(
     assert "Database already has 0 of 3²=9 fastANI comparisons, 9 needed\n" in output
 
     # Run it again, nothing to recompute but easier to check output
-    public_cli.fastani(
+    public_cli.cli_fastani(
         database=tmp_db,
         fasta=input_genomes_tiny,
         name="Simple names",
@@ -732,7 +732,7 @@ def test_fastani_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
     """Check fastANI run (gzipped bacteria)."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "fastani's inputs are gzipped.sqlite"
-    public_cli.fastani(
+    public_cli.cli_fastani(
         database=tmp_db,
         fasta=input_gzip_bacteria,
         name="Test Run",
@@ -752,7 +752,7 @@ def test_sourmash_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
     tmp_dir = Path(tmp_path) / "sourmash's gzip test 🚅"
     tmp_dir.mkdir()
     tmp_db = tmp_dir / "sourmash's inputs are gzipped.sqlite"
-    public_cli.sourmash(
+    public_cli.cli_sourmash(
         database=tmp_db,
         fasta=input_gzip_bacteria,
         name="Test Run",
@@ -775,7 +775,7 @@ def test_sourmash(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "sourmash test.sqlite"
 
-    public_cli.sourmash(
+    public_cli.cli_sourmash(
         database=tmp_db,
         fasta=evil_example,
         name="Spaces etc",
@@ -786,7 +786,7 @@ def test_sourmash(
     assert "Database already has 0 of 3²=9 sourmash comparisons, 9 needed\n" in output
 
     # Run it again, nothing to recompute but easier to check output
-    public_cli.sourmash(
+    public_cli.cli_sourmash(
         database=tmp_db,
         fasta=input_genomes_tiny,
         name="Simple names",
@@ -836,7 +836,7 @@ def test_branchwater(
     tmp_dir = Path(tmp_path) / "branchwater's test 🚀"
     tmp_dir.mkdir()
     tmp_db = tmp_dir / "branchwater test.sqlite"
-    public_cli.branchwater(
+    public_cli.cli_branchwater(
         database=tmp_db,
         fasta=evil_example,
         name="Spaces etc",
@@ -849,7 +849,7 @@ def test_branchwater(
     )
 
     # Run it again, nothing to recompute but easier to check output
-    public_cli.branchwater(
+    public_cli.cli_branchwater(
         database=tmp_db,
         fasta=input_genomes_tiny,
         name="Simple names",
@@ -877,7 +877,7 @@ def test_fastani_dups(tmp_path: str) -> None:
     with pytest.raises(
         SystemExit, match="ERROR - Multiple genomes with same MD5 checksum"
     ):
-        public_cli.fastani(
+        public_cli.cli_fastani(
             database=tmp_db, fasta=tmp_dir, name="Test duplicates fail", create_db=True
         )
 

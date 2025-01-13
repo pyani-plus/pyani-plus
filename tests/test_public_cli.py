@@ -1113,7 +1113,7 @@ def test_classify_db(
 
     output = capsys.readouterr().out
     assert f"Wrote classify output to {tmp_path}" in output, output
-    with (tmp_dir / "aniM_classify.tsv").open() as handle:
+    with (tmp_dir / "ANIm_classify.tsv").open() as handle:
         assert (
             handle.readline()
             == "n_nodes\tmembers\tmin_cov\tmin_identity\tclique\tsingleton\n"

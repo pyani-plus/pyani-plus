@@ -1061,7 +1061,7 @@ def classify_genomes(  # noqa: C901, PLR0912, PLR0915
     cluster_df["members"] = cluster_df["members"].apply(lambda x: ",".join(x))
     cluster_df.to_csv(outdir / f"{method}_classify.tsv", sep="\t", index=False)
 
-    print(f"Wrote classify output to {outdir}/{method}_*.tsv")
+    print(f"Wrote classify output to {outdir}")
     session.close()
     return 0
 

@@ -34,9 +34,9 @@ from pyani_plus import utils
 
 
 def test_md5_str() -> None:
-    """Confirm our MD5 function works with a filename as a string."""
+    """Confirm our MD5 function works with a gzip filename as a string."""
     assert (
-        utils.file_md5sum("tests/fixtures/bacterial_example/NC_002696.fasta")
+        utils.file_md5sum("tests/fixtures/bacterial_example/NC_002696.fasta.gz")
         == "f19cb07198a41a4406a22b2f57a6b5e7"
     )
 
@@ -44,7 +44,7 @@ def test_md5_str() -> None:
 def test_md5_path() -> None:
     """Confirm our MD5 function works with a filename as a Path."""
     assert (
-        utils.file_md5sum(Path("tests/fixtures/bacterial_example/NC_002696.fasta"))
+        utils.file_md5sum(Path("tests/fixtures/bacterial_example/NC_002696.fasta.gz"))
         == "f19cb07198a41a4406a22b2f57a6b5e7"
     )
 

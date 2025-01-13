@@ -57,11 +57,13 @@ def check_input_stems(indir: str) -> dict[str, Path]:
     If duplicate stems with approved extensions are present
     raise a ValueError.
     """
-    stems = [_.stem for _ in Path(indir).glob("*") if _.suffix in FASTA_EXTENSIONS]
+    extensions = tuple(FASTA_EXTENSIONS.union(_ + ".gz" for _ in FASTA_EXTENSIONS))
+
+    stems = [_.stem for _ in Path(indir).glob("*") if _.name.endswith(extensions)]
 
     if len(stems) == len(set(stems)):
         input_files = {
-            _.stem: _ for _ in Path(indir).glob("*") if _.suffix in FASTA_EXTENSIONS
+            _.stem: _ for _ in Path(indir).glob("*") if _.name.endswith(extensions)
         }
     else:
         duplicates = [

@@ -32,7 +32,9 @@ Genomes are compared in both directions (forward and reverse)
 using fastANI.
 """
 
+import gzip
 import subprocess
+import sys
 import tempfile
 from decimal import Decimal
 from pathlib import Path
@@ -41,14 +43,19 @@ import numpy as np
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 
 from pyani_plus.tools import get_fastani
+from pyani_plus.utils import filename_stem
 
-# Parameters (eg, input sequences, fastANI outputs, k-mer sizes...)
-INPUT_DIR = Path("../fixtures/viral_example")
-FASTANI_DIR = Path("../fixtures/viral_example/intermediates/fastANI/")
-MATRIX_DIR = Path("../fixtures/viral_example/matrices")
+# Parameters via command line: input dir, intermediate dir, matrix dir:
+INPUT_DIR = Path(sys.argv[1])
+FASTANI_DIR = Path(sys.argv[2])
+MATRIX_DIR = Path(sys.argv[3])
 FRAG_LEN = 3000
 KMER_SIZE = 16
 MIN_FRAC = 0.2
+
+assert INPUT_DIR.is_dir(), f"Bad matrix directory {INPUT_DIR}"
+assert FASTANI_DIR.is_dir(), f"Bad intermediate directory {FASTANI_DIR}"
+assert MATRIX_DIR.is_dir(), f"Bad matrix directory {MATRIX_DIR}"
 
 # Remove pre-existing fixtures before regenerating new ones.
 # This is to help with if and when we change the
@@ -57,7 +64,8 @@ for file in FASTANI_DIR.glob("*.fastani"):
     file.unlink()
 
 # Running comparisons
-inputs = {_.stem: _ for _ in Path(INPUT_DIR).glob("*.f*")}
+inputs = {filename_stem(str(_)): _ for _ in Path(INPUT_DIR).glob("*.f*")}
+assert inputs, "Nothing from f{INPUT_DIR}"
 
 fastani = get_fastani()
 print(f"Using fastANI {fastani.version} at {fastani.exe_path}")
@@ -91,9 +99,14 @@ with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as genom
 def fasta_seq_len(fasta_filename: Path) -> int:
     """Get total number of bases/letters in a FASTA file."""
     length = 0
-    with Path(fasta_filename).open() as handle:
-        for _title, seq in SimpleFastaParser(handle):
-            length += len(seq)
+    try:
+        with gzip.open(fasta_filename, "rt") as handle:
+            for _title, seq in SimpleFastaParser(handle):
+                length += len(seq)
+    except gzip.BadGzipFile:
+        with Path(fasta_filename).open() as handle:
+            for _title, seq in SimpleFastaParser(handle):
+                length += len(seq)
     return length
 
 
@@ -126,15 +139,15 @@ for file in FASTANI_DIR.glob("*.fastani"):
         for line in handle:
             fields = line.rstrip("\n").split("\t")
             assert len(fields) == 5, f"Bad input {file}"  # noqa: PLR2004
-            row = stems.index(Path(fields[0]).stem)  # query
-            col = stems.index(Path(fields[1]).stem)  # subject
+            row = stems.index(filename_stem(fields[0]))  # query
+            col = stems.index(filename_stem(fields[1]))  # subject
             # This is to avoid 99.8332 becoming 0.9983329999999999 and so on:
             matrix_ani_string[row, col] = str(Decimal(fields[2]) / 100)
             matrix_orthologous_matches[row, col] = float(fields[3])
             matrix_fragments[row, col] = float(fields[4])
 
-assert matrix_orthologous_matches.min() >= 0
-assert matrix_fragments.min() >= 0
+assert matrix_orthologous_matches.min() >= 0, matrix_orthologous_matches
+assert matrix_fragments.min() >= 0, matrix_fragments
 print("Now calculating derived values and writing matrices")
 
 # This is an approximation to ANIm style coverage calculated using bp:

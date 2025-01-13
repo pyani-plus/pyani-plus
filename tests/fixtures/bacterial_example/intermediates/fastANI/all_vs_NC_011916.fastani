@@ -1,0 +1,4 @@
+../fixtures/bacterial_example/NC_002696.fasta.gz	../fixtures/bacterial_example/NC_011916.fas.gz	99.9965	1338	1338
+../fixtures/bacterial_example/NC_010338.fna.gz	../fixtures/bacterial_example/NC_011916.fas.gz	82.9359	887	1825
+../fixtures/bacterial_example/NC_011916.fas.gz	../fixtures/bacterial_example/NC_011916.fas.gz	100	1346	1347
+../fixtures/bacterial_example/NC_014100.fna.gz	../fixtures/bacterial_example/NC_011916.fas.gz	86.0574	1000	1551

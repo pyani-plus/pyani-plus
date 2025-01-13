@@ -542,6 +542,48 @@ def test_add_genome(tmp_path: str, input_genomes_tiny: Path) -> None:
     assert genome is db_orm.db_genome(session, fasta, md5, create=True)
 
 
+def test_add_genome_not_gzipped(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Confirm catches an uncompressed FASTA with .gz extension."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "not_gzip.sqlite"
+    tmp_input = tmp_dir / "input"
+    tmp_input.mkdir()
+
+    file = next(input_genomes_tiny.glob("*.f*"))
+    fasta = tmp_input / (file.name + ".gz")
+    fasta.symlink_to(file)
+
+    session = db_orm.connect_to_db(tmp_db)
+    md5 = file_md5sum(fasta)
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Has .gz ending, but .*\\.gz is NOT gzip compressed",
+    ):
+        db_orm.db_genome(session, fasta, md5, create=True)
+
+
+def test_add_genome_no_gz_ext(tmp_path: str, input_gzip_bacteria: Path) -> None:
+    """Confirm catches a compressed FASTA without .gz extension."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "no_gz.sqlite"
+    tmp_input = tmp_dir / "input"
+    tmp_input.mkdir()
+
+    file = next(input_gzip_bacteria.glob("*.f*.gz"))
+    fasta = tmp_input / (file.name[:-3])
+    fasta.symlink_to(file)
+
+    session = db_orm.connect_to_db(tmp_db)
+    md5 = file_md5sum(fasta)
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: No .gz ending, but .*\\.f.* is gzip compressed",
+    ):
+        db_orm.db_genome(session, fasta, md5, create=True)
+
+
 def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Populate new DB using helper functions."""
     tmp_db = Path(tmp_path) / "mock.sqlite"

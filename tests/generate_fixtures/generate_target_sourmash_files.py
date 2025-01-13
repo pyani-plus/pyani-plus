@@ -51,8 +51,9 @@ from pathlib import Path
 
 from pyani_plus.tools import get_sourmash
 
-# Paths to directories (eg, input sequences, delta and filter)
+# Paths to directories (input sequences, output matrices)
 INPUT_DIR, OUT_DIR = Path(sys.argv[1]), Path(sys.argv[2])
+scaled = int(sys.argv[3])
 
 # Running ANIm comparisons (all vs all)
 inputs = {_.stem: _ for _ in INPUT_DIR.glob("*.f*")}
@@ -74,7 +75,7 @@ for genome in inputs.values():
             "sketch",
             "dna",
             "-p",
-            "k=31,scaled=300",
+            f"k=31,scaled={scaled}",
             genome.resolve().relative_to(OUT_DIR.resolve(), walk_up=True),
             # Seems branchwater requires the name field, which by default is set to
             # the filename (without path) by sourmash scripts singlesketch

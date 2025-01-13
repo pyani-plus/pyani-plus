@@ -44,7 +44,13 @@ from sqlalchemy.orm import Session
 
 from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, db_orm, tools
 from pyani_plus.methods import method_anib, method_anim, method_fastani, method_sourmash
-from pyani_plus.utils import available_cores, check_db, check_fasta, file_md5sum
+from pyani_plus.utils import (
+    available_cores,
+    check_db,
+    check_fasta,
+    file_md5sum,
+    filename_stem,
+)
 from pyani_plus.workflows import (
     ShowProgress,
     ToolExecutor,
@@ -922,7 +928,7 @@ def export_run(  # noqa: C901, PLR0912, PLR0915
             # as we attempt a folder name as input)
         elif label == "stem":
             mapping = {
-                _.genome_hash: Path(_.fasta_filename).stem for _ in run.fasta_hashes
+                _.genome_hash: filename_stem(_.fasta_filename) for _ in run.fasta_hashes
             }
             if len(set(mapping.values())) < len(mapping):
                 # This can happen, e.g. assembly.fasta and assembly.fna,

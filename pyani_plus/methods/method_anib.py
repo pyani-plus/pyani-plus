@@ -32,6 +32,7 @@ BLAST for the N^2 pairwise combinations. This is done with here three snakemake
 rules.
 """
 
+import gzip
 from pathlib import Path
 
 from Bio.SeqIO.FastaIO import SimpleFastaParser
@@ -60,8 +61,15 @@ def fragment_fasta_file(
     """Fragment FASTA file into subsequences of up to the given size.
 
     Any remainder is taken as is (1 <= length < fragsize).
+
+    Accepts gzipped files as input.
     """
-    with filename.open() as in_handle, fragmented_fasta.open("w") as out_handle:
+    with (
+        (
+            gzip.open(filename, "rt") if filename.suffix == ".gz" else filename.open()
+        ) as in_handle,
+        fragmented_fasta.open("w") as out_handle,
+    ):
         count = 0
         for title, seq in SimpleFastaParser(in_handle):
             index = 0

@@ -96,12 +96,12 @@ def input_genomes_tiny() -> Path:
 
 
 @pytest.fixture(scope="session")
-def input_bacteria() -> Path:
-    """Path to small set of four bacterial input genomes."""
-    return FIXTUREPATH / "bacterial_example"
-
-
-@pytest.fixture(scope="session")
 def input_genomes_bad_alignments() -> Path:
     """Path to small set of two bad alignments input genomes."""
     return FIXTUREPATH / "bad_alignments"
+
+
+@pytest.fixture(scope="session")
+def input_gzip_bacteria() -> Path:
+    """Path to small set of four gzipped bacterial input genomes."""
+    return FIXTUREPATH / "bacterial_example"

@@ -787,6 +787,10 @@ def anim(  # noqa: C901, PLR0912, PLR0913, PLR0915
             sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(), db_entries
         )
         session.commit()
+
+    if hash_to_filename[subject_hash].endswith(".gz"):
+        subject_fasta.unlink()  # remove our decompressed copy
+
     return 0
 
 

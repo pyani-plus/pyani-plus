@@ -1,0 +1,11 @@
+/Users/peterjc/repositories/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/OP073605.fasta /Users/peterjc/repositories/pyani-plus/tests/generate_fixtures/../fixtures/viral_example/MGV-GENOME-0266457.fna
+NUCMER
+>OP073605.1 MGV_MGV-GENOME-0266457 57793 39594
+18226 57793 39594 23 212 212 0
+-11972
+-1
+-1
+-1
+-23150
+3
+0

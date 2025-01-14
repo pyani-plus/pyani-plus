@@ -52,13 +52,18 @@ from pyani_plus.tools import (
     get_show_coords,
     get_show_diff,
 )
+from pyani_plus.utils import file_md5sum
 
 # Generating fixtures for viral example
 # Paths to directories (eg. input sequences, outputs for delta, filter...)
 INPUT_DIR, OUT_DIR = Path(sys.argv[1]), Path(sys.argv[2])
 
+if not OUT_DIR.is_dir():
+    OUT_DIR.mkdir()
+
 # Running comparisons (all vs all)
 inputs = {_.stem: _ for _ in sorted(Path(INPUT_DIR).glob("*.f*"))}
+stem_hashes = {file.stem: file_md5sum(file) for file in INPUT_DIR.glob("*.f*")}
 comparisons = product(inputs, inputs)
 
 # # Cleanup
@@ -82,7 +87,7 @@ show_diff = get_show_diff()
 print(f"Using nucmer {nucmer.version} at {nucmer.exe_path}")
 
 for genomes in comparisons:
-    stem = "_vs_".join(genomes)
+    stem = "_vs_".join(stem_hashes[_] for _ in genomes)
     subprocess.run(
         [
             nucmer.exe_path,

@@ -501,12 +501,34 @@ def test_anim_gzip(
     session.close()
 
 
-def test_dnadiff(tmp_path: str, input_genomes_tiny: Path) -> None:
+def test_dnadiff(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    evil_example: Path,
+) -> None:
     """Check dnadiff run (default settings)."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "dnadiff test.sqlite"
     # Leaving out name, so can check the default worked
-    public_cli.dnadiff(database=tmp_db, fasta=input_genomes_tiny, create_db=True)
+    public_cli.dnadiff(database=tmp_db, fasta=evil_example, create_db=True)
+    output = capsys.readouterr().out
+    assert "Database already has 0 of 3²=9 dnadiff comparisons, 9 needed\n" in output
+    session = db_orm.connect_to_db(tmp_db)
+    run = session.query(db_orm.Run).one()
+    assert run.name == "3 genomes using dnadiff"
+    session.close()
+
+    # Now do it again - it should reuse the calculations:
+    public_cli.dnadiff(
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Simple names",
+        create_db=False,
+    )
+    output = capsys.readouterr().out
+    assert "Database already has all 3²=9 dnadiff comparisons\n" in output
+
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     # Fuzzy, 0.9963 from dnadiff tool != 0.9962661747 from our code
     compare_matrix_files(
@@ -514,10 +536,6 @@ def test_dnadiff(tmp_path: str, input_genomes_tiny: Path) -> None:
         tmp_dir / "dnadiff_identity.tsv",
         atol=5e-5,
     )
-    session = db_orm.connect_to_db(tmp_db)
-    run = session.query(db_orm.Run).one()
-    assert run.name == "3 genomes using dnadiff"
-    session.close()
 
 
 def test_dnadiff_gzip(

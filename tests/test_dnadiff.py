@@ -58,7 +58,7 @@ def test_parse_mcoords(
     """Check parsing of test mcoords file."""
     assert expected_mcoords_output == method_dnadiff.parse_mcoords(
         input_genomes_tiny
-        / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.mcoords"
+        / "intermediates/dnadiff/689d3fd6881db36b5e08329cf23cecdd_vs_78975d5144a1cd12e98898d573cf6536.mcoords"
     )
 
 
@@ -66,7 +66,7 @@ def test_parse_mcoords_bad_alignment(input_genomes_bad_alignments: Path) -> None
     """Check parsing of test mcoords file for bad alignments example."""
     assert method_dnadiff.parse_mcoords(
         input_genomes_bad_alignments
-        / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0357962.mcoords"
+        / "intermediates/dnadiff/689d3fd6881db36b5e08329cf23cecdd_vs_a30481565b45f6bbc6ce5260503067e0.mcoords"
     ) == (None, None)
 
 
@@ -74,7 +74,7 @@ def test_parse_qdiff(input_genomes_tiny: Path, expected_gap_lengths_qry: int) ->
     """Check parsing of test qdiff file."""
     assert expected_gap_lengths_qry == method_dnadiff.parse_qdiff(
         input_genomes_tiny
-        / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.qdiff"
+        / "intermediates/dnadiff/689d3fd6881db36b5e08329cf23cecdd_vs_78975d5144a1cd12e98898d573cf6536.qdiff"
     )
 
 
@@ -83,7 +83,7 @@ def test_parse_qdiff_bad_alignments(input_genomes_bad_alignments: Path) -> None:
     assert (
         method_dnadiff.parse_qdiff(
             input_genomes_bad_alignments
-            / "intermediates/dnadiff/MGV-GENOME-0264574_vs_MGV-GENOME-0357962.qdiff"
+            / "intermediates/dnadiff/689d3fd6881db36b5e08329cf23cecdd_vs_a30481565b45f6bbc6ce5260503067e0.qdiff"
         )
         is None
     )

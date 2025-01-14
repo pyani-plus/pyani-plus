@@ -53,6 +53,18 @@ def gzipped_tiny_example(
     return gzip_dir
 
 
+@pytest.fixture(scope="session")
+def evil_example(
+    tmp_path_factory: pytest.TempPathFactory, input_genomes_tiny: Path
+) -> Path:
+    """Make a version of the viral directory of FASTA files using spaces, emoji, etc."""
+    space_dir = tmp_path_factory.mktemp("with spaces " + input_genomes_tiny.stem)
+    for fasta in input_genomes_tiny.glob("*.f*"):
+        space_fasta = space_dir / ("🦠 : " + fasta.name.replace("-", " "))
+        space_fasta.symlink_to(fasta)
+    return space_dir
+
+
 # This is very similar to the functions under tests/snakemake/__init__.py
 def compare_matrix_files(
     expected_file: Path, new_file: Path, atol: float | None = None
@@ -570,21 +582,37 @@ def test_anib_gzip(
     )
 
 
-def test_fastani(tmp_path: str, input_genomes_tiny: Path) -> None:
-    """Check fastANI run (default settings)."""
+def test_fastani(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    evil_example: Path,
+) -> None:
+    """Check fastANI run (spaces, emoji, etc in filenames)."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "fastani test.sqlite"
     public_cli.fastani(
         database=tmp_db,
-        fasta=input_genomes_tiny,
-        name="Test Run",
+        fasta=evil_example,
+        name="Spaces etc",
         create_db=True,
         temp=tmp_dir,
     )
+    output = capsys.readouterr().out
+    assert "Database already has 0 of 3²=9 fastANI comparisons, 9 needed\n" in output
 
-    for file in (input_genomes_tiny / "intermediates/fastANI").glob("*_vs_*.fastani"):
-        assert filecmp.cmp(file, tmp_dir / file), f"Wrong fastANI output in {file.name}"
+    # Run it again, nothing to recompute
+    public_cli.fastani(
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Simple names",
+        create_db=False,
+        temp=tmp_dir,
+    )
+    output = capsys.readouterr().out
+    assert "Database already has all 3²=9 fastANI comparisons\n" in output
 
+    # Confirm output matches
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "fastANI_identity.tsv",

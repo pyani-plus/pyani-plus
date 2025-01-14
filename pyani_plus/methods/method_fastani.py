@@ -97,7 +97,7 @@ def parse_fastani_file(
     """
     with filename.open() as handle:
         for line in handle:
-            parts = line.strip().split()
+            parts = line.strip().split("\t")
             query_hash = filename_to_hash[Path(parts[0]).name]
             subject_hash = filename_to_hash[Path(parts[1]).name]
             if (query_hash, subject_hash) in expected_pairs:

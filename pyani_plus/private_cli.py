@@ -648,18 +648,20 @@ def anim(  # noqa: C901, PLR0912, PLR0913, PLR0915
         .one()
         .length
     )
+
+    # nucmer does not handle spaces in filenames, neither quoted nor
+    # escaped as slash-space. Therefore symlink or decompress to <MD5>.fasta:
+    subject_fasta = tmp_dir / f"{subject_hash}.fasta"
     if hash_to_filename[subject_hash].endswith(".gz"):
         # We must decompress the subject FASTA file for nucmer
-        subject_fasta = tmp_dir / hash_to_filename[subject_hash][:-3]
-        subject_stem = subject_fasta.stem
         with (
             gzip.open(fasta_dir / hash_to_filename[subject_hash], "rb") as f_in,
             subject_fasta.open("wb") as f_out,
         ):
             shutil.copyfileobj(f_in, f_out)
     else:
-        subject_stem = Path(hash_to_filename[subject_hash]).stem
-        subject_fasta = fasta_dir / hash_to_filename[subject_hash]
+        # In case of spaces etc, symlink to the original
+        subject_fasta.symlink_to(fasta_dir / hash_to_filename[subject_hash])
 
     db_entries = []
     try:
@@ -670,16 +672,11 @@ def anim(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 .one()
                 .length
             )
-            if hash_to_filename[query_hash].endswith(".gz"):
-                # We must decompress the query FASTA file for nucmer
-                # (although we can reuse the subject file for self-vs-self)
-                query_fasta = tmp_dir / hash_to_filename[query_hash][:-3]
-                query_stem = query_fasta.stem
-                if query_hash != subject_hash:
-                    # We're using the original FASTA name (less .gz) for subject.
-                    # Another thread may create/delete that FASTA name for our query
-                    # - so make a unique name for the temp file:
-                    query_fasta = tmp_dir / f"{query_stem}_vs_{subject_stem}.fasta"
+            if query_hash != subject_hash:
+                # Another thread may create/delete that FASTA name for our query
+                # - so make a unique name for the temp file:
+                query_fasta = tmp_dir / f"{query_hash}_vs_{subject_hash}.fasta"
+                if hash_to_filename[query_hash].endswith(".gz"):
                     with (
                         gzip.open(
                             fasta_dir / hash_to_filename[query_hash], "rb"
@@ -687,16 +684,22 @@ def anim(  # noqa: C901, PLR0912, PLR0913, PLR0915
                         query_fasta.open("wb") as f_out,
                     ):
                         shutil.copyfileobj(f_in, f_out)
+                else:
+                    # In case of spaces etc, symlink to the original
+                    query_fasta.symlink_to(fasta_dir / hash_to_filename[query_hash])
             else:
-                query_stem = Path(hash_to_filename[query_hash]).stem
-                query_fasta = fasta_dir / hash_to_filename[query_hash]
+                # Can reuse the subject's decompressed file/symlink
+                query_fasta = subject_fasta
 
-            stem = tmp_dir / f"{query_stem}_vs_{subject_stem}"
-            delta = tmp_dir / f"{query_stem}_vs_{subject_stem}.delta"
-            deltafilter = tmp_dir / f"{query_stem}_vs_{subject_stem}.filter"
+            stem = tmp_dir / f"{query_hash}_vs_{subject_hash}"
+            delta = tmp_dir / f"{query_hash}_vs_{subject_hash}.delta"
+            deltafilter = tmp_dir / f"{query_hash}_vs_{subject_hash}.filter"
 
             if not quiet:
-                print(f"INFO: Calling nucmer for {delta.name}")
+                print(
+                    f"INFO: Calling nucmer for {hash_to_filename[query_hash]}"
+                    f" vs {hash_to_filename[subject_hash]}"
+                )
 
             # Here mode will be "mum" (default) or "maxmatch", meaning nucmer --mum etc.
             check_output(
@@ -715,7 +718,10 @@ def anim(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 sys.exit(msg)  # pragma: no cover
 
             if not quiet:
-                print(f"INFO: Calling delta filter for {deltafilter.name}")
+                print(
+                    f"INFO: Calling delta filter for {hash_to_filename[query_hash]}"
+                    f" vs {hash_to_filename[subject_hash]}"
+                )
 
             # The constant -1 option is used for 1-to-1 alignments in the delta-filter,
             # with no other options available for the end user.

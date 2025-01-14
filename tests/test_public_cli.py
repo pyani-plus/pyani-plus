@@ -428,33 +428,49 @@ def test_plot_run_failures(tmp_path: str) -> None:
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir)
 
 
-def test_anim(tmp_path: str, input_genomes_tiny: Path) -> None:
+def test_anim(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    evil_example: Path,
+) -> None:
     """Check ANIm run."""
     tmp_dir = Path(tmp_path)
     # DB name with spaces, single quotes, emoji, in path & filename
     (tmp_dir / "user's 🔎 output").mkdir()
     tmp_db = tmp_dir / "user's 🔎 output" / "anim's 📦.sqlite"
     public_cli.anim(
-        database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=True
+        database=tmp_db,
+        fasta=evil_example,
+        name="Spaces etc",
+        create_db=True,
     )
-    public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=1)
-    compare_matrix_files(
-        input_genomes_tiny / "matrices" / "ANIm_identity.tsv",
-        tmp_dir / "ANIm_identity.tsv",
-    )
+    output = capsys.readouterr().out
+    assert "Database already has 0 of 3²=9 ANIm comparisons, 9 needed\n" in output
 
-    # Now do it again - it should reuse the calculations:
     session = db_orm.connect_to_db(tmp_db)
     count = session.query(db_orm.Comparison).count()
     session.close()
 
+    # Now do it again - it should reuse the calculations:
     public_cli.anim(
-        database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=False
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Simple names",
+        create_db=False,
     )
+    output = capsys.readouterr().out
+    assert "Database already has all 3²=9 ANIm comparisons\n" in output
 
     session = db_orm.connect_to_db(tmp_db)
     assert count == session.query(db_orm.Comparison).count()
     session.close()
+
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=2)
+    compare_matrix_files(
+        input_genomes_tiny / "matrices" / "ANIm_identity.tsv",
+        tmp_dir / "ANIm_identity.tsv",
+    )
 
 
 def test_anim_gzip(

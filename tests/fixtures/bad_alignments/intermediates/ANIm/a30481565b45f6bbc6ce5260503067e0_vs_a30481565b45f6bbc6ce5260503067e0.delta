@@ -1,0 +1,5 @@
+/Users/peterjc/repositories/pyani-plus/tests/generate_fixtures/../fixtures/bad_alignments/MGV-GENOME-0357962.fna /Users/peterjc/repositories/pyani-plus/tests/generate_fixtures/../fixtures/bad_alignments/MGV-GENOME-0357962.fna
+NUCMER
+>MGV_MGV-GENOME-0357962 MGV_MGV-GENOME-0357962 87285 87285
+1 87285 1 87285 0 0 0
+0

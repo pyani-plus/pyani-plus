@@ -700,17 +700,38 @@ def test_sourmash_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
     )
 
 
-def test_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:
+def test_sourmash(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    evil_example: Path,
+) -> None:
     """Check sourmash run (default settings except scaled=300)."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "sourmash test.sqlite"
+
     public_cli.sourmash(
         database=tmp_db,
-        fasta=input_genomes_tiny,
-        name="Test Run",
+        fasta=evil_example,
+        name="Spaces etc",
         scaled=300,
         create_db=True,
     )
+    output = capsys.readouterr().out
+    assert "Database already has 0 of 3²=9 sourmash comparisons, 9 needed\n" in output
+
+    # Run it again, nothing to recompute but easier to check output
+    public_cli.sourmash(
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Simple names",
+        scaled=300,
+        create_db=False,
+    )
+    output = capsys.readouterr().out
+    assert "Database already has all 3²=9 sourmash comparisons\n" in output
+
+    # Confirm output matches
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "sourmash_identity.tsv",
@@ -718,7 +739,9 @@ def test_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:
     )
     plot_out = tmp_dir / "plots"
     plot_out.mkdir()
-    public_cli.plot_run(database=tmp_db, outdir=plot_out)
+    # Should be able to plot run 1 with the spaces and emoji, but get warnings:
+    # UserWarning: Glyph 129440 (\N{MICROBE}) missing from font(s) DejaVu Sans.
+    public_cli.plot_run(database=tmp_db, outdir=plot_out, run_id=2)
     assert sorted(_.name for _ in plot_out.glob("*")) == [
         "sourmash_hadamard.jpg",
         "sourmash_hadamard.pdf",
@@ -738,19 +761,40 @@ def test_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:
     ]
 
 
-def test_branchwater(tmp_path: str, input_genomes_tiny: Path) -> None:
+def test_branchwater(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    evil_example: Path,
+) -> None:
     """Check sourmash run (default settings except scaled=300)."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "branchwater test.sqlite"
     public_cli.branchwater(
         database=tmp_db,
-        fasta=input_genomes_tiny,
-        name="Test Run",
+        fasta=evil_example,
+        name="Spaces etc",
         scaled=300,
         create_db=True,
     )
+    output = capsys.readouterr().out
+    assert (
+        "Database already has 0 of 3²=9 branchwater comparisons, 9 needed\n" in output
+    )
+
+    # Run it again, nothing to recompute but easier to check output
+    public_cli.branchwater(
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Simple names",
+        scaled=300,
+        create_db=False,
+    )
+    output = capsys.readouterr().out
+    assert "Database already has all 3²=9 branchwater comparisons\n" in output
+
+    # Confirm output matches - should match sourmash output but faster
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
-    # Should match the sourmash output (but computed quicker)
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "sourmash_identity.tsv",
         tmp_dir / "branchwater_identity.tsv",

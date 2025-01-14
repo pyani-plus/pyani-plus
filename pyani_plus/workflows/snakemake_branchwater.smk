@@ -45,7 +45,9 @@ rule sketch:
     output:
         "{outdir}/{genomeA}.sig",
     shell:
-        "sourmash scripts singlesketch -I DNA -p 'k={params.kmersize},{params.extra}' {input} -o {output} > {output}.log 2>&1"
+        """
+        sourmash scripts singlesketch -I DNA -p 'k={params.kmersize},{params.extra}' {input:q} -o "{output}" > "{output}.log" 2>&1
+        """
 
 
 # The manysearch rule runs the branchwater equivalent of "sourmash compare"
@@ -61,9 +63,9 @@ rule manysearch:
         "{outdir}/manysearch.csv",
     shell:
         """
-        sourmash sig collect --quiet -F csv -o all_sigs.csv {input} > {output}.log 2>&1 &&
-        sourmash scripts manysearch -m DNA --quiet -t 0 -o {output} all_sigs.csv all_sigs.csv >> {output}.log 2>&1 &&
+        sourmash sig collect --quiet -F csv -o all_sigs.csv {input:q} > "{output}.log" 2>&1 &&
+        sourmash scripts manysearch -m DNA --quiet -t 0 -o "{output}" all_sigs.csv all_sigs.csv >> "{output}.log" 2>&1 &&
         .pyani-plus-private-cli log-branchwater --quiet \
             --database "{params.db}" --run-id {params.run_id} \
-            --manysearch {output}
+            --manysearch "{output}"
         """

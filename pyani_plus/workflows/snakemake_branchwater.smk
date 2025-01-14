@@ -64,6 +64,6 @@ rule manysearch:
         sourmash sig collect --quiet -F csv -o all_sigs.csv {input} > {output}.log 2>&1 &&
         sourmash scripts manysearch -m DNA --quiet -t 0 -o {output} all_sigs.csv all_sigs.csv >> {output}.log 2>&1 &&
         .pyani-plus-private-cli log-branchwater --quiet \
-            --database {params.db} --run-id {params.run_id} \
+            --database "{params.db}" --run-id {params.run_id} \
             --manysearch {output}
         """

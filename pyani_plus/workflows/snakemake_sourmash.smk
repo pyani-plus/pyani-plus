@@ -67,6 +67,6 @@ rule compare:
         sourmash compare --quiet --csv {output} --estimate-ani \
             --containment -k {params.kmersize} {input} &&
         .pyani-plus-private-cli log-sourmash --quiet \
-            --database {params.db} --run-id {params.run_id} \
+            --database "{params.db}" --run-id {params.run_id} \
             --compare {output}
         """

@@ -106,7 +106,7 @@ def test_list_runs_empty(capsys: pytest.CaptureFixture[str], tmp_path: str) -> N
     ):
         public_cli.list_runs(database=Path("/does/not/exist"))
 
-    tmp_db = Path(tmp_path) / "list-runs-empty.sqlite"
+    tmp_db = Path(tmp_path) / "list runs empty.sqlite"
     session = db_orm.connect_to_db(tmp_db)
     session.close()
 
@@ -141,7 +141,7 @@ def test_partial_run(
 ) -> None:
     """Check list-runs and export-run with mock data including a partial run."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "list-runs.sqlite"
+    tmp_db = tmp_dir / "list runs.sqlite"
     session = db_orm.connect_to_db(tmp_db)
     config = db_orm.db_configuration(
         session, "fastANI", "fastani", "1.2.3", create=True
@@ -419,7 +419,9 @@ def test_plot_run_failures(tmp_path: str) -> None:
 def test_anim(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check ANIm run."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    # Making a test where there are spaces in the DB folder and filename:
+    (tmp_dir / "user's output").mkdir()
+    tmp_db = tmp_dir / "user's output" / "anim test.sqlite"
     public_cli.anim(
         database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=True
     )
@@ -448,7 +450,7 @@ def test_anim_gzip(
 ) -> None:
     """Check ANIm run (gzipped)."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_db = tmp_dir / "anim's inputs are gzipped.sqlite"
     public_cli.anim(
         database=tmp_db, fasta=gzipped_tiny_example, name="Test Run", create_db=True
     )
@@ -474,7 +476,7 @@ def test_anim_gzip(
 def test_dnadiff(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check dnadiff run (default settings)."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_db = tmp_dir / "dnadiff test.sqlite"
     # Leaving out name, so can check the default worked
     public_cli.dnadiff(database=tmp_db, fasta=input_genomes_tiny, create_db=True)
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
@@ -495,7 +497,7 @@ def test_dnadiff_gzip(
 ) -> None:
     """Check dnadiff run (gzipped)."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_db = tmp_dir / "dnadiff's inputs are gzipped.sqlite"
     # Leaving out name, so can check the default worked
     public_cli.dnadiff(database=tmp_db, fasta=gzipped_tiny_example, create_db=True)
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
@@ -514,7 +516,7 @@ def test_dnadiff_gzip(
 def test_anib(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check ANIb run (default settings)."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_db = tmp_dir / "anib test.sqlite"
     public_cli.anib(
         database=tmp_db,
         fasta=input_genomes_tiny,
@@ -543,7 +545,7 @@ def test_anib_gzip(
 ) -> None:
     """Check ANIb run (gzipped)."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_db = tmp_dir / "anib's inputs are gzipped.sqlite"
     public_cli.anib(
         database=tmp_db,
         fasta=gzipped_tiny_example,
@@ -571,7 +573,7 @@ def test_anib_gzip(
 def test_fastani(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check fastANI run (default settings)."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_db = tmp_dir / "fastani test.sqlite"
     public_cli.fastani(
         database=tmp_db,
         fasta=input_genomes_tiny,
@@ -593,7 +595,7 @@ def test_fastani(tmp_path: str, input_genomes_tiny: Path) -> None:
 def test_fastani_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
     """Check fastANI run (gzipped bacteria)."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_db = tmp_dir / "fastani's inputs are gzipped.sqlite"
     public_cli.fastani(
         database=tmp_db,
         fasta=input_gzip_bacteria,
@@ -612,7 +614,7 @@ def test_fastani_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
 def test_sourmash_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
     """Check sourmash run (gzipped bacteria)."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_db = tmp_dir / "sourmash's inputs are gzipped.sqlite"
     public_cli.sourmash(
         database=tmp_db,
         fasta=input_gzip_bacteria,
@@ -629,7 +631,7 @@ def test_sourmash_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
 def test_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check sourmash run (default settings except scaled=300)."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_db = tmp_dir / "sourmash test.sqlite"
     public_cli.sourmash(
         database=tmp_db,
         fasta=input_genomes_tiny,
@@ -667,7 +669,7 @@ def test_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:
 def test_branchwater(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check sourmash run (default settings except scaled=300)."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_db = tmp_dir / "branchwater test.sqlite"
     public_cli.branchwater(
         database=tmp_db,
         fasta=input_genomes_tiny,
@@ -686,7 +688,7 @@ def test_branchwater(tmp_path: str, input_genomes_tiny: Path) -> None:
 def test_fastani_dups(tmp_path: str) -> None:
     """Check fastANI run (duplicate FASTA inputs)."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_db = tmp_dir / "fastani-dups.sqlite"
     for name in ("alpha", "beta", "gamma"):
         with (tmp_dir / (name + ".fasta")).open("w") as handle:
             handle.write(">genome\nACGTACGT\n")
@@ -702,7 +704,7 @@ def test_resume_partial_fastani(
     capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
 ) -> None:
     """Check list-runs and export-run with mock data including a partial fastANI run."""
-    tmp_db = Path(tmp_path) / "resume.sqlite"
+    tmp_db = Path(tmp_path) / "partial resume.sqlite"
     tool = tools.get_fastani()
     session = db_orm.connect_to_db(tmp_db)
     config = db_orm.db_configuration(
@@ -901,7 +903,7 @@ def test_resume_partial_sourmash(
     capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
 ) -> None:
     """Check list-runs and export-run with mock data including a partial sourmash run."""
-    tmp_db = Path(tmp_path) / "resume.sqlite"
+    tmp_db = Path(tmp_path) / "resume sourmash.sqlite"
     tool = tools.get_sourmash()
     session = db_orm.connect_to_db(tmp_db)
     config = db_orm.db_configuration(

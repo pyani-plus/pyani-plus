@@ -158,7 +158,7 @@ def test_running_anib(
 
     # Check the intermediate fragmented FASTA files match
     for fname in (input_genomes_tiny / "intermediates/ANIb").glob("*-fragments.fna"):
-        # Intermediate uses f"{query_stem}-fragments-{fragsize}-pid{os.getpid()}.fna"
+        # Intermediate uses f"{query_hash}-fragments-{fragsize}-pid{os.getpid()}.fna"
         tmp_frag_files = list(
             tmp_dir.glob(f"{fname.name.rsplit('-', 1)[0]}-fragments-*.fna")
         )
@@ -167,9 +167,8 @@ def test_running_anib(
         assert filecmp.cmp(fname, tmp_frag_files[0])
 
     # Check the intermediate TSV files from blastn match
-    subject_stem = Path(hash_to_filename[subject_hash]).stem
     for fname in (input_genomes_tiny / "intermediates/ANIb").glob(
-        f"*_vs_{subject_stem}.tsv"
+        f"*_vs_{subject_hash}.tsv"
     ):
         assert filecmp.cmp(fname, tmp_dir / fname.name)
 

@@ -525,25 +525,35 @@ def test_dnadiff_gzip(
     session.close()
 
 
-def test_anib(tmp_path: str, input_genomes_tiny: Path) -> None:
-    """Check ANIb run (default settings)."""
+def test_anib(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    evil_example: Path,
+) -> None:
+    """Check ANIb run (spaces, emoji, etc in filenames)."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "anib test.sqlite"
     public_cli.anib(
         database=tmp_db,
-        fasta=input_genomes_tiny,
-        name="Test Run",
+        fasta=evil_example,
+        name="Spaces etc",
         create_db=True,
         temp=tmp_dir,
     )
+    output = capsys.readouterr().out
+    assert "Database already has 0 of 3²=9 ANIb comparisons, 9 needed\n" in output
 
-    for file in (input_genomes_tiny / "intermediates/ANIb").glob("*.f*"):
-        assert filecmp.cmp(file, tmp_dir / file), f"Wrong fragmented FASTA {file.name}"
-
-    # Could check the BLAST DB *.njs files here too...
-
-    for file in (input_genomes_tiny / "intermediates/ANIb").glob("*_vs_*.tsv"):
-        assert filecmp.cmp(file, tmp_dir / file), f"Wrong blastn output in {file.name}"
+    # Run it again, nothing to recompute but easier to check output
+    public_cli.anib(
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Simple names",
+        create_db=True,
+        temp=tmp_dir,
+    )
+    output = capsys.readouterr().out
+    assert "Database already has all 3²=9 ANIb comparisons\n" in output
 
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     compare_matrix_files(
@@ -601,7 +611,7 @@ def test_fastani(
     output = capsys.readouterr().out
     assert "Database already has 0 of 3²=9 fastANI comparisons, 9 needed\n" in output
 
-    # Run it again, nothing to recompute
+    # Run it again, nothing to recompute but easier to check output
     public_cli.fastani(
         database=tmp_db,
         fasta=input_genomes_tiny,

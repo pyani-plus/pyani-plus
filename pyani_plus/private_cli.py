@@ -784,7 +784,7 @@ def anim(  # noqa: C901, PLR0912, PLR0913, PLR0915
     return 0
 
 
-def anib(  # noqa: C901,PLR0913,PLR0915
+def anib(  # noqa: C901, PLR0913
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
@@ -818,25 +818,26 @@ def anib(  # noqa: C901,PLR0913,PLR0915
     )
     outfmt = "6 " + " ".join(method_anib.BLAST_COLUMNS)
 
+    # makeblastdb does not handle spaces in filenames, neither quoted nor
+    # escaped as slash-space. Therefore symlink or decompress to <MD5>.fasta:
+    subject_fasta = tmp_dir / f"{subject_hash}.fasta"
     if hash_to_filename[subject_hash].endswith(".gz"):
         # We must decompress the FASTA file for makeblastdb,
-        # could use stdin (default input), but simpler to
-        # make a temp file:
-        subject_fasta = tmp_dir / hash_to_filename[subject_hash][:-3]
-        subject_stem = subject_fasta.stem
+        # could use stdin (default input), but temp file is simpler.
         with (
             gzip.open(fasta_dir / hash_to_filename[subject_hash], "rb") as f_in,
             subject_fasta.open("wb") as f_out,
         ):
             shutil.copyfileobj(f_in, f_out)
     else:
-        subject_stem = Path(hash_to_filename[subject_hash]).stem
-        subject_fasta = fasta_dir / hash_to_filename[subject_hash]
+        # makeblastdb does not handle spaces in filenames, neither quoted nor
+        # escaped as slash-space. Therefore safer to symlink via safe name:
+        subject_fasta.symlink_to(fasta_dir / hash_to_filename[subject_hash])
 
-    tmp_db = tmp_dir / f"{subject_stem}"  # prefix for BLAST DB
+    tmp_db = tmp_dir / subject_hash  # prefix for BLAST DB
 
     if not quiet:
-        print(f"INFO: Calling makeblastdb for {subject_stem}")
+        print(f"INFO: Calling makeblastdb for {hash_to_filename[subject_hash]}")
 
     check_output(
         [
@@ -860,13 +861,12 @@ def anib(  # noqa: C901,PLR0913,PLR0915
     db_entries = []
     try:
         for query_hash in query_hashes:
-            query_stem = Path(hash_to_filename[query_hash]).stem
-            tmp_tsv = tmp_dir / f"{query_stem}_vs_{subject_stem}.tsv"
+            tmp_tsv = tmp_dir / f"{query_hash}_vs_{subject_hash}.tsv"
 
             # Potential race condition if other columns are being computed with the
             # same tmp_dir - so give the fragments file a unique name using PID:
             tmp_frag_query = (
-                tmp_dir / f"{query_stem}-fragments-{fragsize}-pid{os.getpid()}.fna"
+                tmp_dir / f"{query_hash}-fragments-{fragsize}-pid{os.getpid()}.fna"
             )
 
             method_anib.fragment_fasta_file(
@@ -876,7 +876,10 @@ def anib(  # noqa: C901,PLR0913,PLR0915
             )
 
             if not quiet:
-                print(f"INFO: Calling blastn for {query_stem} vs {subject_stem}")
+                print(
+                    f"INFO: Calling blastn for {hash_to_filename[query_hash]}"
+                    f" vs {hash_to_filename[subject_hash]}"
+                )
 
             check_output(
                 [

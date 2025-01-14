@@ -142,7 +142,8 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     # Including the --temp as part of the parameter as a way to avoid
     # adding --temp without an argument:
     if temp:
-        params["temp"] = f"--temp {temp.resolve()}"
+        # Must quote the directory name if it has spaces etc:
+        params["temp"] = f'--temp "{temp.resolve()}" '
     else:
         # With empty string or '' or "" snakemake puts the literal string
         # None into the command line. So can't use that.

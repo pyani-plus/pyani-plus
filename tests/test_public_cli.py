@@ -477,7 +477,8 @@ def test_anim_gzip(
     tmp_path: str, input_genomes_tiny: Path, gzipped_tiny_example: Path
 ) -> None:
     """Check ANIm run (gzipped)."""
-    tmp_dir = Path(tmp_path)
+    tmp_dir = Path(tmp_path) / "ANIm's gzip test 📦"
+    tmp_dir.mkdir()
     tmp_db = tmp_dir / "anim's inputs are gzipped.sqlite"
     public_cli.anim(
         database=tmp_db, fasta=gzipped_tiny_example, name="Test Run", create_db=True
@@ -508,7 +509,8 @@ def test_dnadiff(
     evil_example: Path,
 ) -> None:
     """Check dnadiff run (default settings)."""
-    tmp_dir = Path(tmp_path)
+    tmp_dir = Path(tmp_path) / "dnadiff's test 📋"
+    tmp_dir.mkdir()
     tmp_db = tmp_dir / "dnadiff test.sqlite"
     # Leaving out name, so can check the default worked
     public_cli.dnadiff(database=tmp_db, fasta=evil_example, create_db=True)
@@ -566,7 +568,8 @@ def test_anib(
     evil_example: Path,
 ) -> None:
     """Check ANIb run (spaces, emoji, etc in filenames)."""
-    tmp_dir = Path(tmp_path)
+    tmp_dir = Path(tmp_path) / "ANIb-test-🎱"  # no spaces! makeblastdb -out breaks
+    tmp_dir.mkdir()
     tmp_db = tmp_dir / "anib test.sqlite"
     public_cli.anib(
         database=tmp_db,
@@ -600,7 +603,8 @@ def test_anib_gzip(
     tmp_path: str, input_genomes_tiny: Path, gzipped_tiny_example: Path
 ) -> None:
     """Check ANIb run (gzipped)."""
-    tmp_dir = Path(tmp_path)
+    tmp_dir = Path(tmp_path) / "a:b'c;d-😞"  # no spaces for makeblastdb -out
+    tmp_dir.mkdir()
     tmp_db = tmp_dir / "anib's inputs are gzipped.sqlite"
     public_cli.anib(
         database=tmp_db,
@@ -633,8 +637,9 @@ def test_fastani(
     evil_example: Path,
 ) -> None:
     """Check fastANI run (spaces, emoji, etc in filenames)."""
-    tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "fastani test.sqlite"
+    tmp_dir = Path(tmp_path) / "fastANI's test 🏎️"
+    tmp_dir.mkdir()
+    tmp_db = tmp_dir / "fastani's test.sqlite"
     public_cli.fastani(
         database=tmp_db,
         fasta=evil_example,
@@ -685,7 +690,8 @@ def test_fastani_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
 
 def test_sourmash_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
     """Check sourmash run (gzipped bacteria)."""
-    tmp_dir = Path(tmp_path)
+    tmp_dir = Path(tmp_path) / "sourmash's gzip test 🚅"
+    tmp_dir.mkdir()
     tmp_db = tmp_dir / "sourmash's inputs are gzipped.sqlite"
     public_cli.sourmash(
         database=tmp_db,
@@ -768,7 +774,8 @@ def test_branchwater(
     evil_example: Path,
 ) -> None:
     """Check sourmash run (default settings except scaled=300)."""
-    tmp_dir = Path(tmp_path)
+    tmp_dir = Path(tmp_path) / "branchwater's test 🚀"
+    tmp_dir.mkdir()
     tmp_db = tmp_dir / "branchwater test.sqlite"
     public_cli.branchwater(
         database=tmp_db,

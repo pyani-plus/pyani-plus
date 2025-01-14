@@ -419,9 +419,9 @@ def test_plot_run_failures(tmp_path: str) -> None:
 def test_anim(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check ANIm run."""
     tmp_dir = Path(tmp_path)
-    # Making a test where there are spaces in the DB folder and filename:
-    (tmp_dir / "user's output").mkdir()
-    tmp_db = tmp_dir / "user's output" / "anim test.sqlite"
+    # DB name with spaces, single quotes, emoji, in path & filename
+    (tmp_dir / "user's 🔎 output").mkdir()
+    tmp_db = tmp_dir / "user's 🔎 output" / "anim's 📦.sqlite"
     public_cli.anim(
         database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=True
     )

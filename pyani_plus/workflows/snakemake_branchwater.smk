@@ -56,6 +56,7 @@ rule manysearch:
         db=config["db"],
         run_id=config["run_id"],
         outdir=config["outdir"],
+        temp=config["temp"],
         extra=config["extra"],  # This will consist of either `scaled=X` or `num=X`.
     input:
         expand("{{outdir}}/{genome}.sig", genome=sorted(indir_files)),
@@ -67,5 +68,5 @@ rule manysearch:
         sourmash scripts manysearch -m DNA --quiet -t 0 -o "{output}" all_sigs.csv all_sigs.csv >> "{output}.log" 2>&1 &&
         .pyani-plus-private-cli log-branchwater --quiet \
             --database "{params.db}" --run-id {params.run_id} \
-            --manysearch "{output}"
+            --manysearch "{output}" {params.temp}
         """

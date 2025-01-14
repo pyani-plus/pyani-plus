@@ -57,6 +57,7 @@ rule compare:
         run_id=config["run_id"],
         outdir=config["outdir"],
         kmersize=config["kmersize"],
+        temp=config["temp"],
         extra=config["extra"],  # This will consist of either `scaled=X` or `num=X`.
     input:
         expand("{{outdir}}/{genome}.sig", genome=sorted(indir_files)),
@@ -70,5 +71,5 @@ rule compare:
             --containment -k {params.kmersize} {input:q} &&
         .pyani-plus-private-cli log-sourmash --quiet \
             --database "{params.db}" --run-id {params.run_id} \
-            --compare "{output}"
+            --compare "{output}" {params.temp}
         """

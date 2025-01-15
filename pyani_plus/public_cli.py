@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Annotated
 
 import click
+import pandas as pd
 import typer
 from rich.console import Console
 from rich.progress import Progress
@@ -42,12 +43,15 @@ from rich.text import Text
 from sqlalchemy.orm import Session
 
 from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
+from pyani_plus import classify as method_classify
 from pyani_plus.methods import method_anib, method_anim, method_fastani, method_sourmash
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_ANIM_MODE,
+    OPT_ARG_TYPE_COVERAGE_EDGES,
     OPT_ARG_TYPE_CREATE_DB,
     OPT_ARG_TYPE_EXECUTOR,
     OPT_ARG_TYPE_FRAGSIZE,
+    OPT_ARG_TYPE_IDENTITY_EDGES,
     OPT_ARG_TYPE_KMERSIZE,
     OPT_ARG_TYPE_MINMATCH,
     OPT_ARG_TYPE_RUN_ID,
@@ -815,7 +819,7 @@ def plot_run(  # noqa: C901
             msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
             sys.exit(msg)  # pragma: no cover
 
-        nulls = int(matrix.isnull().sum().sum())
+        nulls = int(matrix.isnull().sum().sum())  # noqa: PD003
         n = len(matrix)
         if nulls:
             msg = (
@@ -866,6 +870,73 @@ def plot_run(  # noqa: C901
         sys.exit(msg)
     print(f"Wrote {heatmaps_done} heatmaps to {outdir}/{method}_*.*")
 
+    session.close()
+    return 0
+
+
+@app.command()
+def classify(
+    database: REQ_ARG_TYPE_DATABASE,
+    outdir: REQ_ARG_TYPE_OUTDIR,
+    covearge_edges: OPT_ARG_TYPE_COVERAGE_EDGES = "min",  # Default to "min"
+    identity_edges: OPT_ARG_TYPE_IDENTITY_EDGES = "mean",  # Default to "mean"
+    run_id: OPT_ARG_TYPE_RUN_ID = None,
+) -> int:
+    """Classify genomes into clusters based on ANI results."""
+    if not outdir.is_dir():
+        msg = f"ERROR: Output directory {outdir} does not exist"
+        sys.exit(msg)
+
+    if database == ":memory:" or not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+
+    session = db_orm.connect_to_db(database)
+    run = db_orm.load_run(session, run_id, check_complete=True)
+    if run_id is None:
+        run_id = run.run_id
+        print(f"INFO: Exporting run-id {run_id}")
+
+    mapping = {_.genome_hash: Path(_.fasta_filename).stem for _ in run.fasta_hashes}
+
+    identity = run.identities
+    if identity is not None:
+        identity.rename(index=mapping, columns=mapping, inplace=True)  # noqa: PD002
+    cov = run.cov_query
+    if cov is not None:
+        cov.rename(index=mapping, columns=mapping, inplace=True)  # noqa: PD002
+
+    # Map the string inputs to callable functions
+    covearge_agg_func = method_classify.AGG_FUNCS[covearge_edges]
+    identity_agg_func = method_classify.AGG_FUNCS[identity_edges]
+
+    # Construct the graph with the correct functions
+    complete_graph = method_classify.construct_complete_graph(
+        cov, identity, covearge_agg_func, identity_agg_func
+    )
+    temp_cov_graph = complete_graph.copy()
+    temp_id_graph = complete_graph.copy()
+
+    cov_cliques = method_classify.find_cliques(temp_cov_graph, "coverage")
+    id_cliques = method_classify.find_cliques(temp_id_graph, "identity")
+
+    cov_cliques_info = method_classify.populate_ClusterInfo(cov_cliques)
+    id_cliques_info = method_classify.populate_ClusterInfo(id_cliques)
+    method = run.configuration.method
+
+    cov_cliques_df = pd.DataFrame(cov_cliques_info)
+    cov_cliques_df["members"] = cov_cliques_df["members"].apply(lambda x: ",".join(x))
+    cov_cliques_df.to_csv(
+        outdir / f"{method}_coverage_classify.tsv", sep="\t", index=False
+    )
+
+    id_cliques_df = pd.DataFrame(id_cliques_info)
+    id_cliques_df["members"] = id_cliques_df["members"].apply(lambda x: ",".join(x))
+    id_cliques_df.to_csv(
+        outdir / f"{method}_identity_classify.tsv", sep="\t", index=False
+    )
+
+    print(f"Wrote classify output to {outdir}")
     session.close()
     return 0
 

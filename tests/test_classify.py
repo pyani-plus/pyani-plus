@@ -30,6 +30,7 @@ from pathlib import Path
 
 import networkx as nx  # type: ignore  # noqa: PGH003
 import networkx.algorithms.isomorphism as iso
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -139,7 +140,7 @@ def test_construct_complete_graph(
     # Check the isomorphism of a graph with the edge_match function
     assert nx.is_isomorphic(
         expected_complete_graph,
-        method_classify.construct_complete_graph(cov_matrix, id_matrix),
+        method_classify.construct_complete_graph(cov_matrix, id_matrix, min, np.mean),
         edge_match=edge_match,
     )
 

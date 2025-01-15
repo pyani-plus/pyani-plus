@@ -29,6 +29,12 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
+AGG_FUNCS = {
+    "min": min,
+    "max": max,
+    "mean": np.mean,
+}
+
 
 class CliqueInfo(NamedTuple):
     """Graph structure summary."""
@@ -42,8 +48,8 @@ class CliqueInfo(NamedTuple):
 def construct_complete_graph(
     cov_matrix: pd.DataFrame,
     id_matrix: pd.DataFrame,
-    coverage_agg: Callable = min,
-    identity_agg: Callable = np.mean,
+    coverage_agg: Callable,
+    identity_agg: Callable,
 ) -> nx.Graph:
     """Return a complete graph representing ANI results.
 

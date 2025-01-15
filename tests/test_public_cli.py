@@ -1400,3 +1400,71 @@ def test_plot_bad_nulls(
         "WARNING: Cannot plot hadamard as matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
         in stderr
     ), stderr
+
+
+def test_classify_failures(tmp_path: str) -> None:
+    """Check classify failures."""
+    tmp_dir = Path(tmp_path)
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Database /does/not/exist does not exist"
+    ):
+        public_cli.classify(database=Path("/does/not/exist"), outdir=tmp_dir)
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Output directory /does/not/exist does not exist"
+    ):
+        public_cli.classify(database=":memory:", outdir=Path("/does/not/exist/"))
+
+    tmp_db = tmp_dir / "export.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
+    with pytest.raises(SystemExit, match="ERROR: Database contains no runs."):
+        public_cli.classify(database=tmp_db, outdir=tmp_dir)
+
+    config = db_orm.db_configuration(
+        session, "fastANI", "fastani", "1.2.3", create=True
+    )
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        fasta_directory=Path("/does/not/exist"),
+        status="Empty",
+        name="Trial A",
+    )
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        fasta_directory=Path("/does/not/exist"),
+        status="Empty",
+        name="Trial B",
+    )
+    with pytest.raises(SystemExit, match="ERROR: Database has no run-id 3."):
+        public_cli.classify(database=tmp_db, outdir=tmp_dir, run_id=3)
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: run-id 1 has no comparisons",
+    ):
+        public_cli.classify(database=tmp_db, outdir=tmp_dir, run_id=1)
+    # Should default to latest run, run-id 2
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: run-id 2 has no comparisons",
+    ):
+        public_cli.classify(database=tmp_db, outdir=tmp_dir)
+    tmp_db.unlink()
+
+
+def test_classify_db(
+    capsys: pytest.CaptureFixture[str], input_genomes_tiny: Path, tmp_path: Path
+) -> None:
+    """Check classify working example."""
+    tmp_dir = Path(tmp_path)
+    db = input_genomes_tiny / "viral_database.db"
+    public_cli.classify(database=db, run_id=1, outdir=tmp_dir)
+
+    output = capsys.readouterr().out
+    assert f"Wrote classify output to {tmp_path}" in output, output
+    with (tmp_dir / "ANIm_coverage_classify.tsv").open() as handle:
+        assert handle.readline() == "members\tn_nodes\tmin_cov\tmin_identity\n"

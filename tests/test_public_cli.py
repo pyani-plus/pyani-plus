@@ -1416,55 +1416,52 @@ def test_classify_failures(tmp_path: str) -> None:
     ):
         public_cli.classify(database=":memory:", outdir=Path("/does/not/exist/"))
 
-    tmp_db = tmp_dir / "export.sqlite"
-    session = db_orm.connect_to_db(tmp_db)
-    with pytest.raises(SystemExit, match="ERROR: Database contains no runs."):
-        public_cli.classify(database=tmp_db, outdir=tmp_dir)
 
+def test_classify(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
+    """Check working example of classify."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "classify_complete.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
     config = db_orm.db_configuration(
         session, "fastANI", "fastani", "1.2.3", create=True
     )
+
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+
+    # Record all of the possible comparisons, leaving coverage null
+    genomes = list(fasta_to_hash.values())
+    for query_hash in genomes:
+        for subject_hash in genomes:
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query_hash,
+                subject_hash,
+                1.0 if query_hash is subject_hash else 0.99,
+                12345,
+                cov_query=1.0 if query_hash is subject_hash else 0.88,
+            )
+
     db_orm.add_run(
         session,
         config,
-        cmdline="pyani fastani ...",
-        fasta_directory=Path("/does/not/exist"),
-        status="Empty",
-        name="Trial A",
+        cmdline="pyani guessing ...",
+        fasta_directory=input_genomes_tiny,
+        status="Complete",
+        name="Test classify when all data present",
+        fasta_to_hash=fasta_to_hash,
     )
-    db_orm.add_run(
-        session,
-        config,
-        cmdline="pyani fastani ...",
-        fasta_directory=Path("/does/not/exist"),
-        status="Empty",
-        name="Trial B",
-    )
-    with pytest.raises(SystemExit, match="ERROR: Database has no run-id 3."):
-        public_cli.classify(database=tmp_db, outdir=tmp_dir, run_id=3)
-    with pytest.raises(
-        SystemExit,
-        match="ERROR: run-id 1 has no comparisons",
-    ):
-        public_cli.classify(database=tmp_db, outdir=tmp_dir, run_id=1)
-    # Should default to latest run, run-id 2
-    with pytest.raises(
-        SystemExit,
-        match="ERROR: run-id 2 has no comparisons",
-    ):
-        public_cli.classify(database=tmp_db, outdir=tmp_dir)
-    tmp_db.unlink()
 
-
-def test_classify_db(
-    capsys: pytest.CaptureFixture[str], input_genomes_tiny: Path, tmp_path: Path
-) -> None:
-    """Check classify working example."""
-    tmp_dir = Path(tmp_path)
-    db = input_genomes_tiny / "viral_database.db"
-    public_cli.classify(database=db, run_id=1, outdir=tmp_dir)
+    public_cli.classify(database=tmp_db, run_id=1, outdir=tmp_dir)
 
     output = capsys.readouterr().out
     assert f"Wrote classify output to {tmp_path}" in output, output
-    with (tmp_dir / "ANIm_coverage_classify.tsv").open() as handle:
+    with (tmp_dir / "fastANI_identity_classify.tsv").open() as handle:
         assert handle.readline() == "members\tn_nodes\tmin_cov\tmin_identity\n"

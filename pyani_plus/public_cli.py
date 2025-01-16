@@ -43,7 +43,7 @@ from rich.text import Text
 from sqlalchemy.orm import Session
 
 from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
-from pyani_plus import classify as method_classify
+from pyani_plus import classify as classify_cliques
 from pyani_plus.methods import method_anib, method_anim, method_fastani, method_sourmash
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_ANIM_MODE,
@@ -907,21 +907,21 @@ def classify(
         cov.rename(index=mapping, columns=mapping, inplace=True)  # noqa: PD002
 
     # Map the string inputs to callable functions
-    covearge_agg_func = method_classify.AGG_FUNCS[covearge_edges]
-    identity_agg_func = method_classify.AGG_FUNCS[identity_edges]
+    covearge_agg_func = classify_cliques.AGG_FUNCS[covearge_edges]
+    identity_agg_func = classify_cliques.AGG_FUNCS[identity_edges]
 
     # Construct the graph with the correct functions
-    complete_graph = method_classify.construct_complete_graph(
+    complete_graph = classify_cliques.construct_complete_graph(
         cov, identity, covearge_agg_func, identity_agg_func
     )
     temp_cov_graph = complete_graph.copy()
     temp_id_graph = complete_graph.copy()
 
-    cov_cliques = method_classify.find_cliques(temp_cov_graph, "coverage")
-    id_cliques = method_classify.find_cliques(temp_id_graph, "identity")
+    cov_cliques = classify_cliques.find_cliques(temp_cov_graph, "coverage")
+    id_cliques = classify_cliques.find_cliques(temp_id_graph, "identity")
 
-    cov_cliques_info = method_classify.populate_ClusterInfo(cov_cliques)
-    id_cliques_info = method_classify.populate_ClusterInfo(id_cliques)
+    cov_cliques_info = classify_cliques.populate_ClusterInfo(cov_cliques)
+    id_cliques_info = classify_cliques.populate_ClusterInfo(id_cliques)
     method = run.configuration.method
 
     cov_cliques_df = pd.DataFrame(cov_cliques_info)

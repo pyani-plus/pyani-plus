@@ -34,7 +34,6 @@ from pathlib import Path
 from typing import Annotated
 
 import click
-import pandas as pd
 import typer
 from rich.console import Console
 from rich.progress import Progress
@@ -819,7 +818,7 @@ def plot_run(  # noqa: C901
             msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
             sys.exit(msg)  # pragma: no cover
 
-        nulls = int(matrix.isnull().sum().sum())  # noqa: PD003
+        nulls = int(matrix.isnull().sum().sum())
         n = len(matrix)
         if nulls:
             msg = (
@@ -920,21 +919,9 @@ def classify(
     cov_cliques = classify_cliques.find_cliques(temp_cov_graph, "coverage")
     id_cliques = classify_cliques.find_cliques(temp_id_graph, "identity")
 
-    cov_cliques_info = classify_cliques.populate_ClusterInfo(cov_cliques)
-    id_cliques_info = classify_cliques.populate_ClusterInfo(id_cliques)
     method = run.configuration.method
-
-    cov_cliques_df = pd.DataFrame(cov_cliques_info)
-    cov_cliques_df["members"] = cov_cliques_df["members"].apply(lambda x: ",".join(x))
-    cov_cliques_df.to_csv(
-        outdir / f"{method}_coverage_classify.tsv", sep="\t", index=False
-    )
-
-    id_cliques_df = pd.DataFrame(id_cliques_info)
-    id_cliques_df["members"] = id_cliques_df["members"].apply(lambda x: ",".join(x))
-    id_cliques_df.to_csv(
-        outdir / f"{method}_identity_classify.tsv", sep="\t", index=False
-    )
+    classify_cliques.compute_classify_output(cov_cliques, method, "coverage", outdir)
+    classify_cliques.compute_classify_output(id_cliques, method, "identity", outdir)
 
     print(f"Wrote classify output to {outdir}")
     session.close()

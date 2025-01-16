@@ -23,6 +23,7 @@
 
 from collections.abc import Callable
 from itertools import combinations
+from pathlib import Path
 from typing import NamedTuple
 
 import networkx as nx
@@ -147,9 +148,11 @@ def find_cliques(
     return cliques
 
 
-def populate_ClusterInfo(cliques: list) -> list[CliqueInfo]:  # noqa: N802
-    """Return list of CliqueInfo describing all cliques found."""
-    return [
+def compute_classify_output(
+    cliques: list, method: str, attribute: str, outdir: Path
+) -> list[CliqueInfo]:
+    """Return list of CliqueInfo describing all cliques found and save them to .tsv file."""
+    clique_data = [
         CliqueInfo(
             members=list(clique.nodes),
             n_nodes=len(clique.nodes),
@@ -164,3 +167,11 @@ def populate_ClusterInfo(cliques: list) -> list[CliqueInfo]:  # noqa: N802
         )
         for clique in cliques
     ]
+
+    clique_df = pd.DataFrame(clique_data)
+    clique_df["members"] = clique_df["members"].apply(lambda x: ",".join(x))
+
+    output_file = outdir / f"{method}_{attribute}_classify.tsv"
+    clique_df.to_csv(output_file, sep="\t", index=False)
+
+    return clique_data

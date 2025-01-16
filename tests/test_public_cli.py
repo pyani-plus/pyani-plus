@@ -280,6 +280,8 @@ def test_partial_run(  # noqa: PLR0915
     assert (
         "INFO: Deleting most recent run\n"
         "INFO: Run 2 contains 4/9=3² fastANI comparisons, status: Running\n"
+        "INFO: Run name: Trial B\n"
+        "WARNING: Deleting a run still being computed will cause it to fail!\n"
     ) in output
 
     assert session.query(db_orm.Run).count() == 0

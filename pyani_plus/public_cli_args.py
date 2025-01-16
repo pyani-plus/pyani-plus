@@ -71,7 +71,7 @@ REQ_ARG_TYPE_FASTA_DIR = Annotated[
 
 OPT_ARG_TYPE_RUN_ID = Annotated[
     int | None,
-    typer.Option(help="Which run from the database (defaults to latest"),
+    typer.Option(help="Which run from the database (defaults to latest)"),
 ]
 OPT_ARG_TYPE_RUN_NAME = Annotated[
     # Using None to mean the dynamic default value here:

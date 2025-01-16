@@ -1459,7 +1459,7 @@ def test_classify(
         fasta_to_hash=fasta_to_hash,
     )
 
-    public_cli.classify(database=tmp_db, run_id=1, outdir=tmp_dir)
+    public_cli.classify(database=tmp_db, outdir=tmp_dir)
 
     output = capsys.readouterr().out
     assert f"Wrote classify output to {tmp_path}" in output, output

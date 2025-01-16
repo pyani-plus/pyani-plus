@@ -34,7 +34,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pyani_plus import classify as method_classify
+from pyani_plus import classify
 
 
 @pytest.fixture
@@ -140,14 +140,14 @@ def test_construct_complete_graph(
     # Check the isomorphism of a graph with the edge_match function
     assert nx.is_isomorphic(
         expected_complete_graph,
-        method_classify.construct_complete_graph(cov_matrix, id_matrix, min, np.mean),
+        classify.construct_complete_graph(cov_matrix, id_matrix, min, np.mean),
         edge_match=edge_match,
     )
 
 
 def test_is_clique(expected_complete_graph: nx.Graph) -> None:
     """Check cliques are identified."""
-    assert method_classify.is_clique(expected_complete_graph) is True
+    assert classify.is_clique(expected_complete_graph) is True
 
 
 def test_remove_lowest_edge(expected_complete_graph: nx.Graph) -> None:
@@ -158,7 +158,7 @@ def test_remove_lowest_edge(expected_complete_graph: nx.Graph) -> None:
 
     assert nx.is_isomorphic(
         expected_graph_no_edge,
-        method_classify.remove_lowest_edge(expected_complete_graph, "coverage"),
+        classify.remove_lowest_edge(expected_complete_graph, "coverage"),
         edge_match=edge_match,
     )
 
@@ -167,7 +167,7 @@ def test_find_cliques(
     expected_complete_graph: nx.Graph, expected_cliques: list
 ) -> None:
     """Check all possible cliques are identified."""
-    found_cliques = method_classify.find_cliques(expected_complete_graph, "coverage")
+    found_cliques = classify.find_cliques(expected_complete_graph, "coverage")
     edge_match = iso.numerical_edge_match("coverage", "identity")
 
     # Check number of identified cliques

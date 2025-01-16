@@ -16,4 +16,4 @@ rich
 seaborn>=0.13.2
 sqlalchemy>=2.0
 typer>=0.12
-networkx
+networkx>=3.4.2

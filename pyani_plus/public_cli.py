@@ -934,10 +934,10 @@ def plot_run(
     from .plot_run import plot_heatmap  # lazy import
 
     heatmaps_done = 0
-    for matrix, name in (
-        (run.identities, "identity"),
-        (run.cov_query, "query_cov"),
-        (run.hadamard, "hadamard"),
+    for matrix, name, color_scheme in (
+        (run.identities, "identity", "spbnd_BuRd"),
+        (run.cov_query, "query_cov", "BuRd"),
+        (run.hadamard, "hadamard", "hadamard_BuRd"),
     ):
         if matrix is None:
             # This is mainly for mypy to assert the matrix is not None
@@ -960,7 +960,7 @@ def plot_run(
             msg = f"ERROR: {err}"
             sys.exit(msg)
 
-        plot_heatmap(matrix, str(outdir / f"{method}_{name}"))
+        plot_heatmap(matrix, str(outdir / f"{method}_{name}"), color_scheme)
         heatmaps_done += 1
         # Next want to plot distributions of the scores (scatter plots)
 

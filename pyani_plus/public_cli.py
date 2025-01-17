@@ -929,45 +929,14 @@ def plot_run(
         run_id = run.run_id
         print(f"INFO: Plotting {run.configuration.method} run-id {run_id}")
 
-    method = run.configuration.method
+    from .plot_run import plot_heatmaps  # lazy import
 
-    from .plot_run import plot_heatmap  # lazy import
-
-    heatmaps_done = 0
-    for matrix, name, color_scheme in (
-        (run.identities, "identity", "spbnd_BuRd"),
-        (run.cov_query, "query_cov", "BuRd"),
-        (run.hadamard, "hadamard", "hadamard_BuRd"),
-    ):
-        if matrix is None:
-            # This is mainly for mypy to assert the matrix is not None
-            msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
-            sys.exit(msg)  # pragma: no cover
-
-        nulls = int(matrix.isnull().sum().sum())
-        n = len(matrix)
-        if nulls:
-            msg = (
-                f"WARNING: Cannot plot {name} as matrix contains {nulls} nulls"
-                f" (out of {n}²={n**2} {method} comparisons)\n"
-            )
-            sys.stderr.write(msg)
-            continue
-
-        try:
-            matrix = run.relabelled_matrix(matrix, label)  # noqa: PLW2901
-        except ValueError as err:
-            msg = f"ERROR: {err}"
-            sys.exit(msg)
-
-        plot_heatmap(matrix, str(outdir / f"{method}_{name}"), color_scheme)
-        heatmaps_done += 1
-        # Next want to plot distributions of the scores (scatter plots)
+    heatmaps_done = plot_heatmaps(run, outdir, label)
 
     if not heatmaps_done:
         msg = "ERROR: Unable to plot any heatmaps (check for nulls)"
         sys.exit(msg)
-    print(f"Wrote {heatmaps_done} heatmaps to {outdir}/{method}_*.*")
+    print(f"Wrote {heatmaps_done} heatmaps to {outdir}/{run.configuration.method}_*.*")
 
     session.close()
     return 0

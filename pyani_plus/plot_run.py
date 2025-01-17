@@ -21,12 +21,15 @@
 # THE SOFTWARE.
 """Code for plotting a single run (heatmaps etc)."""
 
+import sys
 import warnings
+from pathlib import Path
 
 import seaborn as sns
 from matplotlib import colormaps
 from matplotlib.colors import LinearSegmentedColormap
-from pandas import DataFrame
+
+from pyani_plus import db_orm
 
 # Custom Matplotlib colourmaps
 # 1a) Map for species boundaries (95%: 0.95), blue for values at
@@ -108,13 +111,16 @@ colormaps.register(
 )
 
 
-def plot_heatmap(
-    matrix: DataFrame,
-    output_stem: str,
-    color_scheme: str,
+def plot_heatmaps(
+    run: db_orm.Run,
+    outdir: Path,
+    label: str,
     formats: tuple[str, ...] = ("tsv", "png", "jpg", "svg", "pdf"),
-) -> None:
-    """Plot the given matrix as a heatmap."""
+) -> int:
+    """Plot the heatmaps for the given run.
+
+    Returns the number of heatmaps drawn (depends on nulls).
+    """
     # Can't use square=True with seaborn clustermap, and when clustering
     # asymmetric matrices can end up with different max-length labels
     # for rows vs columns, which distorts layout (non-square heatmap).
@@ -122,45 +128,80 @@ def plot_heatmap(
     # Decide on figure layout size: a minimum size is required for
     # aesthetics, and a maximum to avoid core dumps on rendering.
     # If we hit the maximum size, we should modify font size.
+    method = run.configuration.method
+
     maxfigsize = 120
-    calcfigsize = matrix.shape[0] * 1.1
+    if run.identities is None:
+        # This is mainly for mypy to assert the matrix is not None
+        msg = "ERROR: Could not load run identities matrix"  # pragma: no cover
+        sys.exit(msg)  # pragma: no cover
+    calcfigsize = run.identities.shape[0] * 1.1
     figsize = min(max(8, calcfigsize), maxfigsize)
     if figsize == maxfigsize:
         scale = maxfigsize / calcfigsize
         sns.set_context("notebook", font_scale=scale)
 
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            message=(
-                "scipy.cluster: The symmetric non-negative hollow observation"
-                " matrix looks suspiciously like an uncondensed distance matrix"
-            ),
-        )
-        warnings.filterwarnings(
-            "ignore",
-            message=(
-                "Clustering large matrix with scipy. Installing"
-                " `fastcluster` may give better performance."
-            ),
-        )
-        figure = sns.clustermap(
-            matrix,
-            cmap=color_scheme,
-            vmin=0,
-            vmax=1,
-            figsize=(figsize, figsize),
-            linewidths=0.25,
-        )
+    heatmaps_done = 0
+    for matrix, name, color_scheme in (
+        (run.identities, "identity", "spbnd_BuRd"),
+        (run.cov_query, "query_cov", "BuRd"),
+        (run.hadamard, "hadamard", "hadamard_BuRd"),
+    ):
+        if matrix is None:
+            # This is mainly for mypy to assert the matrix is not None
+            msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
+            sys.exit(msg)  # pragma: no cover
 
-    for ext in formats:
-        filename = output_stem + "." + ext
-        if ext == "tsv":
-            # Apply the clustering reordering to match the figure:
-            matrix = matrix.iloc[
-                figure.dendrogram_row.reordered_ind,
-                figure.dendrogram_row.reordered_ind,
-            ]
-            matrix.to_csv(filename, sep="\t")
-        else:
-            figure.savefig(filename)
+        nulls = int(matrix.isnull().sum().sum())
+        n = len(matrix)
+        if nulls:
+            msg = (
+                f"WARNING: Cannot plot {name} as matrix contains {nulls} nulls"
+                f" (out of {n}²={n**2} {method} comparisons)\n"
+            )
+            sys.stderr.write(msg)
+            continue
+
+        try:
+            matrix = run.relabelled_matrix(matrix, label)  # noqa: PLW2901
+        except ValueError as err:
+            msg = f"ERROR: {err}"
+            sys.exit(msg)
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=(
+                    "scipy.cluster: The symmetric non-negative hollow observation"
+                    " matrix looks suspiciously like an uncondensed distance matrix"
+                ),
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=(
+                    "Clustering large matrix with scipy. Installing"
+                    " `fastcluster` may give better performance."
+                ),
+            )
+            figure = sns.clustermap(
+                matrix,
+                cmap=color_scheme,
+                vmin=0,
+                vmax=1,
+                figsize=(figsize, figsize),
+                linewidths=0.25,
+            )
+
+        for ext in formats:
+            filename = outdir / f"{method}_{name}.{ext}"
+            if ext == "tsv":
+                # Apply the clustering reordering to match the figure:
+                matrix = matrix.iloc[  # noqa: PLW2901
+                    figure.dendrogram_row.reordered_ind,
+                    figure.dendrogram_row.reordered_ind,
+                ]
+                matrix.to_csv(filename, sep="\t")
+            else:
+                figure.savefig(filename)
+        heatmaps_done += 1
+    return heatmaps_done

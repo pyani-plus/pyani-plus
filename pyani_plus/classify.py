@@ -46,47 +46,47 @@ class CliqueInfo(NamedTuple):
     min_identity: float | None
 
 
-def construct_complete_graph(
+def construct_graph(
     cov_matrix: pd.DataFrame,
     id_matrix: pd.DataFrame,
     coverage_agg: Callable,
     identity_agg: Callable,
 ) -> nx.Graph:
-    """Return a complete graph representing ANI results.
+    """Return a graph representing ANI results.
 
-    Constructs an undirected complete graph for the ANI results of a given run_id.
-    Nodes represent genome hashes, and edges correspond to pairwise comparisons,
-    with weights assigned based on minimum coverage and average identity.
+    Constructs an undirected graph for the ANI results of a given run_id.
+    Nodes represent genome, and edges correspond to pairwise comparisons,
+    with weights assigned based on the minimum coverage and the average identity
+    (by default). No edges are added between pairs of genomes when no alignment
+    is found.
     """
+    # Create an empty graph
+    graph = nx.Graph()
+
     # Get list of nodes for a graph (eg. genome hashes) and a list of comparisons (eg. genome A vs genome B)
     nodes = cov_matrix.columns
+    graph.add_nodes_from(nodes)
     comparisons = list(combinations(nodes, 2))
 
-    # Construct a complete graph for the results. Since the methods are not symmetrical
+    # Add edges to the graph based on ANI results. Since the methods are not symmetrical
     # (e.g., comparisons between genome A and genome B are expected to return slightly different
     # values compared to those between genome B and genome A), we loop over the comparisons
     # and check the results in both directions. For each comparison, by default, we use
     # the lowest genome coverage and the average genome identity to create the graph.
-    # However, we allow the end-user to choose alternatives, such as min or max.
-    rows = []
+    # However, we allow the end-user to choose alternatives, such as min or max. No edges
+    # are added if no alignment is found.
     for genome1, genome2 in comparisons:
-        datadict = {
-            "genome1": genome1,
-            "genome2": genome2,
-            "coverage": coverage_agg(
-                [cov_matrix[genome1][genome2], cov_matrix[genome2][genome1]]
-            ),
-            "identity": identity_agg(
-                [id_matrix[genome1][genome2], id_matrix[genome2][genome1]]
-            ),
-        }
-        rows.append(datadict)
+        coverage = coverage_agg(
+            [cov_matrix[genome1][genome2], cov_matrix[genome2][genome1]]
+        )
+        identity = identity_agg(
+            [id_matrix[genome1][genome2], id_matrix[genome2][genome1]]
+        )
+        # Add edge only if both coverage and identity are valid
+        if pd.notna(coverage) and pd.notna(identity):
+            graph.add_edge(genome1, genome2, coverage=coverage, identity=identity)
 
-    node_data = pd.DataFrame(rows)
-
-    return nx.from_pandas_edgelist(
-        node_data, "genome1", "genome2", ["coverage", "identity"]
-    )
+    return graph
 
 
 def is_clique(graph: nx.Graph) -> bool:

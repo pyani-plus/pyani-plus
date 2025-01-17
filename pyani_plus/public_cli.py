@@ -919,7 +919,7 @@ def classify(  # noqa: PLR0913
     identity_agg_func = classify_cliques.AGG_FUNCS[identity_edges]
 
     # Construct the graph with the correct functions
-    complete_graph = classify_cliques.construct_complete_graph(
+    complete_graph = classify_cliques.construct_graph(
         cov, identity, covearge_agg_func, identity_agg_func
     )
     temp_cov_graph = complete_graph.copy()

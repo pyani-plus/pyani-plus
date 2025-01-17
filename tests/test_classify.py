@@ -72,6 +72,16 @@ def expected_complete_graph() -> nx.Graph:
 
 
 @pytest.fixture
+def expected_graph_no_edges() -> nx.Graph:
+    """Return graph with with no edges (bad alignment) example."""
+    graph = nx.Graph()
+    nodes = ["MGV-GENOME-0264574", "MGV-GENOME-0357962"]
+    graph.add_nodes_from(nodes)
+
+    return graph
+
+
+@pytest.fixture
 def expected_cliques() -> nx.Graph:
     """Return list of expected cliques (viral example)."""
     c1 = nx.Graph()
@@ -123,7 +133,7 @@ def expected_cliques() -> nx.Graph:
     return [c1, c2]
 
 
-def test_construct_complete_graph(
+def test_construct_graph(
     input_genomes_tiny: Path, expected_complete_graph: nx.Graph
 ) -> None:
     """Check construction of complete graph."""
@@ -140,8 +150,31 @@ def test_construct_complete_graph(
     # Check the isomorphism of a graph with the edge_match function
     assert nx.is_isomorphic(
         expected_complete_graph,
-        classify.construct_complete_graph(cov_matrix, id_matrix, min, np.mean),
+        classify.construct_graph(cov_matrix, id_matrix, min, np.mean),
         edge_match=edge_match,
+    )
+
+
+def test_construct_graph_no_edges(
+    input_genomes_bad_alignments: Path, expected_graph_no_edges: nx.Graph
+) -> None:
+    """Check construction of graph with no edges."""
+    # Matrices
+    cov_matrix = pd.read_csv(
+        input_genomes_bad_alignments / "matrices/ANIm_coverage.tsv",
+        sep="\t",
+        index_col=0,
+    )
+    id_matrix = pd.read_csv(
+        input_genomes_bad_alignments / "matrices/ANIm_identity.tsv",
+        sep="\t",
+        index_col=0,
+    )
+
+    # Check the isomorphism of a graph with the edge_match function
+    assert nx.is_isomorphic(
+        expected_graph_no_edges,
+        classify.construct_graph(cov_matrix, id_matrix, min, np.mean),
     )
 
 

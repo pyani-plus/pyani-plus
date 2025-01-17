@@ -796,8 +796,16 @@ def export_run(
 ) -> int:
     """Export any single run from the given pyANI-plus SQLite3 database.
 
-    The output directory must already exist. The output files are named
-    <method>_<property>.tsv and any pre-existing files will be overwritten.
+    The output directory must already exist. Any pre-existing files will be
+    overwritten.
+
+    The matrix output files are named <method>_<property>.tsv while the
+    long form is named <method>_run_<run-id>.tsv and will include the
+    query and subject genomes and all the comparison properties as columns.
+
+    Incomplete runs will return an error. There will be no output for empty
+    run. For partial runs the long form table will be exported, but not the
+    matrices.
     """
     if not outdir.is_dir():
         msg = f"ERROR: Output directory {outdir} does not exist"
@@ -808,15 +816,49 @@ def export_run(
         sys.exit(msg)
 
     session = db_orm.connect_to_db(database)
-    run = db_orm.load_run(session, run_id, check_complete=True)
+    run = db_orm.load_run(session, run_id, check_empty=True)
     if run_id is None:
         run_id = run.run_id
         print(f"INFO: Exporting run-id {run_id}")
 
     # Question: Should we export a plain text of JSON summary of the configuration etc?
-    # Question: Should we include the run-id in the filenames name?
+    # Question: Should we include the run-id in the matrix filenames?
     # Question: Should we match the property in filenames to old pyANI (e.g. coverage)?
     method = run.configuration.method
+
+    def float_or_na(value: float | None) -> str:
+        """Format a float where represent None as NA (null in our DB)."""
+        # Should this allow configurable float formatting?
+        return "NA" if value is None else str(value)
+
+    long_filename = f"{method}_run_{run_id}.tsv"
+    with (outdir / long_filename).open("w") as handle:
+        # Should the column names match our internal naming?
+        handle.write(
+            "#Query\tSubject\tIdentity\tQuery-Cov\tSubject-Cov\tHadamard\tAlign-Len\tSim-Errors\n"
+        )
+        for _ in run.comparisons():
+            # Below for the matrix output we use the cached DataFrame for Hadamard.
+            # Here compute it on the fly (we might be exporting partial results).
+            hadamard = (
+                None
+                if _.identity is None or _.cov_query is None
+                else _.identity * _.cov_query
+            )
+            handle.write(
+                f"{_.query_hash}\t{_.subject_hash}"
+                f"\t{float_or_na(_.identity)}"
+                f"\t{float_or_na(_.cov_query)}"
+                f"\t{float_or_na(_.cov_subject)}"
+                f"\t{float_or_na(hadamard)}"
+                f"\t{float_or_na(_.aln_length)}"
+                f"\t{float_or_na(_.sim_errors)}\n"
+            )
+    print(f"Wrote long-form to {outdir}/{long_filename}")
+
+    # Reload the run checking it is complete (quick) (might abort here!),
+    # and caching the matrices if needed (slower):
+    run = db_orm.load_run(session, run_id, check_complete=True)
 
     for matrix, filename in (
         (run.identities, f"{method}_identity.tsv"),

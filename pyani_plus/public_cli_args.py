@@ -29,6 +29,7 @@ the private and public API definitions without needed to import from each other
 from pathlib import Path
 from typing import Annotated
 
+import click
 import typer
 
 from pyani_plus import FASTA_EXTENSIONS
@@ -160,18 +161,11 @@ OPT_ARG_TYPE_CREATE_DB = Annotated[
 OPT_ARG_TYPE_EXECUTOR = Annotated[
     ToolExecutor, typer.Option(help="How should the internal tools be run?")
 ]
-OPT_ARG_TYPE_COVERAGE_EDGES = Annotated[
-    str,
-    typer.Option(
-        help="How to resolve asymmetrical ANI coverage results for edges in the graph (min, max or mean).",
-        rich_help_panel="Method parameters",
-    ),
-]
 
-OPT_ARG_TYPE_IDENTITY_EDGES = Annotated[
+OPT_ARG_TYPE_LABEL = Annotated[
     str,
     typer.Option(
-        help="How to resolve asymmetrical ANI identity results for edges in the graph (min, max or mean).",
-        rich_help_panel="Method parameters",
+        click_type=click.Choice(["md5", "filename", "stem"]),
+        help="How to label the genomes",
     ),
 ]

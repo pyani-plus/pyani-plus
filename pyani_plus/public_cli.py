@@ -33,7 +33,6 @@ from contextlib import nullcontext
 from pathlib import Path
 from typing import Annotated
 
-import click
 import typer
 from rich.console import Console
 from rich.progress import Progress
@@ -46,12 +45,11 @@ from pyani_plus import classify as classify_cliques
 from pyani_plus.methods import method_anib, method_anim, method_fastani, method_sourmash
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_ANIM_MODE,
-    OPT_ARG_TYPE_COVERAGE_EDGES,
     OPT_ARG_TYPE_CREATE_DB,
     OPT_ARG_TYPE_EXECUTOR,
     OPT_ARG_TYPE_FRAGSIZE,
-    OPT_ARG_TYPE_IDENTITY_EDGES,
     OPT_ARG_TYPE_KMERSIZE,
+    OPT_ARG_TYPE_LABEL,
     OPT_ARG_TYPE_MINMATCH,
     OPT_ARG_TYPE_RUN_ID,
     OPT_ARG_TYPE_RUN_NAME,
@@ -714,13 +712,7 @@ def export_run(
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
     # Would like to replace this with Literal["md5", "filename", "stem"] once typer updated
-    label: Annotated[
-        str,
-        typer.Option(
-            click_type=click.Choice(["md5", "filename", "stem"]),
-            help="How to label the genomes",
-        ),
-    ] = "stem",
+    label: OPT_ARG_TYPE_LABEL = "stem",
 ) -> int:
     """Export any single run from the given pyANI-plus SQLite3 database.
 
@@ -778,13 +770,7 @@ def plot_run(  # noqa: C901
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
     # Would like to replace this with Literal["md5", "filename", "stem"] once typer updated
-    label: Annotated[
-        str,
-        typer.Option(
-            click_type=click.Choice(["md5", "filename", "stem"]),
-            help="How to label the genomes",
-        ),
-    ] = "stem",
+    label: OPT_ARG_TYPE_LABEL = "stem",
 ) -> int:
     """Plot heatmaps and distributions for any single run.
 
@@ -874,12 +860,25 @@ def plot_run(  # noqa: C901
 
 
 @app.command()
-def classify(
+def classify(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     outdir: REQ_ARG_TYPE_OUTDIR,
-    covearge_edges: OPT_ARG_TYPE_COVERAGE_EDGES = "min",  # Default to "min"
-    identity_edges: OPT_ARG_TYPE_IDENTITY_EDGES = "mean",  # Default to "mean"
+    covearge_edges: Annotated[
+        str,
+        typer.Option(
+            help="How to resolve asymmetrical ANI identity results for edges in the graph (min, max or mean).",
+            rich_help_panel="Method parameters",
+        ),
+    ] = "min",  # Default to "min"
+    identity_edges: Annotated[
+        str,
+        typer.Option(
+            help="How to resolve asymmetrical ANI identity results for edges in the graph (min, max or mean).",
+            rich_help_panel="Method parameters",
+        ),
+    ] = "mean",  # Default to "mean"
     run_id: OPT_ARG_TYPE_RUN_ID = None,
+    label: OPT_ARG_TYPE_LABEL = "stem",
 ) -> int:
     """Classify genomes into clusters based on ANI results."""
     if not outdir.is_dir():
@@ -896,14 +895,27 @@ def classify(
         run_id = run.run_id
         print(f"INFO: Exporting run-id {run_id}")
 
-    mapping = {_.genome_hash: Path(_.fasta_filename).stem for _ in run.fasta_hashes}
+    method = run.configuration.method
 
     identity = run.identities
-    if identity is not None:
-        identity.rename(index=mapping, columns=mapping, inplace=True)  # noqa: PD002
+    if identity is None:
+        msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
+        sys.exit(msg)  # pragma: no cover
+    try:
+        identity = run.relabelled_matrix(identity, label)
+    except ValueError as err:
+        msg = f"ERROR: {err}"
+        sys.exit(msg)
+
     cov = run.cov_query
-    if cov is not None:
-        cov.rename(index=mapping, columns=mapping, inplace=True)  # noqa: PD002
+    if cov is None:
+        msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
+        sys.exit(msg)  # pragma: no cover
+    try:
+        cov = run.relabelled_matrix(cov, label)
+    except ValueError as err:
+        msg = f"ERROR: {err}"
+        sys.exit(msg)
 
     # Map the string inputs to callable functions
     covearge_agg_func = classify_cliques.AGG_FUNCS[covearge_edges]
@@ -919,7 +931,6 @@ def classify(
     cov_cliques = classify_cliques.find_cliques(temp_cov_graph, "coverage")
     id_cliques = classify_cliques.find_cliques(temp_id_graph, "identity")
 
-    method = run.configuration.method
     classify_cliques.compute_classify_output(cov_cliques, method, "coverage", outdir)
     classify_cliques.compute_classify_output(id_cliques, method, "identity", outdir)
 

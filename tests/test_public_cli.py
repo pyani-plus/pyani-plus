@@ -251,6 +251,7 @@ def test_partial_run(  # noqa: PLR0915
     assert f"Wrote matrices to {tmp_path}" in output, output
     with (tmp_dir / "fastANI_identity.tsv").open() as handle:
         assert handle.readline() == "\tMGV-GENOME-0266457.fna\tOP073605.fasta\n"
+    output = capsys.readouterr().out  # clear the above commands
 
     # By construction run 2 is partial, only 4 of 9 matrix entries are
     # defined - this should fail
@@ -259,6 +260,21 @@ def test_partial_run(  # noqa: PLR0915
         match=("ERROR: run-id 2 has only 4 of 3²=9 comparisons, 5 needed"),
     ):
         public_cli.export_run(database=tmp_db, run_id=2, outdir=tmp_path)
+    long_file = tmp_dir / "fastANI_run_2.tsv"
+    assert long_file.is_file()
+    with long_file.open() as handle:
+        header = handle.readline().rstrip("\n").split("\t")
+        assert header == [
+            "#Query",
+            "Subject",
+            "Identity",
+            "Query-Cov",
+            "Subject-Cov",
+            "Hadamard",
+            "Align-Len",
+            "Sim-Errors",
+        ]
+        assert sum(1 for _ in handle) == 4  # noqa: PLR2004
 
     # Resuming the partial job should fail as the fastANI version won't match:
     with pytest.raises(

@@ -779,12 +779,20 @@ def add_run(  # noqa: PLR0913
 
 
 def load_run(
-    session: Session, run_id: int | None = None, *, check_complete: bool = False
+    session: Session,
+    run_id: int | None = None,
+    *,
+    check_complete: bool = False,
+    check_empty: bool = False,
 ) -> Run:
     """Load specified or latest Run from the DB.
 
     Will error if the database contains no runs, or does not contain the run
     requested.
+
+    If either check_complete or check_empty is true, this will error if there
+    are no comparisons at all. This is to allow for situations where partial
+    data can be useful (e.g. the long form of the exported tables).
 
     If asked to check the run is complete, will confirm there are N² comparisons
     for N genomes. Again, will error if not. It will also confirm the matrix has
@@ -807,23 +815,22 @@ def load_run(
             )
             raise SystemExit(msg) from None
 
-    if check_complete:
+    if check_complete or check_empty:
         done = run.comparisons().count()
         n = run.genomes.count()
         if not done:
             msg = f"ERROR: run-id {run_id} has no comparisons"
             raise SystemExit(msg)
-        if done < n**2:
-            # Would it be useful to allow partial export, perhaps with a --force option?
-            # Indicate this with blank strings?
-            msg = (
-                f"ERROR: run-id {run_id} has only {done} of {n}²={n**2}"
-                f" comparisons, {n**2 - done} needed"
-            )
-            raise SystemExit(msg)
-        if run.identities is None:
-            run.cache_comparisons()
-            session.commit()
+        if check_complete:
+            if done < n**2:
+                msg = (
+                    f"ERROR: run-id {run_id} has only {done} of {n}²={n**2}"
+                    f" comparisons, {n**2 - done} needed"
+                )
+                raise SystemExit(msg)
+            if run.identities is None:
+                run.cache_comparisons()
+                session.commit()
 
     return run
 

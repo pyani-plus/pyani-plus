@@ -844,6 +844,13 @@ def plot_run(  # noqa: C901
                     " matrix looks suspiciously like an uncondensed distance matrix"
                 ),
             )
+            warnings.filterwarnings(
+                "ignore",
+                message=(
+                    "Clustering large matrix with scipy. Installing"
+                    " `fastcluster` may give better performance."
+                ),
+            )
             figure = sns.clustermap(matrix)
 
         for ext in ("tsv", "png", "jpg", "svg", "pdf"):

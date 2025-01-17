@@ -305,7 +305,7 @@ def test_export_run_failures(tmp_path: str) -> None:
 
 
 def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
-    """Check export and plot run with duplicated stems.
+    """Check export, plot and classify run with duplicated stems.
 
     This should not happen naturally, it will fail via public CLI.
     """
@@ -361,6 +361,11 @@ def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
         match="ERROR: Duplicate filename stems, consider using MD5 labelling.",
     ):
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir)
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Duplicate filename stems, consider using MD5 labelling.",
+    ):
+        public_cli.classify(database=tmp_db, outdir=tmp_dir)
 
 
 def test_plot_run_failures(tmp_path: str) -> None:

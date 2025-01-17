@@ -64,6 +64,7 @@ from pyani_plus.utils import (
     check_db,
     check_fasta,
     file_md5sum,
+    filename_stem,
 )
 from pyani_plus.workflows import (
     ShowProgress,
@@ -781,7 +782,7 @@ def delete_run(
 
 
 @app.command()
-def export_run(
+def export_run(  # noqa: C901
     database: REQ_ARG_TYPE_DATABASE,
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
@@ -831,6 +832,15 @@ def export_run(
         # Should this allow configurable float formatting?
         return "NA" if value is None else str(value)
 
+    if label == "md5":
+        mapping = lambda x: x  # noqa: E731
+    elif label == "filename":
+        mapping = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}.get
+    else:
+        mapping = {
+            _.genome_hash: filename_stem(_.fasta_filename) for _ in run.fasta_hashes
+        }.get
+
     long_filename = f"{method}_run_{run_id}.tsv"
     with (outdir / long_filename).open("w") as handle:
         # Should the column names match our internal naming?
@@ -846,7 +856,7 @@ def export_run(
                 else _.identity * _.cov_query
             )
             handle.write(
-                f"{_.query_hash}\t{_.subject_hash}"
+                f"{mapping(_.query_hash)}\t{mapping(_.subject_hash)}"
                 f"\t{float_or_na(_.identity)}"
                 f"\t{float_or_na(_.cov_query)}"
                 f"\t{float_or_na(_.cov_subject)}"

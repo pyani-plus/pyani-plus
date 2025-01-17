@@ -897,7 +897,7 @@ def export_run(  # noqa: C901
 
 
 @app.command()
-def plot_run(  # noqa: C901
+def plot_run(
     database: REQ_ARG_TYPE_DATABASE,
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
@@ -927,9 +927,11 @@ def plot_run(  # noqa: C901
     run = db_orm.load_run(session, run_id, check_complete=True)
     if run_id is None:
         run_id = run.run_id
-        print(f"INFO: Plotting run-id {run_id}")
+        print(f"INFO: Plotting {run.configuration.method} run-id {run_id}")
 
     method = run.configuration.method
+
+    from .plot_run import plot_heatmap  # lazy import
 
     heatmaps_done = 0
     for matrix, name in (
@@ -958,40 +960,7 @@ def plot_run(  # noqa: C901
             msg = f"ERROR: {err}"
             sys.exit(msg)
 
-        # Next cluster the matrix & prepare the figure (move code to new file)
-        import warnings
-
-        import seaborn as sns
-
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore",
-                message=(
-                    "scipy.cluster: The symmetric non-negative hollow observation"
-                    " matrix looks suspiciously like an uncondensed distance matrix"
-                ),
-            )
-            warnings.filterwarnings(
-                "ignore",
-                message=(
-                    "Clustering large matrix with scipy. Installing"
-                    " `fastcluster` may give better performance."
-                ),
-            )
-            figure = sns.clustermap(matrix)
-
-        for ext in ("tsv", "png", "jpg", "svg", "pdf"):
-            filename = outdir / f"{method}_{name}.{ext}"
-            if ext == "tsv":
-                # Apply the clustering reordering to match the figure:
-                matrix = matrix.iloc[  # noqa: PLW2901
-                    figure.dendrogram_row.reordered_ind,
-                    figure.dendrogram_row.reordered_ind,
-                ]
-                matrix.to_csv(filename, sep="\t")
-            else:
-                figure.savefig(filename)
-
+        plot_heatmap(matrix, str(outdir / f"{method}_{name}"))
         heatmaps_done += 1
         # Next want to plot distributions of the scores (scatter plots)
 

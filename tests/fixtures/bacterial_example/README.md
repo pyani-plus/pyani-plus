@@ -1,1 +1,1 @@
-The `bacterial_example` test set consists of four bacterial genomes previously used for testing the legacy `pyANI`. This test set is not currently used during the development stage due to its longer runtime. However, it is planned to use this set of genomes in the future to ensure that more complex cases involving much larger genomes give the expected output.
+The `bacterial_example` test set consists of four bacterial genomes previously used for testing the legacy `pyANI`. This test set only being used in the test suite for the faster methods like fastANI and sourmash.

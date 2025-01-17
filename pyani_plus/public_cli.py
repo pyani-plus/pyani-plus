@@ -901,17 +901,14 @@ def classify(  # noqa: PLR0913
     if identity is None:
         msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
         sys.exit(msg)  # pragma: no cover
-    try:
-        identity = run.relabelled_matrix(identity, label)
-    except ValueError as err:
-        msg = f"ERROR: {err}"
-        sys.exit(msg)
 
     cov = run.cov_query
     if cov is None:
         msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
         sys.exit(msg)  # pragma: no cover
+
     try:
+        identity = run.relabelled_matrix(identity, label)
         cov = run.relabelled_matrix(cov, label)
     except ValueError as err:
         msg = f"ERROR: {err}"

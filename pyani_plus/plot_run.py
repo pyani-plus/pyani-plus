@@ -31,82 +31,49 @@ from matplotlib.colors import LinearSegmentedColormap
 
 from pyani_plus import db_orm
 
+GREY = (0.7, 0.7, 0.7)
+BLUE = (0.0, 0.0, 1.0)
+DULL_BLUE = (0.137, 0.412, 0.737)
+WHITE = (1.0, 1.0, 1.0)
+RED = (1, 0, 0.0, 0.0)
+DULL_RED = (0.659, 0.216, 0.231)
+
 # Custom Matplotlib colourmaps
-# 1a) Map for species boundaries (95%: 0.95), blue for values at
-# 0.9 or below, red for values at 1.0; white at 0.95.
-# Also, anything below 0.7 is 70% grey
 colormaps.register(
-    LinearSegmentedColormap(
-        "spbnd_BuRd",
-        {
-            "red": (
-                (0.0, 0.0, 0.7),
-                (0.7, 0.7, 0.0),
-                (0.9, 0.0, 0.0),
-                (0.95, 1.0, 1.0),
-                (1.0, 1.0, 1.0),
-            ),
-            "green": (
-                (0.0, 0.0, 0.7),
-                (0.7, 0.7, 0.0),
-                (0.9, 0.0, 0.0),
-                (0.95, 1.0, 1.0),
-                (1.0, 0.0, 0.0),
-            ),
-            "blue": (
-                (0.0, 0.0, 0.7),
-                (0.7, 0.7, 1.0),
-                # skips (0.9, 0.0, 0.0), in legacy code (why?)
-                (0.95, 1.0, 1.0),
-                (1.0, 0.0, 0.0),
-            ),
-        },
+    LinearSegmentedColormap.from_list(
+        "spbnd_BuRd",  # species boundary - blue to red
+        (
+            (0.00, GREY),  # 0% grey
+            (0.80, GREY),  # 80% grey (not meaningful)
+            (0.80, DULL_BLUE),  # 80% blue
+            (0.95, WHITE),  # 95% white (species boundary)
+            (1.00, DULL_RED),  # 100% red
+        ),
     )
 )
 
-
-# 1b) Map for species boundaries (95%: 0.95), blue for values at
-# 0.64 (0.8 * 0.8) or below, red for values at 1.0; white at 0.9.
-# Also, anything below 0.25 (0.5 * 0.5) is 70% grey
+# Hadamard is identity * query-coverage, so lower thresholds
 colormaps.register(
-    LinearSegmentedColormap(
-        "hadamard_BuRd",
-        {
-            "red": (
-                (0.0, 0.0, 0.7),
-                (0.25, 0.7, 0.0),
-                (0.64, 0.0, 0.0),
-                (0.64, 1.0, 1.0),
-                (1.0, 1.0, 1.0),
-            ),
-            "green": (
-                (0.0, 0.0, 0.7),
-                (0.25, 0.7, 0.0),
-                (0.64, 0.0, 0.0),
-                (0.64, 1.0, 1.0),
-                (1.0, 0.0, 0.0),
-            ),
-            "blue": (
-                (0.0, 0.0, 0.7),
-                (0.25, 0.7, 1.0),
-                # skips (0.64, 0.0, 0.0), in legacy code (why?)
-                (0.64, 1.0, 1.0),
-                (1.0, 0.0, 0.0),
-            ),
-        },
+    LinearSegmentedColormap.from_list(
+        "hadamard_BuRd",  # hadamard - blue to red
+        (
+            (0.00, GREY),  # 0% grey
+            (0.25, GREY),  # 25% grey (0.5 * 0.5 = 0.25)
+            (0.25, DULL_BLUE),  # 25% blue
+            (0.64, WHITE),  # 64% white (0.8 * 0.8 = 0.64)
+            (1.00, DULL_RED),  # 100% red
+        ),
     )
 )
 
-
-# 2) Blue for values at 0.0, red for values at 1.0; white at 0.5
 colormaps.register(
-    LinearSegmentedColormap(
-        "BuRd",
-        {
-            "red": ((0.0, 0.0, 0.0), (0.5, 1.0, 1.0), (1.0, 1.0, 1.0)),
-            "green": ((0.0, 0.0, 0.0), (0.5, 1.0, 1.0), (1.0, 0.0, 0.0)),
-            "blue": ((0.0, 1.0, 1.0), (0.5, 1.0, 1.0), (1.0, 0.0, 0.0)),
-        },
+    LinearSegmentedColormap.from_list(
+        "BuRd",  # blue to red
+        (
+            (0.0, BLUE),
+            (0.5, WHITE),
+            (1.0, RED),
+        ),
     )
 )
 

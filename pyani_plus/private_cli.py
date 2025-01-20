@@ -795,7 +795,7 @@ def anim(  # noqa: C901, PLR0912, PLR0913, PLR0915
     return 0
 
 
-def anib(  # noqa: C901, PLR0913
+def anib(  # noqa: C901, PLR0913, PLR0915
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,

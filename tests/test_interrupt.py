@@ -128,6 +128,8 @@ def test_compute_column_sigint_anib(
     assert rc == 0, (
         f"Expecting return 0 on clean interruption, got {rc} with {done} done"
     )
+    run = db_orm.load_run(session)
+    assert run.status == "Worker interrupted"
 
 
 def test_compute_column_sigint_dnadiff(
@@ -190,6 +192,8 @@ def test_compute_column_sigint_dnadiff(
     assert rc == 0, (
         f"Expecting return 0 on clean interruption, got {rc} with {done} done"
     )
+    run = db_orm.load_run(session)
+    assert run.status == "Worker interrupted"
 
 
 def test_compute_column_sigint_anim(
@@ -253,3 +257,5 @@ def test_compute_column_sigint_anim(
     assert rc == 0, (
         f"Expecting return 0 on clean interruption, got {rc} with {done} done"
     )
+    run = db_orm.load_run(session)
+    assert run.status == "Worker interrupted"

@@ -781,6 +781,7 @@ def anim(  # noqa: C901, PLR0912, PLR0913, PLR0915
         # Try to abort gracefully without wasting the work done.
         msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
         sys.stderr.write(msg)
+        run.status = "Worker interrupted"
 
     if db_entries:
         session.execute(
@@ -960,6 +961,7 @@ def anib(  # noqa: C901, PLR0913
         # Try to abort gracefully without wasting the work done.
         msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
         sys.stderr.write(msg)
+        run.status = "Worker interrupted"
 
     if db_entries:
         session.execute(
@@ -1176,6 +1178,7 @@ def dnadiff(  # noqa: C901, PLR0912, PLR0913, PLR0915
         # Try to abort gracefully without wasting the work done.
         msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
         sys.stderr.write(msg)
+        run.status = "Worker interrupted"
 
     if db_entries:
         session.execute(

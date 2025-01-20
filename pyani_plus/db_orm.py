@@ -779,7 +779,7 @@ def add_run(  # noqa: PLR0913
 
 
 def load_run(
-    session: Session, run_id: int | None, *, check_complete: bool = False
+    session: Session, run_id: int | None = None, *, check_complete: bool = False
 ) -> Run:
     """Load specified or latest Run from the DB.
 

@@ -8,11 +8,9 @@
 #
 # where we assume you have the conda-forge and bioconda channels.
 biopython
-matplotlib>=3.10.0
 intervaltree
 snakemake>=8.24
 snakemake-executor-plugin-slurm
 rich
-seaborn>=0.13.2
 sqlalchemy>=2.0
 typer>=0.12

@@ -1,5 +1,7 @@
 blast
 fastani
+matplotlib-base>=3.10.0
 mummer=3.23
+seaborn-base>=0.13.2
 sourmash-minimal>=4.8.11
 sourmash_plugin_branchwater>=0.9.11

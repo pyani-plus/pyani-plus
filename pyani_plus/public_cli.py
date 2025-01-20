@@ -706,6 +706,81 @@ def list_runs(
 
 
 @app.command()
+def delete_run(
+    database: REQ_ARG_TYPE_DATABASE,
+    run_id: OPT_ARG_TYPE_RUN_ID = None,
+    *,
+    force: Annotated[
+        # Listing name(s) explicitly to avoid automatic matching --no-create-db
+        bool, typer.Option("-f", "--force", help="Delete without confirmation")
+    ] = False,
+) -> int:
+    """Delete any single run from the given pyANI-plus SQLite3 database.
+
+    This will prompt the user for confirmation if the run has comparisons, or
+    if the run status is "Running", but that can be overridden.
+
+    Currently this will *not* delete any linked comparisons, even if they are
+    not currently linked to another run. They will be reused should you start
+    a new run using an overlapping set of input FASTA files.
+    """
+    if database == ":memory:" or not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+
+    confirm = False
+
+    session = db_orm.connect_to_db(database)
+    run = db_orm.load_run(session, run_id, check_complete=False)
+    if run_id is None:
+        run_id = run.run_id
+        print("INFO: Deleting most recent run")
+        confirm = True
+
+    # Could use rish colours, match how list-runs colours the counts?
+    done = run.comparisons().count()
+    n = run.genomes.count()
+    if n and done == n**2:
+        print(
+            f"INFO: Run {run_id} contains all {n**2}={n}²"
+            f" {run.configuration.method} comparisons, status: {run.status}"
+        )
+        confirm = True
+    else:
+        print(
+            f"INFO: Run {run_id} contains {done}/{n**2}={n}²"
+            f" {run.configuration.method} comparisons, status: {run.status}"
+        )
+        if done:
+            confirm = True
+    print(f"INFO: Run name: {run.name}")
+
+    if run.status == "Running":  # should be a constant or enum?
+        # Should we also look at the date of the run? If old probably it failed.
+        print("WARNING: Deleting a run still being computed will cause it to fail!")
+        confirm = True
+
+    if confirm and not force:
+        click.confirm("Do you want to continue?", abort=True)  # pragma: no cover
+
+    # Plan to offer an extended mode, perhaps --all, which will also
+    # delete orphaned entries in the configuration,  genomes, and
+    # comparisons tables. By default will just drop the runs entry
+    # and direct links in runs_genomes thanks to the relationship.
+
+    # Explicitly delete the no longer wanted entries in runs_genomes
+    # (ought to be able to trigger this automatically in a cascade
+    # when the run itself is deleted, but that didn't work for me):
+    session.query(db_orm.RunGenomeAssociation).where(
+        db_orm.RunGenomeAssociation.run_id == run_id
+    ).delete()
+    session.delete(run)
+    session.commit()
+    session.close()
+    return 0
+
+
+@app.command()
 def export_run(
     database: REQ_ARG_TYPE_DATABASE,
     outdir: REQ_ARG_TYPE_OUTDIR,

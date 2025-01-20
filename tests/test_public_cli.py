@@ -111,6 +111,24 @@ def test_check_fasta(tmp_path: str) -> None:
         public_cli.check_fasta(Path(tmp_path))
 
 
+def test_delete_empty(tmp_path: str) -> None:
+    """Check delete-run with no data."""
+    with pytest.raises(
+        SystemExit, match="ERROR: Database /does/not/exist does not exist"
+    ):
+        public_cli.delete_run(database=Path("/does/not/exist"))
+
+    tmp_db = Path(tmp_path) / "list-runs-empty.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
+    session.close()
+
+    with pytest.raises(SystemExit, match="ERROR: Database contains no runs."):
+        public_cli.delete_run(database=tmp_db)
+
+    with pytest.raises(SystemExit, match="ERROR: Database has no run-id 1."):
+        public_cli.resume(database=tmp_db, run_id=1)
+
+
 def test_list_runs_empty(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
     """Check list-runs with no data."""
     with pytest.raises(
@@ -141,14 +159,11 @@ def test_resume_empty(tmp_path: str) -> None:
     with pytest.raises(SystemExit, match="ERROR: Database contains no runs."):
         public_cli.resume(database=tmp_db)
 
-    with pytest.raises(
-        SystemExit,
-        match="ERROR: Database has no run-id 1.",
-    ):
+    with pytest.raises(SystemExit, match="ERROR: Database has no run-id 1."):
         public_cli.resume(database=tmp_db, run_id=1)
 
 
-def test_partial_run(
+def test_partial_run(  # noqa: PLR0915
     capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
 ) -> None:
     """Check list-runs and export-run with mock data including a partial run."""
@@ -191,7 +206,7 @@ def test_partial_run(
         config,
         cmdline="pyani fastani ...",
         fasta_directory=input_genomes_tiny,
-        status="Partial",
+        status="Running",  # simulate a partial run not ended cleanly
         name="Trial B",
         fasta_to_hash=fasta_to_hash,  # 3/3 genomes, so only have 4/9 comparisons
     )
@@ -211,7 +226,7 @@ def test_partial_run(
     assert " 3 analysis runs in " in output, output
     assert " Method  ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
     assert " fastANI │    0 │    0 │    0 │  0=0² │ Empty " in output, output
-    assert " fastANI │    4 │    0 │    5 │  9=3² │ Partial " in output, output
+    assert " fastANI │    4 │    0 │    5 │  9=3² │ Running " in output, output
     assert " fastANI │    4 │    0 │    0 │  4=2² │ Done " in output, output
 
     # Unlike a typical method calculation, we have not triggered
@@ -259,6 +274,34 @@ def test_partial_run(
     ):
         public_cli.resume(database=tmp_db, run_id=1)
 
+    output = capsys.readouterr().out
+
+    # Now delete the runs, and confirm what is left behind...
+    public_cli.delete_run(database=tmp_db, run_id=1)
+    output = capsys.readouterr().out
+    assert "INFO: Run 1 contains 0/0=0² fastANI comparisons, status: Empty\n" in output
+
+    # Forcing as this has data
+    public_cli.delete_run(database=tmp_db, run_id=3, force=True)
+    output = capsys.readouterr().out
+    assert "INFO: Run 3 contains all 4=2² fastANI comparisons, status: Done\n" in output
+
+    # Finally delete run 2, this will assume last one remaining
+    public_cli.delete_run(database=tmp_db, force=True)
+    output = capsys.readouterr().out
+    assert (
+        "INFO: Deleting most recent run\n"
+        "INFO: Run 2 contains 4/9=3² fastANI comparisons, status: Running\n"
+        "INFO: Run name: Trial B\n"
+        "WARNING: Deleting a run still being computed will cause it to fail!\n"
+    ) in output
+
+    assert session.query(db_orm.Run).count() == 0
+    assert session.query(db_orm.RunGenomeAssociation).count() == 0
+    assert session.query(db_orm.Configuration).count() == 1
+    assert session.query(db_orm.Genome).count() == 3  # noqa: PLR2004
+    assert session.query(db_orm.Comparison).count() == 4  # noqa: PLR2004
+    session.close()
     tmp_db.unlink()
 
 

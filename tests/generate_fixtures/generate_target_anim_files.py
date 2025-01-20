@@ -44,6 +44,7 @@ from itertools import product
 from pathlib import Path
 
 from pyani_plus.tools import get_delta_filter, get_nucmer
+from pyani_plus.utils import file_md5sum
 
 # Generating fixtures
 # Assign variable to specify Paths to directories (eg. input, output etc.)
@@ -64,7 +65,7 @@ delta_filter = get_delta_filter()
 print(f"Using nucmer {nucmer.version} at {nucmer.exe_path}")
 
 for genomes in comparisons:
-    stem = "_vs_".join(genomes)
+    stem = "_vs_".join(file_md5sum(inputs[_]) for _ in genomes)
     subprocess.run(
         [
             nucmer.exe_path,

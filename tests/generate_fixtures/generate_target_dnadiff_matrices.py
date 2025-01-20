@@ -73,11 +73,13 @@ from pathlib import Path
 import pandas as pd
 
 from pyani_plus.tools import get_dnadiff
+from pyani_plus.utils import file_md5sum
 
 INPUT_DIR, OUT_DIR = Path(sys.argv[1]), Path(sys.argv[2])
 
 # Constructing a matrix where the stems of test genomes are used as both column names and index.
 sorted_stems = sorted(file.stem for file in INPUT_DIR.glob("*.f*"))
+stem_hashes = {file.stem: file_md5sum(file) for file in INPUT_DIR.glob("*.f*")}
 aln_lengths_matrix = pd.DataFrame(index=sorted_stems, columns=sorted_stems)
 coverage_matrix = pd.DataFrame(index=sorted_stems, columns=sorted_stems)
 identity_matrix = pd.DataFrame(index=sorted_stems, columns=sorted_stems)
@@ -116,7 +118,7 @@ comparisons = product(inputs, inputs)
 
 # Generate and parse .report files
 for query, subject in comparisons:
-    stem = f"{query}_vs_{subject}"
+    stem = f"{stem_hashes[query]}_vs_{stem_hashes[subject]}"
     # Running dnadiff and saving output to temp file
     with tempfile.TemporaryDirectory() as tmp:
         subprocess.run(

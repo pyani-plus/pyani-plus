@@ -58,7 +58,7 @@ def test_delta_parsing(input_genomes_tiny: Path) -> None:
     """Check parsing of test NUCmer .delta/.filter file."""
     assert method_anim.parse_delta(
         input_genomes_tiny
-        / "intermediates/ANIm/MGV-GENOME-0264574_vs_MGV-GENOME-0266457.filter",
+        / "intermediates/ANIm/689d3fd6881db36b5e08329cf23cecdd_vs_78975d5144a1cd12e98898d573cf6536.filter",
     ) == (
         39169,
         39176,
@@ -74,7 +74,7 @@ def test_bad_alignments_parsing(input_genomes_bad_alignments: Path) -> None:
     """Check parsing of test NUCmer .delta/.filter file."""
     assert method_anim.parse_delta(
         input_genomes_bad_alignments
-        / "intermediates/ANIm/MGV-GENOME-0264574_vs_MGV-GENOME-0357962.filter",
+        / "intermediates/ANIm/689d3fd6881db36b5e08329cf23cecdd_vs_a30481565b45f6bbc6ce5260503067e0.filter",
     ) == (None, None, None, None)
 
 

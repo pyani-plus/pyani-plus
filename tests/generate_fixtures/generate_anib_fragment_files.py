@@ -35,6 +35,8 @@ from pathlib import Path
 
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 
+from pyani_plus.utils import file_md5sum
+
 # Paths to directories (eg, input sequences, delta and filter)
 INPUT_DIR = Path("../fixtures/viral_example")
 FRAG_DIR = Path("../fixtures/viral_example/intermediates/ANIb")
@@ -48,7 +50,8 @@ for file in FRAG_DIR.glob("*.fna"):
 
 # Note flexible on input *.fna vs *.fa vs *.fasta, but fixed on output
 for fasta in INPUT_DIR.glob("*.f*"):
-    output = FRAG_DIR / (fasta.stem + "-fragments.fna")
+    md5 = file_md5sum(fasta)
+    output = FRAG_DIR / (md5 + "-fragments.fna")
     count = 0
     with output.open("w") as out_handle, fasta.open("r") as in_handle:
         for title, seq in SimpleFastaParser(in_handle):

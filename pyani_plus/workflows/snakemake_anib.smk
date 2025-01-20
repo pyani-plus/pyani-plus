@@ -43,6 +43,6 @@ rule anib:
     shell:
         """
         .pyani-plus-private-cli compute-column --quiet \
-            --database {params.db} --run-id {params.run_id} \
-            --subject {input} {params.temp} && touch {output}
+            --database "{params.db}" --run-id {params.run_id} \
+            --subject "{input}" {params.temp} && touch "{output}"
         """

@@ -46,7 +46,9 @@ rule sketch:
     output:
         "{outdir}/{genomeA}.sig",
     shell:
-        "sourmash scripts singlesketch -I DNA -p 'k={params.kmersize},{params.extra}' {input} -o {output} > {output}.log 2>&1"
+        """
+        sourmash scripts singlesketch -I DNA -p 'k={params.kmersize},{params.extra}' {input:q} -o "{output}" > "{output}.log" 2>&1
+        """
 
 
 rule compare:
@@ -55,6 +57,7 @@ rule compare:
         run_id=config["run_id"],
         outdir=config["outdir"],
         kmersize=config["kmersize"],
+        temp=config["temp"],
         extra=config["extra"],  # This will consist of either `scaled=X` or `num=X`.
     input:
         expand("{{outdir}}/{genome}.sig", genome=sorted(indir_files)),
@@ -64,9 +67,9 @@ rule compare:
         "{outdir}/sourmash.csv",
     shell:
         """
-        sourmash compare --quiet --csv {output} --estimate-ani \
-            --containment -k {params.kmersize} {input} &&
+        sourmash compare --quiet --csv "{output}" --estimate-ani \
+            --containment -k {params.kmersize} {input:q} &&
         .pyani-plus-private-cli log-sourmash --quiet \
-            --database {params.db} --run-id {params.run_id} \
-            --compare {output}
+            --database "{params.db}" --run-id {params.run_id} \
+            --compare "{output}" {params.temp}
         """

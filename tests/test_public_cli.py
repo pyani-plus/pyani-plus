@@ -53,6 +53,18 @@ def gzipped_tiny_example(
     return gzip_dir
 
 
+@pytest.fixture(scope="session")
+def evil_example(
+    tmp_path_factory: pytest.TempPathFactory, input_genomes_tiny: Path
+) -> Path:
+    """Make a version of the viral directory of FASTA files using spaces, emoji, etc."""
+    space_dir = tmp_path_factory.mktemp("with spaces " + input_genomes_tiny.stem)
+    for fasta in input_genomes_tiny.glob("*.f*"):
+        space_fasta = space_dir / ("🦠 : " + fasta.name.replace("-", " "))
+        space_fasta.symlink_to(fasta)
+    return space_dir
+
+
 # This is very similar to the functions under tests/snakemake/__init__.py
 def compare_matrix_files(
     expected_file: Path, new_file: Path, atol: float | None = None
@@ -106,7 +118,7 @@ def test_list_runs_empty(capsys: pytest.CaptureFixture[str], tmp_path: str) -> N
     ):
         public_cli.list_runs(database=Path("/does/not/exist"))
 
-    tmp_db = Path(tmp_path) / "list-runs-empty.sqlite"
+    tmp_db = Path(tmp_path) / "list runs empty.sqlite"
     session = db_orm.connect_to_db(tmp_db)
     session.close()
 
@@ -141,7 +153,7 @@ def test_partial_run(
 ) -> None:
     """Check list-runs and export-run with mock data including a partial run."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "list-runs.sqlite"
+    tmp_db = tmp_dir / "list runs.sqlite"
     session = db_orm.connect_to_db(tmp_db)
     config = db_orm.db_configuration(
         session, "fastANI", "fastani", "1.2.3", create=True
@@ -416,39 +428,58 @@ def test_plot_run_failures(tmp_path: str) -> None:
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir)
 
 
-def test_anim(tmp_path: str, input_genomes_tiny: Path) -> None:
+def test_anim(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    evil_example: Path,
+) -> None:
     """Check ANIm run."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    # DB name with spaces, single quotes, emoji, in path & filename
+    (tmp_dir / "user's 🔎 output").mkdir()
+    tmp_db = tmp_dir / "user's 🔎 output" / "anim's 📦.sqlite"
     public_cli.anim(
-        database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=True
+        database=tmp_db,
+        fasta=evil_example,
+        name="Spaces etc",
+        create_db=True,
     )
-    public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=1)
-    compare_matrix_files(
-        input_genomes_tiny / "matrices" / "ANIm_identity.tsv",
-        tmp_dir / "ANIm_identity.tsv",
-    )
+    output = capsys.readouterr().out
+    assert "Database already has 0 of 3²=9 ANIm comparisons, 9 needed\n" in output
 
-    # Now do it again - it should reuse the calculations:
     session = db_orm.connect_to_db(tmp_db)
     count = session.query(db_orm.Comparison).count()
     session.close()
 
+    # Now do it again - it should reuse the calculations:
     public_cli.anim(
-        database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=False
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Simple names",
+        create_db=False,
     )
+    output = capsys.readouterr().out
+    assert "Database already has all 3²=9 ANIm comparisons\n" in output
 
     session = db_orm.connect_to_db(tmp_db)
     assert count == session.query(db_orm.Comparison).count()
     session.close()
+
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=2)
+    compare_matrix_files(
+        input_genomes_tiny / "matrices" / "ANIm_identity.tsv",
+        tmp_dir / "ANIm_identity.tsv",
+    )
 
 
 def test_anim_gzip(
     tmp_path: str, input_genomes_tiny: Path, gzipped_tiny_example: Path
 ) -> None:
     """Check ANIm run (gzipped)."""
-    tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_dir = Path(tmp_path) / "ANIm's gzip test 📦"
+    tmp_dir.mkdir()
+    tmp_db = tmp_dir / "anim's inputs are gzipped.sqlite"
     public_cli.anim(
         database=tmp_db, fasta=gzipped_tiny_example, name="Test Run", create_db=True
     )
@@ -471,12 +502,35 @@ def test_anim_gzip(
     session.close()
 
 
-def test_dnadiff(tmp_path: str, input_genomes_tiny: Path) -> None:
+def test_dnadiff(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    evil_example: Path,
+) -> None:
     """Check dnadiff run (default settings)."""
-    tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_dir = Path(tmp_path) / "dnadiff's test 📋"
+    tmp_dir.mkdir()
+    tmp_db = tmp_dir / "dnadiff test.sqlite"
     # Leaving out name, so can check the default worked
-    public_cli.dnadiff(database=tmp_db, fasta=input_genomes_tiny, create_db=True)
+    public_cli.dnadiff(database=tmp_db, fasta=evil_example, create_db=True)
+    output = capsys.readouterr().out
+    assert "Database already has 0 of 3²=9 dnadiff comparisons, 9 needed\n" in output
+    session = db_orm.connect_to_db(tmp_db)
+    run = session.query(db_orm.Run).one()
+    assert run.name == "3 genomes using dnadiff"
+    session.close()
+
+    # Now do it again - it should reuse the calculations:
+    public_cli.dnadiff(
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Simple names",
+        create_db=False,
+    )
+    output = capsys.readouterr().out
+    assert "Database already has all 3²=9 dnadiff comparisons\n" in output
+
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     # Fuzzy, 0.9963 from dnadiff tool != 0.9962661747 from our code
     compare_matrix_files(
@@ -484,10 +538,6 @@ def test_dnadiff(tmp_path: str, input_genomes_tiny: Path) -> None:
         tmp_dir / "dnadiff_identity.tsv",
         atol=5e-5,
     )
-    session = db_orm.connect_to_db(tmp_db)
-    run = session.query(db_orm.Run).one()
-    assert run.name == "3 genomes using dnadiff"
-    session.close()
 
 
 def test_dnadiff_gzip(
@@ -495,7 +545,7 @@ def test_dnadiff_gzip(
 ) -> None:
     """Check dnadiff run (gzipped)."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_db = tmp_dir / "dnadiff's inputs are gzipped.sqlite"
     # Leaving out name, so can check the default worked
     public_cli.dnadiff(database=tmp_db, fasta=gzipped_tiny_example, create_db=True)
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
@@ -511,25 +561,36 @@ def test_dnadiff_gzip(
     session.close()
 
 
-def test_anib(tmp_path: str, input_genomes_tiny: Path) -> None:
-    """Check ANIb run (default settings)."""
-    tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+def test_anib(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    evil_example: Path,
+) -> None:
+    """Check ANIb run (spaces, emoji, etc in filenames)."""
+    tmp_dir = Path(tmp_path) / "ANIb-test-🎱"  # no spaces! makeblastdb -out breaks
+    tmp_dir.mkdir()
+    tmp_db = tmp_dir / "anib test.sqlite"
     public_cli.anib(
         database=tmp_db,
-        fasta=input_genomes_tiny,
-        name="Test Run",
+        fasta=evil_example,
+        name="Spaces etc",
         create_db=True,
         temp=tmp_dir,
     )
+    output = capsys.readouterr().out
+    assert "Database already has 0 of 3²=9 ANIb comparisons, 9 needed\n" in output
 
-    for file in (input_genomes_tiny / "intermediates/ANIb").glob("*.f*"):
-        assert filecmp.cmp(file, tmp_dir / file), f"Wrong fragmented FASTA {file.name}"
-
-    # Could check the BLAST DB *.njs files here too...
-
-    for file in (input_genomes_tiny / "intermediates/ANIb").glob("*_vs_*.tsv"):
-        assert filecmp.cmp(file, tmp_dir / file), f"Wrong blastn output in {file.name}"
+    # Run it again, nothing to recompute but easier to check output
+    public_cli.anib(
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Simple names",
+        create_db=True,
+        temp=tmp_dir,
+    )
+    output = capsys.readouterr().out
+    assert "Database already has all 3²=9 ANIb comparisons\n" in output
 
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     compare_matrix_files(
@@ -542,8 +603,9 @@ def test_anib_gzip(
     tmp_path: str, input_genomes_tiny: Path, gzipped_tiny_example: Path
 ) -> None:
     """Check ANIb run (gzipped)."""
-    tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_dir = Path(tmp_path) / "a:b'c;d-😞"  # no spaces for makeblastdb -out
+    tmp_dir.mkdir()
+    tmp_db = tmp_dir / "anib's inputs are gzipped.sqlite"
     public_cli.anib(
         database=tmp_db,
         fasta=gzipped_tiny_example,
@@ -568,21 +630,38 @@ def test_anib_gzip(
     )
 
 
-def test_fastani(tmp_path: str, input_genomes_tiny: Path) -> None:
-    """Check fastANI run (default settings)."""
-    tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+def test_fastani(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    evil_example: Path,
+) -> None:
+    """Check fastANI run (spaces, emoji, etc in filenames)."""
+    tmp_dir = Path(tmp_path) / "fastANI's test 🏎️"
+    tmp_dir.mkdir()
+    tmp_db = tmp_dir / "fastani's test.sqlite"
     public_cli.fastani(
         database=tmp_db,
-        fasta=input_genomes_tiny,
-        name="Test Run",
+        fasta=evil_example,
+        name="Spaces etc",
         create_db=True,
         temp=tmp_dir,
     )
+    output = capsys.readouterr().out
+    assert "Database already has 0 of 3²=9 fastANI comparisons, 9 needed\n" in output
 
-    for file in (input_genomes_tiny / "intermediates/fastANI").glob("*_vs_*.fastani"):
-        assert filecmp.cmp(file, tmp_dir / file), f"Wrong fastANI output in {file.name}"
+    # Run it again, nothing to recompute but easier to check output
+    public_cli.fastani(
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Simple names",
+        create_db=False,
+        temp=tmp_dir,
+    )
+    output = capsys.readouterr().out
+    assert "Database already has all 3²=9 fastANI comparisons\n" in output
 
+    # Confirm output matches
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "fastANI_identity.tsv",
@@ -593,7 +672,7 @@ def test_fastani(tmp_path: str, input_genomes_tiny: Path) -> None:
 def test_fastani_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
     """Check fastANI run (gzipped bacteria)."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_db = tmp_dir / "fastani's inputs are gzipped.sqlite"
     public_cli.fastani(
         database=tmp_db,
         fasta=input_gzip_bacteria,
@@ -611,8 +690,9 @@ def test_fastani_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
 
 def test_sourmash_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
     """Check sourmash run (gzipped bacteria)."""
-    tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_dir = Path(tmp_path) / "sourmash's gzip test 🚅"
+    tmp_dir.mkdir()
+    tmp_db = tmp_dir / "sourmash's inputs are gzipped.sqlite"
     public_cli.sourmash(
         database=tmp_db,
         fasta=input_gzip_bacteria,
@@ -626,17 +706,38 @@ def test_sourmash_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
     )
 
 
-def test_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:
+def test_sourmash(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    evil_example: Path,
+) -> None:
     """Check sourmash run (default settings except scaled=300)."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_db = tmp_dir / "sourmash test.sqlite"
+
     public_cli.sourmash(
         database=tmp_db,
-        fasta=input_genomes_tiny,
-        name="Test Run",
+        fasta=evil_example,
+        name="Spaces etc",
         scaled=300,
         create_db=True,
     )
+    output = capsys.readouterr().out
+    assert "Database already has 0 of 3²=9 sourmash comparisons, 9 needed\n" in output
+
+    # Run it again, nothing to recompute but easier to check output
+    public_cli.sourmash(
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Simple names",
+        scaled=300,
+        create_db=False,
+    )
+    output = capsys.readouterr().out
+    assert "Database already has all 3²=9 sourmash comparisons\n" in output
+
+    # Confirm output matches
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "sourmash_identity.tsv",
@@ -644,7 +745,9 @@ def test_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:
     )
     plot_out = tmp_dir / "plots"
     plot_out.mkdir()
-    public_cli.plot_run(database=tmp_db, outdir=plot_out)
+    # Should be able to plot run 1 with the spaces and emoji, but get warnings:
+    # UserWarning: Glyph 129440 (\N{MICROBE}) missing from font(s) DejaVu Sans.
+    public_cli.plot_run(database=tmp_db, outdir=plot_out, run_id=2)
     assert sorted(_.name for _ in plot_out.glob("*")) == [
         "sourmash_hadamard.jpg",
         "sourmash_hadamard.pdf",
@@ -664,19 +767,41 @@ def test_sourmash(tmp_path: str, input_genomes_tiny: Path) -> None:
     ]
 
 
-def test_branchwater(tmp_path: str, input_genomes_tiny: Path) -> None:
+def test_branchwater(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    evil_example: Path,
+) -> None:
     """Check sourmash run (default settings except scaled=300)."""
-    tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_dir = Path(tmp_path) / "branchwater's test 🚀"
+    tmp_dir.mkdir()
+    tmp_db = tmp_dir / "branchwater test.sqlite"
     public_cli.branchwater(
         database=tmp_db,
-        fasta=input_genomes_tiny,
-        name="Test Run",
+        fasta=evil_example,
+        name="Spaces etc",
         scaled=300,
         create_db=True,
     )
+    output = capsys.readouterr().out
+    assert (
+        "Database already has 0 of 3²=9 branchwater comparisons, 9 needed\n" in output
+    )
+
+    # Run it again, nothing to recompute but easier to check output
+    public_cli.branchwater(
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Simple names",
+        scaled=300,
+        create_db=False,
+    )
+    output = capsys.readouterr().out
+    assert "Database already has all 3²=9 branchwater comparisons\n" in output
+
+    # Confirm output matches - should match sourmash output but faster
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
-    # Should match the sourmash output (but computed quicker)
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "sourmash_identity.tsv",
         tmp_dir / "branchwater_identity.tsv",
@@ -686,7 +811,7 @@ def test_branchwater(tmp_path: str, input_genomes_tiny: Path) -> None:
 def test_fastani_dups(tmp_path: str) -> None:
     """Check fastANI run (duplicate FASTA inputs)."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "example.sqlite"
+    tmp_db = tmp_dir / "fastani-dups.sqlite"
     for name in ("alpha", "beta", "gamma"):
         with (tmp_dir / (name + ".fasta")).open("w") as handle:
             handle.write(">genome\nACGTACGT\n")
@@ -702,7 +827,7 @@ def test_resume_partial_fastani(
     capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
 ) -> None:
     """Check list-runs and export-run with mock data including a partial fastANI run."""
-    tmp_db = Path(tmp_path) / "resume.sqlite"
+    tmp_db = Path(tmp_path) / "partial resume.sqlite"
     tool = tools.get_fastani()
     session = db_orm.connect_to_db(tmp_db)
     config = db_orm.db_configuration(
@@ -901,7 +1026,7 @@ def test_resume_partial_sourmash(
     capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
 ) -> None:
     """Check list-runs and export-run with mock data including a partial sourmash run."""
-    tmp_db = Path(tmp_path) / "resume.sqlite"
+    tmp_db = Path(tmp_path) / "resume sourmash.sqlite"
     tool = tools.get_sourmash()
     session = db_orm.connect_to_db(tmp_db)
     config = db_orm.db_configuration(

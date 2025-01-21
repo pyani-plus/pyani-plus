@@ -24,6 +24,7 @@
 import gzip
 import hashlib
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -217,3 +218,34 @@ def check_output(args: list[str]) -> str:
     # This makes testing with pytest a little harder! Therefore opting
     # to raise a message which we can test, and settle for return code 1.
     raise SystemExit(msg) from None
+
+
+def stage_file(
+    input_filename: Path, staged_filename: Path, *, decompress: bool = True
+) -> None:
+    """Prepare a symlink or decompressed copy of the given file.
+
+    This is used to avoid spaces and other problematic characters in input
+    FASTA filenames by staging a symlink named ``<md5>.fasta``, and to handle
+    gzipped input transparently by decompressing to ``<md5>.fasta`` instead.
+
+    We use this helper function for calling ``mummer`` and ``makeblastdb``, but
+    it is not needed for ``fastANI`` or ``sourmash``.
+    """
+    if not input_filename.is_file():
+        sys.exit(f"ERROR: Missing input file {input_filename}")
+    if staged_filename.is_file():
+        # This could be a race condition?
+        # Perhaps if resume with explicit temp directory given?
+        sys.exit(f"ERROR: Intermediate file {staged_filename} already exists!")
+
+    if input_filename.suffix == ".gz" and decompress:
+        # Decompress to the given temporary filename
+        with (
+            gzip.open(input_filename, "rb") as f_in,
+            staged_filename.open("wb") as f_out,
+        ):
+            shutil.copyfileobj(f_in, f_out)
+    else:
+        # Make a symlink pointing to the original
+        staged_filename.symlink_to(input_filename)

@@ -67,3 +67,25 @@ def test_check_output() -> None:
         match=r'ERROR: Return code 1 from: blastn -task blast\nError: Argument "task". Illegal value',
     ):
         utils.check_output(["blastn", "-task", "blast"])
+
+
+def test_stage_file(tmp_path: Path) -> None:
+    """Check error conditions when staging a file."""
+    tmp_dir = Path(tmp_path)
+
+    with pytest.raises(
+        SystemExit,
+        match=r"ERROR: Missing input file /does/not/exist.in",
+    ):
+        utils.stage_file(Path("/does/not/exist.in"), Path("/does/not/exist.out"))
+
+    tmp_inp = tmp_dir / "example.fasta.gz"
+    tmp_inp.touch()
+    tmp_out = tmp_dir / "example.fasta"
+    tmp_out.touch()
+
+    with pytest.raises(
+        SystemExit,
+        match=r"ERROR: Intermediate file .*/example.fasta already exists!",
+    ):
+        utils.stage_file(tmp_inp, tmp_out)

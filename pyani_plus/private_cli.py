@@ -25,10 +25,8 @@ The commands defined here are intended to be used from within pyANI-plus via
 snakemake, for example from worker nodes, to log results to the database.
 """
 
-import gzip
 import os
 import platform
-import shutil
 import signal
 import sys
 import tempfile
@@ -50,7 +48,7 @@ from pyani_plus.public_cli_args import (
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
 )
-from pyani_plus.utils import check_fasta, check_output, file_md5sum
+from pyani_plus.utils import check_fasta, check_output, file_md5sum, stage_file
 
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -646,16 +644,7 @@ def compute_anim(  # noqa: C901, PLR0912, PLR0913, PLR0915
     # nucmer does not handle spaces in filenames, neither quoted nor
     # escaped as slash-space. Therefore symlink or decompress to <MD5>.fasta:
     subject_fasta = tmp_dir / f"{subject_hash}.fasta"
-    if hash_to_filename[subject_hash].endswith(".gz"):
-        # We must decompress the subject FASTA file for nucmer
-        with (
-            gzip.open(fasta_dir / hash_to_filename[subject_hash], "rb") as f_in,
-            subject_fasta.open("wb") as f_out,
-        ):
-            shutil.copyfileobj(f_in, f_out)
-    else:
-        # In case of spaces etc, symlink to the original
-        subject_fasta.symlink_to(fasta_dir / hash_to_filename[subject_hash])
+    stage_file(fasta_dir / hash_to_filename[subject_hash], subject_fasta)
 
     db_entries = []
     try:
@@ -670,17 +659,7 @@ def compute_anim(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 # Another thread may create/delete that FASTA name for our query
                 # - so make a unique name for the temp file:
                 query_fasta = tmp_dir / f"{query_hash}_vs_{subject_hash}.fasta"
-                if hash_to_filename[query_hash].endswith(".gz"):
-                    with (
-                        gzip.open(
-                            fasta_dir / hash_to_filename[query_hash], "rb"
-                        ) as f_in,
-                        query_fasta.open("wb") as f_out,
-                    ):
-                        shutil.copyfileobj(f_in, f_out)
-                else:
-                    # In case of spaces etc, symlink to the original
-                    query_fasta.symlink_to(fasta_dir / hash_to_filename[query_hash])
+                stage_file(fasta_dir / hash_to_filename[query_hash], query_fasta)
             else:
                 # Can reuse the subject's decompressed file/symlink
                 query_fasta = subject_fasta
@@ -789,7 +768,7 @@ def compute_anim(  # noqa: C901, PLR0912, PLR0913, PLR0915
     return 0
 
 
-def compute_anib(  # noqa: C901, PLR0913, PLR0915
+def compute_anib(  # noqa: PLR0913
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
@@ -826,18 +805,7 @@ def compute_anib(  # noqa: C901, PLR0913, PLR0915
     # makeblastdb does not handle spaces in filenames, neither quoted nor
     # escaped as slash-space. Therefore symlink or decompress to <MD5>.fasta:
     subject_fasta = tmp_dir / f"{subject_hash}.fasta"
-    if hash_to_filename[subject_hash].endswith(".gz"):
-        # We must decompress the FASTA file for makeblastdb,
-        # could use stdin (default input), but temp file is simpler.
-        with (
-            gzip.open(fasta_dir / hash_to_filename[subject_hash], "rb") as f_in,
-            subject_fasta.open("wb") as f_out,
-        ):
-            shutil.copyfileobj(f_in, f_out)
-    else:
-        # makeblastdb does not handle spaces in filenames, neither quoted nor
-        # escaped as slash-space. Therefore safer to symlink via safe name:
-        subject_fasta.symlink_to(fasta_dir / hash_to_filename[subject_hash])
+    stage_file(fasta_dir / hash_to_filename[subject_hash], subject_fasta)
 
     tmp_db = tmp_dir / subject_hash  # prefix for BLAST DB
 
@@ -995,16 +963,7 @@ def compute_dnadiff(  # noqa: C901, PLR0912, PLR0913, PLR0915
     # nucmer does not handle spaces in filenames, neither quoted nor
     # escaped as slash-space. Therefore symlink or decompress to <MD5>.fasta:
     subject_fasta = tmp_dir / f"{subject_hash}.fasta"
-    if hash_to_filename[subject_hash].endswith(".gz"):
-        # We must decompress the subject FASTA file for nucmer
-        with (
-            gzip.open(fasta_dir / hash_to_filename[subject_hash], "rb") as f_in,
-            subject_fasta.open("wb") as f_out,
-        ):
-            shutil.copyfileobj(f_in, f_out)
-    else:
-        # In case of spaces etc, symlink to the original
-        subject_fasta.symlink_to(fasta_dir / hash_to_filename[subject_hash])
+    stage_file(fasta_dir / hash_to_filename[subject_hash], subject_fasta)
 
     db_entries = []
     try:
@@ -1019,17 +978,7 @@ def compute_dnadiff(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 # Another thread may create/delete that FASTA name for our query
                 # - so make a unique name for the temp file:
                 query_fasta = tmp_dir / f"{query_hash}_vs_{subject_hash}.fasta"
-                if hash_to_filename[query_hash].endswith(".gz"):
-                    with (
-                        gzip.open(
-                            fasta_dir / hash_to_filename[query_hash], "rb"
-                        ) as f_in,
-                        query_fasta.open("wb") as f_out,
-                    ):
-                        shutil.copyfileobj(f_in, f_out)
-                else:
-                    # In case of spaces etc, symlink to the original
-                    query_fasta.symlink_to(fasta_dir / hash_to_filename[query_hash])
+                stage_file(fasta_dir / hash_to_filename[query_hash], query_fasta)
             else:
                 # Can reuse the subject's decompressed file/symlink
                 query_fasta = subject_fasta

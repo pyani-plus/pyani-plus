@@ -25,6 +25,7 @@ import sys
 import warnings
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib import colormaps
 from matplotlib.colors import LinearSegmentedColormap
@@ -160,7 +161,7 @@ def plot_heatmaps(
             )
 
         for ext in formats:
-            filename = outdir / f"{method}_{name}.{ext}"
+            filename = outdir / f"{method}_{name}_heatmap.{ext}"
             if ext == "tsv":
                 # Apply the clustering reordering to match the figure:
                 matrix = matrix.iloc[  # noqa: PLW2901
@@ -172,3 +173,71 @@ def plot_heatmaps(
                 figure.savefig(filename)
         heatmaps_done += 1
     return heatmaps_done
+
+
+def plot_distributions(
+    run: db_orm.Run,
+    outdir: Path,
+    formats: tuple[str, ...] = ("tsv", "png", "jpg", "svg", "pdf"),
+) -> int:
+    """Plot identity, coverage, and hadamard distributions for the given run.
+
+    Returns the number of distributions drawn (skips any which are all nulls).
+    """
+    method = run.configuration.method
+    plots_done = 0
+    for matrix, name, color_scheme in (
+        (run.identities, "identity", "spbnd_BuRd"),
+        (run.cov_query, "query_cov", "BuRd"),
+        (run.hadamard, "hadamard", "hadamard_BuRd"),
+    ):
+        del color_scheme  # should use this on the left plot?
+
+        if matrix is None:
+            # This is mainly for mypy to assert the matrix is not None
+            msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
+            sys.exit(msg)  # pragma: no cover
+
+        nulls = int(matrix.isnull().sum().sum())
+        n = len(matrix)
+        if nulls == n**2:
+            msg = f"WARNING: Cannot plot {name} as all NA\n"
+            sys.stderr.write(msg)
+            continue
+
+        values = matrix.values.flatten()
+
+        fill = "#A6C8E0"
+        rug = "#2678B2"
+        figure, axes = plt.subplots(1, 2, figsize=(15, 5))
+        figure.suptitle(f"{name} distribution")
+        sns.histplot(
+            values,
+            ax=axes[0],
+            stat="count",
+            element="step",
+            color=fill,
+            edgecolor=fill,
+        )
+        axes[0].set_ylim(ymin=0)
+        sns.kdeplot(values, ax=axes[1])
+        sns.rugplot(values, ax=axes[1], color=rug)
+
+        # Modify axes after data is plotted
+        for _ in axes:
+            if name in ["hadamard", "coverage"]:
+                _.set_xlim(0, 1.01)
+            elif name == "identity":
+                _.set_xlim(0.75, 1.01)
+
+        # Tidy figure
+        figure.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+        for ext in formats:
+            filename = outdir / f"{method}_{name}_dist.{ext}"
+            if ext == "tsv":
+                pass
+            else:
+                figure.savefig(filename)
+        plots_done += 1
+    return plots_done

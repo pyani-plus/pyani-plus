@@ -39,7 +39,6 @@ from typing import Annotated
 import typer
 from rich.progress import Progress
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
@@ -759,15 +758,9 @@ def compute_anim(  # noqa: C901, PLR0912, PLR0913, PLR0915
             # Logging every 25 entries or any similar fixed size seems likely
             # to risk locking. The following should result in staggered commits:
             if query_hash == subject_hash:
-                try:
-                    session.execute(
-                        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
-                        db_entries,
-                    )
-                    session.commit()
-                    db_entries = []
-                except OperationalError:  # pragma: no cover
-                    pass  # pragma: no cover
+                db_entries = db_orm.attempt_insert(
+                    session, db_entries, db_orm.Comparison
+                )
             elif hash_to_filename[query_hash].endswith(".gz"):
                 query_fasta.unlink()  # remove our decompressed copy
 
@@ -789,7 +782,7 @@ def compute_anim(  # noqa: C901, PLR0912, PLR0913, PLR0915
     return 0
 
 
-def compute_anib(  # noqa: C901, PLR0913, PLR0915
+def compute_anib(  # noqa: PLR0913
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
@@ -942,15 +935,10 @@ def compute_anib(  # noqa: C901, PLR0913, PLR0915
             # Logging every 25 entries or any similar fixed size seems likely
             # to risk locking. The following should result in staggered commits:
             if query_hash == subject_hash:
-                try:
-                    session.execute(
-                        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
-                        db_entries,
-                    )
-                    session.commit()
-                    db_entries = []
-                except OperationalError:  # pragma: no cover
-                    pass  # pragma: no cover
+                db_entries = db_orm.attempt_insert(
+                    session, db_entries, db_orm.Comparison
+                )
+
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
         msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
@@ -1157,15 +1145,9 @@ def compute_dnadiff(  # noqa: C901, PLR0912, PLR0913, PLR0915
             # Logging every 25 entries or any similar fixed size seems likely
             # to risk locking. The following should result in staggered commits:
             if query_hash == subject_hash:
-                try:
-                    session.execute(
-                        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
-                        db_entries,
-                    )
-                    session.commit()
-                    db_entries = []
-                except OperationalError:  # pragma: no cover
-                    pass  # pragma: no cover
+                db_entries = db_orm.attempt_insert(
+                    session, db_entries, db_orm.Comparison
+                )
             elif hash_to_filename[query_hash].endswith(".gz"):
                 query_fasta.unlink()  # remove our decompressed copy
     except KeyboardInterrupt:

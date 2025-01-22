@@ -220,7 +220,7 @@ def plot_distributions(
             edgecolor=fill,
         )
         axes[0].set_ylim(ymin=0)
-        sns.kdeplot(values, ax=axes[1])
+        sns.kdeplot(values, ax=axes[1], warn_singular=False)
         sns.rugplot(values, ax=axes[1], color=rug)
 
         # Modify axes after data is plotted

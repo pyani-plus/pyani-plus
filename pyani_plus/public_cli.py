@@ -49,6 +49,7 @@ from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_EXECUTOR,
     OPT_ARG_TYPE_FRAGSIZE,
     OPT_ARG_TYPE_KMERSIZE,
+    OPT_ARG_TYPE_LABEL,
     OPT_ARG_TYPE_MINMATCH,
     OPT_ARG_TYPE_RUN_ID,
     OPT_ARG_TYPE_RUN_NAME,
@@ -787,13 +788,7 @@ def export_run(  # noqa: C901
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
     # Would like to replace this with Literal["md5", "filename", "stem"] once typer updated
-    label: Annotated[
-        str,
-        typer.Option(
-            click_type=click.Choice(["md5", "filename", "stem"]),
-            help="How to label the genomes",
-        ),
-    ] = "stem",
+    label: OPT_ARG_TYPE_LABEL = "stem",
 ) -> int:
     """Export any single run from the given pyANI-plus SQLite3 database.
 
@@ -902,13 +897,7 @@ def plot_run(  # noqa: C901
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
     # Would like to replace this with Literal["md5", "filename", "stem"] once typer updated
-    label: Annotated[
-        str,
-        typer.Option(
-            click_type=click.Choice(["md5", "filename", "stem"]),
-            help="How to label the genomes",
-        ),
-    ] = "stem",
+    label: OPT_ARG_TYPE_LABEL = "stem",
 ) -> int:
     """Plot heatmaps and distributions for any single run.
 

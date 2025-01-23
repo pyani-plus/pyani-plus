@@ -29,6 +29,7 @@ the private and public API definitions without needed to import from each other
 from pathlib import Path
 from typing import Annotated
 
+import click
 import typer
 
 from pyani_plus import FASTA_EXTENSIONS
@@ -159,4 +160,21 @@ OPT_ARG_TYPE_CREATE_DB = Annotated[
 ]
 OPT_ARG_TYPE_EXECUTOR = Annotated[
     ToolExecutor, typer.Option(help="How should the internal tools be run?")
+]
+# Would like to replace this with Literal["md5", "filename", "stem"] once typer updated
+OPT_ARG_TYPE_LABEL = Annotated[
+    str,
+    typer.Option(
+        click_type=click.Choice(["md5", "filename", "stem"]),
+        help="How to label the genomes",
+    ),
+]
+OPT_ARG_TYPE_COV_MIN = Annotated[
+    float,
+    typer.Option(
+        help="minimum %coverage for an edge",
+        rich_help_panel="Method parameters",
+        min=0.0,
+        max=1.0,
+    ),
 ]

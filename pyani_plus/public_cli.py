@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Annotated
 
 import click
+import networkx as nx
 import typer
 from rich.console import Console
 from rich.progress import Progress
@@ -41,14 +42,16 @@ from rich.table import Table
 from rich.text import Text
 from sqlalchemy.orm import Session
 
-from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
+from pyani_plus import PROGRESS_BAR_COLUMNS, classify, db_orm, tools
 from pyani_plus.methods import anib, anim, fastani, sourmash
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_ANIM_MODE,
+    OPT_ARG_TYPE_COV_MIN,
     OPT_ARG_TYPE_CREATE_DB,
     OPT_ARG_TYPE_EXECUTOR,
     OPT_ARG_TYPE_FRAGSIZE,
     OPT_ARG_TYPE_KMERSIZE,
+    OPT_ARG_TYPE_LABEL,
     OPT_ARG_TYPE_MINMATCH,
     OPT_ARG_TYPE_RUN_ID,
     OPT_ARG_TYPE_RUN_NAME,
@@ -786,14 +789,7 @@ def export_run(  # noqa: C901
     database: REQ_ARG_TYPE_DATABASE,
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
-    # Would like to replace this with Literal["md5", "filename", "stem"] once typer updated
-    label: Annotated[
-        str,
-        typer.Option(
-            click_type=click.Choice(["md5", "filename", "stem"]),
-            help="How to label the genomes",
-        ),
-    ] = "stem",
+    label: OPT_ARG_TYPE_LABEL = "stem",
 ) -> int:
     """Export any single run from the given pyANI-plus SQLite3 database.
 
@@ -901,14 +897,7 @@ def plot_run(  # noqa: C901
     database: REQ_ARG_TYPE_DATABASE,
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
-    # Would like to replace this with Literal["md5", "filename", "stem"] once typer updated
-    label: Annotated[
-        str,
-        typer.Option(
-            click_type=click.Choice(["md5", "filename", "stem"]),
-            help="How to label the genomes",
-        ),
-    ] = "stem",
+    label: OPT_ARG_TYPE_LABEL = "stem",
 ) -> int:
     """Plot heatmaps and distributions for any single run.
 
@@ -1000,6 +989,87 @@ def plot_run(  # noqa: C901
         sys.exit(msg)
     print(f"Wrote {heatmaps_done} heatmaps to {outdir}/{method}_*.*")
 
+    session.close()
+    return 0
+
+
+@app.command("classify", rich_help_panel="Commands")
+def cli_classify(  # noqa: PLR0913
+    database: REQ_ARG_TYPE_DATABASE,
+    outdir: REQ_ARG_TYPE_OUTDIR,
+    coverage_edges: Annotated[
+        str,
+        typer.Option(
+            help="How to resolve asymmetrical ANI identity results for edges in the graph (min, max or mean).",
+            rich_help_panel="Method parameters",
+        ),
+    ] = "min",  # Default to "min"
+    identity_edges: Annotated[
+        str,
+        typer.Option(
+            help="How to resolve asymmetrical ANI identity results for edges in the graph (min, max or mean).",
+            rich_help_panel="Method parameters",
+        ),
+    ] = "mean",  # Default to "mean"
+    run_id: OPT_ARG_TYPE_RUN_ID = None,
+    label: OPT_ARG_TYPE_LABEL = "stem",
+    cov_min: OPT_ARG_TYPE_COV_MIN = classify.MIN_COVERAGE,
+) -> int:
+    """Classify genomes into clusters based on ANI results."""
+    if not outdir.is_dir():
+        msg = f"ERROR: Output directory {outdir} does not exist"
+        sys.exit(msg)
+
+    if database == ":memory:" or not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+
+    session = db_orm.connect_to_db(database)
+    run = db_orm.load_run(session, run_id, check_complete=True)
+    if run_id is None:
+        run_id = run.run_id
+        print(f"INFO: Exporting run-id {run_id}")
+
+    method = run.configuration.method
+
+    identity = run.identities
+    if identity is None:
+        msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
+        sys.exit(msg)  # pragma: no cover
+
+    cov = run.cov_query
+    if cov is None:
+        msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
+        sys.exit(msg)  # pragma: no cover
+
+    try:
+        identity = run.relabelled_matrix(identity, label)
+        cov = run.relabelled_matrix(cov, label)
+    except ValueError as err:
+        msg = f"ERROR: {err}"
+        sys.exit(msg)
+
+    # Map the string inputs to callable functions
+    covearge_agg_func = classify.AGG_FUNCS[coverage_edges]
+    identity_agg_func = classify.AGG_FUNCS[identity_edges]
+
+    # Construct the graph with the correct functions
+    complete_graph = classify.construct_graph(
+        cov, identity, covearge_agg_func, identity_agg_func, cov_min
+    )
+    # Finding cliques
+    if len(list(nx.connected_components(complete_graph))) != 1:
+        initial_cliques = classify.find_initial_cliques(complete_graph)
+    else:
+        initial_cliques = []
+    recursive_cliques = classify.find_cliques_recursively(complete_graph)
+
+    # Writing the results to .tsv
+    classify.compute_classify_output(
+        initial_cliques + recursive_cliques, method, outdir
+    )
+
+    print(f"Wrote classify output to {outdir}")
     session.close()
     return 0
 

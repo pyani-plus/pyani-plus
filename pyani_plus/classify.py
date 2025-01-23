@@ -29,6 +29,9 @@ from typing import NamedTuple
 import networkx as nx
 import numpy as np
 import pandas as pd
+from rich.progress import Progress
+
+from pyani_plus import PROGRESS_BAR_COLUMNS
 
 AGG_FUNCS = {
     "min": min,
@@ -98,11 +101,6 @@ def is_clique(graph: nx.Graph) -> bool:
     return len(graph.edges) == n_nodes * (n_nodes - 1) / 2
 
 
-def flatten(list_of_lists: list) -> list:
-    """Flatten a list of lists into a single list."""
-    return [item for sublist in list_of_lists for item in sublist]
-
-
 def find_initial_cliques(graph: nx.Graph) -> list:
     """Return all unique cliques in the given graph.
 
@@ -123,7 +121,11 @@ def find_initial_cliques(graph: nx.Graph) -> list:
     return cliques
 
 
-def find_cliques_recursively(graph: nx.Graph) -> list:
+def find_cliques_recursively(
+    graph: nx.Graph,
+    progress=None,  # noqa: ANN001
+    task=None,  # noqa: ANN001
+) -> list:
     """Return all unique cliques within a set of genomes based on ANI results.
 
     These cliques are identified recursively by iteratively removing edges
@@ -139,21 +141,27 @@ def find_cliques_recursively(graph: nx.Graph) -> list:
     if is_clique(graph):
         cliques.append(graph.copy())
 
+    edges = sorted(nx.get_edge_attributes(graph, "identity"))
+
+    # Initialise the progress bar only at the top level
+    if progress is None:
+        with Progress(*PROGRESS_BAR_COLUMNS) as progress:  # noqa: PLR1704
+            task = progress.add_task("Processing edges...", total=len(edges))
+            return find_cliques_recursively(graph, progress, task)
+
     # Remove edges with the lowest weight and identify cliques
-    edges = list(nx.get_edge_attributes(graph, "identity"))
     while edges:
         edge_to_remove = edges.pop(0)
+        progress.update(task, advance=1)  # Update the progress bar
         graph.remove_edge(edge_to_remove[0], edge_to_remove[1])
 
         connected_components = list(nx.connected_components(graph))
         if len(connected_components) > 1:
-            new_cliques = flatten(
-                [
-                    find_cliques_recursively(graph.subgraph(component).copy())
-                    for component in connected_components
-                ]
-            )
-            return cliques + new_cliques
+            for component in connected_components:
+                subgraph = graph.subgraph(component).copy()
+                cliques.extend(find_cliques_recursively(subgraph, progress, task))
+            return cliques
+
     return cliques
 
 

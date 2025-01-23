@@ -139,14 +139,6 @@ def test_is_clique(
     assert classify.is_clique(graph) is True
 
 
-def test_flatten_list() -> None:
-    """Check if lists of lists are flattened correctly."""
-    list_of_lists = [[1], [2], [3, 4], [5, 6]]
-    expected = [1, 2, 3, 4, 5, 6]
-
-    assert expected == classify.flatten(list_of_lists)
-
-
 def test_find_initial_cliques(
     known_graph_with_dataframes: tuple[nx.Graph, pd.DataFrame, pd.DataFrame],
 ) -> None:

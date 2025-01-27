@@ -230,7 +230,7 @@ def plot_distributions(
             elif name == "identity":
                 # 80% default matches the heatmap grey/blue default
                 _.set_xlim(0.80, 1.01)
-                
+
         # Tidy figure
         figure.tight_layout(rect=[0, 0.03, 1, 0.95])
 

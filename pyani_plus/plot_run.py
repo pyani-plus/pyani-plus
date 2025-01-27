@@ -228,8 +228,9 @@ def plot_distributions(
             if name in ["hadamard", "coverage"]:
                 _.set_xlim(0, 1.01)
             elif name == "identity":
-                _.set_xlim(0.75, 1.01)
-
+                # 80% default matches the heatmap grey/blue default
+                _.set_xlim(0.80, 1.01)
+                
         # Tidy figure
         figure.tight_layout(rect=[0, 0.03, 1, 0.95])
 

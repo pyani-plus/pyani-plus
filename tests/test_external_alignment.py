@@ -67,14 +67,16 @@ def test_simple_mock_alignment_stem(
     assert not tmp_db.is_file()
 
     tmp_alignment = Path(tmp_path) / "stems.fasta"
+
     with tmp_alignment.open("w") as handle:
+        # Listing the fragments in MD5 order to match the matrix in DB
         handle.write("""\
->OP073605 mock 10bp fragment
+>OP073605 mock 10bp fragment for 5584c7029328dc48d33f95f0a78f7e57
 AACC-GGTTTT
->MGV-GENOME-0266457 mock 10bp fragment
-AACC-GGATTT
->MGV-GENOME-0264574 mock 9bp fragment
+>MGV-GENOME-0264574 mock 9bp fragment for 689d3fd6881db36b5e08329cf23cecdd
 AACC-GG-TTT
+>MGV-GENOME-0266457 mock 10bp fragment for 78975d5144a1cd12e98898d573cf6536
+AACC-GGATTT
     """)
 
     public_cli.external_alignment(
@@ -85,11 +87,73 @@ AACC-GG-TTT
 
     session = db_orm.connect_to_db(tmp_db)
     assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
+    # Consider this pair (1st and 2nd entries):
+    #
+    # 5584c7029328dc48d33f95f0a78f7e57 AACC-GGTTTT query length 10
+    # 689d3fd6881db36b5e08329cf23cecdd AACC-GG-TTT subject length 9
+    #
+    # Equivalent to this:
+    #
+    # 5584c7029328dc48d33f95f0a78f7e57 AACCGGTTTT query length 10
+    # 689d3fd6881db36b5e08329cf23cecdd AACCGG-TTT subject length 9
+    #
+    # 9 matches 0 mismatch in alignment of gapped-length 10, so identity 9/10 = 0.9
+    # However query coverage (9+0)/10 = 0.9, subject cover (9+0)/9 = 1.0
+    #
+    # So identity [1.0 0.9 ...]    query coverage [1.0 0.9 ...]
+    #             [0.9 1.0 ...]                   [1.0 1.0 ...]
+    #             [... ... 1.0]                   [... ... 1.0]
+    #
+    # Now consider this pair (1st and 3rd entries):
+    #
+    # 5584c7029328dc48d33f95f0a78f7e57 AACC-GGTTTT query length 10
+    # 78975d5144a1cd12e98898d573cf6536 AACC-GGATTT subject length 10
+    #
+    # Equivalent to this:
+    #
+    # 5584c7029328dc48d33f95f0a78f7e57 AACCGGTTTT
+    # 78975d5144a1cd12e98898d573cf6536 AACCGGATTT
+    #
+    # 9 matches 1 mismatch in an alignment of length 10, identity 9/10=0.9
+    # Both query and subject full coverage (9+1)/10, so coverage 1.0
+    #
+    # So identity [1.0 ... 0.9]    query coverage [1.0 ... 1.0]
+    #             [... 1.0 ...]                   [... 1.0 ...]
+    #             [0.9 ... 1.0]                   [1.0 ... 1.0]
+    #
+    # Finally, consider this pair (2nd and 3rd entries):
+    #
+    # 689d3fd6881db36b5e08329cf23cecdd AACC-GG-TTT query length 9
+    # 78975d5144a1cd12e98898d573cf6536 AACC-GGATTT subject length 10
+    #
+    # Equivalent to this:
+    #
+    # 689d3fd6881db36b5e08329cf23cecdd AACCGG-TTT query length 9
+    # 78975d5144a1cd12e98898d573cf6536 AACCGGATTT subject length 10
+    #
+    # 9 matches 0 mismatch in alignment of length 9, so identity 9/10 = 0.9
+    # However query coverage (9+0)/9 = 1.0, subject cover (9+0)/10 = 0.9
+    #
+    # So identity [1.0 ... ...]    query coverage [1.0 ... ...]
+    #             [... 1.0 0.9]                   [... 1.0 1.0]
+    #             [... 0.9 1.0]                   [... 0.9 1.0]
+    #
+    # Overall:
+    #
+    # So identity [1.0 0.9 0.9]    query coverage [1.0 0.9 1.0]
+    #             [0.9 1.0 0.9]                   [1.0 1.0 1.0]
+    #             [0.9 0.9 1.0]                   [1.0 0.9 1.0]
+    #
     run = db_orm.load_run(session, 1, check_complete=True)
     assert run.df_identity == (
         '{"columns":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
         '"index":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
         '"data":[[1.0,0.9,0.9],[0.9,1.0,0.9],[0.9,0.9,1.0]]}'
+    )
+    assert run.df_cov_query == (
+        '{"columns":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
+        '"index":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
+        '"data":[[1.0,0.9,1.0],[1.0,1.0,1.0],[1.0,0.9,1.0]]}'
     )
 
 
@@ -110,10 +174,10 @@ def test_simple_mock_alignment_md5(
         handle.write("""\
 >5584c7029328dc48d33f95f0a78f7e57 aka OP073605.fasta  mock 5bp fragment
 CGGTT
->78975d5144a1cd12e98898d573cf6536 aka MGV-GENOME-0266457.fna mock 5bp fragment
-CGGAT
 >689d3fd6881db36b5e08329cf23cecdd aka MGV-GENOME-0264574.fas mock 4bp fragment
 CGG-T
+>78975d5144a1cd12e98898d573cf6536 aka MGV-GENOME-0266457.fna mock 5bp fragment
+CGGAT
     """)
 
     public_cli.external_alignment(

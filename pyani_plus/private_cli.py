@@ -1374,26 +1374,37 @@ def log_external_alignment(  # noqa: C901,PLR0912,PLR0915
                     # of the symmetric matrix (and mirroring to the upper half)
                     break
 
-                aln_length = 0
                 matches = 0
+                non_gap_mismatches = 0
+                either_gapped = 0
                 for q, s in zip(query_seq, subject_seq, strict=True):
-                    if q == gap and s == gap:
-                        pass
-                    elif q == s:
+                    # Cache these two as booleans:
+                    q_gap = q == gap
+                    s_gap = s == gap
+                    if q_gap and s_gap:
+                        continue
+                    if q == s:
                         matches += 1
-                        aln_length += 1
+                    elif q_gap or s_gap:
+                        # Don't want to count this towards coverage (max 100%)
+                        either_gapped += 1
                     else:
-                        aln_length += 1
-                query_cov = matches / (len(query_seq) - query_seq.count(gap))
-                subject_cov = matches / (len(subject_seq) - subject_seq.count(gap))
-
+                        non_gap_mismatches = +1
+                query_cov = (matches + non_gap_mismatches) / (
+                    len(query_seq) - query_seq.count(gap)
+                )
+                subject_cov = (matches + non_gap_mismatches) / (
+                    len(subject_seq) - subject_seq.count(gap)
+                )
+                aln_length = matches + non_gap_mismatches + either_gapped
+                sim_errors = non_gap_mismatches + either_gapped
                 db_entries.append(
                     {
                         "query_hash": query_hash,
                         "subject_hash": subject_hash,
                         "identity": matches / aln_length,
                         "aln_length": aln_length,
-                        "sim_errors": aln_length - matches,
+                        "sim_errors": sim_errors,
                         "cov_query": query_cov,
                         "cov_subject": subject_cov,
                         "configuration_id": config_id,
@@ -1409,7 +1420,7 @@ def log_external_alignment(  # noqa: C901,PLR0912,PLR0915
                         "subject_hash": query_hash,
                         "identity": matches / aln_length,
                         "aln_length": aln_length,
-                        "sim_errors": aln_length - matches,
+                        "sim_errors": sim_errors,
                         "cov_query": subject_cov,
                         "cov_subject": query_cov,
                         "configuration_id": config_id,

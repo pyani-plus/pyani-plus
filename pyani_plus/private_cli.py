@@ -1348,11 +1348,18 @@ def log_external_alignment(  # noqa: C901,PLR0912,PLR0915
                 sys.exit(msg)
             if not quiet:
                 print(f"DEBUG: Checking {subject_title} -> {subject_hash}")
+
+            subject_length = (
+                session.query(db_orm.Genome)
+                .where(db_orm.Genome.genome_hash == subject_hash)
+                .one()
+                .length
+            )
+
             db_entries = []
             query_handle.seek(0)
             for query_title, query_seq in SimpleFastaParser(query_handle):
                 query_hash = mapping(query_title.split(None, 1)[0])
-
                 if query_hash == subject_hash:
                     aln_length = len(query_seq) - query_seq.count(gap)
                     db_entries.append(
@@ -1360,10 +1367,10 @@ def log_external_alignment(  # noqa: C901,PLR0912,PLR0915
                             "query_hash": query_hash,
                             "subject_hash": subject_hash,
                             "identity": 1.0,
-                            "aln_length": len(query_seq) - query_seq.count(gap),
+                            "aln_length": aln_length,
                             "sim_errors": 0,
-                            "cov_query": 1.0,
-                            "cov_subject": 1.0,
+                            "cov_query": aln_length / subject_length,
+                            "cov_subject": aln_length / subject_length,
                             "configuration_id": config_id,
                             "uname_system": uname_system,
                             "uname_release": uname_release,
@@ -1373,6 +1380,12 @@ def log_external_alignment(  # noqa: C901,PLR0912,PLR0915
                     # Break out of the inner loop, we're doing the lower half
                     # of the symmetric matrix (and mirroring to the upper half)
                     break
+                query_length = (
+                    session.query(db_orm.Genome)
+                    .where(db_orm.Genome.genome_hash == query_hash)
+                    .one()
+                    .length
+                )
 
                 matches = 0
                 non_gap_mismatches = 0
@@ -1390,12 +1403,8 @@ def log_external_alignment(  # noqa: C901,PLR0912,PLR0915
                         either_gapped += 1
                     else:
                         non_gap_mismatches = +1
-                query_cov = (matches + non_gap_mismatches) / (
-                    len(query_seq) - query_seq.count(gap)
-                )
-                subject_cov = (matches + non_gap_mismatches) / (
-                    len(subject_seq) - subject_seq.count(gap)
-                )
+                query_cov = (matches + non_gap_mismatches) / query_length
+                subject_cov = (matches + non_gap_mismatches) / subject_length
                 aln_length = matches + non_gap_mismatches + either_gapped
                 sim_errors = non_gap_mismatches + either_gapped
                 db_entries.append(

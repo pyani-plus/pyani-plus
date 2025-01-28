@@ -787,7 +787,6 @@ def export_run(  # noqa: C901
     database: REQ_ARG_TYPE_DATABASE,
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
-    # Would like to replace this with Literal["md5", "filename", "stem"] once typer updated
     label: OPT_ARG_TYPE_LABEL = "stem",
 ) -> int:
     """Export any single run from the given pyANI-plus SQLite3 database.
@@ -896,7 +895,6 @@ def plot_run(
     database: REQ_ARG_TYPE_DATABASE,
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
-    # Would like to replace this with Literal["md5", "filename", "stem"] once typer updated
     label: OPT_ARG_TYPE_LABEL = "stem",
 ) -> int:
     """Plot heatmaps and distributions for any single run.

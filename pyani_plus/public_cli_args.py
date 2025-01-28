@@ -153,7 +153,6 @@ OPT_ARG_TYPE_SOURMASH_SCALED = Annotated[
         min=1,
     ),
 ]
-
 OPT_ARG_TYPE_CREATE_DB = Annotated[
     # Listing name(s) explicitly to avoid automatic matching --no-create-db
     bool, typer.Option("--create-db", help="Create database if does not exist")

@@ -1591,7 +1591,7 @@ def test_plot_bad_nulls(
     ), stderr
 
 
-def test_classify_failures(tmp_path: str, input_genomes_tiny: Path) -> None:
+def test_classify_failures(tmp_path: str) -> None:
     """Check classify failures."""
     tmp_dir = Path(tmp_path)
 
@@ -1604,6 +1604,13 @@ def test_classify_failures(tmp_path: str, input_genomes_tiny: Path) -> None:
         SystemExit, match="ERROR: Output directory /does/not/exist does not exist"
     ):
         public_cli.cli_classify(database=":memory:", outdir=Path("/does/not/exist/"))
+
+
+def test_classify_warnings(
+    tmp_path: str, input_genomes_tiny: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Check classify warnings."""
+    tmp_dir = Path(tmp_path)
 
     # Record only one comparison (self-to-self)
     tmp_db = tmp_dir / "classify_complete.sqlite"
@@ -1642,11 +1649,15 @@ def test_classify_failures(tmp_path: str, input_genomes_tiny: Path) -> None:
         fasta_to_hash=fasta_to_hash,
     )
 
-    with pytest.raises(
-        SystemExit,
-        match="ERROR: Run 1 has 1 comparisons across 1 genomes. No edges to remove.",
-    ):
-        public_cli.cli_classify(database=tmp_db, outdir=tmp_dir)
+    public_cli.cli_classify(database=tmp_db, outdir=tmp_dir)
+
+    output = capsys.readouterr().err
+    assert (
+        "WARNING: Run 1 has 1 comparison across 1 genome. Reporting single clique...\n"
+        in output
+    ), output
+    with (tmp_dir / "fastANI_classify.tsv").open() as handle:
+        assert handle.readline() == "members\tn_nodes\tmin_cov\tmin_identity\n"
 
 
 def test_classify(

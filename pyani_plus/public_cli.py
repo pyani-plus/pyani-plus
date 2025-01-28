@@ -1041,8 +1041,8 @@ def cli_classify(  # noqa: PLR0913
     run_genomes = run.genomes.count()
 
     if done == 1 and run_genomes == 1:
-        msg = f"ERROR: Run {run_id} has {done} comparisons across {run_genomes} genomes. No edges to remove."
-        sys.exit(msg)  # pragma: no cover
+        msg = f"WARNING: Run {run_id} has {done} comparison across {run_genomes} genome. Reporting single clique...\n"
+        sys.stderr.write(msg)  # pragma: no cover
     else:
         print(
             f"Run {run_id} has {done} comparisons across {run_genomes} genomes. Running classify..."

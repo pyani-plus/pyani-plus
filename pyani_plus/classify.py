@@ -113,9 +113,7 @@ def find_initial_cliques(graph: nx.Graph) -> list:
     connected_components = list(nx.connected_components(graph))
     for component in connected_components:
         subgraph = graph.subgraph(component).copy()
-        if (
-            is_clique(subgraph) and len(subgraph) != 1
-        ):  # Check if the subgraph is a clique
+        if is_clique(subgraph):  # Check if the subgraph is a clique
             cliques.append(subgraph)
 
     return cliques
@@ -141,7 +139,8 @@ def find_cliques_recursively(
     if is_clique(graph):
         cliques.append(graph.copy())
 
-    edges = sorted(nx.get_edge_attributes(graph, "identity"))
+    edges = graph.edges(data=True)
+    edges = sorted(edges, key=lambda edge: edge[2]["identity"])
 
     # Initialise the progress bar only at the top level
     if progress is None:

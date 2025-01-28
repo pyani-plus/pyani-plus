@@ -36,114 +36,170 @@ from pyani_plus import classify
 
 
 @pytest.fixture
-def known_graph_with_dataframes() -> tuple[nx.Graph, pd.DataFrame, pd.DataFrame]:
-    """Return nx.Graph with known weights (coverage and identity) and corresponding coverage and identity DataFrames.
-
-    The graph:
-    - Contains 5 nodes named 'genome_1' to 'genome_5'.
-    - Each pair of nodes is connected by an edge with the following attributes:
-        - 'coverage': Fixed at 1.0 for all edges.
-        - 'identity': Starts at 0.80 and increases by 0.01 for each subsequent edge.
-    - Edges are added in a deterministic order such that the identity values remain consistent
-      across multiple runs.
-    """
-    # Create an empty graph and add nodes
+def one_node_no_edges_graph() -> nx.Graph:
+    """Return graph with one node and no edges."""
     graph = nx.Graph()
-    nodes = [f"genome_{i}" for i in range(1, 6)]
-    graph.add_nodes_from(nodes)
-
-    # Create empty DataFrames
-    coverage_df = pd.DataFrame(None, index=nodes, columns=nodes)
-    identity_df = pd.DataFrame(None, index=nodes, columns=nodes)
-
-    # Add edges with attributes
-    identity_value = 0.80
-    edges = []
-    for i, node1 in enumerate(nodes):
-        for node2 in nodes[i + 1 :]:
-            # Add edges to the graph
-            edge_attributes = {"coverage": 1.0, "identity": round(identity_value, 2)}
-            edges.append((node1, node2, edge_attributes))
-
-            # Update DataFrames ()
-            coverage_df.loc[node1, node2] = 1.0
-            coverage_df.loc[node2, node1] = 1.0
-            identity_df.loc[node1, node2] = round(identity_value, 2)
-            identity_df.loc[node2, node1] = round(identity_value, 2)
-
-            # Increment identity value
-            identity_value += 0.01
-
-    graph.add_edges_from(edges)
-
-    return graph, coverage_df, identity_df
+    graph.add_node("genome_1")
+    return graph
 
 
 @pytest.fixture
-def expected_cliques(
-    known_graph_with_dataframes: tuple[nx.Graph, pd.DataFrame, pd.DataFrame],
-) -> list:
-    """Generate a list of expected cliques based on the known graph.
+def two_nodes_no_edges_graph() -> nx.Graph:
+    """Return graph with two nodes and no edges."""
+    graph = nx.Graph()
+    graph.add_nodes_from(["genome_1", "genome_2"])
+    return graph
 
-    Since, the known graph is constructed such that nodes are connected in order,
-    and edge 'identity' values increment by 0.01, starting at 0.80. Removing
-    'genome_1' first results in the removal of edges with the lowest identity
-    values, leaving behind the first expected clique. We can generate a list
-    of all possible cliques that should be identified by the classification method
-    """
-    # Copy the original graph to avoid modifying the fixture
-    original_graph = known_graph_with_dataframes[0].copy()
-    graph = original_graph.copy()
 
-    # Define empty list to which we will append known cliques
-    known_cliques = []
+@pytest.fixture
+def two_nodes_no_edges_cliques() -> list[nx.Graph]:
+    """Return list of all possible cliques for initial graph with two nodes and no edges."""
+    clique_1 = nx.Graph()
+    clique_1.add_node("genome_1")
 
-    # Iterate through nodes in the graph
-    for node in list(graph.nodes):
-        if node != "genome_5":
-            # Add single-node graph as a clique
-            single_node_clique = nx.Graph()
-            single_node_clique.add_node(node)
-            known_cliques.append(single_node_clique)
+    clique_2 = nx.Graph()
+    clique_2.add_node("genome_2")
 
-            # Remove the node and add the resulting graph as a clique
-            graph.remove_node(node)
-            known_cliques.append(graph.copy())  # Copy to preserve graph state
+    return [clique_1, clique_2]
 
-    # Include the initial graph as the first clique
-    return [original_graph, *known_cliques]
+
+@pytest.fixture
+def two_nodes_no_edges_dataframes() -> list[pd.DataFrame]:
+    """Return dataframes for building initial graph with two nodes and no edges."""
+    # Define the genomes
+    genomes = ["genome_1", "genome_2"]
+
+    # Create the DataFrame directly with initial values
+    # When building graph with `onstruct_graph` no edges should be added if coverage is <0.50
+    coverage_df = pd.DataFrame(
+        [[1.0, 0.40], [0.40, 1.0]], index=genomes, columns=genomes
+    )
+    identity_df = pd.DataFrame(
+        [[1.0, 0.80], [0.80, 1.0]], index=genomes, columns=genomes
+    )
+
+    return [coverage_df, identity_df]
+
+
+@pytest.fixture
+def two_nodes_one_edge_graph() -> nx.Graph:
+    """Return graph with two nodes and one edge."""
+    graph = nx.Graph()
+    graph.add_edge("genome_1", "genome_2", identity=0.999310, coverage=0.6774176803)
+    return graph
+
+
+@pytest.fixture
+def two_nodes_one_edge_cliques() -> list[nx.Graph]:
+    """Return list of all possible cliques with initial graph of two nodes and one edge."""
+    clique_1 = nx.Graph()
+    clique_1.add_edge("genome_1", "genome_2", identity=0.999310, coverage=0.6774176803)
+
+    clique_2 = nx.Graph()
+    clique_2.add_node("genome_1")
+
+    clique_3 = nx.Graph()
+    clique_3.add_node("genome_2")
+
+    return [clique_1, clique_2, clique_3]
+
+
+@pytest.fixture
+def known_complex_graph() -> nx.Graph:
+    """Return nx.Graph with six nodes and known weights (coverage and identity)."""
+    graph = nx.Graph()
+
+    graph.add_edge("genome_1", "genome_2", identity=0.85, coverage=1.0)
+    graph.add_edge("genome_1", "genome_5", identity=0.96, coverage=1.0)
+    graph.add_edge("genome_1", "genome_6", identity=0.99, coverage=1.0)
+    graph.add_edge("genome_2", "genome_3", identity=0.97, coverage=1.0)
+    graph.add_edge("genome_2", "genome_4", identity=0.967, coverage=1.0)
+    graph.add_edge("genome_3", "genome_4", identity=0.95, coverage=1.0)
+    graph.add_edge("genome_4", "genome_5", identity=0.86, coverage=1.0)
+    graph.add_edge("genome_5", "genome_6", identity=0.98, coverage=1.0)
+
+    return graph
+
+
+@pytest.fixture
+def known_complex_cliques() -> list[nx.Graph]:
+    """Return a list of nx.Graph objects representing known cliques with coverage and identity attributes."""
+    # Define cliques
+    cliques_data: list[list] = [
+        # Clique 1
+        [
+            ("genome_1", "genome_5", {"identity": 0.96, "coverage": 1.0}),
+            ("genome_1", "genome_6", {"identity": 0.99, "coverage": 1.0}),
+            ("genome_5", "genome_6", {"identity": 0.98, "coverage": 1.0}),
+        ],
+        # Clique 2
+        [("genome_1", "genome_6", {"identity": 0.99, "coverage": 1.0})],
+        # Clique 3
+        [("genome_1",)],
+        # Clique 4
+        [("genome_6",)],
+        # Clique 5
+        [("genome_5",)],
+        # Clique 6
+        [
+            ("genome_2", "genome_3", {"identity": 0.97, "coverage": 1.0}),
+            ("genome_2", "genome_4", {"identity": 0.967, "coverage": 1.0}),
+            ("genome_3", "genome_4", {"identity": 0.95, "coverage": 1.0}),
+        ],
+        # Clique 7
+        [("genome_2", "genome_3", {"identity": 0.97, "coverage": 1.0})],
+        # Clique 8
+        [("genome_2",)],
+        # Clique 9
+        [("genome_3",)],
+        # Clique 10
+        [("genome_4",)],
+    ]
+
+    # Create graph objects for each clique
+    cliques = []
+    for clique_data in cliques_data:
+        graph = nx.Graph()
+        for edge in clique_data:
+            if len(edge) == 1:  # Single node
+                graph.add_node(edge[0])
+            else:  # Edge with attributes
+                graph.add_edge(edge[0], edge[1], **edge[2])
+        cliques.append(graph)
+
+    return cliques
 
 
 def test_construct_graph(
-    known_graph_with_dataframes: tuple[nx.Graph, pd.DataFrame, pd.DataFrame],
+    two_nodes_no_edges_graph: nx.Graph,
+    two_nodes_no_edges_dataframes: list[pd.DataFrame],
 ) -> None:
     """Check construction of the initial graph."""
-    graph, coverage_df, identity_df = known_graph_with_dataframes
+    coverage_df, identity_df = two_nodes_no_edges_dataframes
 
     # Comparison function for a numerical edge attribute.
     edge_match = iso.numerical_edge_match("coverage", "identity")
 
     # Check the isomorphism of a graph with the edge_match function
     assert nx.is_isomorphic(
-        graph,
+        two_nodes_no_edges_graph,
         classify.construct_graph(coverage_df, identity_df, min, np.mean, 0.5),
         edge_match=edge_match,
     )
 
 
 def test_is_clique(
-    known_graph_with_dataframes: tuple[nx.Graph, pd.DataFrame, pd.DataFrame],
+    two_nodes_one_edge_graph: nx.Graph,
 ) -> None:
     """Check cliques are identified."""
-    graph = known_graph_with_dataframes[0]
-    assert classify.is_clique(graph) is True
+    assert classify.is_clique(two_nodes_one_edge_graph) is True
 
 
 def test_find_initial_cliques(
-    known_graph_with_dataframes: tuple[nx.Graph, pd.DataFrame, pd.DataFrame],
+    two_nodes_one_edge_graph: nx.Graph,
 ) -> None:
     """Check all possible cliques are identified in the initial iteration."""
-    graph = known_graph_with_dataframes[0]
+    graph = two_nodes_one_edge_graph
     found_cliques = classify.find_initial_cliques(graph)
     edge_match = iso.numerical_edge_match("coverage", "identity")
 
@@ -155,7 +211,7 @@ def test_find_initial_cliques(
     # Check the number of identified cliques
     assert len(connected_components) == len(found_cliques), "Clique count mismatch"
 
-    # Check the clique structures
+    # Check that the clique structures match
     for expected_clique, found_clique in zip(
         connected_components, found_cliques, strict=False
     ):
@@ -164,20 +220,111 @@ def test_find_initial_cliques(
         )
 
 
-def test_find_cliques(
-    known_graph_with_dataframes: tuple[nx.Graph, pd.DataFrame, pd.DataFrame],
-    expected_cliques: list,
+def test_classify_one_node_no_edges(
+    one_node_no_edges_graph: nx.Graph,
 ) -> None:
-    """Check all possible cliques are identified in the initial iteration."""
-    graph = known_graph_with_dataframes[0]
-    found_cliques = classify.find_cliques_recursively(graph)
+    """Check all possible cliques are identified if the initial graph has only one node."""
+    graph = one_node_no_edges_graph
+
+    # Finding cliques
+    initial_cliques = (
+        classify.find_initial_cliques(graph)
+        if len(list(nx.connected_components(graph))) != 1
+        else []
+    )
+    recursive_cliques = classify.find_cliques_recursively(graph)
+
+    # Check the number of identified cliques
+    assert len(initial_cliques + recursive_cliques) == 1, "Clique count mismatch"
+
+    # Check cliques are matching
+    for expected_clique, found_clique in zip(
+        [graph], initial_cliques + recursive_cliques, strict=False
+    ):
+        assert nx.is_isomorphic(expected_clique, found_clique), (
+            "Clique structure mismatch"
+        )
+
+
+def test_classify_two_nodes_no_edges(
+    two_nodes_no_edges_graph: nx.Graph, two_nodes_no_edges_cliques: list[nx.Graph]
+) -> None:
+    """Check all possible cliques are identified if the initial graph has twno nodes and no edges."""
+    graph = two_nodes_no_edges_graph
+
+    # Finding cliques
+    initial_cliques = (
+        classify.find_initial_cliques(graph)
+        if len(list(nx.connected_components(graph))) != 1
+        else []
+    )
+    recursive_cliques = classify.find_cliques_recursively(graph)
+
+    # Check the number of identified cliques
+    assert len(initial_cliques + recursive_cliques) == len(
+        two_nodes_no_edges_cliques
+    ), "Clique count mismatch"
+
+    # Check cliques are matching
+    for expected_clique, found_clique in zip(
+        two_nodes_no_edges_cliques, initial_cliques + recursive_cliques, strict=False
+    ):
+        assert nx.is_isomorphic(expected_clique, found_clique), (
+            "Clique structure mismatch"
+        )
+
+
+def test_classify_two_nodes_one_edges(
+    two_nodes_one_edge_graph: nx.Graph, two_nodes_one_edge_cliques: list[nx.Graph]
+) -> None:
+    """Check all possible cliques are identified if the initial graph has twno nodes and one edges."""
+    graph = two_nodes_one_edge_graph
+
+    # Finding cliques
+    initial_cliques = (
+        classify.find_initial_cliques(graph)
+        if len(list(nx.connected_components(graph))) != 1
+        else []
+    )
+    recursive_cliques = classify.find_cliques_recursively(graph)
     edge_match = iso.numerical_edge_match("coverage", "identity")
 
     # Check the number of identified cliques
-    assert len(found_cliques) == len(expected_cliques), "Clique count mismatch"
+    assert len(initial_cliques + recursive_cliques) == len(
+        two_nodes_one_edge_cliques
+    ), "Clique count mismatch"
 
+    # Check the isomorphism of a graph with the edge_match function
     for expected_clique, found_clique in zip(
-        expected_cliques, found_cliques, strict=False
+        two_nodes_one_edge_cliques, initial_cliques + recursive_cliques, strict=False
+    ):
+        assert nx.is_isomorphic(expected_clique, found_clique, edge_match=edge_match), (
+            "Clique structure mismatch"
+        )
+
+
+def test_classify_complex_graph(
+    known_complex_graph: tuple[nx.Graph, pd.DataFrame, pd.DataFrame],
+    known_complex_cliques: list[nx.Graph],
+) -> None:
+    """Check all possible cliques are identified in the initial iteration."""
+    graph = known_complex_graph
+    initial_cliques = (
+        classify.find_initial_cliques(graph)
+        if len(list(nx.connected_components(graph))) != 1
+        else []
+    )
+    recursive_cliques = classify.find_cliques_recursively(graph)
+    edge_match = iso.numerical_edge_match("coverage", "identity")
+
+    # Check the number of identified cliques
+    assert len(initial_cliques + recursive_cliques) == len(known_complex_cliques), (
+        "Clique count mismatch"
+    )
+
+    # Check the isomorphism of a graph with the edge_match function
+    for expected_clique, found_clique in zip(
+        known_complex_cliques, initial_cliques + recursive_cliques, strict=False
     ):
         assert nx.is_isomorphic(expected_clique, found_clique, edge_match=edge_match), (
             "Clique structure mismatch"

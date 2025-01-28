@@ -1037,6 +1037,17 @@ def cli_classify(  # noqa: PLR0913
         msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
         sys.exit(msg)  # pragma: no cover
 
+    done = run.comparisons().count()
+    run_genomes = run.genomes.count()
+
+    if done == 1 and run_genomes == 1:
+        msg = f"ERROR: Run {run_id} has {done} comparisons across {run_genomes} genomes. No edges to remove."
+        sys.exit(msg)  # pragma: no cover
+    else:
+        print(
+            f"Run {run_id} has {done} comparisons across {run_genomes} genomes. Running classify..."
+        )
+
     cov = run.cov_query
     if cov is None:
         msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover

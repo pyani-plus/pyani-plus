@@ -1591,7 +1591,7 @@ def test_plot_bad_nulls(
     ), stderr
 
 
-def test_classify_failures(tmp_path: str) -> None:
+def test_classify_failures(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check classify failures."""
     tmp_dir = Path(tmp_path)
 
@@ -1604,6 +1604,49 @@ def test_classify_failures(tmp_path: str) -> None:
         SystemExit, match="ERROR: Output directory /does/not/exist does not exist"
     ):
         public_cli.cli_classify(database=":memory:", outdir=Path("/does/not/exist/"))
+
+    # Record only one comparison (self-to-self)
+    tmp_db = tmp_dir / "classify_complete.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
+    config = db_orm.db_configuration(
+        session, "fastANI", "fastani", "1.2.3", create=True
+    )
+
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.fas"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+
+    genomes = list(fasta_to_hash.values())
+    for query_hash in genomes:
+        for subject_hash in genomes:
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query_hash,
+                subject_hash,
+                cov_query=1.0,
+                identity=1.0,
+                sim_errors=0,
+            )
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani guessing ...",
+        fasta_directory=input_genomes_tiny,
+        status="Complete",
+        name="Test classify when all data present",
+        fasta_to_hash=fasta_to_hash,
+    )
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Run 1 has 1 comparisons across 1 genomes. No edges to remove.",
+    ):
+        public_cli.cli_classify(database=tmp_db, outdir=tmp_dir)
 
 
 def test_classify(
@@ -1624,7 +1667,7 @@ def test_classify(
     for filename, md5 in fasta_to_hash.items():
         db_orm.db_genome(session, filename, md5, create=True)
 
-    # Record all of the possible comparisons, leaving coverage null
+    # Record all of the possible comparisons
     genomes = list(fasta_to_hash.values())
     cov_increment = 0.88
     for query_hash in genomes:

@@ -35,25 +35,6 @@ from pyani_plus import db_orm, private_cli, public_cli
 from pyani_plus.utils import file_md5sum
 
 
-def test_missing_db(tmp_path: str) -> None:
-    """Check expected error when DB does not exist."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
-    assert not tmp_db.is_file()
-
-    with pytest.raises(SystemExit, match="does not exist"):
-        public_cli.external_alignment(
-            database=tmp_db,
-            fasta=Path("/dev/null"),  # won't get as far as opening this
-            alignment=Path("/dev/null"),
-        )
-
-    with pytest.raises(SystemExit, match="does not exist"):
-        private_cli.log_external_alignment(
-            database=tmp_db,
-            run_id=1,
-        )
-
-
 def test_simple_mock_alignment_stem(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
@@ -364,7 +345,8 @@ def test_wrong_method(
     input_genomes_tiny: Path,
 ) -> None:
     """Check log-external-alignment rejects a run for another method."""
-    tmp_db = Path(tmp_path) / "wrong-method.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "wrong-method.sqlite"
     assert not tmp_db.is_file()
 
     private_cli.log_run(
@@ -379,11 +361,82 @@ def test_wrong_method(
         create_db=True,
     )
 
+    session = db_orm.connect_to_db(tmp_db)
+    run = db_orm.load_run(session, 1)
     with pytest.raises(
         SystemExit,
         match="ERROR: Run-id 1 expected guessing results",
     ):
-        private_cli.log_external_alignment(database=tmp_db, run_id=1)
+        private_cli.compute_external_alignment(
+            tmp_dir, session, run, tmp_dir, {}, {}, [], ""
+        )
+    session.close()
+
+
+def test_bad_program(
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Check log-external-alignment rejects a run for another method."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "wrong-method.sqlite"
+    assert not tmp_db.is_file()
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus external-alignment ...",
+        status="Testing",
+        name="Testing external-alignment",
+        method="external-alignment",
+        program="should-be-blank",
+        version="",
+        create_db=True,
+    )
+
+    session = db_orm.connect_to_db(tmp_db)
+    run = db_orm.load_run(session, 1)
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: configuration.program='should-be-blank' unexpected",
+    ):
+        private_cli.compute_external_alignment(
+            tmp_dir, session, run, tmp_dir, {}, {}, [], ""
+        )
+    session.close()
+
+
+def test_bad_version(
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Check log-external-alignment rejects a run for another method."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "wrong-method.sqlite"
+    assert not tmp_db.is_file()
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus external-alignment ...",
+        status="Testing",
+        name="Testing external-alignment",
+        method="external-alignment",
+        program="",
+        version="should-be-blank",
+        create_db=True,
+    )
+
+    session = db_orm.connect_to_db(tmp_db)
+    run = db_orm.load_run(session, 1)
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: configuration.version='should-be-blank' unexpected",
+    ):
+        private_cli.compute_external_alignment(
+            tmp_dir, session, run, tmp_dir, {}, {}, [], ""
+        )
+    session.close()
 
 
 def test_no_config(
@@ -407,11 +460,16 @@ def test_no_config(
         create_db=True,
     )
 
+    session = db_orm.connect_to_db(tmp_db)
+    run = db_orm.load_run(session, 1)
     with pytest.raises(
         SystemExit,
         match="ERROR: Missing configuration.extra setting",
     ):
-        private_cli.log_external_alignment(database=tmp_db, run_id=1)
+        private_cli.compute_external_alignment(
+            tmp_dir, session, run, tmp_dir, {}, {}, [], ""
+        )
+    session.close()
 
 
 def test_bad_config(
@@ -434,11 +492,16 @@ def test_bad_config(
         create_db=True,
     )
 
+    session = db_orm.connect_to_db(tmp_db)
+    run = db_orm.load_run(session)
     with pytest.raises(
         SystemExit,
         match="ERROR: configuration.extra='file=example.fasta;md5=XXX;label=stem' unexpected",
     ):
-        private_cli.log_external_alignment(database=tmp_db, run_id=1)
+        private_cli.compute_external_alignment(
+            tmp_dir, session, run, tmp_dir, {}, {}, [], ""
+        )
+    session.close()
 
 
 def test_missing_alignment(
@@ -462,11 +525,16 @@ def test_missing_alignment(
         create_db=True,
     )
 
+    session = db_orm.connect_to_db(tmp_db)
+    run = db_orm.load_run(session)
     with pytest.raises(
         SystemExit,
         match="ERROR: Missing alignment file .*/does-not-exist.fasta",
     ):
-        private_cli.log_external_alignment(database=tmp_db, run_id=1)
+        private_cli.compute_external_alignment(
+            tmp_dir, session, run, tmp_dir, {}, {}, [], ""
+        )
+    session.close()
 
 
 def test_bad_checksum(
@@ -494,11 +562,16 @@ def test_bad_checksum(
         create_db=True,
     )
 
+    session = db_orm.connect_to_db(tmp_db)
+    run = db_orm.load_run(session)
     with pytest.raises(
         SystemExit,
         match="ERROR: MD5 checksum of .*/example.fasta didn't match.",
     ):
-        private_cli.log_external_alignment(database=tmp_db, run_id=1)
+        private_cli.compute_external_alignment(
+            tmp_dir, session, run, tmp_dir, {}, {}, [], ""
+        )
+    session.close()
 
 
 def test_bad_alignment(
@@ -506,7 +579,8 @@ def test_bad_alignment(
     input_genomes_tiny: Path,
 ) -> None:
     """Broken alignment as input."""
-    tmp_db = Path(tmp_path) / "broken.db"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "broken.db"
     assert not tmp_db.is_file()
 
     tmp_alignment = Path(tmp_path) / "broken.fasta"
@@ -534,8 +608,82 @@ AA
         create_db=True,
     )
 
+    session = db_orm.connect_to_db(tmp_db)
+    run = db_orm.load_run(session)
     with pytest.raises(
         ValueError,
         match=r"zip\(\) argument 2 is shorter than argument 1",
     ):
-        private_cli.log_external_alignment(database=tmp_db, run_id=1)
+        private_cli.compute_external_alignment(
+            tmp_dir,
+            session,
+            run,
+            tmp_dir,
+            {},
+            {},
+            [],
+            "689d3fd6881db36b5e08329cf23cecdd",
+        )
+    session.close()
+
+
+def test_partial_alignment(
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """MSA input without all expected genomes."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "broken.db"
+    assert not tmp_db.is_file()
+
+    tmp_alignment = Path(tmp_path) / "broken.fasta"
+    with tmp_alignment.open("w") as handle:
+        handle.write("""\
+>OP073605 mock 10bp fragment
+AACC
+>MGV-GENOME-0266457 mock 10bp fragment
+AACT
+    """)
+    md5 = file_md5sum(tmp_alignment)
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus external-alignment ...",
+        status="Testing",
+        name="Testing bad alignment",
+        method="external-alignment",
+        program="",
+        version="",
+        extra=f"md5={md5};label=stem;alignment={tmp_alignment}",
+        create_db=True,
+    )
+
+    session = db_orm.connect_to_db(tmp_db)
+    run = db_orm.load_run(session)
+    # This one should work...
+    private_cli.compute_external_alignment(
+        tmp_dir,
+        session,
+        run,
+        tmp_dir,
+        {},
+        {},
+        [],
+        "5584c7029328dc48d33f95f0a78f7e57",
+    )
+    with pytest.raises(
+        ValueError,
+        match="Did not find subject 689d3fd6881db36b5e08329cf23cecdd in broken.fasta",
+    ):
+        private_cli.compute_external_alignment(
+            tmp_dir,
+            session,
+            run,
+            tmp_dir,
+            {},
+            {},
+            [],
+            "689d3fd6881db36b5e08329cf23cecdd",
+        )
+    session.close()

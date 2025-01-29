@@ -552,6 +552,8 @@ def external_alignment(  # noqa: PLR0913
     aln_checksum = file_md5sum(alignment)
     # Doing this order to put the filename LAST, in case of separators in the filename
     extra = f"md5={aln_checksum};label={label};alignment={alignment.name}"
+    fasta_list = check_fasta(fasta)
+
     return start_and_run_method(
         executor,
         temp,  # not needed?
@@ -560,7 +562,7 @@ def external_alignment(  # noqa: PLR0913
         f"Import of {alignment.name}" if name is None else name,
         "external-alignment",
         fasta,
-        ["external-alignment.done"],  # no real intermediate files
+        [f"all_vs_{Path(_).stem}.external-alignment" for _ in fasta_list],
         None,  # no tool
         {},  # no binaries
         extra=extra,
@@ -664,7 +666,10 @@ def resume(  # noqa: C901, PLR0912, PLR0915
         case "external-alignment":
             tool = None
             binaries = {}
-            targets = ["external-alignment.done"]
+            targets = [
+                f"all_vs_{Path(_.fasta_filename).stem}.external-alignment"
+                for _ in run.fasta_hashes
+            ]
         case _:
             msg = f"ERROR: Unknown method {config.method} for run-id {run_id} in {database}"
             sys.exit(msg)

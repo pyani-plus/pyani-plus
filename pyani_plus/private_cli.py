@@ -475,6 +475,7 @@ def compute_column(  # noqa: C901
             "ANIb": compute_anib,
             "ANIm": compute_anim,
             "dnadiff": compute_dnadiff,
+            "external-alignment": compute_external_alignment,
         }[method]
     except KeyError:
         msg = f"ERROR: Unknown method {method} for run-id {run_id} in {database}"
@@ -1273,33 +1274,35 @@ def log_branchwater(
     return 0
 
 
-@app.command(rich_help_panel="Method specific logging")
-def log_external_alignment(  # noqa: C901,PLR0912,PLR0915
-    database: REQ_ARG_TYPE_DATABASE,
-    run_id: REQ_ARG_TYPE_RUN_ID,
+def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
+    tmp_dir: Path,  # noqa: ARG001
+    session: Session,
+    run: db_orm.Run,
+    fasta_dir: Path,  # noqa: ARG001
+    hash_to_filename: dict[str, str],  # noqa: ARG001
+    filename_to_hash: dict[str, str],  # noqa: ARG001
+    query_hashes: list[str],  # noqa: ARG001
+    subject_hash: str,
     *,
-    quiet: OPT_ARG_TYPE_QUIET = False,
-    gap: str = "-",
+    quiet: bool = False,
 ) -> int:
-    """Log pairwise ANI from given MSA file to database."""
-    if database != ":memory:" and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
-
+    """Compute and log column of comparisons from given MSA to database."""
+    gap = "-"  # could be configurable, but why?
     uname = platform.uname()
     uname_system = uname.system
     uname_release = uname.release
     uname_machine = uname.machine
 
-    if not quiet:
-        print(f"Logging external-alignment to {database}")
-    session = db_orm.connect_to_db(database)
-    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-    if run.configuration.method != "external-alignment":
-        msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
-        sys.exit(msg)
-
     config_id = run.configuration.configuration_id
+    if run.configuration.method != "external-alignment":
+        msg = f"ERROR: Run-id {run.run_id} expected {run.configuration.method} results"
+        sys.exit(msg)
+    if run.configuration.program:
+        msg = f"ERROR: configuration.program={run.configuration.program!r} unexpected"
+        sys.exit(msg)
+    if run.configuration.version:
+        msg = f"ERROR: configuration.version={run.configuration.version!r} unexpected"
+        sys.exit(msg)
     if not run.configuration.extra:
         msg = "ERROR: Missing configuration.extra setting"
         sys.exit(msg)
@@ -1307,7 +1310,15 @@ def log_external_alignment(  # noqa: C901,PLR0912,PLR0915
     if list(args) != ["md5", "label", "alignment"]:
         msg = f"ERROR: configuration.extra={run.configuration.extra!r} unexpected"
         sys.exit(msg)
+
     # We assume the alignment path is either absolute, or record relative to the DB
+    # We can get the DB filename via the session connection binding
+    url = str(session.bind.url)
+    if not url.startswith("sqlite://"):
+        msg = f"Expected SQLite3 URL to start sqlite:// not {url}"
+        raise ValueError(msg)
+    database = Path(url[9:])
+
     alignment = database.parent / Path(args["alignment"])
     md5 = args["md5"]
     label = args["label"]
@@ -1331,6 +1342,13 @@ def log_external_alignment(  # noqa: C901,PLR0912,PLR0915
             filename_stem(_.fasta_filename): _.genome_hash for _ in run.fasta_hashes
         }.get
 
+    subject_length = (
+        session.query(db_orm.Genome)
+        .where(db_orm.Genome.genome_hash == subject_hash)
+        .one()
+        .length
+    )
+
     from Bio.SeqIO.FastaIO import SimpleFastaParser  # deliberate lazy import
 
     # First row, computes 1, logs 1 (A-vs-A)
@@ -1340,12 +1358,15 @@ def log_external_alignment(  # noqa: C901,PLR0912,PLR0915
     # N-th row, computes N, logs (N**2 - (N-1)**2) = 2*N - 1
     with alignment.open() as subject_handle, alignment.open() as query_handle:
         for subject_title, subject_seq in SimpleFastaParser(subject_handle):
-            subject_hash = mapping(subject_title.split(None, 1)[0])
-            if not subject_hash:
+            _hash = mapping(subject_title.split(None, 1)[0])
+            if not _hash:
                 msg = (
                     f"ERROR: Could not map {subject_title.split(None, 1)[0]} as {label}"
                 )
                 sys.exit(msg)
+            if subject_hash != _hash:
+                # We are only computing one column of the matrix
+                continue
             if not quiet:
                 print(f"DEBUG: Checking {subject_title} -> {subject_hash}")
 

@@ -20,17 +20,29 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 """Snakemake workflow for importing an external alignment"""
+from pyani_plus.workflows import check_input_stems
+
+# This returns a dict mapping stems to full paths
+indir_files = check_input_stems(config["indir"])
 
 
-rule externalalignment:
+def get_genomeB(wildcards):
+    return indir_files[wildcards.genomeB]
+
+
+# Don't need a temp folder at all for this method
+rule external_alignment:
     params:
         db=config["db"],
         run_id=config["run_id"],
         outdir=config["outdir"],
+    input:
+        genomeB=get_genomeB,
     output:
-        "{outdir}/external-alignment.done",
+        "{outdir}/all_vs_{genomeB}.external-alignment",
     shell:
         """
-        .pyani-plus-private-cli log-external-alignment --quiet \
-            --database "{params.db}" --run-id {params.run_id} && touch "{output}"
+        .pyani-plus-private-cli compute-column --quiet \
+            --database "{params.db}" --run-id {params.run_id} \
+            --subject "{input}" && touch "{output}"
         """

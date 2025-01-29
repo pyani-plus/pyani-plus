@@ -1311,15 +1311,20 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
         msg = f"ERROR: configuration.extra={run.configuration.extra!r} unexpected"
         sys.exit(msg)
 
-    # We assume the alignment path is either absolute, or record relative to the DB
-    # We can get the DB filename via the session connection binding
-    url = str(session.bind.url)
-    if not url.startswith("sqlite://"):
-        msg = f"Expected SQLite3 URL to start sqlite:// not {url}"
-        raise ValueError(msg)
-    database = Path(url[9:])
+    alignment = Path(args["alignment"])
+    if not alignment.is_absolute():
+        # If not absolute, assume MSA path relative to the DB.
+        # Get the DB filename via the session connection binding
+        url = str(session.bind.url)
+        if not url.startswith("sqlite:///"):
+            msg = (  # pragma: nocover
+                f"Expected SQLite3 URL to start sqlite:/// not {url}"
+            )
+            raise ValueError(msg)  # pragma: nocover
+        if not quiet:
+            print(f"DEBUG: Treating {alignment} as relative to {url}")
+        alignment = Path(url[10:]).parent / alignment
 
-    alignment = database.parent / Path(args["alignment"])
     md5 = args["md5"]
     label = args["label"]
     del args
@@ -1342,72 +1347,77 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
             filename_stem(_.fasta_filename): _.genome_hash for _ in run.fasta_hashes
         }.get
 
-    subject_length = (
-        session.query(db_orm.Genome)
-        .where(db_orm.Genome.genome_hash == subject_hash)
-        .one()
-        .length
-    )
-
     from Bio.SeqIO.FastaIO import SimpleFastaParser  # deliberate lazy import
 
-    # First row, computes 1, logs 1 (A-vs-A)
-    # Second row, computes 2, logs 3 (A vs B, B vs A, and B vs B)
-    # Third row, computes 3, logs 5 (A vs C, C vs A, B vs C, C vs B, and C vs C)
+    # First col, computes N, logs 2N-1 (A-vs-A, B-vs-A, C-vs-A, ..., Z-vs-A and mirrors)
+    # Second col, computes N-1, logs 2N-3 (skips A-vs-B, computes B-vs-B, ..., Z-vs-B)
     # ...
-    # N-th row, computes N, logs (N**2 - (N-1)**2) = 2*N - 1
-    with alignment.open() as subject_handle, alignment.open() as query_handle:
-        for subject_title, subject_seq in SimpleFastaParser(subject_handle):
-            _hash = mapping(subject_title.split(None, 1)[0])
-            if not _hash:
-                msg = (
-                    f"ERROR: Could not map {subject_title.split(None, 1)[0]} as {label}"
-                )
+    # N-th col, computes 1, logs 1 (skips A-vs-Z, ..., Y-vs-Z, computes Z-vs-Z only)
+    #
+    # Hopefully snakemake will submit jobs in that order which would be most efficient.
+    #
+    # Potentially we could instead break this into N/2 jobs (even) or (N+1)/2 jobs (odd)
+    # Thus when N is even, the first job would consisting of columns 1 and N, next
+    # job columns 2 and N-1, etc. Each job does N computations and records 2N comparisons.
+    # Similarly when N is odd, although there we have a final half-sized single-column job.
+
+    # We could interpret the column number as the MSA ordering, but our internal
+    # API by subject hash - and we can't assume the MSA is in any particular order.
+    # Easiest way to solve this is two linear scans of the file, with a seek(0)
+    with alignment.open() as handle:
+        subject_seq = subject_title = ""  # placeholder values
+        for query_title, query_seq in SimpleFastaParser(handle):
+            query_hash = mapping(query_title.split(None, 1)[0])
+            if not query_hash:
+                msg = f"ERROR: Could not map {query_title.split(None, 1)[0]} as {label}"
                 sys.exit(msg)
-            if subject_hash != _hash:
-                # We are only computing one column of the matrix
+            if query_hash == subject_hash:
+                subject_seq = query_seq  # for use in rest of the loop
+                subject_title = query_title  # for use in logging
+                break
+        else:
+            msg = f"Did not find subject {subject_hash} in {alignment.name}"
+            raise ValueError(msg)
+
+        db_entries = []
+        subject_length = (
+            session.query(db_orm.Genome)
+            .where(db_orm.Genome.genome_hash == subject_hash)
+            .one()
+            .length
+        )
+
+        handle.seek(0)
+        for query_title, query_seq in SimpleFastaParser(handle):
+            query_hash = mapping(query_title.split(None, 1)[0])
+            if query_hash < subject_hash:
                 continue
-            if not quiet:
-                print(f"DEBUG: Checking {subject_title} -> {subject_hash}")
-
-            subject_length = (
-                session.query(db_orm.Genome)
-                .where(db_orm.Genome.genome_hash == subject_hash)
-                .one()
-                .length
-            )
-
-            db_entries = []
-            query_handle.seek(0)
-            for query_title, query_seq in SimpleFastaParser(query_handle):
-                query_hash = mapping(query_title.split(None, 1)[0])
-                if query_hash == subject_hash:
-                    aln_length = len(query_seq) - query_seq.count(gap)
-                    db_entries.append(
-                        {
-                            "query_hash": query_hash,
-                            "subject_hash": subject_hash,
-                            "identity": 1.0,
-                            "aln_length": aln_length,
-                            "sim_errors": 0,
-                            "cov_query": aln_length / subject_length,
-                            "cov_subject": aln_length / subject_length,
-                            "configuration_id": config_id,
-                            "uname_system": uname_system,
-                            "uname_release": uname_release,
-                            "uname_machine": uname_machine,
-                        }
-                    )
-                    # Break out of the inner loop, we're doing the lower half
-                    # of the symmetric matrix (and mirroring to the upper half)
-                    break
+            if query_hash == subject_hash:
+                # Expect 100% identity but need to calculate coverage
+                aln_length = len(query_seq) - query_seq.count(gap)
+                db_entries.append(
+                    {
+                        "query_hash": query_hash,
+                        "subject_hash": subject_hash,
+                        "identity": 1.0,
+                        "aln_length": aln_length,
+                        "sim_errors": 0,
+                        "cov_query": aln_length / subject_length,
+                        "cov_subject": aln_length / subject_length,
+                        "configuration_id": config_id,
+                        "uname_system": uname_system,
+                        "uname_release": uname_release,
+                        "uname_machine": uname_machine,
+                    }
+                )
+            else:
+                # Full calculation required
                 query_length = (
                     session.query(db_orm.Genome)
                     .where(db_orm.Genome.genome_hash == query_hash)
                     .one()
                     .length
                 )
-
                 matches = 0
                 non_gap_mismatches = 0
                 either_gapped = 0
@@ -1459,22 +1469,18 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
                         "uname_machine": uname_machine,
                     }
                 )
-            if db_entries:
-                if not quiet:
-                    print(
-                        f"DEBUG: Logging {len(db_entries)} comparisons vs {subject_title}"
-                    )
-                # Now do a bulk import... but must skip any pre-existing entries
-                # otherwise would hit sqlite3.IntegrityError for breaking uniqueness!
-                # Do this via the Sqlite3 supported SQL command "INSERT OR IGNORE"
-                # using the dialect's on_conflict_do_nothing method.
-                # Repeating those calculations is a waste, but a performance trade off
-                session.execute(
-                    sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
-                    db_entries,
-                )
-                session.commit()
-                db_entries = []
+    if not quiet:
+        print(f"DEBUG: Logging {len(db_entries)} comparisons vs {subject_title}")
+    # Now do a bulk import... but must skip any pre-existing entries
+    # otherwise would hit sqlite3.IntegrityError for breaking uniqueness!
+    # Do this via the Sqlite3 supported SQL command "INSERT OR IGNORE"
+    # using the dialect's on_conflict_do_nothing method.
+    # Repeating those calculations is a waste, could skip if partially done?
+    session.execute(
+        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
+        db_entries,
+    )
+    session.commit()
     return 0
 
 

@@ -31,6 +31,7 @@ import gzip
 import platform
 import sys
 from io import StringIO
+from math import log, nan
 from pathlib import Path
 
 import numpy as np
@@ -336,6 +337,7 @@ class Run(Base):
     df_aln_length: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
     df_sim_errors: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
     df_hadamard: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
+    # May want to add df_tANI when we next make DB schema changes?
 
     fasta_hashes: Mapped[list[RunGenomeAssociation]] = relationship(
         RunGenomeAssociation, viewonly=True, lazy="dynamic"
@@ -510,6 +512,31 @@ class Run(Base):
         if not self.df_hadamard:
             return None
         return pd.read_json(StringIO(self.df_hadamard), orient="split", dtype=float)
+
+    @property
+    def tani(self) -> pd.DataFrame | None:
+        """All-vs-all tANI matrix (minus natural log of identity times coverage) for the run.
+
+        Unlike the Hadamard matrix, this is not currently cached in the DB.
+
+        Returns an N by N tANI matrix for the N genomes in the run as a pandas
+        dataframe, where the index (rows) and columns are the N genome hashes
+        (sorted alphabetically).
+
+        If either the identity or the query coverage is not cached, returns None.
+
+        This is normally available almost immediately from the Run entry in the
+        database where the identity and query coverage dataframes are cached as
+        JSON strings. They would be computed at the end of computing a run once
+        all N^2 comparisons have finished, see the cache_comparisons method.
+        """
+        # Might be worth profiling the performance of caching this, versus
+        # computing it from the cached identity and coverage data-frames?
+        hadamard = self.hadamard
+        if hadamard is None:
+            return None
+        # propagate any pre-existing NA values via the na_action
+        return hadamard.map(lambda x: -log(x) if x else nan, na_action="ignore")
 
     def relabelled_matrix(
         self, matrix: pd.DataFrame, label: str = "md5"

@@ -224,6 +224,7 @@ def test_make_and_populate_runs(tmp_path: str) -> None:
     assert run_one.aln_length is None
     assert run_one.sim_errors is None
     assert run_one.hadamard is None
+    assert run_one.tani is None
     run_one.cache_comparisons()
     # They now exist, but are empty:
     assert run_one.identities is not None

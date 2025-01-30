@@ -221,7 +221,18 @@ def plot_distributions(
         )
         axes[0].set_ylim(ymin=0)
         sns.kdeplot(values, ax=axes[1], warn_singular=False)
-        sns.rugplot(values, ax=axes[1], color=rug)
+
+        # Default rug height=.025 but that can obscure low values.
+        # Negative means below the axis instead, needs clip_on=False
+        # Adding alpha to try to reveal the density.
+        sns.rugplot(
+            values,
+            ax=axes[1],
+            color=rug,
+            height=-0.025,
+            clip_on=False,
+            alpha=0.1,
+        )
 
         # Modify axes after data is plotted
         for _ in axes:

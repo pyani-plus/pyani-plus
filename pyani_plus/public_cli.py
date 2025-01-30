@@ -180,7 +180,11 @@ def run_method(  # noqa: PLR0913
     run_id = run.run_id
     configuration = run.configuration
     method = configuration.method
-    workflow_name = f"snakemake_{method.lower()}.smk"
+    workflow_name = (
+        f"snakemake_{method.lower()}.smk"
+        if method in ("sourmash",)
+        else "compute_column.smk"
+    )
     params: dict[str, object] = {
         # Paths etc - see also outdir below
         "indir": Path(run.fasta_directory).resolve(),  # must be absolute

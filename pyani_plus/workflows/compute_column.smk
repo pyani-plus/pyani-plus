@@ -19,6 +19,10 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+"""Snakemake workflow for pyANI-plus compute methods split by column.
+
+This assumes there are no job dependencies, or they have been resolved already.
+"""
 from pyani_plus.workflows import check_input_stems
 
 indir_files = check_input_stems(config["indir"])
@@ -28,8 +32,7 @@ def get_genomeB(wildcards):
     return indir_files[wildcards.genomeB]
 
 
-# The rule dnadiff runs nucmer, delta-filter, show-diff and show-coords wrappers
-rule dnadiff:
+rule compute_column:
     params:
         db=config["db"],
         run_id=config["run_id"],
@@ -38,7 +41,7 @@ rule dnadiff:
     input:
         genomeB=get_genomeB,
     output:
-        "{outdir}/all_vs_{genomeB}.dnadiff",
+        "{outdir}/all_vs_{genomeB}.{method}",
     shell:
         """
         .pyani-plus-private-cli compute-column --quiet \

@@ -611,8 +611,11 @@ AA
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session)
     with pytest.raises(
-        ValueError,
-        match=r"zip\(\) argument 2 is shorter than argument 1",
+        SystemExit,
+        match=(
+            "ERROR: Bad external-alignment, different lengths 3 and 2"
+            " from MGV-GENOME-0266457 and MGV-GENOME-0264574"
+        ),
     ):
         private_cli.compute_external_alignment(
             tmp_dir,
@@ -621,7 +624,11 @@ AA
             tmp_dir,
             {},
             {},
-            [],
+            [
+                "5584c7029328dc48d33f95f0a78f7e57",
+                "689d3fd6881db36b5e08329cf23cecdd",
+                "78975d5144a1cd12e98898d573cf6536",
+            ],
             "689d3fd6881db36b5e08329cf23cecdd",
         )
     session.close()
@@ -669,7 +676,11 @@ AACT
         tmp_dir,
         {},
         {},
-        [],
+        [
+            "5584c7029328dc48d33f95f0a78f7e57",
+            "689d3fd6881db36b5e08329cf23cecdd",
+            "78975d5144a1cd12e98898d573cf6536",
+        ],
         "5584c7029328dc48d33f95f0a78f7e57",
     )
     with pytest.raises(
@@ -683,7 +694,11 @@ AACT
             tmp_dir,
             {},
             {},
-            [],
+            [
+                "5584c7029328dc48d33f95f0a78f7e57",
+                "689d3fd6881db36b5e08329cf23cecdd",
+                "78975d5144a1cd12e98898d573cf6536",
+            ],
             "689d3fd6881db36b5e08329cf23cecdd",
         )
     session.close()

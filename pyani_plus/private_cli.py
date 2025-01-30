@@ -1281,12 +1281,16 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     fasta_dir: Path,  # noqa: ARG001
     hash_to_filename: dict[str, str],  # noqa: ARG001
     filename_to_hash: dict[str, str],  # noqa: ARG001
-    query_hashes: list[str],  # noqa: ARG001
+    query_hashes: list[str],
     subject_hash: str,
     *,
     quiet: bool = False,
 ) -> int:
-    """Compute and log column of comparisons from given MSA to database."""
+    """Compute and log column of comparisons from given MSA to database.
+
+    Will only look at query in query_hashes vs subject_hash, but will also
+    record reciprocal comparison as this method is symmetric.
+    """
     gap = "-"  # could be configurable, but why?
     uname = platform.uname()
     uname_system = uname.system
@@ -1410,8 +1414,19 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
                         "uname_machine": uname_machine,
                     }
                 )
+            elif query_hash not in query_hashes:
+                # Not asked to compute this pairng, already in the DB
+                pass
             else:
                 # Full calculation required
+                if len(query_seq) != len(subject_seq):
+                    msg = (
+                        "ERROR: Bad external-alignment, different lengths"
+                        f" {len(query_seq)} and {len(subject_seq)}"
+                        f" from {query_title.split(None, 1)[0]}"
+                        f" and {subject_title.split(None, 1)[0]}\n"
+                    )
+                    sys.exit(msg)
                 query_length = (
                     session.query(db_orm.Genome)
                     .where(db_orm.Genome.genome_hash == query_hash)

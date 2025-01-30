@@ -34,10 +34,8 @@ from rich.progress import Progress
 from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm
 
 GREY = (0.7, 0.7, 0.7)
-BLUE = (0.0, 0.0, 1.0)
 DULL_BLUE = (0.137, 0.412, 0.737)
 WHITE = (1.0, 1.0, 1.0)
-RED = (1, 0, 0.0, 0.0)
 DULL_RED = (0.659, 0.216, 0.231)
 
 # Custom Matplotlib colourmaps
@@ -72,9 +70,9 @@ colormaps.register(
     LinearSegmentedColormap.from_list(
         "BuRd",  # blue to red
         (
-            (0.0, BLUE),
+            (0.0, DULL_BLUE),
             (0.5, WHITE),
-            (1.0, RED),
+            (1.0, DULL_BLUE),
         ),
     )
 )

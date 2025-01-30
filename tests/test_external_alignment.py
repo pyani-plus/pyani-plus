@@ -233,7 +233,7 @@ def test_resume(
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
-    """Resume importing an external alignment."""
+    """Resume importing an external alignment (from nothing)."""
     tmp_db = Path(tmp_path) / "stems.db"
     assert not tmp_db.is_file()
 
@@ -278,6 +278,69 @@ AACC-GG-TTT
         '"index":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
         '"data":[[1.0,0.9,0.9],[0.9,1.0,0.9],[0.9,0.9,1.0]]}'
     )
+
+
+def test_resume_partial(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Resume importing an external alignment (from nothing)."""
+    tmp_db = Path(tmp_path) / "stems.db"
+    assert not tmp_db.is_file()
+
+    tmp_alignment = Path(tmp_path) / "stems.fasta"
+    with tmp_alignment.open("w") as handle:
+        handle.write("""\
+>OP073605 mock 10bp fragment
+AACC-GGTTTT
+>MGV-GENOME-0266457 mock 10bp fragment
+AACC-GGATTT
+>MGV-GENOME-0264574 mock 9bp fragment
+AACC-GG-TTT
+    """)
+
+    md5 = file_md5sum(tmp_alignment)
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus external-alignment ...",
+        status="Pending",
+        name="Testing resume",
+        method="external-alignment",
+        program="",
+        version="",
+        extra=f"md5={md5};label=stem;alignment={tmp_alignment}",
+        create_db=True,
+    )
+    private_cli.log_comparison(
+        database=tmp_db,
+        config_id=1,
+        query_fasta=input_genomes_tiny / "OP073605.fasta",
+        subject_fasta=input_genomes_tiny / "OP073605.fasta",
+        identity=1.0,
+        aln_length=10,
+        sim_errors=0,
+        cov_query=10 / 57793,
+        cov_subject=10 / 57793,
+    )  # values as per test_simple_mock_alignment_stem
+
+    public_cli.resume(tmp_db)
+    output = capsys.readouterr().out
+    assert (
+        "Database already has 1 of 3²=9 external-alignment comparisons, 8 needed"
+        in output
+    ), output
+
+    session = db_orm.connect_to_db(tmp_db)
+    assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
+    run = db_orm.load_run(session, 1, check_complete=True)
+    assert run.df_identity == (
+        '{"columns":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
+        '"index":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
+        '"data":[[1.0,0.9,0.9],[0.9,1.0,0.9],[0.9,0.9,1.0]]}'
+    )  # values as per test_simple_mock_alignment_stem
 
 
 def test_bad_resume(

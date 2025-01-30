@@ -1394,7 +1394,9 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
         handle.seek(0)
         for query_title, query_seq in SimpleFastaParser(handle):
             query_hash = mapping(query_title.split(None, 1)[0])
-            if query_hash < subject_hash:
+            if query_hash < subject_hash or query_hash not in query_hashes:
+                # Exploiting symmetry to avoid double computation,
+                # or not asked to compute this pairing (as already in the DB)
                 continue
             if query_hash == subject_hash:
                 # Expect 100% identity but need to calculate coverage
@@ -1414,9 +1416,6 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
                         "uname_machine": uname_machine,
                     }
                 )
-            elif query_hash not in query_hashes:
-                # Not asked to compute this pairng, already in the DB
-                pass
             else:
                 # Full calculation required
                 if len(query_seq) != len(subject_seq):

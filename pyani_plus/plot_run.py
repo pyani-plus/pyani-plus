@@ -144,8 +144,8 @@ def plot_heatmaps(
                 warnings.filterwarnings(
                     "ignore",
                     message=(
-                        "scipy.cluster: The symmetric non-negative hollow observation"
-                        " matrix looks suspiciously like an uncondensed distance matrix"
+                        "The symmetric non-negative hollow observation matrix"
+                        " looks suspiciously like an uncondensed distance matrix"
                     ),
                 )
                 warnings.filterwarnings(

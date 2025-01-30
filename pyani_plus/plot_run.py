@@ -29,8 +29,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib import colormaps
 from matplotlib.colors import LinearSegmentedColormap
+from rich.progress import Progress
 
-from pyani_plus import db_orm
+from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm
 
 GREY = (0.7, 0.7, 0.7)
 BLUE = (0.0, 0.0, 1.0)
@@ -110,68 +111,72 @@ def plot_heatmaps(
         sns.set_context("notebook", font_scale=scale)
 
     heatmaps_done = 0
-    for matrix, name, color_scheme in (
-        (run.identities, "identity", "spbnd_BuRd"),
-        (run.cov_query, "query_cov", "BuRd"),
-        (run.hadamard, "hadamard", "hadamard_BuRd"),
-    ):
-        if matrix is None:
-            # This is mainly for mypy to assert the matrix is not None
-            msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
-            sys.exit(msg)  # pragma: no cover
+    with Progress(*PROGRESS_BAR_COLUMNS) as progress:
+        # Trailing space to match alignment of distributions progress bar:
+        task = progress.add_task("Plotting heatmaps...     ", total=3 * len(formats))
+        for matrix, name, color_scheme in (
+            (run.identities, "identity", "spbnd_BuRd"),
+            (run.cov_query, "query_cov", "BuRd"),
+            (run.hadamard, "hadamard", "hadamard_BuRd"),
+        ):
+            if matrix is None:
+                # This is mainly for mypy to assert the matrix is not None
+                msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
+                sys.exit(msg)  # pragma: no cover
 
-        nulls = int(matrix.isnull().sum().sum())
-        n = len(matrix)
-        if nulls:
-            msg = (
-                f"WARNING: Cannot plot {name} as matrix contains {nulls} nulls"
-                f" (out of {n}²={n**2} {method} comparisons)\n"
-            )
-            sys.stderr.write(msg)
-            continue
+            nulls = int(matrix.isnull().sum().sum())
+            n = len(matrix)
+            if nulls:
+                msg = (
+                    f"WARNING: Cannot plot {name} as matrix contains {nulls} nulls"
+                    f" (out of {n}²={n**2} {method} comparisons)\n"
+                )
+                sys.stderr.write(msg)
+                continue
 
-        try:
-            matrix = run.relabelled_matrix(matrix, label)  # noqa: PLW2901
-        except ValueError as err:
-            msg = f"ERROR: {err}"
-            sys.exit(msg)
+            try:
+                matrix = run.relabelled_matrix(matrix, label)  # noqa: PLW2901
+            except ValueError as err:
+                msg = f"ERROR: {err}"
+                sys.exit(msg)
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore",
-                message=(
-                    "scipy.cluster: The symmetric non-negative hollow observation"
-                    " matrix looks suspiciously like an uncondensed distance matrix"
-                ),
-            )
-            warnings.filterwarnings(
-                "ignore",
-                message=(
-                    "Clustering large matrix with scipy. Installing"
-                    " `fastcluster` may give better performance."
-                ),
-            )
-            figure = sns.clustermap(
-                matrix,
-                cmap=color_scheme,
-                vmin=0,
-                vmax=1,
-                figsize=(figsize, figsize),
-                linewidths=0.25,
-            )
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message=(
+                        "scipy.cluster: The symmetric non-negative hollow observation"
+                        " matrix looks suspiciously like an uncondensed distance matrix"
+                    ),
+                )
+                warnings.filterwarnings(
+                    "ignore",
+                    message=(
+                        "Clustering large matrix with scipy. Installing"
+                        " `fastcluster` may give better performance."
+                    ),
+                )
+                figure = sns.clustermap(
+                    matrix,
+                    cmap=color_scheme,
+                    vmin=0,
+                    vmax=1,
+                    figsize=(figsize, figsize),
+                    linewidths=0.25,
+                )
 
-        for ext in formats:
-            filename = outdir / f"{method}_{name}_heatmap.{ext}"
-            if ext == "tsv":
-                # Apply the clustering reordering to match the figure:
-                matrix = matrix.iloc[  # noqa: PLW2901
-                    figure.dendrogram_row.reordered_ind,
-                    figure.dendrogram_row.reordered_ind,
-                ]
-                matrix.to_csv(filename, sep="\t")
-            else:
-                figure.savefig(filename)
-        heatmaps_done += 1
+            for ext in formats:
+                filename = outdir / f"{method}_{name}_heatmap.{ext}"
+                if ext == "tsv":
+                    # Apply the clustering reordering to match the figure:
+                    matrix = matrix.iloc[  # noqa: PLW2901
+                        figure.dendrogram_row.reordered_ind,
+                        figure.dendrogram_row.reordered_ind,
+                    ]
+                    matrix.to_csv(filename, sep="\t")
+                else:
+                    figure.savefig(filename)
+                progress.advance(task)
+            heatmaps_done += 1
     return heatmaps_done
 
 
@@ -186,70 +191,73 @@ def plot_distributions(
     """
     method = run.configuration.method
     plots_done = 0
-    for matrix, name, color_scheme in (
-        (run.identities, "identity", "spbnd_BuRd"),
-        (run.cov_query, "query_cov", "BuRd"),
-        (run.hadamard, "hadamard", "hadamard_BuRd"),
-    ):
-        del color_scheme  # should use this on the left plot?
+    with Progress(*PROGRESS_BAR_COLUMNS) as progress:
+        task = progress.add_task("Plotting distributions...", total=3 * len(formats))
+        for matrix, name, color_scheme in (
+            (run.identities, "identity", "spbnd_BuRd"),
+            (run.cov_query, "query_cov", "BuRd"),
+            (run.hadamard, "hadamard", "hadamard_BuRd"),
+        ):
+            del color_scheme  # should use this on the left plot?
 
-        if matrix is None:
-            # This is mainly for mypy to assert the matrix is not None
-            msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
-            sys.exit(msg)  # pragma: no cover
+            if matrix is None:
+                # This is mainly for mypy to assert the matrix is not None
+                msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
+                sys.exit(msg)  # pragma: no cover
 
-        nulls = int(matrix.isnull().sum().sum())
-        n = len(matrix)
-        if nulls == n**2:
-            msg = f"WARNING: Cannot plot {name} as all NA\n"
-            sys.stderr.write(msg)
-            continue
+            nulls = int(matrix.isnull().sum().sum())
+            n = len(matrix)
+            if nulls == n**2:
+                msg = f"WARNING: Cannot plot {name} as all NA\n"
+                sys.stderr.write(msg)
+                continue
 
-        values = matrix.values.flatten()
+            values = matrix.values.flatten()
 
-        fill = "#A6C8E0"
-        rug = "#2678B2"
-        figure, axes = plt.subplots(1, 2, figsize=(15, 5))
-        figure.suptitle(f"{name} distribution")
-        sns.histplot(
-            values,
-            ax=axes[0],
-            stat="count",
-            element="step",
-            color=fill,
-            edgecolor=fill,
-        )
-        axes[0].set_ylim(ymin=0)
-        sns.kdeplot(values, ax=axes[1], warn_singular=False)
+            fill = "#A6C8E0"
+            rug = "#2678B2"
+            figure, axes = plt.subplots(1, 2, figsize=(15, 5))
+            figure.suptitle(f"{name} distribution")
+            sns.histplot(
+                values,
+                ax=axes[0],
+                stat="count",
+                element="step",
+                color=fill,
+                edgecolor=fill,
+            )
+            axes[0].set_ylim(ymin=0)
+            sns.kdeplot(values, ax=axes[1], warn_singular=False)
 
-        # Default rug height=.025 but that can obscure low values.
-        # Negative means below the axis instead, needs clip_on=False
-        # Adding alpha to try to reveal the density.
-        sns.rugplot(
-            values,
-            ax=axes[1],
-            color=rug,
-            height=-0.025,
-            clip_on=False,
-            alpha=0.1,
-        )
+            # Default rug height=.025 but that can obscure low values.
+            # Negative means below the axis instead, needs clip_on=False
+            # Adding alpha to try to reveal the density.
+            sns.rugplot(
+                values,
+                ax=axes[1],
+                color=rug,
+                height=-0.025,
+                clip_on=False,
+                alpha=0.1,
+            )
 
-        # Modify axes after data is plotted
-        for _ in axes:
-            if name in ["hadamard", "coverage"]:
-                _.set_xlim(0, 1.01)
-            elif name == "identity":
-                # 80% default matches the heatmap grey/blue default
-                _.set_xlim(0.80, 1.01)
+            # Modify axes after data is plotted
+            for _ in axes:
+                if name in ["hadamard", "coverage"]:
+                    _.set_xlim(0, 1.01)
+                elif name == "identity":
+                    # 80% default matches the heatmap grey/blue default
+                    _.set_xlim(0.80, 1.01)
 
-        # Tidy figure
-        figure.tight_layout(rect=[0, 0.03, 1, 0.95])
+            # Tidy figure
+            figure.tight_layout(rect=[0, 0.03, 1, 0.95])
 
-        for ext in formats:
-            filename = outdir / f"{method}_{name}_dist.{ext}"
-            if ext == "tsv":
-                pass
-            else:
-                figure.savefig(filename)
-        plots_done += 1
+            for ext in formats:
+                filename = outdir / f"{method}_{name}_dist.{ext}"
+                if ext == "tsv":
+                    pass
+                else:
+                    figure.savefig(filename)
+                progress.advance(task)
+            plots_done += 1
     return plots_done

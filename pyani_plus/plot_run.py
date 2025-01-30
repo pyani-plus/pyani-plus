@@ -132,6 +132,7 @@ def plot_heatmaps(
                     f" (out of {n}²={n**2} {method} comparisons)\n"
                 )
                 sys.stderr.write(msg)
+                progress.advance(task)
                 continue
 
             try:
@@ -210,6 +211,7 @@ def plot_distributions(
             if nulls == n**2:
                 msg = f"WARNING: Cannot plot {name} as all NA\n"
                 sys.stderr.write(msg)
+                progress.advance(task)
                 continue
 
             values = matrix.values.flatten()

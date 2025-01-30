@@ -111,10 +111,11 @@ def plot_heatmaps(
     heatmaps_done = 0
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         # Trailing space to match alignment of distributions progress bar:
-        task = progress.add_task("Plotting heatmaps...     ", total=3 * len(formats))
+        task = progress.add_task("Plotting heatmaps...     ", total=4 * len(formats))
         for matrix, name, color_scheme in (
             (run.identities, "identity", "spbnd_BuRd"),
             (run.cov_query, "query_cov", "BuRd"),
+            (run.tani, "tANI", "BuRd"),
             (run.hadamard, "hadamard", "hadamard_BuRd"),
         ):
             if matrix is None:
@@ -191,10 +192,11 @@ def plot_distributions(
     method = run.configuration.method
     plots_done = 0
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
-        task = progress.add_task("Plotting distributions...", total=3 * len(formats))
+        task = progress.add_task("Plotting distributions...", total=4 * len(formats))
         for matrix, name, color_scheme in (
             (run.identities, "identity", "spbnd_BuRd"),
             (run.cov_query, "query_cov", "BuRd"),
+            (run.tani, "tANI", "BuRd"),
             (run.hadamard, "hadamard", "hadamard_BuRd"),
         ):
             del color_scheme  # should use this on the left plot?

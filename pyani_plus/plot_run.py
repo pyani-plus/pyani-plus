@@ -115,7 +115,7 @@ def plot_heatmaps(
         for matrix, name, color_scheme in (
             (run.identities, "identity", "spbnd_BuRd"),
             (run.cov_query, "query_cov", "BuRd"),
-            (run.tani, "tANI", "BuRd"),
+            (run.tani, "tANI", "viridis_r"),
             (run.hadamard, "hadamard", "hadamard_BuRd"),
         ):
             if matrix is None:
@@ -196,7 +196,7 @@ def plot_distributions(
         for matrix, name, color_scheme in (
             (run.identities, "identity", "spbnd_BuRd"),
             (run.cov_query, "query_cov", "BuRd"),
-            (run.tani, "tANI", "BuRd"),
+            (run.tani, "tANI", "viridis_r"),
             (run.hadamard, "hadamard", "hadamard_BuRd"),
         ):
             del color_scheme  # should use this on the left plot?
@@ -247,6 +247,8 @@ def plot_distributions(
             for _ in axes:
                 if name in ["hadamard", "coverage"]:
                     _.set_xlim(0, 1.01)
+                if name in ["tANI"]:
+                    _.set_xlim(0, 1.01)  # 5?
                 elif name == "identity":
                     # 80% default matches the heatmap grey/blue default
                     _.set_xlim(0.80, 1.01)

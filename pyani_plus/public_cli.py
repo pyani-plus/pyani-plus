@@ -918,19 +918,8 @@ def plot_run(
 
     from pyani_plus import plot_run  # lazy import
 
-    dists_done, heatmaps_done = plot_run.plot_single_run(run, outdir, label)
-    if not dists_done and not heatmaps_done:
-        msg = "ERROR: Unable to generate any plots (check for nulls)"
-        sys.exit(msg)
-    print(
-        f"Wrote {dists_done} distributions to {outdir}/{run.configuration.method}_*_dist.*"
-    )
-    if not heatmaps_done:
-        msg = "ERROR: Unable to plot any heatmaps (check for nulls)"
-        sys.exit(msg)
-    print(
-        f"Wrote {heatmaps_done} heatmaps to {outdir}/{run.configuration.method}_*_heatmap.*"
-    )
+    plot_run.plot_single_run(run, outdir, label)
+    print(f"Wrote images to {outdir}/{run.configuration.method}_*.*")
     session.close()
     return 0
 

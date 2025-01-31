@@ -87,11 +87,8 @@ def plot_heatmap(  # noqa: PLR0913
     method: str,
     color_scheme: str,
     formats: tuple[str, ...] = ("tsv", "png", "jpg", "svg", "pdf"),
-) -> int:
-    """Plot a heatmap for the given matrix.
-
-    Returns the number of heatmaps drawn (depends on nulls).
-    """
+) -> None:
+    """Plot heatmaps for the given matrix."""
     # Can't use square=True with seaborn clustermap, and when clustering
     # asymmetric matrices can end up with different max-length labels
     # for rows vs columns, which distorts layout (non-square heatmap).
@@ -105,18 +102,6 @@ def plot_heatmap(  # noqa: PLR0913
     if figsize == maxfigsize:
         scale = maxfigsize / calcfigsize
         sns.set_context("notebook", font_scale=scale)
-
-    heatmaps_done = 0
-
-    nulls = int(matrix.isnull().sum().sum())  # noqa: PD003
-    n = len(matrix)
-    if nulls:
-        msg = (
-            f"WARNING: Cannot plot {name} as matrix contains {nulls} nulls"
-            f" (out of {n}²={n**2} comparisons)\n"
-        )
-        sys.stderr.write(msg)
-        return 0
 
     with warnings.catch_warnings():
         warnings.filterwarnings(
@@ -153,8 +138,6 @@ def plot_heatmap(  # noqa: PLR0913
             matrix.to_csv(filename, sep="\t")
         else:
             figure.savefig(filename)
-        heatmaps_done += 1
-    return heatmaps_done
 
 
 def plot_distribution(
@@ -163,19 +146,11 @@ def plot_distribution(
     name: str,
     method: str,
     formats: tuple[str, ...] = ("tsv", "png", "jpg", "svg", "pdf"),
-) -> int:
+) -> None:
     """Plot score distribution and headmap for give matrix.
 
     Returns the number of plots (should equal number of formats, or zero).
     """
-    plots_done = 0
-    nulls = int(matrix.isnull().sum().sum())  # noqa: PD003
-    n = len(matrix)
-    if nulls == n**2:
-        msg = f"WARNING: Cannot plot {name} as all NA\n"
-        sys.stderr.write(msg)
-        return 0
-
     values = matrix.values.flatten()  # noqa: PD011
 
     fill = "#A6C8E0"
@@ -224,16 +199,14 @@ def plot_distribution(
             pass
         else:
             figure.savefig(filename)
-        plots_done += 1
-    return plots_done
 
 
-def plot_single_run(
+def plot_single_run(  # noqa: C901
     run: db_orm.Run,
     outdir: Path,
     label: str,
     formats: tuple[str, ...] = ("tsv", "png", "jpg", "svg", "pdf"),
-) -> tuple[int, int]:
+) -> None:
     """Plot distributions and heatmaps for given run.
 
     Draws identity, coverage, hadamard, and tRNA plots of (score distributions
@@ -241,19 +214,15 @@ def plot_single_run(
 
     Shows a progress bar in terms of number of scores and plot-types (i.e.
     4 scores times 2 plots giving 8 steps).
-
-    Returns the number of distributions and heatmaps drawn (skips any which are
-    all nulls).
     """
     method = run.configuration.method
-    dists_done = heatmaps_done = 0
-
     scores_and_color_schemes = [
         ("identity", "spbnd_BuRd"),
         ("query_cov", "BuRd"),
         ("hadamard", "hadamard_BuRd"),
         ("tANI", "viridis_r"),  # must follow hadamard!
     ]
+    did_any_heatmaps = False
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         task = progress.add_task("Plotting", total=len(scores_and_color_schemes) * 2)
         for name, color_scheme in scores_and_color_schemes:
@@ -290,7 +259,7 @@ def plot_single_run(
                 progress.advance(task)  # skipping heatmap
                 continue
 
-            dists_done += plot_distribution(matrix, outdir, name, method, formats)
+            plot_distribution(matrix, outdir, name, method, formats)
             progress.advance(task)
 
             if nulls:
@@ -300,9 +269,9 @@ def plot_single_run(
                 )
                 sys.stderr.write(msg)
             else:
-                heatmaps_done += plot_heatmap(
-                    matrix, outdir, name, method, color_scheme, formats
-                )
+                plot_heatmap(matrix, outdir, name, method, color_scheme, formats)
+                did_any_heatmaps = True
             progress.advance(task)
-
-    return dists_done, heatmaps_done
+    if not did_any_heatmaps:
+        msg = "ERROR: Unable to plot any heatmaps (check for nulls)"
+        sys.exit(msg)

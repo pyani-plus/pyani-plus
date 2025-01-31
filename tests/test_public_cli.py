@@ -1487,7 +1487,7 @@ def test_plot_skip_nulls(
     assert "WARNING: Cannot plot query_cov as all NA\n" in stderr, stderr
     assert "Cannot plot hadamard as all NA\n" in stderr, stderr
     assert "Cannot plot tANI as all NA\n" in stderr, stderr
-    assert "Wrote 5 heatmaps" in stdout
+    assert f"Wrote images to {plot_out}" in stdout
     assert sorted(_.name for _ in plot_out.glob("*_heatmap.*")) == [
         "guessing_identity_heatmap.jpg",
         "guessing_identity_heatmap.pdf",
@@ -1567,5 +1567,9 @@ def test_plot_bad_nulls(
     ), stderr
     assert (
         "WARNING: Cannot plot hadamard as matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
+        in stderr
+    ), stderr
+    assert (
+        "WARNING: Cannot plot tANI as matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
         in stderr
     ), stderr

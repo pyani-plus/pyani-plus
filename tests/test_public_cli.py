@@ -271,6 +271,7 @@ def test_partial_run(  # noqa: PLR0915
             "Query-Cov",
             "Subject-Cov",
             "Hadamard",
+            "tANI",
             "Align-Len",
             "Sim-Errors",
         ]

@@ -30,6 +30,7 @@ used), and reporting on a finished analysis (exporting tables and plots).
 import sys
 import tempfile
 from contextlib import nullcontext
+from math import log
 from pathlib import Path
 from typing import Annotated
 
@@ -839,7 +840,7 @@ def export_run(  # noqa: C901
     with (outdir / long_filename).open("w") as handle:
         # Should the column names match our internal naming?
         handle.write(
-            "#Query\tSubject\tIdentity\tQuery-Cov\tSubject-Cov\tHadamard\tAlign-Len\tSim-Errors\n"
+            "#Query\tSubject\tIdentity\tQuery-Cov\tSubject-Cov\tHadamard\ttANI\tAlign-Len\tSim-Errors\n"
         )
         for _ in run.comparisons():
             # Below for the matrix output we use the cached DataFrame for Hadamard.
@@ -849,12 +850,14 @@ def export_run(  # noqa: C901
                 if _.identity is None or _.cov_query is None
                 else _.identity * _.cov_query
             )
+            tani = None if hadamard is None else -log(hadamard)
             handle.write(
                 f"{mapping(_.query_hash)}\t{mapping(_.subject_hash)}"
                 f"\t{float_or_na(_.identity)}"
                 f"\t{float_or_na(_.cov_query)}"
                 f"\t{float_or_na(_.cov_subject)}"
                 f"\t{float_or_na(hadamard)}"
+                f"\t{float_or_na(tani)}"
                 f"\t{float_or_na(_.aln_length)}"
                 f"\t{float_or_na(_.sim_errors)}\n"
             )
@@ -870,6 +873,7 @@ def export_run(  # noqa: C901
         (run.sim_errors, f"{method}_sim_errors.tsv"),
         (run.cov_query, f"{method}_query_cov.tsv"),
         (run.hadamard, f"{method}_hadamard.tsv"),
+        (run.tani, f"{method}_tANI.tsv"),
     ):
         if matrix is None:
             # This is mainly for mypy to assert the matrix is not None

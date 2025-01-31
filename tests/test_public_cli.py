@@ -809,7 +809,7 @@ def test_sourmash(
     public_cli.plot_run(database=tmp_db, outdir=plot_out, run_id=2)
     assert sorted(_.name for _ in plot_out.glob("*")) == sorted(
         f"sourmash_{name}_{kind}.{ext}"
-        for name in ("identity", "query_cov", "hadamard")
+        for name in ("identity", "query_cov", "hadamard", "tANI")
         for kind in ("heatmap", "dist")
         for ext in ("jpg", "pdf", "png", "svg", "tsv")
         if not (kind == "dist" and ext == "tsv")
@@ -1484,15 +1484,10 @@ def test_plot_skip_nulls(
     public_cli.plot_run(database=tmp_db, outdir=plot_out)
 
     stdout, stderr = capsys.readouterr()
-    assert (
-        "WARNING: Cannot plot query_cov as matrix contains 9 nulls (out of 3²=9 guessing comparisons)\n"
-        in stderr
-    ), stderr
-    assert (
-        "WARNING: Cannot plot hadamard as matrix contains 9 nulls (out of 3²=9 guessing comparisons)\n"
-        in stderr
-    ), stderr
-    assert "Wrote 1 heatmaps" in stdout
+    assert "WARNING: Cannot plot query_cov as all NA\n" in stderr, stderr
+    assert "Cannot plot hadamard as all NA\n" in stderr, stderr
+    assert "Cannot plot tANI as all NA\n" in stderr, stderr
+    assert "Wrote 5 heatmaps" in stdout
     assert sorted(_.name for _ in plot_out.glob("*_heatmap.*")) == [
         "guessing_identity_heatmap.jpg",
         "guessing_identity_heatmap.pdf",

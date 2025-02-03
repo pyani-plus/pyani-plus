@@ -54,20 +54,6 @@ colormaps.register(
     )
 )
 
-# Hadamard is identity * query-coverage, so lower thresholds
-colormaps.register(
-    LinearSegmentedColormap.from_list(
-        "hadamard_BuRd",  # hadamard - blue to red
-        (
-            (0.00, GREY),  # 0% grey
-            (0.25, GREY),  # 25% grey (0.5 * 0.5 = 0.25)
-            (0.25, DULL_BLUE),  # 25% blue
-            (0.64, WHITE),  # 64% white (0.8 * 0.8 = 0.64)
-            (1.00, DULL_RED),  # 100% red
-        ),
-    )
-)
-
 colormaps.register(
     LinearSegmentedColormap.from_list(
         "BuRd",  # blue to red
@@ -219,7 +205,7 @@ def plot_single_run(  # noqa: C901
     scores_and_color_schemes = [
         ("identity", "spbnd_BuRd"),
         ("query_cov", "BuRd"),
-        ("hadamard", "hadamard_BuRd"),
+        ("hadamard", "viridis"),
         ("tANI", "viridis_r"),  # must follow hadamard!
     ]
     did_any_heatmaps = False

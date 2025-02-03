@@ -185,7 +185,7 @@ def plot_distribution(
         if name in ["hadamard", "coverage"]:
             _.set_xlim(0, 1.01)
         if name in ["tANI"]:
-            _.set_xlim(0, 1.01)  # 5?
+            _.set_xlim(0, 5.01)
         elif name == "identity":
             # 80% default matches the heatmap grey/blue default
             _.set_xlim(0.80, 1.01)

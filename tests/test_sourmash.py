@@ -35,36 +35,6 @@ from pyani_plus import db_orm, private_cli, tools
 from pyani_plus.methods import sourmash
 
 
-def test_parser_with_self_vs_self(tmp_path: str) -> None:
-    """Check self-vs-self is one in sourmash compare parser."""
-    mock_csv = Path(tmp_path) / "faked.csv"
-    with mock_csv.open("w") as handle:
-        handle.write("A.fasta,B.fasta\n")
-        handle.write("1.0,0.98\n")
-        handle.write("0.99,1.0\n")
-    mock_dict = {"A.fasta": "AAAAAA", "B.fasta": "BBBBBB"}
-    parser = sourmash.parse_sourmash_compare_csv(mock_csv, mock_dict)
-    assert next(parser) == ("AAAAAA", "AAAAAA", 1.0, 1.0)
-    assert next(parser) == ("BBBBBB", "AAAAAA", 0.98, 0.99)
-    assert next(parser) == ("AAAAAA", "BBBBBB", 0.99, 0.99)
-    assert next(parser) == ("BBBBBB", "BBBBBB", 1.0, 1.0)
-
-
-def test_parser_with_bad_self_vs_self(tmp_path: str) -> None:
-    """Check self-vs-self is one in sourmash compare parser."""
-    mock_csv = Path(tmp_path) / "faked.csv"
-    with mock_csv.open("w") as handle:
-        handle.write("A.fasta,B.fasta\n")
-        handle.write("1.0,0.99\n")
-        handle.write("0.99,NaN\n")
-    mock_dict = {"A.fasta": "AAAAAA", "B.fasta": "BBBBBB"}
-    parser = sourmash.parse_sourmash_compare_csv(mock_csv, mock_dict)
-    with pytest.raises(
-        ValueError, match="Expected sourmash BBBBBB vs self to be one, not 'NaN'"
-    ):
-        next(parser)
-
-
 def test_parser_with_bad_branchwater(tmp_path: str) -> None:
     """Check self-vs-self is one in sourmash compare parser."""
     mock_csv = Path(tmp_path) / "faked.csv"
@@ -115,7 +85,7 @@ def test_parser_with_bad_header(tmp_path: str) -> None:
     parser = sourmash.parse_sourmash_manysearch_csv(mock_csv, {}, set())
     with pytest.raises(
         SystemExit,
-        match="ERROR - Missing expected fields in sourmash manysearch header: "
+        match="ERROR - Missing expected fields in sourmash manysearch header, found: "
         "'max_containment_ani,query_name,match_name,subject_containment_ani'",
     ):
         next(parser)
@@ -128,13 +98,6 @@ def test_missing_db(tmp_path: str) -> None:
 
     with pytest.raises(SystemExit, match="does not exist"):
         private_cli.log_sourmash(
-            database=tmp_db,
-            run_id=1,
-            compare=Path("/dev/null"),  # won't get as far as opening this
-        )
-
-    with pytest.raises(SystemExit, match="does not exist"):
-        private_cli.log_branchwater(
             database=tmp_db,
             run_id=1,
             manysearch=Path("/dev/null"),  # won't get as far as opening this
@@ -178,66 +141,21 @@ def test_bad_query_or_subject(
     assert output.endswith("Run identifier 1\n")
 
     with pytest.raises(
-        SystemExit,
+        ValueError,
         match=(
-            "CSV file .*/sourmash.csv contained reference to '.*' which is not in the run"
+            "Sourmash manysearch CSV file manysearch.csv contained"
+            " unknown query_name 'MGV-GENOME-0264574.fas' and/or"
+            " unknown match_name 'MGV-GENOME-0264574.fas'"
         ),
     ):
         private_cli.log_sourmash(
             database=tmp_db,
             run_id=1,
-            compare=input_genomes_tiny / "intermediates/sourmash/sourmash.csv",
+            manysearch=input_genomes_tiny / "intermediates/sourmash/manysearch.csv",
         )
 
 
-def test_wrong_size(
-    capsys: pytest.CaptureFixture[str],
-    tmp_path: str,
-    input_genomes_tiny: Path,
-) -> None:
-    """Mismatch where CSV matrix is wrong size.
-
-    Defining a run with 2 files, but then parsing compare output with 3 FASTA.
-    """
-    tmp_db = Path(tmp_path) / "two.sqlite"
-    assert not tmp_db.is_file()
-
-    tmp_input = Path(tmp_path) / "input"
-    tmp_input.mkdir()
-    for filename in input_genomes_tiny.glob("M*.f*"):
-        alias = tmp_input / filename.name
-        alias.symlink_to(filename)
-
-    tool = tools.get_sourmash()
-
-    private_cli.log_run(
-        fasta=tmp_input,
-        database=tmp_db,
-        cmdline="pyani-plus sourmash ...",
-        status="Testing",
-        name="Testing log_sourmash",
-        method="sourmash",
-        program=tool.exe_path.name,
-        version=tool.version,
-        kmersize=sourmash.KMER_SIZE,
-        extra="scaled=" + str(sourmash.SCALED),
-        create_db=True,
-    )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
-
-    with pytest.raises(
-        SystemExit,
-        match=("Expected sourmash compare CSV to have 2 columns, not 3"),
-    ):
-        private_cli.log_sourmash(
-            database=tmp_db,
-            run_id=1,
-            compare=input_genomes_tiny / "intermediates/sourmash/sourmash.csv",
-        )
-
-
-def test_logging_wrong_version_sourmash(
+def test_logging_wrong_version(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
@@ -267,42 +185,6 @@ def test_logging_wrong_version_sourmash(
         match="ERROR: Run configuration was sourmash 42 but we have sourmash 4.",
     ):
         private_cli.log_sourmash(
-            database=tmp_db,
-            run_id=1,
-            compare=Path("/dev/null"),  # won't get as far as opening this
-        )
-
-
-def test_logging_wrong_version_branchwater(
-    capsys: pytest.CaptureFixture[str],
-    tmp_path: str,
-    input_genomes_tiny: Path,
-) -> None:
-    """Check mismatched sourmash version fails."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
-    assert not tmp_db.is_file()
-
-    private_cli.log_run(
-        fasta=input_genomes_tiny,
-        database=tmp_db,
-        cmdline="pyani-plus branchwater ...",
-        status="Testing",
-        name="Testing log_branchwater",
-        method="branchwater",
-        program="sourmash",
-        version="42",
-        kmersize=sourmash.KMER_SIZE,
-        extra="scaled=" + str(sourmash.SCALED),
-        create_db=True,
-    )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
-
-    with pytest.raises(
-        SystemExit,
-        match="ERROR: Run configuration was sourmash 42 but we have sourmash 4.",
-    ):
-        private_cli.log_branchwater(
             database=tmp_db,
             run_id=1,
             manysearch=Path("/dev/null"),  # won't get as far as opening this
@@ -339,7 +221,7 @@ def test_logging_sourmash(
     private_cli.log_sourmash(
         database=tmp_db,
         run_id=1,
-        compare=input_genomes_tiny / "intermediates/sourmash/sourmash.csv",
+        manysearch=input_genomes_tiny / "intermediates/sourmash/manysearch.csv",
     )
 
     # Check the recorded comparison values
@@ -379,7 +261,8 @@ def test_logging_sourmash_bad_alignments(
     private_cli.log_sourmash(
         database=tmp_db,
         run_id=1,
-        compare=input_genomes_bad_alignments / "intermediates/sourmash/sourmash.csv",
+        manysearch=input_genomes_bad_alignments
+        / "intermediates/sourmash/manysearch.csv",
     )
 
     # Check the recorded comparison values

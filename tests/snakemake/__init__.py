@@ -120,9 +120,6 @@ def compare_db_matrices(
 
     md5_to_stem = {_.genome_hash: Path(_.fasta_filename).stem for _ in run.fasta_hashes}
 
-    if method == "branchwater":
-        method = "sourmash"  # branchwater should be just faster sourmash
-
     checked = False
     if (matrices_path / f"{method}_identity.tsv").is_file():
         compare_matrix(

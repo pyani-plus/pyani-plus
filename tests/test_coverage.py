@@ -168,20 +168,6 @@ def test_coverage(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
     )  # 25% and 75% rather than 30% and 70% expected via bp
 
     # Doesn't "work" with default scaling - nulls except for diagonal,
-    run = do_comparison(capsys, seq_dir, public_cli.cli_branchwater, scaled=50)
-    assert run.df_identity == (
-        "{"
-        f'"columns":{checksums},"index":{checksums},"data":'
-        "[[1.0,1.0,null],[1.0,1.0,1.0],[null,1.0,1.0]]}"
-    )  # all 100% except two null values
-    # get k-mer query-containment 96.2% and 98.8% where query-coverage was 30% and 70%
-    assert run.df_cov_query == (
-        "{"
-        f'"columns":{checksums},"index":{checksums},"data":'
-        "[[1.0,1.0,null],[0.9622440235,1.0,0.9884105907],[null,1.0,1.0]]}"
-    )
-
-    # Doesn't "work" with default scaling - nulls except for diagonal,
     run = do_comparison(capsys, seq_dir, public_cli.cli_sourmash, scaled=50)
     assert run.df_identity == (
         "{"

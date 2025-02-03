@@ -14,3 +14,4 @@ snakemake-executor-plugin-slurm
 rich
 sqlalchemy>=2.0
 typer>=0.12
+networkx>=3.4.2

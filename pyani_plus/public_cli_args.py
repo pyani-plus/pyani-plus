@@ -168,3 +168,12 @@ OPT_ARG_TYPE_LABEL = Annotated[
         help="How to label the genomes",
     ),
 ]
+OPT_ARG_TYPE_COV_MIN = Annotated[
+    float,
+    typer.Option(
+        help="minimum %coverage for an edge",
+        rich_help_panel="Method parameters",
+        min=0.0,
+        max=1.0,
+    ),
+]

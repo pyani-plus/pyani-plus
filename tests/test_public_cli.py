@@ -433,6 +433,11 @@ def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
         match="ERROR: Duplicate filename stems, consider using MD5 labelling.",
     ):
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir)
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Duplicate filename stems, consider using MD5 labelling.",
+    ):
+        public_cli.cli_classify(database=tmp_db, outdir=tmp_dir)
 
 
 def test_plot_run_failures(tmp_path: str) -> None:
@@ -1574,3 +1579,126 @@ def test_plot_bad_nulls(
         "WARNING: Cannot plot tANI as matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
         in stderr
     ), stderr
+
+
+def test_classify_failures(tmp_path: str) -> None:
+    """Check classify failures."""
+    tmp_dir = Path(tmp_path)
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Database /does/not/exist does not exist"
+    ):
+        public_cli.cli_classify(database=Path("/does/not/exist"), outdir=tmp_dir)
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Output directory /does/not/exist does not exist"
+    ):
+        public_cli.cli_classify(database=":memory:", outdir=Path("/does/not/exist/"))
+
+
+def test_classify_warnings(
+    tmp_path: str, input_genomes_tiny: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Check classify warnings."""
+    tmp_dir = Path(tmp_path)
+
+    # Record only one comparison (self-to-self)
+    tmp_db = tmp_dir / "classify_complete.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
+    config = db_orm.db_configuration(
+        session, "fastANI", "fastani", "1.2.3", create=True
+    )
+
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.fas"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+
+    genomes = list(fasta_to_hash.values())
+    for query_hash in genomes:
+        for subject_hash in genomes:
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query_hash,
+                subject_hash,
+                cov_query=1.0,
+                identity=1.0,
+                sim_errors=0,
+            )
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani guessing ...",
+        fasta_directory=input_genomes_tiny,
+        status="Complete",
+        name="Test classify when all data present",
+        fasta_to_hash=fasta_to_hash,
+    )
+
+    public_cli.cli_classify(database=tmp_db, outdir=tmp_dir)
+
+    output = capsys.readouterr().err
+    assert (
+        "WARNING: Run 1 has 1 comparison across 1 genome. Reporting single clique...\n"
+        in output
+    ), output
+    with (tmp_dir / "fastANI_classify.tsv").open() as handle:
+        assert handle.readline() == "members\tn_nodes\tmin_cov\tmin_identity\n"
+
+
+def test_classify(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
+    """Check working example of classify."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "classify_complete.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
+    config = db_orm.db_configuration(
+        session, "fastANI", "fastani", "1.2.3", create=True
+    )
+
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+
+    # Record all of the possible comparisons
+    genomes = list(fasta_to_hash.values())
+    cov_increment = 0.88
+    for query_hash in genomes:
+        for subject_hash in genomes:
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query_hash,
+                subject_hash,
+                1.0 if query_hash is subject_hash else 0.99,
+                12345,
+                cov_query=1.0 if query_hash is subject_hash else cov_increment,
+            )
+            # Increment cov_increment if the hashes are not the same
+            if query_hash is not subject_hash:
+                cov_increment += 0.01
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani guessing ...",
+        fasta_directory=input_genomes_tiny,
+        status="Complete",
+        name="Test classify when all data present",
+        fasta_to_hash=fasta_to_hash,
+    )
+
+    public_cli.cli_classify(database=tmp_db, outdir=tmp_dir, cov_min=0.9)
+
+    output = capsys.readouterr().out
+    assert f"Wrote classify output to {tmp_path}" in output, output
+    with (tmp_dir / "fastANI_classify.tsv").open() as handle:
+        assert handle.readline() == "members\tn_nodes\tmin_cov\tmin_identity\n"

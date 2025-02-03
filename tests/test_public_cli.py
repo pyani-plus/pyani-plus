@@ -812,23 +812,13 @@ def test_sourmash(
     # Should be able to plot run 1 with the spaces and emoji, but get warnings:
     # UserWarning: Glyph 129440 (\N{MICROBE}) missing from font(s) DejaVu Sans.
     public_cli.plot_run(database=tmp_db, outdir=plot_out, run_id=2)
-    assert sorted(_.name for _ in plot_out.glob("*")) == [
-        "sourmash_hadamard.jpg",
-        "sourmash_hadamard.pdf",
-        "sourmash_hadamard.png",
-        "sourmash_hadamard.svg",
-        "sourmash_hadamard.tsv",
-        "sourmash_identity.jpg",
-        "sourmash_identity.pdf",
-        "sourmash_identity.png",
-        "sourmash_identity.svg",
-        "sourmash_identity.tsv",
-        "sourmash_query_cov.jpg",
-        "sourmash_query_cov.pdf",
-        "sourmash_query_cov.png",
-        "sourmash_query_cov.svg",
-        "sourmash_query_cov.tsv",
-    ]
+    assert sorted(_.name for _ in plot_out.glob("*")) == sorted(
+        f"sourmash_{name}_{kind}.{ext}"
+        for name in ("identity", "query_cov", "hadamard")
+        for kind in ("heatmap", "dist")
+        for ext in ("jpg", "pdf", "png", "svg", "tsv")
+        if not (kind == "dist" and ext == "tsv")
+    )
 
 
 def test_branchwater(
@@ -1508,12 +1498,12 @@ def test_plot_skip_nulls(
         in stderr
     ), stderr
     assert "Wrote 1 heatmaps" in stdout
-    assert sorted(_.name for _ in plot_out.glob("*")) == [
-        "guessing_identity.jpg",
-        "guessing_identity.pdf",
-        "guessing_identity.png",
-        "guessing_identity.svg",
-        "guessing_identity.tsv",
+    assert sorted(_.name for _ in plot_out.glob("*_heatmap.*")) == [
+        "guessing_identity_heatmap.jpg",
+        "guessing_identity_heatmap.pdf",
+        "guessing_identity_heatmap.png",
+        "guessing_identity_heatmap.svg",
+        "guessing_identity_heatmap.tsv",
     ]
 
 

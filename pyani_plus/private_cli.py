@@ -1384,12 +1384,6 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
             raise ValueError(msg)
 
         db_entries = []
-        subject_length = (
-            session.query(db_orm.Genome)
-            .where(db_orm.Genome.genome_hash == subject_hash)
-            .one()
-            .length
-        )
 
         handle.seek(0)
         for query_title, query_seq in SimpleFastaParser(handle):
@@ -1399,17 +1393,16 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 # or not asked to compute this pairing (as already in the DB)
                 continue
             if query_hash == subject_hash:
-                # Expect 100% identity but need to calculate coverage
-                aln_length = len(query_seq) - query_seq.count(gap)
+                # 100% identity and coverage, but need to calculate aln_length
                 db_entries.append(
                     {
                         "query_hash": query_hash,
                         "subject_hash": subject_hash,
                         "identity": 1.0,
-                        "aln_length": aln_length,
+                        "aln_length": len(query_seq) - query_seq.count(gap),
                         "sim_errors": 0,
-                        "cov_query": aln_length / subject_length,
-                        "cov_subject": aln_length / subject_length,
+                        "cov_query": 1.0,
+                        "cov_subject": 1.0,
                         "configuration_id": config_id,
                         "uname_system": uname_system,
                         "uname_release": uname_release,
@@ -1426,12 +1419,6 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
                         f" and {subject_title.split(None, 1)[0]}\n"
                     )
                     sys.exit(msg)
-                query_length = (
-                    session.query(db_orm.Genome)
-                    .where(db_orm.Genome.genome_hash == query_hash)
-                    .one()
-                    .length
-                )
                 matches = 0
                 non_gap_mismatches = 0
                 either_gapped = 0
@@ -1448,8 +1435,12 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
                         either_gapped += 1
                     else:
                         non_gap_mismatches = +1
-                query_cov = (matches + non_gap_mismatches) / query_length
-                subject_cov = (matches + non_gap_mismatches) / subject_length
+                query_cov = (matches + non_gap_mismatches) / (
+                    len(query_seq) - query_seq.count(gap)
+                )
+                subject_cov = (matches + non_gap_mismatches) / (
+                    len(subject_seq) - subject_seq.count(gap)
+                )
                 aln_length = matches + non_gap_mismatches + either_gapped
                 sim_errors = non_gap_mismatches + either_gapped
                 db_entries.append(

@@ -68,14 +68,10 @@ AACC-GGATTT
 
     session = db_orm.connect_to_db(tmp_db)
     assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
-    # Consider the diagonals - the aligned fragments are 10, 9, and 10 bp
-    # and their genomes are 57793, 39253, and 39594 bp. Therefore the
-    # self-vs-self coverage values are 10/57793, 9/39253, and 10/39594.
-    #
     # Consider this pair (1st and 2nd entries):
     #
-    # 5584c7029328dc48d33f95f0a78f7e57 AACC-GGTTTT query length 10, genome len 57793
-    # 689d3fd6881db36b5e08329cf23cecdd AACC-GG-TTT subject length 9, genome len 39253
+    # 5584c7029328dc48d33f95f0a78f7e57 AACC-GGTTTT query length 10
+    # 689d3fd6881db36b5e08329cf23cecdd AACC-GG-TTT subject length 9
     #
     # Equivalent to this:
     #
@@ -83,16 +79,16 @@ AACC-GGATTT
     # 689d3fd6881db36b5e08329cf23cecdd AACCGG-TTT subject length 9
     #
     # 9 matches 0 mismatch in alignment of gapped-length 10, so identity 9/10 = 0.9
-    # However query coverage (9+0)/57793, and subject cover (9+0)/39253
+    # However query coverage (9+0)/10 = 0.9, subject cover (9+0)/9 = 1.0
     #
-    # So identity [1.0 0.9 ...]    query coverage [10/57793 9/57793 ...     ]
-    #             [0.9 1.0 ...]                   [9/39253  9/39253 ...     ]
-    #             [... ... 1.0]                   [...      ...     10/39594]
+    # So identity [1.0 0.9 ...]    query coverage [1.0 0.9 ...]
+    #             [0.9 1.0 ...]                   [1.0 1.0 ...]
+    #             [... ... 1.0]                   [... ... 1.0]
     #
     # Now consider this pair (1st and 3rd entries):
     #
-    # 5584c7029328dc48d33f95f0a78f7e57 AACC-GGTTTT query length 10, genome len 57793
-    # 78975d5144a1cd12e98898d573cf6536 AACC-GGATTT subject length 10, genome len 39594
+    # 5584c7029328dc48d33f95f0a78f7e57 AACC-GGTTTT query length 10
+    # 78975d5144a1cd12e98898d573cf6536 AACC-GGATTT subject length 10
     #
     # Equivalent to this:
     #
@@ -100,16 +96,16 @@ AACC-GGATTT
     # 78975d5144a1cd12e98898d573cf6536 AACCGGATTT
     #
     # 9 matches 1 mismatch in an alignment of length 10, identity 9/10=0.9
-    # Query coverage (9+1)/57793, subject coverage (9+1)/39594
+    # Both query and subject full coverage (9+1)/10, so coverage 1.0
     #
-    # So identity [1.0 ... 0.9]    query coverage [10/57793  ...    10/57793]
-    #             [... 1.0 ...]                   [  ...    9/39253   ...   ]
-    #             [0.9 ... 1.0]                   [10/39594  ...    10/39594]
+    # So identity [1.0 ... 0.9]    query coverage [1.0 ... 1.0]
+    #             [... 1.0 ...]                   [... 1.0 ...]
+    #             [0.9 ... 1.0]                   [1.0 ... 1.0]
     #
     # Finally, consider this pair (2nd and 3rd entries):
     #
-    # 689d3fd6881db36b5e08329cf23cecdd AACC-GG-TTT query length 9, genome len 39253
-    # 78975d5144a1cd12e98898d573cf6536 AACC-GGATTT subject length 10, genome len 39594
+    # 689d3fd6881db36b5e08329cf23cecdd AACC-GG-TTT query length 9
+    # 78975d5144a1cd12e98898d573cf6536 AACC-GGATTT subject length 10
     #
     # Equivalent to this:
     #
@@ -117,17 +113,17 @@ AACC-GGATTT
     # 78975d5144a1cd12e98898d573cf6536 AACCGGATTT subject length 10
     #
     # 9 matches 0 mismatch in alignment of length 9, so identity 9/10 = 0.9
-    # However query coverage (9+0)/57793, subject cover (9+0)/39594
+    # However query coverage (9+0)/9 = 1.0, subject cover (9+0)/10 = 0.9
     #
-    # So identity [1.0 ... ...]    query coverage [10/57793   ...     ...   ]
-    #             [... 1.0 0.9]                   [  ...    9/39253  9/39253]
-    #             [... 0.9 1.0]                   [  ...    9/39594 10/39594]
+    # So identity [1.0 ... ...]    query coverage [1.0 ... ...]
+    #             [... 1.0 0.9]                   [... 1.0 1.0]
+    #             [... 0.9 1.0]                   [... 0.9 1.0]
     #
     # Overall:
     #
-    # So identity [1.0 0.9 0.9]    query coverage [10/57793 9/57793 10/57793]
-    #             [0.9 1.0 0.9]                   [ 9/39253 9/39253  9/39253]
-    #             [0.9 0.9 1.0]                   [10/39594 9/39594 10/39594]
+    # So identity [1.0 0.9 0.9]    query coverage [1.0 0.9 1.0]
+    #             [0.9 1.0 0.9]                   [1.0 1.0 1.0]
+    #             [0.9 0.9 1.0]                   [1.0 0.9 1.0]
     #
     run = db_orm.load_run(session, 1, check_complete=True)
     assert run.df_identity == (
@@ -138,11 +134,7 @@ AACC-GGATTT
     assert run.df_cov_query == (
         '{"columns":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
         '"index":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
-        '"data":['
-        f"[{10 / 57793:.10f},{9 / 57793:.10f},{10 / 57793:.10f}],"
-        f"[{9 / 39253:.10f},{9 / 39253:.10f},{9 / 39253:.10f}],"
-        f"[{10 / 39594:.10f},{9 / 39594:.10f},{10 / 39594:.10f}"
-        "]]}"
+        '"data":[[1.0,0.9,1.0],[1.0,1.0,1.0],[1.0,0.9,1.0]]}'
     )
 
 
@@ -322,8 +314,8 @@ AACC-GG-TTT
         identity=1.0,
         aln_length=10,
         sim_errors=0,
-        cov_query=10 / 57793,
-        cov_subject=10 / 57793,
+        cov_query=1.0,
+        cov_subject=1.0,
     )  # values as per test_simple_mock_alignment_stem
 
     public_cli.resume(tmp_db)

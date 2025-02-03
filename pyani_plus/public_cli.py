@@ -1003,14 +1003,14 @@ def cli_classify(  # noqa: PLR0913
             help="How to resolve asymmetrical ANI identity results for edges in the graph (min, max or mean).",
             rich_help_panel="Method parameters",
         ),
-    ] = "min",  # Default to "min"
+    ] = "min",
     identity_edges: Annotated[
         str,
         typer.Option(
             help="How to resolve asymmetrical ANI identity results for edges in the graph (min, max or mean).",
             rich_help_panel="Method parameters",
         ),
-    ] = "mean",  # Default to "mean"
+    ] = "mean",
     run_id: OPT_ARG_TYPE_RUN_ID = None,
     label: OPT_ARG_TYPE_LABEL = "stem",
     cov_min: OPT_ARG_TYPE_COV_MIN = classify.MIN_COVERAGE,

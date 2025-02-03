@@ -70,7 +70,7 @@ def two_nodes_no_edges_dataframes() -> list[pd.DataFrame]:
     genomes = ["genome_1", "genome_2"]
 
     # Create the DataFrame directly with initial values
-    # When building graph with `onstruct_graph` no edges should be added if coverage is <0.50
+    # When building graph with `construct_graph` no edges should be added if coverage is <0.50
     coverage_df = pd.DataFrame(
         [[1.0, 0.40], [0.40, 1.0]], index=genomes, columns=genomes
     )
@@ -106,7 +106,18 @@ def two_nodes_one_edge_cliques() -> list[nx.Graph]:
 
 @pytest.fixture
 def known_complex_graph() -> nx.Graph:
-    """Return nx.Graph with six nodes and known weights (coverage and identity)."""
+    """Return nx.Graph with six nodes and known weights (coverage and identity).
+
+    This six node graph first splits into two cliques of three-nodes:
+    - genome_1, genome_5 and genome_6
+    - genome_2, genome_3 and genome 4
+
+    Each three-node clique then splits into a two-node clique:
+    - genome_2 and genome_3
+    - genome_1 and genome_6
+
+    Finally, all nodes become singletons.
+    """
     graph = nx.Graph()
 
     graph.add_edge("genome_1", "genome_2", identity=0.85, coverage=1.0)

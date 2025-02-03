@@ -188,6 +188,7 @@ def compute_classify_output(
     clique_df["members"] = clique_df["members"].apply(lambda x: ",".join(x))
 
     output_file = outdir / f"{method}_classify.tsv"
-    clique_df.to_csv(output_file, sep="\t", index=False)
+    # Round coverage and identity values to 7 decimal places before saving
+    clique_df.round(7).to_csv(output_file, sep="\t", index=False)
 
     return clique_data

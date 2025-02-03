@@ -1023,10 +1023,16 @@ def cli_classify(  # noqa: PLR0913
         initial_cliques = []
     recursive_cliques = classify.find_cliques_recursively(complete_graph)
 
-    # Writing the results to .tsv
-    classify.compute_classify_output(
-        initial_cliques + recursive_cliques, method, outdir
+    # Get a list of unique cliques to avoid duplicates from initial and recursive searches
+    unique_cliques = list(
+        {
+            frozenset(clique.nodes): clique
+            for clique in (initial_cliques + recursive_cliques)
+        }.values()
     )
+
+    # Writing the results to .tsv
+    classify.compute_classify_output(unique_cliques, method, outdir)
 
     print(f"Wrote classify output to {outdir}")
     session.close()

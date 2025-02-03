@@ -122,7 +122,7 @@ def plot_heatmap(  # noqa: PLR0913
             matrix,
             cmap=color_scheme,
             vmin=0,
-            vmax=5 if method == "tANI" else 1,
+            vmax=5 if name == "tANI" else 1,
             figsize=(figsize, figsize),
             linewidths=0.25,
         )

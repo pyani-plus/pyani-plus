@@ -45,10 +45,10 @@ MIN_COVERAGE = 0.50
 class CliqueInfo(NamedTuple):
     """Graph structure summary."""
 
-    members: list
     n_nodes: int
     min_cov: float | None
     min_identity: float | None
+    members: list
 
 
 def construct_graph(
@@ -170,7 +170,6 @@ def compute_classify_output(
     """Return list of CliqueInfo describing all cliques found and save them to .tsv file."""
     clique_data = [
         CliqueInfo(
-            members=list(clique.nodes),
             n_nodes=len(clique.nodes),
             min_cov=min(
                 (attrs["coverage"] for _, _, attrs in clique.edges(data=True)),
@@ -180,6 +179,7 @@ def compute_classify_output(
                 (attrs["identity"] for _, _, attrs in clique.edges(data=True)),
                 default=None,
             ),
+            members=list(clique.nodes),
         )
         for clique in cliques
     ]

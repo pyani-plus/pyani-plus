@@ -823,7 +823,11 @@ def test_sourmash(
             for ext in ("jpg", "pdf", "png", "svg", "tsv")
             if not (kind == "dist" and ext == "tsv")
         ]
-        + [f"sourmash_scatter.{ext}" for ext in ("jpg", "pdf", "png", "svg")]  # no tsv
+        + [
+            f"sourmash_{name}_scatter.{ext}"
+            for name in ("query_cov", "tANI")
+            for ext in ("jpg", "pdf", "png", "svg")  # no tsv yet
+        ]
     )
 
 

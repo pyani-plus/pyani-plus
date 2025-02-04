@@ -998,12 +998,12 @@ def cli_classify(  # noqa: PLR0913
         sys.exit(msg)
 
     # Map the string inputs to callable functions
-    covearge_agg_func = classify.AGG_FUNCS[coverage_edges]
+    coverage_agg_func = classify.AGG_FUNCS[coverage_edges]
     identity_agg_func = classify.AGG_FUNCS[identity_edges]
 
     # Construct the graph with the correct functions
     complete_graph = classify.construct_graph(
-        cov, identity, covearge_agg_func, identity_agg_func, cov_min
+        cov, identity, coverage_agg_func, identity_agg_func, cov_min
     )
     # Finding cliques
     if len(list(nx.connected_components(complete_graph))) != 1:

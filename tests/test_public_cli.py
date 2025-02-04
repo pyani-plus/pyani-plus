@@ -1647,7 +1647,10 @@ def test_classify_warnings(
         in output
     ), output
     with (tmp_dir / "fastANI_classify.tsv").open() as handle:
-        assert handle.readline() == "n_nodes\tmin_cov\tmin_identity\tmembers\n"
+        assert (
+            handle.readline()
+            == "n_nodes\tmin_cov\tmin_identity\tidentity_break_edge\tmembers\n"
+        )
 
 
 def test_classify(
@@ -1701,4 +1704,7 @@ def test_classify(
     output = capsys.readouterr().out
     assert f"Wrote classify output to {tmp_path}" in output, output
     with (tmp_dir / "fastANI_classify.tsv").open() as handle:
-        assert handle.readline() == "n_nodes\tmin_cov\tmin_identity\tmembers\n"
+        assert (
+            handle.readline()
+            == "n_nodes\tmin_cov\tmin_identity\tidentity_break_edge\tmembers\n"
+        )

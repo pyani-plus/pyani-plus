@@ -48,6 +48,7 @@ class CliqueInfo(NamedTuple):
     n_nodes: int
     min_cov: float | None
     min_identity: float | None
+    identity_break_edge: float | None
     members: list
 
 
@@ -114,7 +115,7 @@ def find_initial_cliques(graph: nx.Graph) -> list:
     for component in connected_components:
         subgraph = graph.subgraph(component).copy()
         if is_clique(subgraph):  # Check if the subgraph is a clique
-            cliques.append(subgraph)
+            cliques.append((subgraph, "NA"))
 
     return cliques
 
@@ -123,21 +124,23 @@ def find_cliques_recursively(
     graph: nx.Graph,
     progress=None,  # noqa: ANN001
     task=None,  # noqa: ANN001
-) -> list:
-    """Return all unique cliques within a set of genomes based on ANI results.
+    identity_break_edge: float | None = None,
+) -> list[tuple]:
+    """Return all cliques within a set of genomes based on ANI
+    results, along with the identity edge that formed each clique, as a tuple.
 
     These cliques are identified recursively by iteratively removing edges
     with the lowest identity at each step and analysing the resulting subgraphs.
-    """
-    cliques: list(nx.Graph) = []  # type: ignore  # noqa: PGH003
+    """  # noqa: D205
+    cliques = []
 
     # If the graph has only one node stop recursion and return list of cliques
     if len(graph.nodes) == 1:
-        cliques.append(graph)
+        cliques.append((graph, identity_break_edge))
         return cliques
     # Recording cliques
     if is_clique(graph):
-        cliques.append(graph.copy())
+        cliques.append((graph.copy(), identity_break_edge))
 
     edges = graph.edges(data=True)
     edges = sorted(edges, key=lambda edge: edge[2]["identity"])
@@ -146,11 +149,16 @@ def find_cliques_recursively(
     if progress is None:
         with Progress(*PROGRESS_BAR_COLUMNS) as progress:  # noqa: PLR1704
             task = progress.add_task("Processing edges...", total=len(edges))
-            return find_cliques_recursively(graph, progress, task)
+            return find_cliques_recursively(
+                graph, progress, task, identity_break_edge=identity_break_edge
+            )
 
-    # Remove edges with the lowest weight and identify cliques
+    # Remove edges with the lowest weight, identify cliques and retain the identity edge that formed each clique.
+
     while edges:
         edge_to_remove = edges.pop(0)
+        break_edge = (edge_to_remove[0], edge_to_remove[1])
+        identity_break_edge = graph.get_edge_data(*break_edge).get("identity")
         progress.update(task, advance=1)  # Update the progress bar
         graph.remove_edge(edge_to_remove[0], edge_to_remove[1])
 
@@ -158,10 +166,35 @@ def find_cliques_recursively(
         if len(connected_components) > 1:
             for component in connected_components:
                 subgraph = graph.subgraph(component).copy()
-                cliques.extend(find_cliques_recursively(subgraph, progress, task))
+                cliques.extend(
+                    find_cliques_recursively(
+                        subgraph,
+                        progress,
+                        task,
+                        identity_break_edge=identity_break_edge,
+                    )
+                )
             return cliques
 
     return cliques
+
+
+def get_unique_cliques(
+    initial_cliques: list[tuple], recursive_cliques: list[tuple]
+) -> list[tuple]:
+    """Return only unique cliques, along with the identity edge that formed each clique, as a tuple."""
+    unique_cliques = {
+        frozenset(graph.nodes): (graph, edge) for graph, edge in initial_cliques
+    }
+    unique_cliques.update(
+        {
+            frozenset(graph.nodes): (graph, edge)
+            for graph, edge in recursive_cliques
+            if frozenset(graph.nodes) not in unique_cliques
+        }
+    )
+
+    return list(unique_cliques.values())
 
 
 def compute_classify_output(
@@ -179,9 +212,10 @@ def compute_classify_output(
                 (attrs["identity"] for _, _, attrs in clique.edges(data=True)),
                 default=None,
             ),
+            identity_break_edge=edge_form,
             members=list(clique.nodes),
         )
-        for clique in cliques
+        for clique, edge_form in cliques
     ]
 
     clique_df = pd.DataFrame(clique_data)

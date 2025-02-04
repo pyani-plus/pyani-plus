@@ -945,10 +945,10 @@ def plot_run(
 
     from pyani_plus import plot_run  # lazy import
 
-    plot_run.plot_single_run(run, outdir, label)
-    print(f"Wrote images to {outdir}/{run.configuration.method}_*.*")
+    count = plot_run.plot_single_run(run, outdir, label)
+    print(f"Wrote {count} images to {outdir}/{run.configuration.method}_*.*")
     session.close()
-    return 0
+    return 0 if count else 1
 
 
 @app.command("classify", rich_help_panel="Commands")

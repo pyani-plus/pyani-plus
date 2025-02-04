@@ -187,7 +187,7 @@ def plot_distribution(
             figure.savefig(filename)
 
 
-def plot_single_run(  # noqa: C901
+def plot_single_run(  # noqa: C901, PLR0912
     run: db_orm.Run,
     outdir: Path,
     label: str,
@@ -240,6 +240,13 @@ def plot_single_run(  # noqa: C901
             n = len(matrix)
             if nulls == n**2:
                 msg = f"WARNING: Cannot plot {name} as all NA\n"
+                sys.stderr.write(msg)
+                progress.advance(task)  # skipping distribution plots
+                progress.advance(task)  # skipping heatmap
+                continue
+
+            if matrix.min().min() == matrix.max().max():
+                msg = f"WARNING: Skipping {name} plots as all {matrix.min().min()}\n"
                 sys.stderr.write(msg)
                 progress.advance(task)  # skipping distribution plots
                 progress.advance(task)  # skipping heatmap

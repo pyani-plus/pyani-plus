@@ -1389,7 +1389,7 @@ def test_plot_skip_nulls(
     assert "WARNING: Cannot plot query_cov as all NA\n" in stderr, stderr
     assert "Cannot plot hadamard as all NA\n" in stderr, stderr
     assert "Cannot plot tANI as all NA\n" in stderr, stderr
-    assert f"Wrote images to {plot_out}" in stdout
+    assert f"Wrote 10 images to {plot_out}" in stdout
     assert sorted(_.name for _ in plot_out.glob("*_heatmap.*")) == [
         "guessing_identity_heatmap.jpg",
         "guessing_identity_heatmap.pdf",

@@ -73,7 +73,7 @@ def plot_heatmap(  # noqa: PLR0913
     method: str,
     color_scheme: str,
     formats: tuple[str, ...] = ("tsv", "png", "jpg", "svg", "pdf"),
-) -> None:
+) -> int:
     """Plot heatmaps for the given matrix."""
     # Can't use square=True with seaborn clustermap, and when clustering
     # asymmetric matrices can end up with different max-length labels
@@ -124,6 +124,7 @@ def plot_heatmap(  # noqa: PLR0913
             matrix.to_csv(filename, sep="\t")
         else:
             figure.savefig(filename)
+    return len(formats)
 
 
 def plot_distribution(
@@ -132,7 +133,7 @@ def plot_distribution(
     name: str,
     method: str,
     formats: tuple[str, ...] = ("tsv", "png", "jpg", "svg", "pdf"),
-) -> None:
+) -> int:
     """Plot score distribution and headmap for give matrix.
 
     Returns the number of plots (should equal number of formats, or zero).
@@ -185,6 +186,7 @@ def plot_distribution(
             pass
         else:
             figure.savefig(filename)
+    return len(formats)
 
 
 def plot_scatter(
@@ -237,7 +239,7 @@ def plot_scatter(
         else:
             axes.get_figure().savefig(filename)
 
-    return 1
+    return len(formats)
 
 
 def plot_single_run(  # noqa: C901, PLR0912, PLR0915
@@ -245,7 +247,7 @@ def plot_single_run(  # noqa: C901, PLR0912, PLR0915
     outdir: Path,
     label: str,
     formats: tuple[str, ...] = ("tsv", "png", "jpg", "svg", "pdf"),
-) -> None:
+) -> int:
     """Plot distributions and heatmaps for given run.
 
     Draws identity, coverage, hadamard, and tRNA plots of (score distributions
@@ -253,6 +255,8 @@ def plot_single_run(  # noqa: C901, PLR0912, PLR0915
 
     Shows a progress bar in terms of number of scores and plot-types (i.e.
     4 scores times 2 plots giving 8 steps, plus 1 scatter plot).
+
+    Returns number of images drawn.
     """
     method = run.configuration.method
     scores_and_color_schemes = [
@@ -311,7 +315,7 @@ def plot_single_run(  # noqa: C901, PLR0912, PLR0915
                 progress.advance(task)  # skipping heatmap
                 continue
 
-            plot_distribution(matrix, outdir, name, method, formats)
+            done += plot_distribution(matrix, outdir, name, method, formats)
             progress.advance(task)
 
             if nulls:
@@ -321,9 +325,12 @@ def plot_single_run(  # noqa: C901, PLR0912, PLR0915
                 )
                 sys.stderr.write(msg)
             else:
-                plot_heatmap(matrix, outdir, name, method, color_scheme, formats)
+                done += plot_heatmap(
+                    matrix, outdir, name, method, color_scheme, formats
+                )
                 did_any_heatmaps = True
             progress.advance(task)
     if not did_any_heatmaps:
         msg = "ERROR: Unable to plot any heatmaps (check for nulls)"
         sys.exit(msg)
+    return done

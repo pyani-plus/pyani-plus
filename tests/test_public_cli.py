@@ -418,6 +418,8 @@ def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
                 subject_hash,
                 1.0 if query_hash == subject_hash else 0.99,
                 12345,
+                cov_subject=1.0 if query_hash == subject_hash else 0.95,
+                cov_query=1.0 if query_hash == subject_hash else 0.95,
             )
     session.commit()
     session.close()
@@ -814,11 +816,14 @@ def test_sourmash(
     # UserWarning: Glyph 129440 (\N{MICROBE}) missing from font(s) DejaVu Sans.
     public_cli.plot_run(database=tmp_db, outdir=plot_out, run_id=2)
     assert sorted(_.name for _ in plot_out.glob("*")) == sorted(
-        f"sourmash_{name}_{kind}.{ext}"
-        for name in ("identity", "query_cov", "hadamard", "tANI")
-        for kind in ("heatmap", "dist")
-        for ext in ("jpg", "pdf", "png", "svg", "tsv")
-        if not (kind == "dist" and ext == "tsv")
+        [
+            f"sourmash_{name}_{kind}.{ext}"
+            for name in ("identity", "query_cov", "hadamard", "tANI")
+            for kind in ("heatmap", "dist")
+            for ext in ("jpg", "pdf", "png", "svg", "tsv")
+            if not (kind == "dist" and ext == "tsv")
+        ]
+        + [f"sourmash_scatter.{ext}" for ext in ("jpg", "pdf", "png", "svg")]  # no tsv
     )
 
 

@@ -187,7 +187,60 @@ def plot_distribution(
             figure.savefig(filename)
 
 
-def plot_single_run(  # noqa: C901, PLR0912
+def plot_scatter(
+    run: db_orm.Run,
+    outdir: Path,
+    formats: tuple[str, ...] = ("tsv", "png", "jpg", "svg", "pdf"),
+) -> int:
+    """Plot query coverage vs identity for the given run.
+
+    Returns the number of distributions drawn (usually this will be one, zero
+    if either property is all nulls).
+    """
+    method = run.configuration.method
+    pairs = [
+        (comp.identity, comp.cov_query, comp.aln_length) for comp in run.comparisons()
+    ]
+    count = len(pairs)
+    if not count:
+        msg = f"ERROR: No comparisons values in {method} run {run.run_id}"
+        sys.exit(msg)
+    values = [(x, y, c) for (x, y, c) in pairs if x is not None and y is not None]
+    if not values:
+        msg = f"WARNING: No valid identity, query-coverage values from {method} run\n"
+        sys.stderr.write(msg)
+        return 0
+    sys.stderr.write(f"Plotting {len(values)}/{count} comparisons\n")
+
+    x_values = [x for (x, y, c) in values]
+    y_values = [y for (x, y, c) in values]
+    c_values = [c for (x, y, c) in values]
+
+    sys.stderr.write(f"Identity range {min(x_values)} to {max(x_values)}\n")
+    sys.stderr.write(f"Query coverage range {min(y_values)} to {max(y_values)}\n")
+
+    # Create the plot
+    axes = sns.regplot(
+        x=x_values,
+        y=y_values,
+        fit_reg=False,
+        scatter=True,
+        scatter_kws={"s": 2, "c": c_values, "color": None},
+    )
+    axes.set(xlabel="Percent identity (ANI)", ylabel="Query coverage")
+    plt.title(f"Percentage identity vs query coverage ({method})")
+
+    for ext in formats:
+        filename = outdir / f"{method}_scatter.{ext}"
+        if ext == "tsv":
+            pass
+        else:
+            axes.get_figure().savefig(filename)
+
+    return 1
+
+
+def plot_single_run(  # noqa: C901, PLR0912, PLR0915
     run: db_orm.Run,
     outdir: Path,
     label: str,
@@ -199,7 +252,7 @@ def plot_single_run(  # noqa: C901, PLR0912
     and heatmaps) for the given run.
 
     Shows a progress bar in terms of number of scores and plot-types (i.e.
-    4 scores times 2 plots giving 8 steps).
+    4 scores times 2 plots giving 8 steps, plus 1 scatter plot).
     """
     method = run.configuration.method
     scores_and_color_schemes = [
@@ -210,7 +263,13 @@ def plot_single_run(  # noqa: C901, PLR0912
     ]
     did_any_heatmaps = False
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
-        task = progress.add_task("Plotting", total=len(scores_and_color_schemes) * 2)
+        task = progress.add_task(
+            "Plotting", total=len(scores_and_color_schemes) * 2 + 1
+        )
+        # This will print any warnings itself:
+        done = plot_scatter(run, outdir)
+        progress.advance(task)
+
         for name, color_scheme in scores_and_color_schemes:
             # The matrices are large, so load them one at a time
             if name == "identity":

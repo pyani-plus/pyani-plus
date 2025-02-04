@@ -1434,7 +1434,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
                         # Don't want to count this towards coverage (max 100%)
                         either_gapped += 1
                     else:
-                        non_gap_mismatches = +1
+                        non_gap_mismatches += 1
                 query_cov = (matches + non_gap_mismatches) / (
                     len(query_seq) - query_seq.count(gap)
                 )

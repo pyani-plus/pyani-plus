@@ -209,13 +209,13 @@ def plot_scatter(
                     None
                     if comp.identity is None or comp.cov_query is None
                     else -log(comp.identity * comp.cov_query),
-                    comp.aln_length,
+                    comp.query.length,
                 )
                 for comp in run.comparisons()
             ]
         else:
             pairs = [
-                (comp.identity, comp.cov_query, comp.aln_length)
+                (comp.identity, comp.cov_query, comp.query.length)
                 for comp in run.comparisons()
             ]
         count = len(pairs)  # including missing values
@@ -255,7 +255,7 @@ def plot_scatter(
             filename = outdir / f"{method}_{y_caption}_scatter.{ext}"
             if ext == "tsv":
                 with filename.open("w") as handle:
-                    handle.write(f"#Identity\t{y_caption}\taln_length\n")
+                    handle.write(f"#identity\t{y_caption}\tquery_length\n")
                     for x, y, c in values:
                         handle.write(f"{x}\t{y}\t{c}\n")
             else:

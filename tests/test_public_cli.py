@@ -400,6 +400,8 @@ def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
         session, "fastANI", "fastani", "1.2.3", create=True
     )
     fasta_to_hash = {fasta: file_md5sum(fasta) for fasta in tmp_fasta.glob("*.fa*")}
+    for fasta, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, fasta, md5, create=True)
     db_orm.add_run(
         session,
         config,

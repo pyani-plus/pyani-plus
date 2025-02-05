@@ -33,7 +33,7 @@ from matplotlib import colormaps
 from matplotlib.colors import LinearSegmentedColormap
 from rich.progress import Progress
 
-from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm
+from pyani_plus import GRAPHICS_FORMATS, PROGRESS_BAR_COLUMNS, db_orm
 
 GREY = (0.7, 0.7, 0.7)
 DULL_BLUE = (0.137, 0.412, 0.737)
@@ -72,7 +72,7 @@ def plot_heatmap(  # noqa: PLR0913
     name: str,  # e.g. tANI
     method: str,
     color_scheme: str,
-    formats: tuple[str, ...] = ("tsv", "png", "jpg", "svg", "pdf"),
+    formats: tuple[str, ...] = GRAPHICS_FORMATS,
 ) -> int:
     """Plot heatmaps for the given matrix."""
     # Can't use square=True with seaborn clustermap, and when clustering
@@ -132,7 +132,7 @@ def plot_distribution(
     outdir: Path,
     name: str,
     method: str,
-    formats: tuple[str, ...] = ("tsv", "png", "jpg", "svg", "pdf"),
+    formats: tuple[str, ...] = GRAPHICS_FORMATS,
 ) -> int:
     """Plot score distribution and headmap for give matrix.
 
@@ -192,7 +192,7 @@ def plot_distribution(
 def plot_scatter(
     run: db_orm.Run,
     outdir: Path,
-    formats: tuple[str, ...] = ("tsv", "png", "jpg", "svg", "pdf"),
+    formats: tuple[str, ...] = GRAPHICS_FORMATS,
 ) -> int:
     """Plot query coverage vs identity for the given run.
 
@@ -270,7 +270,7 @@ def plot_single_run(  # noqa: C901, PLR0912, PLR0915
     run: db_orm.Run,
     outdir: Path,
     label: str,
-    formats: tuple[str, ...] = ("tsv", "png", "jpg", "svg", "pdf"),
+    formats: tuple[str, ...] = GRAPHICS_FORMATS,
 ) -> int:
     """Plot distributions and heatmaps for given run.
 

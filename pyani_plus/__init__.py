@@ -40,6 +40,7 @@ __version__ = "0.0.1"
 
 # The following are assorted centrally defined constants:
 FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}  # we'll consider .fasta.gz etc too
+GRAPHICS_FORMATS = ("tsv", "png", "jpg", "svg", "pdf")  # note no dots!
 PROGRESS_BAR_COLUMNS = [
     TextColumn("[progress.description]{task.description}"),
     BarColumn(),

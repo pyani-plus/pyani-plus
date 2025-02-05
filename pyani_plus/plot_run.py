@@ -254,7 +254,10 @@ def plot_scatter(
         for ext in formats:
             filename = outdir / f"{method}_{y_caption}_scatter.{ext}"
             if ext == "tsv":
-                pass
+                with filename.open("w") as handle:
+                    handle.write(f"#Identity\t{y_caption}\taln_length\n")
+                    for x, y, c in values:
+                        handle.write(f"{x}\t{y}\t{c}\n")
             else:
                 axes.get_figure().savefig(filename)
         # Clear plot to avoid over-plotting next image

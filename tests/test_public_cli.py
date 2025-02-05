@@ -37,6 +37,9 @@ import pytest
 from pyani_plus import db_orm, public_cli, tools
 from pyani_plus.utils import file_md5sum
 
+# Intend to expose this as a user-facing setting, so move to public API def?
+GRAPHICS_FORMATS = ("jpg", "pdf", "png", "svg", "tsv")
+
 
 @pytest.fixture(scope="session")
 def gzipped_tiny_example(
@@ -810,7 +813,7 @@ def test_sourmash(
         input_genomes_tiny / "matrices" / "sourmash_identity.tsv",
         tmp_dir / "sourmash_identity.tsv",
     )
-    plot_out = tmp_dir / "plots"
+    plot_out = tmp_dir / "plots 📊"
     plot_out.mkdir()
     # Should be able to plot run 1 with the spaces and emoji, but get warnings:
     # UserWarning: Glyph 129440 (\N{MICROBE}) missing from font(s) DejaVu Sans.
@@ -820,15 +823,17 @@ def test_sourmash(
             f"sourmash_{name}_{kind}.{ext}"
             for name in ("identity", "query_cov", "hadamard", "tANI")
             for kind in ("heatmap", "dist")
-            for ext in ("jpg", "pdf", "png", "svg", "tsv")
+            for ext in GRAPHICS_FORMATS
             if not (kind == "dist" and ext == "tsv")
         ]
         + [
             f"sourmash_{name}_scatter.{ext}"
             for name in ("query_cov", "tANI")
-            for ext in ("jpg", "pdf", "png", "svg")  # no tsv yet
+            for ext in GRAPHICS_FORMATS
         ]
     )
+    for f in sorted(_.name for _ in plot_out.glob("*.tsv")):
+        assert filecmp.cmp(plot_out / f, input_genomes_tiny / "plots" / Path(f).name)
 
 
 def test_fastani_dups(tmp_path: str) -> None:

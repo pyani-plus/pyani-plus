@@ -34,11 +34,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from pyani_plus import db_orm, public_cli, tools
+from pyani_plus import GRAPHICS_FORMATS, db_orm, public_cli, tools
 from pyani_plus.utils import file_md5sum
-
-# Intend to expose this as a user-facing setting, so move to public API def?
-GRAPHICS_FORMATS = ("jpg", "pdf", "png", "svg", "tsv")
 
 
 @pytest.fixture(scope="session")
@@ -1399,13 +1396,9 @@ def test_plot_skip_nulls(
     assert "Cannot plot hadamard as all NA\n" in stderr, stderr
     assert "Cannot plot tANI as all NA\n" in stderr, stderr
     assert f"Wrote 10 images to {plot_out}" in stdout
-    assert sorted(_.name for _ in plot_out.glob("*_heatmap.*")) == [
-        "guessing_identity_heatmap.jpg",
-        "guessing_identity_heatmap.pdf",
-        "guessing_identity_heatmap.png",
-        "guessing_identity_heatmap.svg",
-        "guessing_identity_heatmap.tsv",
-    ]
+    assert sorted(_.name for _ in plot_out.glob("*_heatmap.*")) == sorted(
+        f"guessing_identity_heatmap.{ext}" for ext in GRAPHICS_FORMATS
+    )
 
 
 def test_plot_bad_nulls(

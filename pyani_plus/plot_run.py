@@ -29,7 +29,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from matplotlib import colormaps
+from matplotlib import cm, colormaps, colors
 from matplotlib.colors import LinearSegmentedColormap
 from rich.progress import Progress
 
@@ -241,10 +241,19 @@ def plot_scatter(
         joint_grid = sns.jointplot(
             x=x_values,
             y=y_values,
+            kind="scatter",
             joint_kws={"s": 2, "c": c_values, "color": None},
         )
         joint_grid.set_axis_labels(xlabel="Percent identity (ANI)", ylabel=y_caption)
         # Can use plt.title(...) but would need to arrange all the placements
+
+        # Shrink for color bar (aka cbar) on right
+        plt.subplots_adjust(left=0.2, right=0.8, top=0.8, bottom=0.2)
+        plt.colorbar(
+            cm.ScalarMappable(norm=colors.Normalize(min(c_values), max(c_values))),
+            cax=joint_grid.fig.add_axes([0.85, 0.25, 0.05, 0.4]),
+            label="Query length (bp)",
+        )
 
         if y_caption == "Query coverage":
             # avoid spaces in filename:

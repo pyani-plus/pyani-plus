@@ -238,15 +238,13 @@ def plot_scatter(
         )
 
         # Create the plot
-        axes = sns.regplot(
+        joint_grid = sns.jointplot(
             x=x_values,
             y=y_values,
-            fit_reg=False,
-            scatter=True,
-            scatter_kws={"s": 2, "c": c_values, "color": None},
+            joint_kws={"s": 2, "c": c_values, "color": None},
         )
-        axes.set(xlabel="Percent identity (ANI)", ylabel=y_caption)
-        plt.title(f"{y_caption} versus percentage identity ({method})")
+        joint_grid.set_axis_labels(xlabel="Percent identity (ANI)", ylabel=y_caption)
+        # Can use plt.title(...) but would need to arrange all the placements
 
         if y_caption == "Query coverage":
             # avoid spaces in filename:
@@ -259,7 +257,7 @@ def plot_scatter(
                     for x, y, c in values:
                         handle.write(f"{x}\t{y}\t{c}\n")
             else:
-                axes.get_figure().savefig(filename)
+                joint_grid.savefig(filename)
         # Clear plot to avoid over-plotting next image
         plt.clf()
 

@@ -43,6 +43,10 @@ def test_simple_mock_alignment_stem(
     """Mock alignments using filename stem naming.
 
     These are 9 or 10bp, giving 10bp long pairwise alignments.
+
+    There is a deliberate all-gap column in the alignment to ensure any matching
+    gaps are dropped in the pairwise comparisons. So none are 11bp alignments
+    despite the alignment having 11 columns.
     """
     tmp_db = Path(tmp_path) / "stems.db"
     assert not tmp_db.is_file()

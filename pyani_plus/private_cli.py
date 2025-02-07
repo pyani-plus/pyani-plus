@@ -1427,7 +1427,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
                     q_gap = q == gap
                     s_gap = s == gap
                     if q_gap and s_gap:
-                        continue
+                        continue  # does not contribute to aln_length
                     if q == s:
                         matches += 1
                     elif q_gap or s_gap:

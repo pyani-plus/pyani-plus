@@ -951,6 +951,60 @@ def plot_run(
     return 0 if count else 1
 
 
+@app.command()
+def plot_run_comp(
+    database: REQ_ARG_TYPE_DATABASE,
+    outdir: REQ_ARG_TYPE_OUTDIR,
+    run_ids: Annotated[
+        str,
+        typer.Option(help="Which runs (comma separated list, reference first)?"),
+    ],
+) -> int:
+    """Plot comparisons between multiple runs.
+
+    The output directory must already exist. The scatter plots will be named
+    <method>_<property>_<run-id>_vs_*.<extension> and any
+    pre-existing files will be overwritten.
+    """
+    if not outdir.is_dir():
+        msg = f"ERROR: Output directory {outdir} does not exist"
+        sys.exit(msg)
+
+    if database == ":memory:" or not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+
+    try:
+        runs = [int(_) for _ in run_ids.split(",")]
+    except ValueError:
+        msg = f"ERROR: Expected comma separated list of runs, not: {run_ids}"
+        sys.exit(msg)
+
+    run_id = runs[0]  # the reference
+    other_runs = runs[1:]
+
+    if not other_runs:
+        msg = "ERROR: Need at least two runs for a comparison"
+        sys.exit(msg)
+
+    session = db_orm.connect_to_db(database)
+    ref_run = db_orm.load_run(session, run_id, check_complete=False)
+
+    sys.stderr.write(
+        f"INFO: Plotting {len(other_runs)} runs against"
+        f" {ref_run.configuration.method} run-id {run_id}\n"
+    )
+
+    from pyani_plus import plot_run  # lazy import
+
+    done = plot_run.plot_run_comparison(session, ref_run, other_runs, outdir)
+    print(
+        f"Wrote {done} images to {outdir}/{ref_run.configuration.method}_identity_{run_id}_vs_*.*"
+    )
+    session.close()
+    return 0
+
+
 @app.command("classify", rich_help_panel="Commands")
 def cli_classify(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,

@@ -32,6 +32,7 @@ import seaborn as sns
 from matplotlib import cm, colormaps, colors
 from matplotlib.colors import LinearSegmentedColormap
 from rich.progress import Progress
+from sqlalchemy.orm import Session
 
 from pyani_plus import GRAPHICS_FORMATS, PROGRESS_BAR_COLUMNS, db_orm
 
@@ -359,4 +360,106 @@ def plot_single_run(  # noqa: C901
     if not did_any_heatmaps:
         msg = "ERROR: Unable to plot any heatmaps (check for nulls)"
         sys.exit(msg)
+    return done
+
+
+def plot_comp_scatter(  # noqa: PLR0913
+    ref_run: db_orm.Run,
+    ref_data: dict[tuple[str, str], float],
+    other_run: db_orm.Run,
+    other_data: dict[tuple[str, str], float],
+    outdir: Path,
+    field: str = "identity",
+    formats: tuple[str, ...] = GRAPHICS_FORMATS,
+) -> int:
+    """Plot identity scatter between the given two runs."""
+    x_caption = ref_run.name
+    y_caption = other_run.name
+
+    # other_data dict can be smaller than ref_data!
+    x_values = [ref_data[pair] for pair in other_data]
+    y_values = list(other_data.values())
+    # And colours?
+
+    # Create the plot
+    joint_grid = sns.jointplot(
+        x=x_values,
+        y=y_values,
+        kind="scatter",
+        joint_kws={"s": 2},
+    )
+    joint_grid.set_axis_labels(xlabel=x_caption, ylabel=y_caption)
+
+    for ext in formats:
+        filename = (
+            outdir
+            / f"{ref_run.configuration.method}_{field}_{ref_run.run_id}_vs_{other_run.run_id}.{ext}"
+        )
+        if ext == "tsv":
+            with filename.open("w") as handle:
+                handle.write(f"#{x_caption}\t{y_caption}\n")
+                for x, y in zip(x_values, y_values, strict=True):
+                    handle.write(f"{x}\t{y}\n")
+        else:
+            joint_grid.savefig(filename)
+
+    return len(formats)
+
+
+def plot_run_comparison(
+    session: Session,
+    run: db_orm.Run,
+    other_runs: list[int],
+    outdir: Path,
+    formats: tuple[str, ...] = GRAPHICS_FORMATS,
+) -> int:
+    """Plot some identity comparisons between runs."""
+    # Offer to do this for other properties, e.g. tANI?
+
+    # Ignore E711, must be != None in SQLalchemy
+    reference_values_by_hash = {
+        (_.query_hash, _.subject_hash): _.identity
+        for _ in run.comparisons().where(db_orm.Comparison.identity != None)  # noqa: E711
+    }
+    queries = {_[0] for _ in reference_values_by_hash}
+    subjects = {_[1] for _ in reference_values_by_hash}
+    sys.stderr.write(
+        f"INFO: Run {run.run_id} has {len(reference_values_by_hash)} comparisons\n"
+    )
+
+    done = 0
+    with Progress(*PROGRESS_BAR_COLUMNS) as progress:
+        for other_run_id in progress.track(other_runs, description="Plotting"):
+            other_run = db_orm.load_run(session, other_run_id, check_complete=False)
+            sys.stderr.write(
+                f"INFO: Plotting {other_run.configuration.method} run {other_run_id}"
+                f" vs {run.configuration.method} run {run.run_id}\n"
+            )
+            # Can pre-filter the query list and the suject list in the DB,
+            # but ultimately need matching pairs so final filter in Python:
+            other_values_by_hash = {
+                (_.query_hash, _.subject_hash): _.identity
+                for _ in other_run.comparisons()
+                .where(db_orm.Comparison.query_hash.in_(queries))
+                .where(db_orm.Comparison.subject_hash.in_(subjects))
+                .where(db_orm.Comparison.identity != None)  # noqa: E711
+                if (_.query_hash, _.subject_hash) in reference_values_by_hash
+            }
+            if not other_values_by_hash:
+                msg = f"ERROR: Runs {run.run_id} and {other_run_id} have no comparisons in common"
+                sys.exit(msg)
+            sys.stderr.write(
+                f"INFO: Plotting {other_run.configuration.method} run {other_run_id}"
+                f" vs {run.configuration.method} run {run.run_id},"
+                f" with {len(other_values_by_hash)} comparisons in common\n"
+            )
+            done += plot_comp_scatter(
+                run,
+                reference_values_by_hash,
+                other_run,
+                other_values_by_hash,
+                outdir,
+                formats=formats,
+            )
+
     return done

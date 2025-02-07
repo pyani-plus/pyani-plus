@@ -87,7 +87,7 @@ AACC-GGATTT
 # 689d3fd6881db36b5e08329cf23cecdd AACCGG-TTT query length 9
 # 78975d5144a1cd12e98898d573cf6536 AACCGGATTT subject length 10
 #
-# 9 matches 0 mismatch in alignment of length 9, so identity 9/10 = 0.9
+# 9 matches 0 mismatch in alignment of length 10, so identity 9/10 = 0.9
 # However query coverage (9+0)/9 = 1.0, subject cover (9+0)/10 = 0.9
 #
 # So identity [1.0 ... ...]    query coverage [1.0 ... ...]

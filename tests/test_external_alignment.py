@@ -37,7 +37,7 @@ from pyani_plus.utils import file_md5sum
 # Listing the fragments in MD5 order to match the matrix in DB:
 MOCK_3_BY_11_ALIGNMENT = """\
 >OP073605 mock 10bp fragment for 5584c7029328dc48d33f95f0a78f7e57
-AACC-GGTTTT
+GACC-GGTTTT
 >MGV-GENOME-0264574 mock 9bp fragment for 689d3fd6881db36b5e08329cf23cecdd
 AACC-GG-TTT
 >MGV-GENOME-0266457 mock 10bp fragment for 78975d5144a1cd12e98898d573cf6536
@@ -45,37 +45,37 @@ AACC-GGATTT
 """
 # Consider this pair (1st and 2nd entries):
 #
-# 5584c7029328dc48d33f95f0a78f7e57 AACC-GGTTTT query length 10
+# 5584c7029328dc48d33f95f0a78f7e57 GACC-GGTTTT query length 10
 # 689d3fd6881db36b5e08329cf23cecdd AACC-GG-TTT subject length 9
 #
 # Equivalent to this:
 #
-# 5584c7029328dc48d33f95f0a78f7e57 AACCGGTTTT query length 10
+# 5584c7029328dc48d33f95f0a78f7e57 GACCGGTTTT query length 10
 # 689d3fd6881db36b5e08329cf23cecdd AACCGG-TTT subject length 9
 #
-# 9 matches 0 mismatch in alignment of gapped-length 10, so identity 9/10=0.9
-# However query coverage (9+0)/10 = 0.9, subject cover (9+0)/9 = 1.0
+# 8 matches 1 mismatch in alignment of gapped-length 10, so identity 8/10=0.8
+# However query coverage (8+1)/10 = 0.9, subject cover (8+1)/9 = 1.0
 #
-# So identity [1.0 0.9 ...]    query coverage [1.0 0.9 ...]
-#             [0.9 1.0 ...]                   [1.0 1.0 ...]
+# So identity [1.0 0.8 ...]    query coverage [1.0 0.9 ...]
+#             [0.8 1.0 ...]                   [1.0 1.0 ...]
 #             [... ... 1.0]                   [... ... 1.0]
 #
 # Now consider this pair (1st and 3rd entries):
 #
-# 5584c7029328dc48d33f95f0a78f7e57 AACC-GGTTTT query length 10
+# 5584c7029328dc48d33f95f0a78f7e57 GACC-GGTTTT query length 10
 # 78975d5144a1cd12e98898d573cf6536 AACC-GGATTT subject length 10
 #
 # Equivalent to this:
 #
-# 5584c7029328dc48d33f95f0a78f7e57 AACCGGTTTT
+# 5584c7029328dc48d33f95f0a78f7e57 GACCGGTTTT
 # 78975d5144a1cd12e98898d573cf6536 AACCGGATTT
 #
-# 9 matches 1 mismatch in an alignment of length 10, identity 9/10=0.9
-# Both query and subject full coverage (9+1)/10, so coverage 1.0
+# 8 matches 2 mismatch in an alignment of length 10, identity 8/10=0.8
+# Both query and subject full coverage (8+2)/10, so coverage 1.0
 #
-# So identity [1.0 ... 0.9]    query coverage [1.0 ... 1.0]
+# So identity [1.0 ... 0.8]    query coverage [1.0 ... 1.0]
 #             [... 1.0 ...]                   [... 1.0 ...]
-#             [0.9 ... 1.0]                   [1.0 ... 1.0]
+#             [0.8 ... 1.0]                   [1.0 ... 1.0]
 #
 # Finally, consider this pair (2nd and 3rd entries):
 #
@@ -96,14 +96,14 @@ AACC-GGATTT
 #
 # Overall:
 #
-# So identity [1.0 0.9 0.9]    query coverage [1.0 0.9 1.0]
-#             [0.9 1.0 0.9]                   [1.0 1.0 1.0]
-#             [0.9 0.9 1.0]                   [1.0 0.9 1.0]
+# So identity [1.0 0.8 0.8]    query coverage [1.0 0.9 1.0]
+#             [0.8 1.0 0.9]                   [1.0 1.0 1.0]
+#             [0.8 0.9 1.0]                   [1.0 0.9 1.0]
 #
 MOCK_3_BY_11_DF_IDENTITY = (
     '{"columns":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
     '"index":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
-    '"data":[[1.0,0.9,0.9],[0.9,1.0,0.9],[0.9,0.9,1.0]]}'
+    '"data":[[1.0,0.8,0.8],[0.8,1.0,0.9],[0.8,0.9,1.0]]}'
 )
 MOCK_3_BY_11_DF_COV_QUERY = (
     '{"columns":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'

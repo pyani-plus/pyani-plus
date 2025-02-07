@@ -1291,7 +1291,6 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     Will only look at query in query_hashes vs subject_hash, but will also
     record reciprocal comparison as this method is symmetric.
     """
-    gap = "-"  # could be configurable, but why?
     uname = platform.uname()
     uname_system = uname.system
     uname_release = uname.release
@@ -1351,6 +1350,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
             filename_stem(_.fasta_filename): _.genome_hash for _ in run.fasta_hashes
         }.get
 
+    import numpy as np  # lazy import, although might be implicitly loaded already?
     from Bio.SeqIO.FastaIO import SimpleFastaParser  # deliberate lazy import
 
     # First col, computes N, logs 2N-1 (A-vs-A, B-vs-A, C-vs-A, ..., Z-vs-A and mirrors)
@@ -1370,13 +1370,16 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     # Easiest way to solve this is two linear scans of the file, with a seek(0)
     with alignment.open() as handle:
         subject_seq = subject_title = ""  # placeholder values
+        # Should load the file in binary mode as will be working in bytes
         for query_title, query_seq in SimpleFastaParser(handle):
             query_hash = mapping(query_title.split(None, 1)[0])
             if not query_hash:
                 msg = f"ERROR: Could not map {query_title.split(None, 1)[0]} as {label}"
                 sys.exit(msg)
             if query_hash == subject_hash:
-                subject_seq = query_seq  # for use in rest of the loop
+                # for use in rest of the loop - an array of bytes!
+                subject_seq = query_seq
+                s_array = np.array(list(subject_seq), "S1")
                 subject_title = query_title  # for use in logging
                 break
         else:
@@ -1399,7 +1402,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
                         "query_hash": query_hash,
                         "subject_hash": subject_hash,
                         "identity": 1.0,
-                        "aln_length": len(query_seq) - query_seq.count(gap),
+                        "aln_length": len(query_seq) - query_seq.count("-"),
                         "sim_errors": 0,
                         "cov_query": 1.0,
                         "cov_subject": 1.0,
@@ -1419,30 +1422,32 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
                         f" and {subject_title.split(None, 1)[0]}\n"
                     )
                     sys.exit(msg)
-                matches = 0
-                non_gap_mismatches = 0
-                either_gapped = 0
-                for q, s in zip(query_seq, subject_seq, strict=True):
-                    # Cache these two as booleans:
-                    q_gap = q == gap
-                    s_gap = s == gap
-                    if q_gap and s_gap:
-                        continue  # does not contribute to aln_length
-                    if q == s:
-                        matches += 1
-                    elif q_gap or s_gap:
-                        # Don't want to count this towards coverage (max 100%)
-                        either_gapped += 1
-                    else:
-                        non_gap_mismatches += 1
+
+                q_array = np.array(list(query_seq), "S1")
+                q_non_gaps = q_array != b"-"
+                s_non_gaps = s_array != b"-"
+                # & is AND
+                # | is OR
+                # ^ is XOR
+                # ~ is NOT
+                # e.g. ~(q_gaps | s_gaps) would be entries with no gaps
+                naive_matches = q_array == s_array  # includes double gaps!
+                matches = int((naive_matches & q_non_gaps).sum())
+                one_gapped = q_non_gaps ^ s_non_gaps
+                non_gap_mismatches = int((~naive_matches & ~one_gapped).sum())
+                either_gapped = int(one_gapped.sum())
+                del naive_matches, q_non_gaps, s_non_gaps, q_array
+
+                # Now compute the alignment metrics from that
                 query_cov = (matches + non_gap_mismatches) / (
-                    len(query_seq) - query_seq.count(gap)
+                    len(query_seq) - query_seq.count("-")
                 )
                 subject_cov = (matches + non_gap_mismatches) / (
-                    len(subject_seq) - subject_seq.count(gap)
+                    len(subject_seq) - subject_seq.count("-")
                 )
                 aln_length = matches + non_gap_mismatches + either_gapped
                 sim_errors = non_gap_mismatches + either_gapped
+
                 db_entries.append(
                     {
                         "query_hash": query_hash,

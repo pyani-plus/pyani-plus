@@ -46,9 +46,9 @@ class CliqueInfo(NamedTuple):
     """Graph structure summary."""
 
     n_nodes: int
-    min_cov: float | None
-    max_identity: float | None
+    max_cov: float | None
     min_identity: float | None
+    max_identity: float | None
     members: list
 
 
@@ -207,15 +207,15 @@ def compute_classify_output(
     clique_data = [
         CliqueInfo(
             n_nodes=len(clique.nodes),
-            min_cov=min(
+            max_cov=min(
                 (attrs["coverage"] for _, _, attrs in clique.edges(data=True)),
                 default=None,
             ),
+            min_identity=edge_form,
             max_identity=min(
                 (attrs["identity"] for _, _, attrs in clique.edges(data=True)),
                 default=None,
             ),
-            min_identity=edge_form,
             members=list(clique.nodes),
         )
         for clique, edge_form in cliques

@@ -1121,76 +1121,6 @@ def compute_dnadiff(  # noqa: C901, PLR0912, PLR0913, PLR0915
 def log_sourmash(
     database: REQ_ARG_TYPE_DATABASE,
     run_id: REQ_ARG_TYPE_RUN_ID,
-    compare: Annotated[
-        Path,
-        typer.Option(
-            help="Sourmash compare all-vs-all CSV output file",
-            show_default=False,
-            dir_okay=False,
-            file_okay=True,
-            exists=True,
-        ),
-    ],
-    *,
-    quiet: OPT_ARG_TYPE_QUIET = False,
-) -> int:
-    """Log an all-vs-all sourmash pairwise comparison to database."""
-    if database != ":memory:" and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
-
-    uname = platform.uname()
-    uname_system = uname.system
-    uname_release = uname.release
-    uname_machine = uname.machine
-
-    if not quiet:
-        print(f"Logging sourmash to {database}")
-    session = db_orm.connect_to_db(database)
-    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-    if run.configuration.method != "sourmash":
-        msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
-        sys.exit(msg)
-
-    _check_tool_version(tools.get_sourmash(), run.configuration)
-
-    config_id = run.configuration.configuration_id
-    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
-
-    # Now do a bulk import... but must skip any pre-existing entries
-    # otherwise would hit sqlite3.IntegrityError for breaking uniqueness!
-    # Do this via the Sqlite3 supported SQL command "INSERT OR IGNORE"
-    # using the dialect's on_conflict_do_nothing method.
-    # Repeating those calculations is a waste, but a performance trade off
-    session.execute(
-        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
-        [
-            {
-                "query_hash": query_hash,
-                "subject_hash": subject_hash,
-                "identity": max_containment,
-                "cov_query": query_containment,
-                "configuration_id": config_id,
-                "uname_system": uname_system,
-                "uname_release": uname_release,
-                "uname_machine": uname_machine,
-            }
-            for (
-                query_hash,
-                subject_hash,
-                query_containment,
-                max_containment,
-            ) in sourmash.parse_sourmash_compare_csv(compare, filename_to_hash)
-        ],
-    )
-    session.commit()
-    return 0
-
-
-@app.command(rich_help_panel="Method specific logging")
-def log_branchwater(
-    database: REQ_ARG_TYPE_DATABASE,
-    run_id: REQ_ARG_TYPE_RUN_ID,
     manysearch: Annotated[
         Path,
         typer.Option(
@@ -1215,10 +1145,10 @@ def log_branchwater(
     uname_machine = uname.machine
 
     if not quiet:
-        print(f"Logging branchwater to {database}")
+        print(f"Logging sourmash to {database}")
     session = db_orm.connect_to_db(database)
     run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-    if run.configuration.method != "branchwater":
+    if run.configuration.method != "sourmash":
         msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
         sys.exit(msg)
 

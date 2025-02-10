@@ -232,9 +232,7 @@ def run_method(  # noqa: PLR0913
                 target_paths,
                 params,
                 work_path,
-                display=ShowProgress.spin
-                if method in {"sourmash", "branchwater"}
-                else ShowProgress.bar,
+                display=ShowProgress.spin if method == "sourmash" else ShowProgress.bar,
                 database=Path(database),
                 run_id=run_id,
                 temp=temp,
@@ -446,47 +444,6 @@ def cli_sourmash(  # noqa: PLR0913
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
-    # For the config table:
-    scaled: OPT_ARG_TYPE_SOURMASH_SCALED = sourmash.SCALED,  # 1000
-    kmersize: OPT_ARG_TYPE_KMERSIZE = sourmash.KMER_SIZE,
-) -> int:
-    """Execute sourmash calculations, logged to a pyANI-plus SQLite3 database."""
-    check_db(database, create_db)
-
-    tool = tools.get_sourmash()
-    binaries = {
-        "sourmash": tool.exe_path,
-    }
-    extra = f"scaled={scaled}"
-    return start_and_run_method(
-        executor,
-        temp,
-        wtemp,
-        database,
-        name,
-        "sourmash",
-        fasta,
-        # Can we do e.g. sourmash_k=31_scaled=300.csv
-        # using [f"sourmash_k={kmersize}_{extra}.csv"] ?
-        ["sourmash.csv"],
-        tool,
-        binaries,
-        kmersize=kmersize,
-        extra=extra,
-    )
-
-
-@app.command("branchwater", rich_help_panel="ANI methods")
-def cli_branchwater(  # noqa: PLR0913
-    fasta: REQ_ARG_TYPE_FASTA_DIR,
-    database: REQ_ARG_TYPE_DATABASE,
-    *,
-    # These are for the run table:
-    name: OPT_ARG_TYPE_RUN_NAME = None,
-    create_db: OPT_ARG_TYPE_CREATE_DB = False,
-    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
-    temp: OPT_ARG_TYPE_TEMP = None,
-    wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
     # These are for the configuration table:
     scaled: OPT_ARG_TYPE_SOURMASH_SCALED = sourmash.SCALED,  # 1000
     kmersize: OPT_ARG_TYPE_KMERSIZE = sourmash.KMER_SIZE,
@@ -505,7 +462,7 @@ def cli_branchwater(  # noqa: PLR0913
         wtemp,
         database,
         name,
-        "branchwater",
+        "sourmash",
         fasta,
         ["manysearch.csv"],
         tool,
@@ -597,12 +554,6 @@ def resume(  # noqa: C901, PLR0912, PLR0915
                 f"all_vs_{Path(_.fasta_filename).stem}.anib" for _ in run.fasta_hashes
             ]
         case "sourmash":
-            tool = tools.get_sourmash()
-            binaries = {
-                "sourmash": tool.exe_path,
-            }
-            targets = ["sourmash.csv"]
-        case "branchwater":
             tool = tools.get_sourmash()
             binaries = {
                 "sourmash": tool.exe_path,

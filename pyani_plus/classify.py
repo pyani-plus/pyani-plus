@@ -47,8 +47,8 @@ class CliqueInfo(NamedTuple):
 
     n_nodes: int
     min_cov: float | None
+    max_identity: float | None
     min_identity: float | None
-    identity_break_edge: float | None
     members: list
 
 
@@ -211,11 +211,11 @@ def compute_classify_output(
                 (attrs["coverage"] for _, _, attrs in clique.edges(data=True)),
                 default=None,
             ),
-            min_identity=min(
+            max_identity=min(
                 (attrs["identity"] for _, _, attrs in clique.edges(data=True)),
                 default=None,
             ),
-            identity_break_edge=edge_form,
+            min_identity=edge_form,
             members=list(clique.nodes),
         )
         for clique, edge_form in cliques

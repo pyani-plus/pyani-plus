@@ -112,10 +112,13 @@ def find_initial_cliques(graph: nx.Graph) -> list:
     """
     cliques: list(nx.Graph) = []  # type: ignore  # noqa: PGH003
     connected_components = list(nx.connected_components(graph))
+    edges = nx.get_edge_attributes(graph, "identity")
+
+    identity = min(edges.values()) if edges else None
     for component in connected_components:
         subgraph = graph.subgraph(component).copy()
         if is_clique(subgraph):  # Check if the subgraph is a clique
-            cliques.append((subgraph, "NA"))
+            cliques.append((subgraph, identity))
 
     return cliques
 

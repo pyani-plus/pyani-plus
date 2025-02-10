@@ -40,7 +40,7 @@ def one_node_no_edges_graph() -> nx.Graph:
     """Return graph with one node and no edges and the expected identity edge that formed the clique."""
     graph = nx.Graph()
     graph.add_node("genome_1")
-    return (graph, "NA")
+    return (graph, None)
 
 
 @pytest.fixture
@@ -62,7 +62,7 @@ def two_nodes_no_edges_cliques() -> list[nx.Graph]:
     clique_2 = nx.Graph()
     clique_2.add_node("genome_2")
 
-    return [(clique_1, "NA"), (clique_2, "NA")]
+    return [(clique_1, None), (clique_2, None)]
 
 
 @pytest.fixture
@@ -88,7 +88,7 @@ def two_nodes_one_edge_graph() -> nx.Graph:
     """Return graph with two nodes and one edge and the expected identity edge that formed the clique."""
     graph = nx.Graph()
     graph.add_edge("genome_1", "genome_2", identity=0.999310, coverage=0.6774176803)
-    return (graph, "NA")
+    return (graph, 0.999310)
 
 
 @pytest.fixture
@@ -105,7 +105,7 @@ def two_nodes_one_edge_cliques() -> list[tuple[nx.Graph, float | str]]:
     clique_3 = nx.Graph()
     clique_3.add_node("genome_2")
 
-    return [(clique_1, "NA"), (clique_2, 0.999310), (clique_3, 0.999310)]
+    return [(clique_1, 0.999310), (clique_2, 0.999310), (clique_3, 0.999310)]
 
 
 @pytest.fixture

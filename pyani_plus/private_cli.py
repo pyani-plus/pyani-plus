@@ -1300,6 +1300,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     # Easiest way to solve this is two linear scans of the file, with a seek(0)
     with alignment.open() as handle:
         subject_seq = subject_title = ""  # placeholder values
+        s_non_gaps = subject_seq_gaps = None  # placeholder values
         # Should load the file in binary mode as will be working in bytes
         for query_title, query_seq in SimpleFastaParser(handle):
             query_hash = mapping(query_title.split(None, 1)[0])
@@ -1310,6 +1311,8 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 # for use in rest of the loop - an array of bytes!
                 subject_seq = query_seq
                 s_array = np.array(list(subject_seq), "S1")
+                s_non_gaps = s_array != b"-"
+                subject_seq_gaps = subject_seq.count("-")
                 subject_title = query_title  # for use in logging
                 break
         else:
@@ -1355,7 +1358,6 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
 
                 q_array = np.array(list(query_seq), "S1")
                 q_non_gaps = q_array != b"-"
-                s_non_gaps = s_array != b"-"
                 # & is AND
                 # | is OR
                 # ^ is XOR
@@ -1366,14 +1368,14 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 one_gapped = q_non_gaps ^ s_non_gaps
                 non_gap_mismatches = int((~naive_matches & ~one_gapped).sum())
                 either_gapped = int(one_gapped.sum())
-                del naive_matches, q_non_gaps, s_non_gaps, q_array
+                del naive_matches, q_non_gaps, q_array
 
                 # Now compute the alignment metrics from that
                 query_cov = (matches + non_gap_mismatches) / (
                     len(query_seq) - query_seq.count("-")
                 )
                 subject_cov = (matches + non_gap_mismatches) / (
-                    len(subject_seq) - subject_seq.count("-")
+                    len(subject_seq) - subject_seq_gaps
                 )
                 aln_length = matches + non_gap_mismatches + either_gapped
                 sim_errors = non_gap_mismatches + either_gapped

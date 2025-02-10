@@ -47,7 +47,13 @@ from pyani_plus.public_cli_args import (
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
 )
-from pyani_plus.utils import check_fasta, check_output, file_md5sum, stage_file
+from pyani_plus.utils import (
+    check_fasta,
+    check_output,
+    file_md5sum,
+    filename_stem,
+    stage_file,
+)
 
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -469,6 +475,7 @@ def compute_column(  # noqa: C901
             "ANIb": compute_anib,
             "ANIm": compute_anim,
             "dnadiff": compute_dnadiff,
+            "external-alignment": compute_external_alignment,
         }[method]
     except KeyError:
         msg = f"ERROR: Unknown method {method} for run-id {run_id} in {database}"
@@ -1193,6 +1200,226 @@ def log_sourmash(
         ],
     )
 
+    session.commit()
+    return 0
+
+
+def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
+    tmp_dir: Path,  # noqa: ARG001
+    session: Session,
+    run: db_orm.Run,
+    fasta_dir: Path,  # noqa: ARG001
+    hash_to_filename: dict[str, str],  # noqa: ARG001
+    filename_to_hash: dict[str, str],  # noqa: ARG001
+    query_hashes: list[str],
+    subject_hash: str,
+    *,
+    quiet: bool = False,
+) -> int:
+    """Compute and log column of comparisons from given MSA to database.
+
+    Will only look at query in query_hashes vs subject_hash, but will also
+    record reciprocal comparison as this method is symmetric.
+    """
+    uname = platform.uname()
+    uname_system = uname.system
+    uname_release = uname.release
+    uname_machine = uname.machine
+
+    config_id = run.configuration.configuration_id
+    if run.configuration.method != "external-alignment":
+        msg = f"ERROR: Run-id {run.run_id} expected {run.configuration.method} results"
+        sys.exit(msg)
+    if run.configuration.program:
+        msg = f"ERROR: configuration.program={run.configuration.program!r} unexpected"
+        sys.exit(msg)
+    if run.configuration.version:
+        msg = f"ERROR: configuration.version={run.configuration.version!r} unexpected"
+        sys.exit(msg)
+    if not run.configuration.extra:
+        msg = "ERROR: Missing configuration.extra setting"
+        sys.exit(msg)
+    args = dict(_.split("=", 1) for _ in run.configuration.extra.split(";", 2))
+    if list(args) != ["md5", "label", "alignment"]:
+        msg = f"ERROR: configuration.extra={run.configuration.extra!r} unexpected"
+        sys.exit(msg)
+
+    alignment = Path(args["alignment"])
+    if not alignment.is_absolute():
+        # If not absolute, assume MSA path relative to the DB.
+        # Get the DB filename via the session connection binding
+        url = str(session.bind.url)
+        if not url.startswith("sqlite:///"):
+            msg = (  # pragma: nocover
+                f"Expected SQLite3 URL to start sqlite:/// not {url}"
+            )
+            raise ValueError(msg)  # pragma: nocover
+        if not quiet:
+            print(f"DEBUG: Treating {alignment} as relative to {url}")
+        alignment = Path(url[10:]).parent / alignment
+
+    md5 = args["md5"]
+    label = args["label"]
+    del args
+
+    if not quiet:
+        print(f"INFO: Parsing {alignment} (MD5={md5}, label={label})")
+    if not alignment.is_file():
+        msg = f"ERROR: Missing alignment file {alignment}"
+        sys.exit(msg)
+    if md5 != file_md5sum(alignment):
+        msg = f"ERROR: MD5 checksum of {alignment} didn't match."
+        sys.exit(msg)
+
+    if label == "md5":
+        mapping = lambda x: x  # noqa: E731
+    elif label == "filename":
+        mapping = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}.get
+    else:
+        mapping = {
+            filename_stem(_.fasta_filename): _.genome_hash for _ in run.fasta_hashes
+        }.get
+
+    import numpy as np  # lazy import, although might be implicitly loaded already?
+    from Bio.SeqIO.FastaIO import SimpleFastaParser  # deliberate lazy import
+
+    # First col, computes N, logs 2N-1 (A-vs-A, B-vs-A, C-vs-A, ..., Z-vs-A and mirrors)
+    # Second col, computes N-1, logs 2N-3 (skips A-vs-B, computes B-vs-B, ..., Z-vs-B)
+    # ...
+    # N-th col, computes 1, logs 1 (skips A-vs-Z, ..., Y-vs-Z, computes Z-vs-Z only)
+    #
+    # Hopefully snakemake will submit jobs in that order which would be most efficient.
+    #
+    # Potentially we could instead break this into N/2 jobs (even) or (N+1)/2 jobs (odd)
+    # Thus when N is even, the first job would consisting of columns 1 and N, next
+    # job columns 2 and N-1, etc. Each job does N computations and records 2N comparisons.
+    # Similarly when N is odd, although there we have a final half-sized single-column job.
+
+    # We could interpret the column number as the MSA ordering, but our internal
+    # API by subject hash - and we can't assume the MSA is in any particular order.
+    # Easiest way to solve this is two linear scans of the file, with a seek(0)
+    with alignment.open() as handle:
+        subject_seq = subject_title = ""  # placeholder values
+        # Should load the file in binary mode as will be working in bytes
+        for query_title, query_seq in SimpleFastaParser(handle):
+            query_hash = mapping(query_title.split(None, 1)[0])
+            if not query_hash:
+                msg = f"ERROR: Could not map {query_title.split(None, 1)[0]} as {label}"
+                sys.exit(msg)
+            if query_hash == subject_hash:
+                # for use in rest of the loop - an array of bytes!
+                subject_seq = query_seq
+                s_array = np.array(list(subject_seq), "S1")
+                subject_title = query_title  # for use in logging
+                break
+        else:
+            msg = f"Did not find subject {subject_hash} in {alignment.name}"
+            raise ValueError(msg)
+
+        db_entries = []
+
+        handle.seek(0)
+        for query_title, query_seq in SimpleFastaParser(handle):
+            query_hash = mapping(query_title.split(None, 1)[0])
+            if query_hash < subject_hash or query_hash not in query_hashes:
+                # Exploiting symmetry to avoid double computation,
+                # or not asked to compute this pairing (as already in the DB)
+                continue
+            if query_hash == subject_hash:
+                # 100% identity and coverage, but need to calculate aln_length
+                db_entries.append(
+                    {
+                        "query_hash": query_hash,
+                        "subject_hash": subject_hash,
+                        "identity": 1.0,
+                        "aln_length": len(query_seq) - query_seq.count("-"),
+                        "sim_errors": 0,
+                        "cov_query": 1.0,
+                        "cov_subject": 1.0,
+                        "configuration_id": config_id,
+                        "uname_system": uname_system,
+                        "uname_release": uname_release,
+                        "uname_machine": uname_machine,
+                    }
+                )
+            else:
+                # Full calculation required
+                if len(query_seq) != len(subject_seq):
+                    msg = (
+                        "ERROR: Bad external-alignment, different lengths"
+                        f" {len(query_seq)} and {len(subject_seq)}"
+                        f" from {query_title.split(None, 1)[0]}"
+                        f" and {subject_title.split(None, 1)[0]}\n"
+                    )
+                    sys.exit(msg)
+
+                q_array = np.array(list(query_seq), "S1")
+                q_non_gaps = q_array != b"-"
+                s_non_gaps = s_array != b"-"
+                # & is AND
+                # | is OR
+                # ^ is XOR
+                # ~ is NOT
+                # e.g. ~(q_gaps | s_gaps) would be entries with no gaps
+                naive_matches = q_array == s_array  # includes double gaps!
+                matches = int((naive_matches & q_non_gaps).sum())
+                one_gapped = q_non_gaps ^ s_non_gaps
+                non_gap_mismatches = int((~naive_matches & ~one_gapped).sum())
+                either_gapped = int(one_gapped.sum())
+                del naive_matches, q_non_gaps, s_non_gaps, q_array
+
+                # Now compute the alignment metrics from that
+                query_cov = (matches + non_gap_mismatches) / (
+                    len(query_seq) - query_seq.count("-")
+                )
+                subject_cov = (matches + non_gap_mismatches) / (
+                    len(subject_seq) - subject_seq.count("-")
+                )
+                aln_length = matches + non_gap_mismatches + either_gapped
+                sim_errors = non_gap_mismatches + either_gapped
+
+                db_entries.append(
+                    {
+                        "query_hash": query_hash,
+                        "subject_hash": subject_hash,
+                        "identity": matches / aln_length,
+                        "aln_length": aln_length,
+                        "sim_errors": sim_errors,
+                        "cov_query": query_cov,
+                        "cov_subject": subject_cov,
+                        "configuration_id": config_id,
+                        "uname_system": uname_system,
+                        "uname_release": uname_release,
+                        "uname_machine": uname_machine,
+                    }
+                )
+                # Fill in the symmetric entry
+                db_entries.append(
+                    {
+                        "query_hash": subject_hash,
+                        "subject_hash": query_hash,
+                        "identity": matches / aln_length,
+                        "aln_length": aln_length,
+                        "sim_errors": sim_errors,
+                        "cov_query": subject_cov,
+                        "cov_subject": query_cov,
+                        "configuration_id": config_id,
+                        "uname_system": uname_system,
+                        "uname_release": uname_release,
+                        "uname_machine": uname_machine,
+                    }
+                )
+    if not quiet:
+        print(f"DEBUG: Logging {len(db_entries)} comparisons vs {subject_title}")
+    # Now do a bulk import... but must skip any pre-existing entries
+    # otherwise would hit sqlite3.IntegrityError for breaking uniqueness!
+    # Do this via the Sqlite3 supported SQL command "INSERT OR IGNORE"
+    # using the dialect's on_conflict_do_nothing method.
+    # Repeating those calculations is a waste, could skip if partially done?
+    session.execute(
+        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
+        db_entries,
+    )
     session.commit()
     return 0
 

@@ -90,7 +90,7 @@ def start_and_run_method(  # noqa: PLR0913
     method: str,
     fasta: Path,
     targets: list[str],  # filenames without paths
-    tool: tools.ExternalToolData,
+    tool: tools.ExternalToolData | None,
     binaries: dict[str, Path],
     *,
     fragsize: int | None = None,
@@ -111,8 +111,8 @@ def start_and_run_method(  # noqa: PLR0913
     config = db_orm.db_configuration(
         session,
         method,
-        tool.exe_path.stem,
-        tool.version,
+        "" if tool is None else tool.exe_path.stem,
+        "" if tool is None else tool.version,
         fragsize,
         mode,
         kmersize,
@@ -472,6 +472,60 @@ def cli_sourmash(  # noqa: PLR0913
     )
 
 
+@app.command(rich_help_panel="ANI methods")
+def external_alignment(  # noqa: PLR0913
+    fasta: REQ_ARG_TYPE_FASTA_DIR,
+    database: REQ_ARG_TYPE_DATABASE,
+    *,
+    # These are for the run table:
+    name: OPT_ARG_TYPE_RUN_NAME = None,
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    temp: OPT_ARG_TYPE_TEMP = None,
+    wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
+    # These are for the configuration table:
+    alignment: Annotated[
+        Path,
+        typer.Option(
+            help="FASTA format MSA of the same genomes (one sequence per genome)",
+            rich_help_panel="Method parameters",
+            dir_okay=False,
+            file_okay=True,
+            exists=True,
+        ),
+    ],
+    label: Annotated[
+        str,
+        typer.Option(
+            click_type=click.Choice(["md5", "filename", "stem"]),
+            rich_help_panel="Method parameters",
+            help="How are the sequences in the MSA labelled vs the FASTA genomes?",
+        ),
+    ] = "stem",
+) -> int:
+    """Compute pairwise ANI from given multiple-sequence-alignment (MSA) file."""
+    check_db(database, create_db)
+
+    aln_checksum = file_md5sum(alignment)
+    # Doing this order to put the filename LAST, in case of separators in the filename
+    extra = f"md5={aln_checksum};label={label};alignment={alignment.name}"
+    fasta_list = check_fasta(fasta)
+
+    return start_and_run_method(
+        executor,
+        temp,  # not needed?
+        wtemp,  # not needed?
+        database,
+        f"Import of {alignment.name}" if name is None else name,
+        "external-alignment",
+        fasta,
+        [f"all_vs_{Path(_).stem}.external-alignment" for _ in fasta_list],
+        None,  # no tool
+        {},  # no binaries
+        extra=extra,
+    )
+
+
 @app.command()
 def resume(  # noqa: C901, PLR0912, PLR0915
     database: REQ_ARG_TYPE_DATABASE,
@@ -512,6 +566,7 @@ def resume(  # noqa: C901, PLR0912, PLR0915
     # The params dict has two kinds of entries,
     # - tool paths, which ought to be handled more neatly
     # - config entries, which ought to be named consistently and done centrally
+    tool: tools.ExternalToolData | None = None  # make type explicit for mypy
     match config.method:
         case "fastANI":
             tool = tools.get_fastani()
@@ -559,15 +614,30 @@ def resume(  # noqa: C901, PLR0912, PLR0915
                 "sourmash": tool.exe_path,
             }
             targets = ["manysearch.csv"]
+        case "external-alignment":
+            tool = None
+            binaries = {}
+            targets = [
+                f"all_vs_{Path(_.fasta_filename).stem}.external-alignment"
+                for _ in run.fasta_hashes
+            ]
         case _:
             msg = f"ERROR: Unknown method {config.method} for run-id {run_id} in {database}"
             sys.exit(msg)
-    if tool.exe_path.stem != config.program or tool.version != config.version:
+    if not tool:
+        if config.program != "" or config.version != "":
+            msg = (
+                "ERROR: We expect no tool information, but"
+                f" run-id {run_id} used {config.program} version {config.version} instead."
+            )
+            sys.exit(msg)
+    elif tool.exe_path.stem != config.program or tool.version != config.version:
         msg = (
             f"ERROR: We have {tool.exe_path.stem} version {tool.version}, but"
             f" run-id {run_id} used {config.program} version {config.version} instead."
         )
         sys.exit(msg)
+
     del tool
 
     # Now we need to check the fasta files in the directory

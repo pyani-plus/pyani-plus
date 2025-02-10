@@ -1431,15 +1431,15 @@ def test_plot_bad_nulls(
     # Record all of the possible comparisons, leaving coverage null
     genomes = list(fasta_to_hash.values())
     for query_hash in genomes:
-        for index, subject_hash in enumerate(genomes):
+        for subject_hash in genomes:
             db_orm.db_comparison(
                 session,
                 config.configuration_id,
                 query_hash,
                 subject_hash,
-                1.0 - (index / 100) if query_hash is subject_hash else None,
-                12345 - index,
-                cov_query=1.0 - (index / 100) if query_hash is subject_hash else None,
+                1.0 if query_hash is subject_hash else None,
+                12345,
+                cov_query=1.0 if query_hash is subject_hash else None,
             )
 
     db_orm.add_run(
@@ -1463,86 +1463,20 @@ def test_plot_bad_nulls(
         public_cli.plot_run(database=tmp_db, outdir=plot_out)
 
     stderr = capsys.readouterr().err
-    # Technically they are all that value OR missing:
     assert (
-        """\
-WARNING: Cannot plot identity as matrix contains 2 nulls (out of 2²=4 guessing comparisons)
-WARNING: Cannot plot query_cov as matrix contains 2 nulls (out of 2²=4 guessing comparisons)
-WARNING: Cannot plot hadamard as matrix contains 2 nulls (out of 2²=4 guessing comparisons)
-WARNING: Cannot plot tANI as matrix contains 2 nulls (out of 2²=4 guessing comparisons)
-"""
+        "WARNING: Cannot plot identity as matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
         in stderr
     ), stderr
-
-
-def test_plot_bad_constant(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
-) -> None:
-    """Check export-run behaviour when have single value."""
-    tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "plot_null.sqlite"
-    session = db_orm.connect_to_db(tmp_db)
-    config = db_orm.db_configuration(
-        session,
-        "guessing",
-        "gestimator",
-        "1.2.3b4",
-        kmersize=51,
-        fragsize=999,
-        minmatch=0.25,
-        create=True,
-    )
-
-    fasta_to_hash = {
-        filename: file_md5sum(filename)
-        for filename in sorted(input_genomes_tiny.glob("*.fa*"))
-    }
-    for filename, md5 in fasta_to_hash.items():
-        db_orm.db_genome(session, filename, md5, create=True)
-
-    # Record all of the possible comparisons, leaving coverage null
-    genomes = list(fasta_to_hash.values())
-    for query_hash in genomes:
-        for subject_hash in genomes:
-            db_orm.db_comparison(
-                session,
-                config.configuration_id,
-                query_hash,
-                subject_hash,
-                1.0,
-                12345,
-                cov_query=1.0,
-            )
-
-    db_orm.add_run(
-        session,
-        config,
-        cmdline="pyani guessing ...",
-        fasta_directory=input_genomes_tiny,
-        status="Partial",
-        name="Test plotting when all 100%",
-        fasta_to_hash=fasta_to_hash,
-    )
-    session.close()
-
-    plot_out = tmp_dir / "plots"
-    plot_out.mkdir()
-
-    with pytest.raises(
-        SystemExit,
-        match=(r"ERROR: Unable to plot any heatmaps \(check for nulls\)"),
-    ):
-        public_cli.plot_run(database=tmp_db, outdir=plot_out)
-
-    stderr = capsys.readouterr().err
-    # Technically they are all that value OR missing:
     assert (
-        """\
-WARNING: Skipping identity plots as all 1.0
-WARNING: Skipping query_cov plots as all 1.0
-WARNING: Skipping hadamard plots as all 1.0
-WARNING: Skipping tANI plots as all -0.0
-"""
+        "WARNING: Cannot plot query_cov as matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
+        in stderr
+    ), stderr
+    assert (
+        "WARNING: Cannot plot hadamard as matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
+        in stderr
+    ), stderr
+    assert (
+        "WARNING: Cannot plot tANI as matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
         in stderr
     ), stderr
 

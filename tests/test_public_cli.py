@@ -832,7 +832,19 @@ def test_sourmash(
         ]
     )
     for f in sorted(_.name for _ in plot_out.glob("*.tsv")):
-        assert filecmp.cmp(plot_out / f, input_genomes_tiny / "plots" / Path(f).name)
+        if "_scatter." in f:
+            # Currently we don't deliberately sort the scatter points, so they
+            # are as per the DB, which in turn depends on how they were imported.
+            # For sourmash was predictable, but for branchwater it is random.
+            with (
+                (plot_out / f).open() as new,
+                (input_genomes_tiny / "plots" / Path(f)).open() as old,
+            ):
+                assert sorted(new.readlines()) == sorted(old.readlines())
+        else:
+            assert filecmp.cmp(
+                plot_out / f, input_genomes_tiny / "plots" / Path(f).name
+            ), f
 
 
 def test_fastani_dups(tmp_path: str) -> None:

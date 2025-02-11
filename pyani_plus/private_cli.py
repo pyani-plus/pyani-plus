@@ -760,7 +760,7 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
         session.execute(
             sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(), db_entries
         )
-        session.commit()
+    session.commit()
 
     if hash_to_filename[subject_hash].endswith(".gz"):
         subject_fasta.unlink()  # remove our decompressed copy
@@ -924,7 +924,7 @@ def compute_anib(  # noqa: PLR0913
         session.execute(
             sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(), db_entries
         )
-        session.commit()
+    session.commit()
 
     return 0
 
@@ -1116,7 +1116,7 @@ def compute_dnadiff(  # noqa: C901, PLR0912, PLR0913, PLR0915
         session.execute(
             sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(), db_entries
         )
-        session.commit()
+    session.commit()
 
     if hash_to_filename[subject_hash].endswith(".gz"):
         subject_fasta.unlink()  # remove our decompressed copy
@@ -1417,17 +1417,11 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
         msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
         sys.stderr.write(msg)
         run.status = "Worker interrupted"
-    if not quiet:
-        print(f"DEBUG: Logging {len(db_entries)} comparisons vs {subject_title}")
-    # Now do a bulk import... but must skip any pre-existing entries
-    # otherwise would hit sqlite3.IntegrityError for breaking uniqueness!
-    # Do this via the Sqlite3 supported SQL command "INSERT OR IGNORE"
-    # using the dialect's on_conflict_do_nothing method.
-    # Repeating those calculations is a waste, could skip if partially done?
-    session.execute(
-        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
-        db_entries,
-    )
+    if db_entries:
+        session.execute(
+            sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
+            db_entries,
+        )
     session.commit()
     return 0
 

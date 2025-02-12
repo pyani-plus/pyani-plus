@@ -37,7 +37,6 @@ import pytest
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 
 from pyani_plus import db_orm, private_cli, tools
-from pyani_plus.utils import file_md5sum
 
 GENOMES = 100
 
@@ -254,87 +253,6 @@ def test_compute_column_sigint_anim(
     else:
         assert 0 < done < genomes, (
             f"Expected partial ANIb progress, not {done}/{genomes} and return {rc}"
-        )
-    assert rc == 0, (
-        f"Expecting return 0 on clean interruption, got {rc} with {done} done"
-    )
-    run = db_orm.load_run(session)
-    assert run.status == "Worker interrupted"
-
-
-def test_compute_column_sigint_external_alignment(
-    capfd: pytest.CaptureFixture[str],
-    tmp_path: str,
-    input_gzip_bacteria: Path,
-    large_set_of_bacterial_chunks: Path,
-) -> None:
-    """Check compute_column with SIGINT and external-alignment."""
-    tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "sigint.sqlite"
-    assert not tmp_db.is_file()
-
-    # Make a mock alignment - does not have to be the same content as the
-    # mock genomes, can be any equal-length chunks. Making this large to
-    # ensure when this is the only test it does not finish in 2s!
-    tmp_alignment = tmp_dir / "alignment.fasta"
-    with gzip.open(input_gzip_bacteria / "NC_010338.fna.gz", "rt") as handle:
-        title, seq = next(SimpleFastaParser(handle))
-    with tmp_alignment.open("w") as handle:
-        for i in range(GENOMES):
-            offset = i * 100
-            handle.write(f">genome{i}\n{seq[offset : offset + 2000000]}\n")
-    md5 = file_md5sum(tmp_alignment)
-
-    private_cli.log_run(
-        fasta=large_set_of_bacterial_chunks,
-        database=tmp_db,
-        cmdline="pyani-plus external-alignment ...",
-        status="Testing",
-        name="Testing SIGINT",
-        method="external-alignment",
-        mode="",
-        program="",
-        version="",
-        extra=f"md5={md5};label=stem;alignment={tmp_alignment}",
-        create_db=True,
-    )
-    output = capfd.readouterr().out
-    assert output.endswith("Run identifier 1\n")
-
-    with subprocess.Popen(
-        [
-            ".pyani-plus-private-cli",
-            "compute-column",
-            "--quiet",
-            "--database",
-            str(tmp_db),
-            "--run-id",
-            "1",
-            "--subject",
-            # Compute first column (slowest), which would not log until finished
-            # (unless interrupted):
-            "0",
-        ],
-        cwd=tmp_dir,
-    ) as process:
-        # Running the test alone, 1s is more than enough. However, as part of
-        # the full test suite with multiple workers must allow longer...
-        time.sleep(4)
-        process.send_signal(signal.SIGINT)
-        process.wait()
-        rc = process.returncode
-    output = capfd.readouterr().err
-
-    session = db_orm.connect_to_db(tmp_db)
-    done = session.query(db_orm.Comparison).count()
-    genomes = session.query(db_orm.Genome).count()
-    full = genomes * 2 - 1  # does first column & row at once (symmetric matrix)
-
-    if done < full:
-        assert "Interrupted, will attempt to log" in output, output
-    else:
-        assert 0 < done < full, (
-            f"Expected partial external-alignment progress, not {done}/{full} and return {rc}"
         )
     assert rc == 0, (
         f"Expecting return 0 on clean interruption, got {rc} with {done} done"

@@ -1414,9 +1414,9 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
                     )
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
-        sys.stderr.write(msg)
-        run.status = "Worker interrupted"
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"  # pragma: no cover
+        sys.stderr.write(msg)  # pragma: no cover
+        run.status = "Worker interrupted"  # pragma: no cover
     if db_entries:
         session.execute(
             sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),

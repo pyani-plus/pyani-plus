@@ -1492,7 +1492,7 @@ def test_plot_skip_nulls(
     assert "WARNING: Cannot plot query_cov as all NA\n" in stderr, stderr
     assert "Cannot plot hadamard as all NA\n" in stderr, stderr
     assert "Cannot plot tANI as all NA\n" in stderr, stderr
-    assert f"Wrote 10 images to {plot_out}" in stdout
+    assert f"Wrote {2 * len(GRAPHICS_FORMATS)} images to {plot_out}" in stdout
     assert sorted(_.name for _ in plot_out.glob("*_heatmap.*")) == sorted(
         f"guessing_identity_heatmap.{ext}" for ext in GRAPHICS_FORMATS
     )
@@ -1757,12 +1757,13 @@ def test_plot_run_comp(
 
     public_cli.plot_run_comp(database=tmp_db, outdir=plot_out, run_ids="1,2,3")
     output = capsys.readouterr().out
-    assert (
-        f"Wrote {2 * len(GRAPHICS_FORMATS)} images to {plot_out}/ANIb_identity_1_vs_*.*\n"
-        in output
-    ), output
-
+    images = len(GRAPHICS_FORMATS)
+    if "tsv" in GRAPHICS_FORMATS:
+        images -= 1
+    assert f"Wrote {images} images to {plot_out}/ANIb_identity_1_vs_*.*\n" in output, (
+        output
+    )
     assert sorted(_.name for _ in plot_out.glob("*")) == sorted(
-        [f"ANIb_identity_1_vs_2.{ext}" for ext in GRAPHICS_FORMATS]
-        + [f"ANIb_identity_1_vs_3.{ext}" for ext in GRAPHICS_FORMATS]
+        [f"ANIb_identity_1_vs_others.{ext}" for ext in GRAPHICS_FORMATS if ext != "tsv"]
+        + [f"ANIb_identity_1_vs_{other}.tsv" for other in ("2", "3")]
     )

@@ -1703,3 +1703,66 @@ def test_classify(
             handle.readline()
             == "n_nodes\tmax_cov\tmin_identity\tmax_identity\tmembers\n"
         )
+
+
+def test_plot_run_comp(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Plot comparisons with three mock runs."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "⚔️.db"
+
+    session = db_orm.connect_to_db(tmp_db)
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+    genomes = list(fasta_to_hash.values())
+
+    config_a = db_orm.db_configuration(session, "ANIb", "blastn", "0.0", create=True)
+    config_b = db_orm.db_configuration(session, "ANIm", "nucmer", "0.0", create=True)
+    config_c = db_orm.db_configuration(
+        session, "fastANI", "fastani", "0.0", create=True
+    )
+
+    for i, config in enumerate((config_a, config_b, config_c)):
+        for query_hash in genomes:
+            for subject_hash in genomes:
+                db_orm.db_comparison(
+                    session,
+                    config.configuration_id,
+                    query_hash,
+                    subject_hash,
+                    1.0 if query_hash is subject_hash else 0.99 ** (i + 1),
+                    12345,
+                )
+        db_orm.add_run(
+            session,
+            config,
+            cmdline="pyani-plus ...",
+            fasta_directory=input_genomes_tiny,
+            status="Done",
+            name="Trial " + "ABC"[i],
+            fasta_to_hash=fasta_to_hash,
+        )
+    session.commit()
+    session.close()
+
+    plot_out = tmp_dir / "📊"
+    plot_out.mkdir()
+
+    public_cli.plot_run_comp(database=tmp_db, outdir=plot_out, run_ids="1,2,3")
+    output = capsys.readouterr().out
+    assert (
+        f"Wrote {2 * len(GRAPHICS_FORMATS)} images to {plot_out}/ANIb_identity_1_vs_*.*\n"
+        in output
+    ), output
+
+    assert sorted(_.name for _ in plot_out.glob("*")) == sorted(
+        [f"ANIb_identity_1_vs_2.{ext}" for ext in GRAPHICS_FORMATS]
+        + [f"ANIb_identity_1_vs_3.{ext}" for ext in GRAPHICS_FORMATS]
+    )

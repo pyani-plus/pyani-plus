@@ -364,13 +364,12 @@ def plot_single_run(  # noqa: C901
 
 
 def plot_comp_scatter(  # noqa: PLR0913
+    ax,
     ref_run: db_orm.Run,
     ref_data: dict[tuple[str, str], float],
     other_run: db_orm.Run,
     other_data: dict[tuple[str, str], float],
-    outdir: Path,
     field: str = "identity",
-    formats: tuple[str, ...] = GRAPHICS_FORMATS,
 ) -> int:
     """Plot identity scatter between the given two runs."""
     x_caption = ref_run.name
@@ -382,28 +381,14 @@ def plot_comp_scatter(  # noqa: PLR0913
     # And colours?
 
     # Create the plot
-    joint_grid = sns.jointplot(
+    ax.scatter(
         x=x_values,
         y=y_values,
-        kind="scatter",
-        joint_kws={"s": 2},
+        s=2,
+        alpha=0.2,
     )
-    joint_grid.set_axis_labels(xlabel=x_caption, ylabel=y_caption)
-
-    for ext in formats:
-        filename = (
-            outdir
-            / f"{ref_run.configuration.method}_{field}_{ref_run.run_id}_vs_{other_run.run_id}.{ext}"
-        )
-        if ext == "tsv":
-            with filename.open("w") as handle:
-                handle.write(f"#{x_caption}\t{y_caption}\n")
-                for x, y in zip(x_values, y_values, strict=True):
-                    handle.write(f"{x}\t{y}\n")
-        else:
-            joint_grid.savefig(filename)
-
-    return len(formats)
+    # ax.set_axis_labels(xlabel=x_caption, ylabel=y_caption)
+    return 1
 
 
 def plot_run_comparison(
@@ -411,6 +396,7 @@ def plot_run_comparison(
     run: db_orm.Run,
     other_runs: list[int],
     outdir: Path,
+    field: str = "identity",
     formats: tuple[str, ...] = GRAPHICS_FORMATS,
 ) -> int:
     """Plot some identity comparisons between runs."""
@@ -427,9 +413,42 @@ def plot_run_comparison(
         f"INFO: Run {run.run_id} has {len(reference_values_by_hash)} comparisons\n"
     )
 
+    R = len(other_runs)
+    # Default is 6 by 6 (inches), making ours taller!
+    # Start with a tall Figure, enough for R squares plus a thin margin plot
+    fig = plt.figure(figsize=(5 + 1, 5 * R + 1))
+    # Add a gridspec with two rows and R+1 columns
+    # Also adjust the subplot parameters for a square plot.
+    gs = fig.add_gridspec(
+        1 + R,
+        2,
+        width_ratios=(5, 1),
+        height_ratios=tuple([1] + [5] * R),
+        left=0.1,
+        right=0.9,
+        bottom=0.1,
+        top=0.9,
+        wspace=0.05,
+        hspace=0.05,
+    )
+    # Want them all to share the same x-axes, so make that first...
+    scatter_axes = {
+        R - 1: fig.add_subplot(gs[R, 0]),
+    }
+    for plot_number in range(R - 1):
+        scatter_axes[plot_number] = fig.add_subplot(
+            gs[1 + plot_number, 0], sharex=scatter_axes[R - 1]
+        )
+    ax_histx = fig.add_subplot(gs[0, 0], sharex=scatter_axes[R - 1])
+    ax_histx.spines[["left", "top", "right"]].set_visible(False)
+    ax_histx.get_yaxis().set_visible(False)
+    ax_histx.tick_params(axis="x", labelbottom=False)  # no?
+
     done = 0
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
-        for other_run_id in progress.track(other_runs, description="Plotting"):
+        for plot_number, other_run_id in progress.track(
+            enumerate(other_runs), description="Plotting"
+        ):
             other_run = db_orm.load_run(session, other_run_id, check_complete=False)
             sys.stderr.write(
                 f"INFO: Plotting {other_run.configuration.method} run {other_run_id}"
@@ -453,13 +472,41 @@ def plot_run_comparison(
                 f" vs {run.configuration.method} run {run.run_id},"
                 f" with {len(other_values_by_hash)} comparisons in common\n"
             )
-            done += plot_comp_scatter(
-                run,
-                reference_values_by_hash,
-                other_run,
-                other_values_by_hash,
-                outdir,
-                formats=formats,
+
+            # Create the plot
+            ax_scatter = scatter_axes[plot_number]
+            ax_scatter.spines[["top", "right"]].set_visible(False)
+            ax_scatter.scatter(
+                # other_data dict can be smaller than ref_data!
+                x=[reference_values_by_hash[pair] for pair in other_values_by_hash],
+                y=list(other_values_by_hash.values()),
+                s=2,
+                alpha=0.2,
             )
+            if plot_number + 1 == R:
+                ax_scatter.set_xlabel(run.name)
+            else:
+                ax_scatter.tick_params(axis="x", labelbottom=False)
+            ax_scatter.set_ylabel(other_run.name)
+
+            # Now the y-value histogram
+            ax_histy = fig.add_subplot(gs[1 + plot_number, 1], sharey=ax_scatter)
+            # ax_histx.tick_params(axis="x", labelbottom=False)
+            ax_histy.tick_params(axis="y", labelleft=False)
+            ax_histy.get_xaxis().set_visible(False)
+            ax_histy.spines[["top", "right", "bottom"]].set_visible(False)
+
+    for ext in formats:
+        filename = (
+            outdir / f"{run.configuration.method}_{field}_{run.run_id}_vs_others.{ext}"
+        )
+        if ext == "tsv":
+            pass
+            # with filename.open("w") as handle:
+            #    handle.write(f"#{x_caption}\t{y_caption}\n")
+            #    for x, y in zip(x_values, y_values, strict=True):
+            #        handle.write(f"{x}\t{y}\n")
+        else:
+            fig.savefig(filename)
 
     return done

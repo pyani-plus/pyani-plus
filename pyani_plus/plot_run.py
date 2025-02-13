@@ -387,7 +387,7 @@ def plot_run_comparison(  # noqa: PLR0913
     )
 
     vs_count = len(other_runs)
-    # Default is 6 by 6 (inches), making ours taller!
+    # Default is 6 by 6 (inches), 100dpi, making ours taller!
     # Start with a tall Figure, enough for vs_count squares plus a thin margin plot
     fig = plt.figure(figsize=(5 + 1, 1 + 5 * vs_count))
     # Add a gridspec with two rows and vs_count+1 columns
@@ -397,10 +397,10 @@ def plot_run_comparison(  # noqa: PLR0913
         2,
         width_ratios=(5, 1),
         height_ratios=tuple([1] + [5] * vs_count),
-        left=0.1,
-        right=0.9,
-        bottom=0.1,
-        top=0.9,
+        left=0.15,
+        right=0.95,  # histograms seem to waste some space
+        bottom=0.15 / vs_count,
+        top=1 - 0.05 / vs_count,
         wspace=0.05,
         hspace=0.05,
     )

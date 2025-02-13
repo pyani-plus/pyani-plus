@@ -990,9 +990,13 @@ def plot_run_comp(
     session = db_orm.connect_to_db(database)
     ref_run = db_orm.load_run(session, run_id, check_complete=False)
 
+    if not ref_run.comparisons().count():
+        msg = f"ERROR: Run {run_id} has no comparisons"
+        sys.exit(msg)
+
     sys.stderr.write(
         f"INFO: Plotting {len(other_runs)} runs against"
-        f" {ref_run.configuration.method} run-id {run_id}\n"
+        f" {ref_run.configuration.method} run {run_id}\n"
     )
 
     from pyani_plus import plot_run  # lazy import

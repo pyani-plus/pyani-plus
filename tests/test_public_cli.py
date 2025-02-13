@@ -497,6 +497,89 @@ def test_plot_run_failures(tmp_path: str) -> None:
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir)
 
 
+def test_plot_run_comp_failures(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Check plot-run-comp failures."""
+    tmp_dir = Path(tmp_path)
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Database /does/not/exist does not exist"
+    ):
+        public_cli.plot_run_comp(
+            database=Path("/does/not/exist"), outdir=tmp_dir, run_ids="1,2"
+        )
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Output directory /does/not/exist does not exist"
+    ):
+        public_cli.plot_run_comp(
+            database=":memory:", outdir=Path("/does/not/exist/"), run_ids="1,2"
+        )
+
+    tmp_db = tmp_dir / "export.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Database has no run-id 1. Use the list-runs command for more information.",
+    ):
+        public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="1,2")
+
+    config = db_orm.db_configuration(
+        session, "fastANI", "fastani", "1.2.3", create=True
+    )
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        fasta_directory=Path("/does/not/exist"),
+        status="Empty",
+        name="Trial A",
+    )
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+    genomes = list(fasta_to_hash.values())
+    for query_hash in genomes:
+        for subject_hash in genomes:
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query_hash,
+                subject_hash,
+                1.0 if query_hash is subject_hash else 0.99,
+                12345,
+            )
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        fasta_directory=Path("/does/not/exist"),
+        status="Empty",
+        name="Trial B",
+        fasta_to_hash=fasta_to_hash,
+    )
+
+    with pytest.raises(SystemExit, match="ERROR: Run 1 has no comparisons"):
+        public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="1,2")
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Need at least two runs for a comparison"
+    ):
+        public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="2")
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Expected comma separated list of runs, not: 2-1"
+    ):
+        public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="2-1")
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Runs 2 and 1 have no comparisons in common"
+    ):
+        public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="2,1")
+
+
 def test_anim(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,

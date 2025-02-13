@@ -454,12 +454,24 @@ def plot_run_comparison(  # noqa: PLR0913
             )
 
             # Create the plot
+            # other_data dict can be smaller than ref_data!
+            x_values = [reference_values_by_hash[pair] for pair in other_values_by_hash]
+            y_values = list(other_values_by_hash.values())
             ax_scatter = scatter_axes[plot_number]
             ax_scatter.spines[["top", "right"]].set_visible(False)
+
+            # Add red y=x line
+            end_points = [
+                max(min(x_values), min(y_values)),
+                min(max(x_values), max(y_values)),
+            ]
+            ax_scatter.plot(end_points, end_points, "-", color="r")
+            del end_points
+
+            # Draw scatter on top of red line
             ax_scatter.scatter(
-                # other_data dict can be smaller than ref_data!
-                x=[reference_values_by_hash[pair] for pair in other_values_by_hash],
-                y=list(other_values_by_hash.values()),
+                x=x_values,
+                y=y_values,
                 s=2,
                 alpha=0.2,
             )

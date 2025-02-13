@@ -363,41 +363,14 @@ def plot_single_run(  # noqa: C901
     return done
 
 
-def plot_comp_scatter(  # noqa: PLR0913
-    ax,
-    ref_run: db_orm.Run,
-    ref_data: dict[tuple[str, str], float],
-    other_run: db_orm.Run,
-    other_data: dict[tuple[str, str], float],
-    field: str = "identity",
-) -> int:
-    """Plot identity scatter between the given two runs."""
-    x_caption = ref_run.name
-    y_caption = other_run.name
-
-    # other_data dict can be smaller than ref_data!
-    x_values = [ref_data[pair] for pair in other_data]
-    y_values = list(other_data.values())
-    # And colours?
-
-    # Create the plot
-    ax.scatter(
-        x=x_values,
-        y=y_values,
-        s=2,
-        alpha=0.2,
-    )
-    # ax.set_axis_labels(xlabel=x_caption, ylabel=y_caption)
-    return 1
-
-
-def plot_run_comparison(
+def plot_run_comparison(  # noqa: PLR0913
     session: Session,
     run: db_orm.Run,
     other_runs: list[int],
     outdir: Path,
     field: str = "identity",
     formats: tuple[str, ...] = GRAPHICS_FORMATS,
+    hist_bins: int = 30,
 ) -> int:
     """Plot some identity comparisons between runs."""
     # Offer to do this for other properties, e.g. tANI?
@@ -413,17 +386,17 @@ def plot_run_comparison(
         f"INFO: Run {run.run_id} has {len(reference_values_by_hash)} comparisons\n"
     )
 
-    R = len(other_runs)
+    vs_count = len(other_runs)
     # Default is 6 by 6 (inches), making ours taller!
-    # Start with a tall Figure, enough for R squares plus a thin margin plot
-    fig = plt.figure(figsize=(5 + 1, 5 * R + 1))
-    # Add a gridspec with two rows and R+1 columns
+    # Start with a tall Figure, enough for vs_count squares plus a thin margin plot
+    fig = plt.figure(figsize=(5 + 1, 1 + 5 * vs_count))
+    # Add a gridspec with two rows and vs_count+1 columns
     # Also adjust the subplot parameters for a square plot.
     gs = fig.add_gridspec(
-        1 + R,
+        1 + vs_count,
         2,
         width_ratios=(5, 1),
-        height_ratios=tuple([1] + [5] * R),
+        height_ratios=tuple([1] + [5] * vs_count),
         left=0.1,
         right=0.9,
         bottom=0.1,
@@ -433,16 +406,23 @@ def plot_run_comparison(
     )
     # Want them all to share the same x-axes, so make that first...
     scatter_axes = {
-        R - 1: fig.add_subplot(gs[R, 0]),
+        vs_count - 1: fig.add_subplot(gs[vs_count, 0]),
     }
-    for plot_number in range(R - 1):
+    for plot_number in range(vs_count - 1):
         scatter_axes[plot_number] = fig.add_subplot(
-            gs[1 + plot_number, 0], sharex=scatter_axes[R - 1]
+            gs[1 + plot_number, 0], sharex=scatter_axes[vs_count - 1]
         )
-    ax_histx = fig.add_subplot(gs[0, 0], sharex=scatter_axes[R - 1])
+    ax_histx = fig.add_subplot(gs[0, 0], sharex=scatter_axes[vs_count - 1])
     ax_histx.spines[["left", "top", "right"]].set_visible(False)
     ax_histx.get_yaxis().set_visible(False)
     ax_histx.tick_params(axis="x", labelbottom=False)  # no?
+    # This is a histogram of all the reference run's values - but not all will
+    # have a match in any given comparison run...
+    ax_histx.hist(
+        reference_values_by_hash.values(),
+        bins=hist_bins,
+        orientation="vertical",
+    )
 
     done = 0
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
@@ -483,7 +463,7 @@ def plot_run_comparison(
                 s=2,
                 alpha=0.2,
             )
-            if plot_number + 1 == R:
+            if plot_number + 1 == vs_count:
                 ax_scatter.set_xlabel(run.name)
             else:
                 ax_scatter.tick_params(axis="x", labelbottom=False)
@@ -491,10 +471,14 @@ def plot_run_comparison(
 
             # Now the y-value histogram
             ax_histy = fig.add_subplot(gs[1 + plot_number, 1], sharey=ax_scatter)
-            # ax_histx.tick_params(axis="x", labelbottom=False)
             ax_histy.tick_params(axis="y", labelleft=False)
             ax_histy.get_xaxis().set_visible(False)
             ax_histy.spines[["top", "right", "bottom"]].set_visible(False)
+            ax_histy.hist(
+                other_values_by_hash.values(),
+                bins=hist_bins,
+                orientation="horizontal",
+            )
 
     for ext in formats:
         filename = (
@@ -502,10 +486,6 @@ def plot_run_comparison(
         )
         if ext == "tsv":
             pass
-            # with filename.open("w") as handle:
-            #    handle.write(f"#{x_caption}\t{y_caption}\n")
-            #    for x, y in zip(x_values, y_values, strict=True):
-            #        handle.write(f"{x}\t{y}\n")
         else:
             fig.savefig(filename)
 

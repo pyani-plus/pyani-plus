@@ -994,11 +994,6 @@ def plot_run_comp(
         msg = f"ERROR: Run {run_id} has no comparisons"
         sys.exit(msg)
 
-    sys.stderr.write(
-        f"INFO: Plotting {len(other_runs)} runs against"
-        f" {ref_run.configuration.method} run {run_id}\n"
-    )
-
     from pyani_plus import plot_run  # lazy import
 
     done = plot_run.plot_run_comparison(session, ref_run, other_runs, outdir)

@@ -383,7 +383,8 @@ def plot_run_comparison(  # noqa: C901, PLR0913, PLR0915
     queries = {_[0] for _ in reference_values_by_hash}
     subjects = {_[1] for _ in reference_values_by_hash}
     sys.stderr.write(
-        f"INFO: Run {run.run_id} has {len(reference_values_by_hash)} comparisons\n"
+        f"INFO: Plotting {len(other_runs)} runs against {run.configuration.method}"
+        f" run {run.run_id} which has {len(reference_values_by_hash)} comparisons\n"
     )
 
     vs_count = len(other_runs)
@@ -439,13 +440,9 @@ def plot_run_comparison(  # noqa: C901, PLR0913, PLR0915
     done = 0
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         for plot_number, other_run_id in progress.track(
-            enumerate(other_runs), description="Plotting"
+            enumerate(other_runs), description="Plotting", total=len(other_runs)
         ):
             other_run = db_orm.load_run(session, other_run_id, check_complete=False)
-            sys.stderr.write(
-                f"INFO: Plotting {other_run.configuration.method} run {other_run_id}"
-                f" vs {run.configuration.method} run {run.run_id}\n"
-            )
             # Can pre-filter the query list and the suject list in the DB,
             # but ultimately need matching pairs so final filter in Python:
             other_values_by_hash = {

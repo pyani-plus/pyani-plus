@@ -85,7 +85,7 @@ def two_nodes_no_edges_dataframes() -> list[pd.DataFrame]:
 def two_nodes_one_edge_graph() -> nx.Graph:
     """Return graph with two nodes and one edge."""
     graph = nx.Graph()
-    graph.add_edge("genome_1", "genome_2", identity=0.999310, coverage=0.6774176803)
+    graph.add_edge("genome_1", "genome_2", mode=0.999310, coverage=0.6774176803)
     return graph
 
 
@@ -93,7 +93,7 @@ def two_nodes_one_edge_graph() -> nx.Graph:
 def two_nodes_one_edge_cliques() -> list[nx.Graph]:
     """Return list of all possible cliques with initial graph of two nodes and one edge."""
     clique_1 = nx.Graph()
-    clique_1.add_edge("genome_1", "genome_2", identity=0.999310, coverage=0.6774176803)
+    clique_1.add_edge("genome_1", "genome_2", mode=0.999310, coverage=0.6774176803)
 
     clique_2 = nx.Graph()
     clique_2.add_node("genome_1")
@@ -120,14 +120,14 @@ def known_complex_graph() -> nx.Graph:
     """
     graph = nx.Graph()
 
-    graph.add_edge("genome_1", "genome_2", identity=0.85, coverage=1.0)
-    graph.add_edge("genome_1", "genome_5", identity=0.96, coverage=1.0)
-    graph.add_edge("genome_1", "genome_6", identity=0.99, coverage=1.0)
-    graph.add_edge("genome_2", "genome_3", identity=0.97, coverage=1.0)
-    graph.add_edge("genome_2", "genome_4", identity=0.967, coverage=1.0)
-    graph.add_edge("genome_3", "genome_4", identity=0.95, coverage=1.0)
-    graph.add_edge("genome_4", "genome_5", identity=0.86, coverage=1.0)
-    graph.add_edge("genome_5", "genome_6", identity=0.98, coverage=1.0)
+    graph.add_edge("genome_1", "genome_2", mode=0.85, coverage=1.0)
+    graph.add_edge("genome_1", "genome_5", mode=0.96, coverage=1.0)
+    graph.add_edge("genome_1", "genome_6", mode=0.99, coverage=1.0)
+    graph.add_edge("genome_2", "genome_3", mode=0.97, coverage=1.0)
+    graph.add_edge("genome_2", "genome_4", mode=0.967, coverage=1.0)
+    graph.add_edge("genome_3", "genome_4", mode=0.95, coverage=1.0)
+    graph.add_edge("genome_4", "genome_5", mode=0.86, coverage=1.0)
+    graph.add_edge("genome_5", "genome_6", mode=0.98, coverage=1.0)
 
     return graph
 
@@ -139,12 +139,12 @@ def known_complex_cliques() -> list[nx.Graph]:
     cliques_data: list[list] = [
         # Clique 1
         [
-            ("genome_1", "genome_5", {"identity": 0.96, "coverage": 1.0}),
-            ("genome_1", "genome_6", {"identity": 0.99, "coverage": 1.0}),
-            ("genome_5", "genome_6", {"identity": 0.98, "coverage": 1.0}),
+            ("genome_1", "genome_5", {"mode": 0.96, "coverage": 1.0}),
+            ("genome_1", "genome_6", {"mode": 0.99, "coverage": 1.0}),
+            ("genome_5", "genome_6", {"mode": 0.98, "coverage": 1.0}),
         ],
         # Clique 2
-        [("genome_1", "genome_6", {"identity": 0.99, "coverage": 1.0})],
+        [("genome_1", "genome_6", {"mode": 0.99, "coverage": 1.0})],
         # Clique 3
         [("genome_1",)],
         # Clique 4
@@ -153,12 +153,12 @@ def known_complex_cliques() -> list[nx.Graph]:
         [("genome_5",)],
         # Clique 6
         [
-            ("genome_2", "genome_3", {"identity": 0.97, "coverage": 1.0}),
-            ("genome_2", "genome_4", {"identity": 0.967, "coverage": 1.0}),
-            ("genome_3", "genome_4", {"identity": 0.95, "coverage": 1.0}),
+            ("genome_2", "genome_3", {"mode": 0.97, "coverage": 1.0}),
+            ("genome_2", "genome_4", {"mode": 0.967, "coverage": 1.0}),
+            ("genome_3", "genome_4", {"mode": 0.95, "coverage": 1.0}),
         ],
         # Clique 7
-        [("genome_2", "genome_3", {"identity": 0.97, "coverage": 1.0})],
+        [("genome_2", "genome_3", {"mode": 0.97, "coverage": 1.0})],
         # Clique 8
         [("genome_2",)],
         # Clique 9
@@ -189,7 +189,7 @@ def test_construct_graph(
     coverage_df, identity_df = two_nodes_no_edges_dataframes
 
     # Comparison function for a numerical edge attribute.
-    edge_match = iso.numerical_edge_match("coverage", "identity")
+    edge_match = iso.numerical_edge_match("coverage", "mode")
 
     # Check the isomorphism of a graph with the edge_match function
     assert nx.is_isomorphic(
@@ -212,7 +212,7 @@ def test_find_initial_cliques(
     """Check all possible cliques are identified in the initial iteration."""
     graph = two_nodes_one_edge_graph
     found_cliques = classify.find_initial_cliques(graph)
-    edge_match = iso.numerical_edge_match("coverage", "identity")
+    edge_match = iso.numerical_edge_match("coverage", "mode")
 
     # Get the connected components as subgraphs
     connected_components = [
@@ -298,7 +298,7 @@ def test_classify_two_nodes_one_edges(
         else []
     )
     recursive_cliques = classify.find_cliques_recursively(graph)
-    edge_match = iso.numerical_edge_match("coverage", "identity")
+    edge_match = iso.numerical_edge_match("coverage", "mode")
 
     # Check the number of identified cliques
     assert len(initial_cliques + recursive_cliques) == len(
@@ -326,7 +326,7 @@ def test_classify_complex_graph(
         else []
     )
     recursive_cliques = classify.find_cliques_recursively(graph)
-    edge_match = iso.numerical_edge_match("coverage", "identity")
+    edge_match = iso.numerical_edge_match("coverage", "mode")
 
     # Check the number of identified cliques
     assert len(initial_cliques + recursive_cliques) == len(known_complex_cliques), (

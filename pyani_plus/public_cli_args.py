@@ -33,6 +33,7 @@ import click
 import typer
 
 from pyani_plus import FASTA_EXTENSIONS
+from pyani_plus.classify import EnumModeClassify
 from pyani_plus.methods.anim import EnumModeANIm
 from pyani_plus.workflows import ToolExecutor
 
@@ -175,5 +176,12 @@ OPT_ARG_TYPE_COV_MIN = Annotated[
         rich_help_panel="Method parameters",
         min=0.0,
         max=1.0,
+    ),
+]
+OPT_ARG_TYPE_CLASSIFY_MODE = Annotated[
+    EnumModeClassify,
+    typer.Option(
+        help="Classify mode indetnded to identify cliques within a set of genomes",
+        rich_help_panel="Method parameters",
     ),
 ]

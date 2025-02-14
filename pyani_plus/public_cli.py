@@ -47,6 +47,7 @@ from pyani_plus import PROGRESS_BAR_COLUMNS, classify, db_orm, tools
 from pyani_plus.methods import anib, anim, fastani, sourmash
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_ANIM_MODE,
+    OPT_ARG_TYPE_CLASSIFY_MODE,
     OPT_ARG_TYPE_COV_MIN,
     OPT_ARG_TYPE_CREATE_DB,
     OPT_ARG_TYPE_EXECUTOR,
@@ -952,26 +953,27 @@ def plot_run(
 
 
 @app.command("classify", rich_help_panel="Commands")
-def cli_classify(  # noqa: PLR0913
+def cli_classify(  # noqa: C901, PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     outdir: REQ_ARG_TYPE_OUTDIR,
     coverage_edges: Annotated[
         str,
         typer.Option(
-            help="How to resolve asymmetrical ANI identity results for edges in the graph (min, max or mean).",
+            help="How to resolve asymmetrical ANI coverage results for edges in the graph (min, max or mean).",
             rich_help_panel="Method parameters",
         ),
     ] = "min",
-    identity_edges: Annotated[
+    mode_edges: Annotated[
         str,
         typer.Option(
-            help="How to resolve asymmetrical ANI identity results for edges in the graph (min, max or mean).",
+            help="How to resolve asymmetrical ANI identity/tANI results for edges in the graph (min, max or mean).",
             rich_help_panel="Method parameters",
         ),
     ] = "mean",
     run_id: OPT_ARG_TYPE_RUN_ID = None,
     label: OPT_ARG_TYPE_LABEL = "stem",
     cov_min: OPT_ARG_TYPE_COV_MIN = classify.MIN_COVERAGE,
+    mode: OPT_ARG_TYPE_CLASSIFY_MODE = classify.MODE,
 ) -> int:
     """Classify genomes into clusters based on ANI results."""
     if not outdir.is_dir():
@@ -990,8 +992,11 @@ def cli_classify(  # noqa: PLR0913
 
     method = run.configuration.method
 
-    identity = run.identities
-    if identity is None:
+    if mode == "identity":
+        matrix = run.identities
+    elif mode == "tANI":
+        matrix = run.tani
+    if matrix is None:
         msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
         sys.exit(msg)  # pragma: no cover
 
@@ -1012,7 +1017,7 @@ def cli_classify(  # noqa: PLR0913
         sys.exit(msg)  # pragma: no cover
 
     try:
-        identity = run.relabelled_matrix(identity, label)
+        matrix = run.relabelled_matrix(matrix, label)
         cov = run.relabelled_matrix(cov, label)
     except ValueError as err:
         msg = f"ERROR: {err}"
@@ -1020,11 +1025,11 @@ def cli_classify(  # noqa: PLR0913
 
     # Map the string inputs to callable functions
     covearge_agg_func = classify.AGG_FUNCS[coverage_edges]
-    identity_agg_func = classify.AGG_FUNCS[identity_edges]
+    identity_agg_func = classify.AGG_FUNCS[mode_edges]
 
     # Construct the graph with the correct functions
     complete_graph = classify.construct_graph(
-        cov, identity, covearge_agg_func, identity_agg_func, cov_min
+        cov, matrix, covearge_agg_func, identity_agg_func, cov_min
     )
     # Finding cliques
     if len(list(nx.connected_components(complete_graph))) != 1:

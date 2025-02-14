@@ -22,6 +22,7 @@
 """Code to implement the classify method indetnded to identify cliques within a set of genomes."""
 
 from collections.abc import Callable
+from enum import Enum
 from itertools import combinations
 from pathlib import Path
 from typing import NamedTuple
@@ -42,6 +43,16 @@ AGG_FUNCS = {
 MIN_COVERAGE = 0.50
 
 
+class EnumModeClassify(str, Enum):
+    """Enum for the --mode command line argument passed to classify."""
+
+    identity = "identity"  # default
+    tani = "tANI"
+
+
+MODE = EnumModeClassify.identity  # constant for CLI default
+
+
 class CliqueInfo(NamedTuple):
     """Graph structure summary."""
 
@@ -53,9 +64,9 @@ class CliqueInfo(NamedTuple):
 
 def construct_graph(
     cov_matrix: pd.DataFrame,
-    id_matrix: pd.DataFrame,
+    mode_matrix: pd.DataFrame,
     coverage_agg: Callable,
-    identity_agg: Callable,
+    mode_agg: Callable,
     min_coverage: float,
 ) -> nx.Graph:
     """Return a graph representing ANI results.
@@ -85,12 +96,10 @@ def construct_graph(
         coverage = coverage_agg(
             [cov_matrix[genome1][genome2], cov_matrix[genome2][genome1]]
         )
-        identity = identity_agg(
-            [id_matrix[genome1][genome2], id_matrix[genome2][genome1]]
-        )
+        mode = mode_agg([mode_matrix[genome1][genome2], mode_matrix[genome2][genome1]])
         # Add edge only if both coverage and identity are valid
-        if pd.notna(coverage) and pd.notna(identity) and coverage > min_coverage:
-            graph.add_edge(genome1, genome2, coverage=coverage, identity=identity)
+        if pd.notna(coverage) and pd.notna(mode) and coverage > min_coverage:
+            graph.add_edge(genome1, genome2, coverage=coverage, mode=mode)
 
     return graph
 
@@ -140,7 +149,7 @@ def find_cliques_recursively(
         cliques.append(graph.copy())
 
     edges = graph.edges(data=True)
-    edges = sorted(edges, key=lambda edge: edge[2]["identity"])
+    edges = sorted(edges, key=lambda edge: edge[2]["mode"])
 
     # Initialise the progress bar only at the top level
     if progress is None:
@@ -177,7 +186,7 @@ def compute_classify_output(
                 default=None,
             ),
             min_identity=min(
-                (attrs["identity"] for _, _, attrs in clique.edges(data=True)),
+                (attrs["mode"] for _, _, attrs in clique.edges(data=True)),
                 default=None,
             ),
         )

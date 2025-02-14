@@ -429,6 +429,7 @@ def plot_run_comparison(  # noqa: C901, PLR0912, PLR0913, PLR0915
                     3 * (plot_number // plots_per_col),
                 ],
                 sharex=scatter_axes[0],
+                sharey=scatter_axes[0] if mode == "scatter" else None,
             )
         # Add the y-histograms to the right of each plot
         for plot_number, ax in scatter_axes.items():

@@ -992,10 +992,12 @@ def cli_classify(  # noqa: C901, PLR0913
 
     method = run.configuration.method
 
+    matrix = None
     if mode == "identity":
         matrix = run.identities
     elif mode == "tANI":
         matrix = run.tani
+
     if matrix is None:
         msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
         sys.exit(msg)  # pragma: no cover

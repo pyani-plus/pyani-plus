@@ -59,14 +59,14 @@ class CliqueInfo(NamedTuple):
     members: list
     n_nodes: int
     min_cov: float | None
-    min_identity: float | None
+    min_score: float | None
 
 
 def construct_graph(
     cov_matrix: pd.DataFrame,
-    mode_matrix: pd.DataFrame,
+    score_matrix: pd.DataFrame,
     coverage_agg: Callable,
-    mode_agg: Callable,
+    score_agg: Callable,
     min_coverage: float,
 ) -> nx.Graph:
     """Return a graph representing ANI results.
@@ -96,10 +96,12 @@ def construct_graph(
         coverage = coverage_agg(
             [cov_matrix[genome1][genome2], cov_matrix[genome2][genome1]]
         )
-        mode = mode_agg([mode_matrix[genome1][genome2], mode_matrix[genome2][genome1]])
+        score = score_agg(
+            [score_matrix[genome1][genome2], score_matrix[genome2][genome1]]
+        )
         # Add edge only if both coverage and identity are valid
-        if pd.notna(coverage) and pd.notna(mode) and coverage > min_coverage:
-            graph.add_edge(genome1, genome2, coverage=coverage, mode=mode)
+        if pd.notna(coverage) and pd.notna(score) and coverage > min_coverage:
+            graph.add_edge(genome1, genome2, coverage=coverage, score=score)
 
     return graph
 
@@ -149,7 +151,7 @@ def find_cliques_recursively(
         cliques.append(graph.copy())
 
     edges = graph.edges(data=True)
-    edges = sorted(edges, key=lambda edge: edge[2]["mode"])
+    edges = sorted(edges, key=lambda edge: edge[2]["score"])
 
     # Initialise the progress bar only at the top level
     if progress is None:
@@ -185,8 +187,8 @@ def compute_classify_output(
                 (attrs["coverage"] for _, _, attrs in clique.edges(data=True)),
                 default=None,
             ),
-            min_identity=min(
-                (attrs["mode"] for _, _, attrs in clique.edges(data=True)),
+            min_score=min(
+                (attrs["score"] for _, _, attrs in clique.edges(data=True)),
                 default=None,
             ),
         )

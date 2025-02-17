@@ -1019,12 +1019,12 @@ def cli_classify(  # noqa: PLR0913
         sys.exit(msg)
 
     # Map the string inputs to callable functions
-    covearge_agg_func = classify.AGG_FUNCS[coverage_edges]
+    coverage_agg_func = classify.AGG_FUNCS[coverage_edges]
     identity_agg_func = classify.AGG_FUNCS[identity_edges]
 
     # Construct the graph with the correct functions
     complete_graph = classify.construct_graph(
-        cov, identity, covearge_agg_func, identity_agg_func, cov_min
+        cov, identity, coverage_agg_func, identity_agg_func, cov_min
     )
     # Finding cliques
     if len(list(nx.connected_components(complete_graph))) != 1:
@@ -1033,13 +1033,8 @@ def cli_classify(  # noqa: PLR0913
         initial_cliques = []
     recursive_cliques = classify.find_cliques_recursively(complete_graph)
 
-    # Get a list of unique cliques to avoid duplicates from initial and recursive searches
-    unique_cliques = list(
-        {
-            frozenset(clique.nodes): clique
-            for clique in (initial_cliques + recursive_cliques)
-        }.values()
-    )
+    # Get a list of unique cliques to avoid duplicates. Prioritise initial_cliques
+    unique_cliques = classify.get_unique_cliques(initial_cliques, recursive_cliques)
 
     # Writing the results to .tsv
     classify.compute_classify_output(unique_cliques, method, outdir)

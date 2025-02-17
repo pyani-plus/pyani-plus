@@ -497,6 +497,89 @@ def test_plot_run_failures(tmp_path: str) -> None:
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir)
 
 
+def test_plot_run_comp_failures(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Check plot-run-comp failures."""
+    tmp_dir = Path(tmp_path)
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Database /does/not/exist does not exist"
+    ):
+        public_cli.plot_run_comp(
+            database=Path("/does/not/exist"), outdir=tmp_dir, run_ids="1,2"
+        )
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Output directory /does/not/exist does not exist"
+    ):
+        public_cli.plot_run_comp(
+            database=":memory:", outdir=Path("/does/not/exist/"), run_ids="1,2"
+        )
+
+    tmp_db = tmp_dir / "export.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Database has no run-id 1. Use the list-runs command for more information.",
+    ):
+        public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="1,2")
+
+    config = db_orm.db_configuration(
+        session, "fastANI", "fastani", "1.2.3", create=True
+    )
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        fasta_directory=Path("/does/not/exist"),
+        status="Empty",
+        name="Trial A",
+    )
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+    genomes = list(fasta_to_hash.values())
+    for query_hash in genomes:
+        for subject_hash in genomes:
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query_hash,
+                subject_hash,
+                1.0 if query_hash is subject_hash else 0.99,
+                12345,
+            )
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani fastani ...",
+        fasta_directory=Path("/does/not/exist"),
+        status="Empty",
+        name="Trial B",
+        fasta_to_hash=fasta_to_hash,
+    )
+
+    with pytest.raises(SystemExit, match="ERROR: Run 1 has no comparisons"):
+        public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="1,2")
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Need at least two runs for a comparison"
+    ):
+        public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="2")
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Expected comma separated list of runs, not: 2-1"
+    ):
+        public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="2-1")
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Runs 2 and 1 have no comparisons in common"
+    ):
+        public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="2,1")
+
+
 def test_anim(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
@@ -1409,7 +1492,7 @@ def test_plot_skip_nulls(
     assert "WARNING: Cannot plot query_cov as all NA\n" in stderr, stderr
     assert "Cannot plot hadamard as all NA\n" in stderr, stderr
     assert "Cannot plot tANI as all NA\n" in stderr, stderr
-    assert f"Wrote 10 images to {plot_out}" in stdout
+    assert f"Wrote {2 * len(GRAPHICS_FORMATS)} images to {plot_out}" in stdout
     assert sorted(_.name for _ in plot_out.glob("*_heatmap.*")) == sorted(
         f"guessing_identity_heatmap.{ext}" for ext in GRAPHICS_FORMATS
     )
@@ -1620,3 +1703,67 @@ def test_classify(
             handle.readline()
             == "n_nodes\tmax_cov\tmin_identity\tmax_identity\tmembers\n"
         )
+
+
+def test_plot_run_comp(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Plot comparisons with three mock runs."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "⚔️.db"
+
+    session = db_orm.connect_to_db(tmp_db)
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(session, filename, md5, create=True)
+    genomes = list(fasta_to_hash.values())
+
+    config_a = db_orm.db_configuration(session, "ANIb", "blastn", "0.0", create=True)
+    config_b = db_orm.db_configuration(session, "ANIm", "nucmer", "0.0", create=True)
+    config_c = db_orm.db_configuration(
+        session, "fastANI", "fastani", "0.0", create=True
+    )
+
+    for i, config in enumerate((config_a, config_b, config_c)):
+        for query_hash in genomes:
+            for subject_hash in genomes:
+                db_orm.db_comparison(
+                    session,
+                    config.configuration_id,
+                    query_hash,
+                    subject_hash,
+                    1.0 if query_hash is subject_hash else 0.99 ** (i + 1),
+                    12345,
+                )
+        db_orm.add_run(
+            session,
+            config,
+            cmdline="pyani-plus ...",
+            fasta_directory=input_genomes_tiny,
+            status="Done",
+            name="Trial " + "ABC"[i],
+            fasta_to_hash=fasta_to_hash,
+        )
+    session.commit()
+    session.close()
+
+    plot_out = tmp_dir / "📊"
+    plot_out.mkdir()
+
+    public_cli.plot_run_comp(database=tmp_db, outdir=plot_out, run_ids="1,2,3")
+    output = capsys.readouterr().out
+    images = len(GRAPHICS_FORMATS)
+    if "tsv" in GRAPHICS_FORMATS:
+        images -= 1
+    assert f"Wrote {images} images to {plot_out}/ANIb_identity_1_vs_*.*\n" in output, (
+        output
+    )
+    assert sorted(_.name for _ in plot_out.glob("*")) == sorted(
+        [f"ANIb_identity_1_vs_others.{ext}" for ext in GRAPHICS_FORMATS if ext != "tsv"]
+        + [f"ANIb_identity_1_vs_{other}.tsv" for other in ("2", "3")]
+    )

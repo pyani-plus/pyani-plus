@@ -34,10 +34,9 @@ import time
 from pathlib import Path
 
 import pytest
-from Bio.SeqIO.FastaIO import SimpleFastaParser
 
 from pyani_plus import db_orm, private_cli, tools
-from pyani_plus.utils import file_md5sum
+from pyani_plus.utils import fasta_bytes_iterator, file_md5sum
 
 GENOMES = 100
 
@@ -49,12 +48,12 @@ def large_set_of_bacterial_chunks(
     """Make a directory of FASTA files, each a chunk of bacteria."""
     fasta_dir = tmp_path_factory.mktemp(f"{GENOMES}_faked_bacteria")
     # Make input dataset of fragments of a bacteria
-    with gzip.open(input_gzip_bacteria / "NC_010338.fna.gz", "rt") as handle:
-        title, seq = next(SimpleFastaParser(handle))
+    with gzip.open(input_gzip_bacteria / "NC_010338.fna.gz", "rb") as handle:
+        title, seq = next(fasta_bytes_iterator(handle))
     for i in range(GENOMES):
         offset = i * 1000
-        with (fasta_dir / f"genome{i}.fasta").open("w") as handle:
-            handle.write(f">genome{i}\n{seq[offset : offset + 500000]}\n")
+        with (fasta_dir / f"genome{i}.fasta").open("wb") as handle:
+            handle.write(b">genome%i\n%s\n" % (i, seq[offset : offset + 500000]))
     return fasta_dir
 
 
@@ -277,12 +276,12 @@ def test_compute_column_sigint_external_alignment(
     # mock genomes, can be any equal-length chunks. Making this large to
     # ensure when this is the only test it does not finish in 2s!
     tmp_alignment = tmp_dir / "alignment.fasta"
-    with gzip.open(input_gzip_bacteria / "NC_010338.fna.gz", "rt") as handle:
-        title, seq = next(SimpleFastaParser(handle))
-    with tmp_alignment.open("w") as handle:
+    with gzip.open(input_gzip_bacteria / "NC_010338.fna.gz", "rb") as handle:
+        title, seq = next(fasta_bytes_iterator(handle))
+    with tmp_alignment.open("wb") as handle:
         for i in range(GENOMES):
             offset = i * 100
-            handle.write(f">genome{i}\n{seq[offset : offset + 2000000]}\n")
+            handle.write(b">genome%i\n%s\n" % (i, seq[offset : offset + 2000000]))
     md5 = file_md5sum(tmp_alignment)
 
     private_cli.log_run(

@@ -40,7 +40,6 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
-from pyani_plus.methods import anib, anim, dnadiff, fastani, sourmash
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_CREATE_DB,
     OPT_ARG_TYPE_TEMP,
@@ -539,6 +538,8 @@ def compute_fastani(  # noqa: PLR0913
         msg = f"ERROR: fastANI run-id {run.run_id} is missing minmatch parameter"
         sys.exit(msg)
 
+    from pyani_plus.methods import fastani  # lazy import
+
     tmp_output = tmp_dir / f"queries_vs_{subject_hash}.csv"
     tmp_queries = tmp_dir / f"queries_vs_{subject_hash}.txt"
     with tmp_queries.open("w") as handle:
@@ -646,6 +647,8 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
         .one()
         .length
     )
+
+    from pyani_plus.methods import anim  # lazy import
 
     # nucmer does not handle spaces in filenames, neither quoted nor
     # escaped as slash-space. Therefore symlink or decompress to <MD5>.fasta:
@@ -800,6 +803,9 @@ def compute_anib(  # noqa: PLR0913
         .one()
         .length
     )
+
+    from pyani_plus.methods import anib  # lazy import
+
     outfmt = "6 " + " ".join(anib.BLAST_COLUMNS)
 
     # makeblastdb does not handle spaces in filenames, neither quoted nor
@@ -954,6 +960,8 @@ def compute_dnadiff(  # noqa: C901, PLR0912, PLR0913, PLR0915
     _check_tool_version(nucmer, run.configuration)
 
     config_id = run.configuration.configuration_id
+
+    from pyani_plus.methods import dnadiff  # lazy import
 
     # nucmer does not handle spaces in filenames, neither quoted nor
     # escaped as slash-space. Therefore symlink or decompress to <MD5>.fasta:
@@ -1160,6 +1168,8 @@ def log_sourmash(
         sys.exit(msg)
 
     _check_tool_version(tools.get_sourmash(), run.configuration)
+
+    from pyani_plus.methods import sourmash  # lazy import
 
     config_id = run.configuration.configuration_id
     filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}

@@ -181,7 +181,7 @@ OPT_ARG_TYPE_COV_MIN = Annotated[
 OPT_ARG_TYPE_CLASSIFY_MODE = Annotated[
     EnumModeClassify,
     typer.Option(
-        help="Classify mode indetnded to identify cliques within a set of genomes",
+        help="Classify mode intended to identify cliques within a set of genomes",
         rich_help_panel="Method parameters",
     ),
 ]

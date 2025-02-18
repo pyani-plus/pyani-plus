@@ -7,7 +7,6 @@
 # $ conda install --file requirements.txt
 #
 # where we assume you have the conda-forge and bioconda channels.
-biopython
 intervaltree
 snakemake>=8.24
 snakemake-executor-plugin-slurm

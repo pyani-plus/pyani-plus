@@ -35,7 +35,7 @@ rules.
 import gzip
 from pathlib import Path
 
-from Bio.SeqIO.FastaIO import SimpleFastaParser
+from pyani_plus.utils import fasta_bytes_iterator
 
 FRAGSIZE = 1020  # Default ANIb fragment size
 MIN_COVERAGE = 0.7
@@ -66,20 +66,22 @@ def fragment_fasta_file(
     """
     with (
         (
-            gzip.open(filename, "rt") if filename.suffix == ".gz" else filename.open()
+            gzip.open(filename, "rb")
+            if filename.suffix == ".gz"
+            else filename.open("rb")
         ) as in_handle,
-        fragmented_fasta.open("w") as out_handle,
+        fragmented_fasta.open("wb") as out_handle,
     ):
         count = 0
-        for title, seq in SimpleFastaParser(in_handle):
+        for title, seq in fasta_bytes_iterator(in_handle):
             index = 0
             while index < len(seq):
                 count += 1
                 fragment = seq[index : index + fragsize]
-                out_handle.write(f">frag{count:05d} {title}\n")
+                out_handle.write(b">frag%05i %s\n" % (count, title))
                 # Now line wrap at 60 chars
                 for i in range(0, len(fragment), 60):
-                    out_handle.write(fragment[i : i + 60] + "\n")
+                    out_handle.write(fragment[i : i + 60] + b"\n")
                 index += fragsize
     if not count:
         msg = f"No sequences found in {filename}"

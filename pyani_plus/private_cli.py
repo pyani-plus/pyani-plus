@@ -46,6 +46,8 @@ from pyani_plus.public_cli_args import (
     REQ_ARG_TYPE_FASTA_DIR,
 )
 
+ASCII_GAP = ord("-")  # 45
+
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
@@ -1261,9 +1263,8 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     del args
 
     import numpy as np  # lazy import, although might be implicitly loaded already?
-    from Bio.SeqIO.FastaIO import SimpleFastaParser  # deliberate lazy import
 
-    from pyani_plus.utils import file_md5sum, filename_stem
+    from pyani_plus.utils import fasta_bytes_iterator, file_md5sum, filename_stem
 
     if not quiet:
         print(f"INFO: Parsing {alignment} (MD5={md5}, label={label})")
@@ -1294,26 +1295,25 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     # Thus when N is even, the first job would consisting of columns 1 and N, next
     # job columns 2 and N-1, etc. Each job does N computations and records 2N comparisons.
     # Similarly when N is odd, although there we have a final half-sized single-column job.
-
     try:
         # We could interpret the column number as the MSA ordering, but our internal
         # API by subject hash - and we can't assume the MSA is in any particular order.
         # Easiest way to solve this is two linear scans of the file, with a seek(0)
-        with alignment.open() as handle:
-            subject_seq = subject_title = ""  # placeholder values
+        with alignment.open("rb") as handle:
+            subject_seq = subject_title = b""  # placeholder values
             s_non_gaps = subject_seq_gaps = None  # placeholder values
-            # Should load the file in binary mode as will be working in bytes
-            for query_title, query_seq in SimpleFastaParser(handle):
-                query_hash = mapping(query_title.split(None, 1)[0])
+            # Note loading the file in binary mode, will be working in bytes
+            for query_title, query_seq in fasta_bytes_iterator(handle):
+                query_hash = mapping(query_title.decode().split(None, 1)[0])
                 if not query_hash:
-                    msg = f"ERROR: Could not map {query_title.split(None, 1)[0]} as {label}"
+                    msg = f"ERROR: Could not map {query_title.decode().split(None, 1)[0]} as {label}"
                     sys.exit(msg)
                 if query_hash == subject_hash:
                     # for use in rest of the loop - an array of bytes!
                     subject_seq = query_seq
-                    s_array = np.array(list(subject_seq), "S1")
-                    s_non_gaps = s_array != b"-"
-                    subject_seq_gaps = subject_seq.count("-")
+                    s_array = np.array(list(subject_seq), np.ubyte)
+                    s_non_gaps = s_array != ASCII_GAP
+                    subject_seq_gaps = subject_seq.count(b"-")
                     subject_title = query_title  # for use in logging
                     break
             else:
@@ -1323,8 +1323,8 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
             db_entries = []
 
             handle.seek(0)
-            for query_title, query_seq in SimpleFastaParser(handle):
-                query_hash = mapping(query_title.split(None, 1)[0])
+            for query_title, query_seq in fasta_bytes_iterator(handle):
+                query_hash = mapping(query_title.decode().split(None, 1)[0])
                 if query_hash < subject_hash or query_hash not in query_hashes:
                     # Exploiting symmetry to avoid double computation,
                     # or not asked to compute this pairing (as already in the DB)
@@ -1336,7 +1336,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
                             "query_hash": query_hash,
                             "subject_hash": subject_hash,
                             "identity": 1.0,
-                            "aln_length": len(query_seq) - query_seq.count("-"),
+                            "aln_length": len(query_seq) - query_seq.count(b"-"),
                             "sim_errors": 0,
                             "cov_query": 1.0,
                             "cov_subject": 1.0,
@@ -1352,13 +1352,13 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
                         msg = (
                             "ERROR: Bad external-alignment, different lengths"
                             f" {len(query_seq)} and {len(subject_seq)}"
-                            f" from {query_title.split(None, 1)[0]}"
-                            f" and {subject_title.split(None, 1)[0]}\n"
+                            f" from {query_title.decode().split(None, 1)[0]}"
+                            f" and {subject_title.decode().split(None, 1)[0]}\n"
                         )
                         sys.exit(msg)
 
-                    q_array = np.array(list(query_seq), "S1")
-                    q_non_gaps = q_array != b"-"
+                    q_array = np.array(list(query_seq), np.ubyte)
+                    q_non_gaps = q_array != ASCII_GAP
                     # & is AND
                     # | is OR
                     # ^ is XOR
@@ -1373,7 +1373,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
 
                     # Now compute the alignment metrics from that
                     query_cov = (matches + non_gap_mismatches) / (
-                        len(query_seq) - query_seq.count("-")
+                        len(query_seq) - query_seq.count(b"-")
                     )
                     subject_cov = (matches + non_gap_mismatches) / (
                         len(subject_seq) - subject_seq_gaps

@@ -38,7 +38,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pandas import DataFrame  # pragma: no cover
 
-from Bio.SeqIO.FastaIO import SimpleFastaParser
 from sqlalchemy import (
     ForeignKey,
     MetaData,
@@ -59,7 +58,7 @@ from sqlalchemy.orm import (
     sessionmaker,
 )
 
-from pyani_plus.utils import filename_stem
+from pyani_plus.utils import fasta_bytes_iterator, filename_stem
 
 
 class Base(DeclarativeBase):
@@ -746,11 +745,11 @@ def db_genome(  # noqa: C901
     description = None
 
     try:
-        with gzip.open(fasta_filename, "rt") as handle:
-            for title, seq in SimpleFastaParser(handle):
+        with gzip.open(fasta_filename, "rb") as handle:
+            for title, seq in fasta_bytes_iterator(handle):
                 length += len(seq)
                 if description is None:
-                    description = title  # Just use first entry
+                    description = title.decode()  # Just use first entry
             if not str(fasta_filename).endswith(".gz"):
                 msg = f"ERROR: No .gz ending, but {Path(fasta_filename).name} is gzip compressed"
                 sys.exit(msg)
@@ -758,11 +757,11 @@ def db_genome(  # noqa: C901
         if str(fasta_filename).endswith(".gz"):
             msg = f"ERROR: Has .gz ending, but {Path(fasta_filename).name} is NOT gzip compressed"
             sys.exit(msg)
-        with Path(fasta_filename).open() as handle:
-            for title, seq in SimpleFastaParser(handle):
+        with Path(fasta_filename).open("rb") as handle:
+            for title, seq in fasta_bytes_iterator(handle):
                 length += len(seq)
                 if description is None:
-                    description = title  # Just use first entry
+                    description = title.decode()  # Just use first entry
 
     genome = Genome(
         genome_hash=md5,

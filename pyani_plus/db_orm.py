@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pandas import DataFrame
+    from pandas import DataFrame  # pragma: no cover
 
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 from sqlalchemy import (

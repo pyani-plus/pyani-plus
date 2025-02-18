@@ -26,6 +26,7 @@ import warnings
 from math import log, nan
 from pathlib import Path
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -35,6 +36,8 @@ from rich.progress import Progress
 from sqlalchemy.orm import Session
 
 from pyani_plus import GRAPHICS_FORMATS, PROGRESS_BAR_COLUMNS, db_orm
+
+mpl.use("agg")  # non-interactive backend
 
 GREY = (0.7, 0.7, 0.7)
 DULL_BLUE = (0.137, 0.412, 0.737)

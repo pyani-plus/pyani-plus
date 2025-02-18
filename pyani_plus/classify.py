@@ -22,6 +22,7 @@
 """Code to implement the classify method indetnded to identify cliques within a set of genomes."""
 
 from collections.abc import Callable
+from enum import Enum
 from itertools import combinations
 from pathlib import Path
 from typing import NamedTuple
@@ -42,21 +43,31 @@ AGG_FUNCS = {
 MIN_COVERAGE = 0.50
 
 
+class EnumModeClassify(str, Enum):
+    """Enum for the --mode command line argument passed to classify."""
+
+    identity = "identity"  # default
+    tani = "tANI"
+
+
+MODE = EnumModeClassify.identity  # constant for CLI default
+
+
 class CliqueInfo(NamedTuple):
     """Graph structure summary."""
 
     n_nodes: int
     max_cov: float | None
-    min_identity: float | None
-    max_identity: float | None
+    min_score: float | None
+    max_score: float | None
     members: list
 
 
 def construct_graph(
     cov_matrix: pd.DataFrame,
-    id_matrix: pd.DataFrame,
+    score_matrix: pd.DataFrame,
     coverage_agg: Callable,
-    identity_agg: Callable,
+    score_agg: Callable,
     min_coverage: float,
 ) -> nx.Graph:
     """Return a graph representing ANI results.
@@ -86,12 +97,12 @@ def construct_graph(
         coverage = coverage_agg(
             [cov_matrix[genome1][genome2], cov_matrix[genome2][genome1]]
         )
-        identity = identity_agg(
-            [id_matrix[genome1][genome2], id_matrix[genome2][genome1]]
+        score = score_agg(
+            [score_matrix[genome1][genome2], score_matrix[genome2][genome1]]
         )
         # Add edge only if both coverage and identity are valid
-        if pd.notna(coverage) and pd.notna(identity) and coverage > min_coverage:
-            graph.add_edge(genome1, genome2, coverage=coverage, identity=identity)
+        if pd.notna(coverage) and pd.notna(score) and coverage > min_coverage:
+            graph.add_edge(genome1, genome2, coverage=coverage, score=score)
 
     return graph
 
@@ -112,7 +123,7 @@ def find_initial_cliques(graph: nx.Graph) -> list:
     """
     cliques: list(nx.Graph) = []  # type: ignore  # noqa: PGH003
     connected_components = list(nx.connected_components(graph))
-    edges = nx.get_edge_attributes(graph, "identity")
+    edges = nx.get_edge_attributes(graph, "score")
 
     identity = min(edges.values()) if edges else None
     for component in connected_components:
@@ -127,7 +138,7 @@ def find_cliques_recursively(
     graph: nx.Graph,
     progress=None,  # noqa: ANN001
     task=None,  # noqa: ANN001
-    identity_break_edge: float | None = None,
+    min_score: float | None = None,
 ) -> list[tuple]:
     """Return all cliques within a set of genomes based on ANI
     results, along with the identity edge that formed each clique, as a tuple.
@@ -139,29 +150,27 @@ def find_cliques_recursively(
 
     # If the graph has only one node stop recursion and return list of cliques
     if len(graph.nodes) == 1:
-        cliques.append((graph, identity_break_edge))
+        cliques.append((graph, min_score))
         return cliques
     # Recording cliques
     if is_clique(graph):
-        cliques.append((graph.copy(), identity_break_edge))
+        cliques.append((graph.copy(), min_score))
 
     edges = graph.edges(data=True)
-    edges = sorted(edges, key=lambda edge: edge[2]["identity"])
+    edges = sorted(edges, key=lambda edge: edge[2]["score"])
 
     # Initialise the progress bar only at the top level
     if progress is None:
         with Progress(*PROGRESS_BAR_COLUMNS) as progress:  # noqa: PLR1704
             task = progress.add_task("Processing edges...", total=len(edges))
-            return find_cliques_recursively(
-                graph, progress, task, identity_break_edge=identity_break_edge
-            )
+            return find_cliques_recursively(graph, progress, task, min_score=min_score)
 
     # Remove edges with the lowest weight, identify cliques and retain the identity edge that formed each clique.
 
     while edges:
         edge_to_remove = edges.pop(0)
         break_edge = (edge_to_remove[0], edge_to_remove[1])
-        identity_break_edge = graph.get_edge_data(*break_edge).get("identity")
+        min_score = graph.get_edge_data(*break_edge).get("score")
         progress.update(task, advance=1)  # Update the progress bar
         graph.remove_edge(edge_to_remove[0], edge_to_remove[1])
 
@@ -174,7 +183,7 @@ def find_cliques_recursively(
                         subgraph,
                         progress,
                         task,
-                        identity_break_edge=identity_break_edge,
+                        min_score=min_score,
                     )
                 )
             return cliques
@@ -211,9 +220,9 @@ def compute_classify_output(
                 (attrs["coverage"] for _, _, attrs in clique.edges(data=True)),
                 default=None,
             ),
-            min_identity=edge_form,
-            max_identity=min(
-                (attrs["identity"] for _, _, attrs in clique.edges(data=True)),
+            min_score=edge_form,
+            max_score=min(
+                (attrs["score"] for _, _, attrs in clique.edges(data=True)),
                 default=None,
             ),
             members=list(clique.nodes),

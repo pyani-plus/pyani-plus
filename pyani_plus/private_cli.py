@@ -35,11 +35,10 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.progress import Progress
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
-from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
+from pyani_plus import db_orm, tools
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_CREATE_DB,
     OPT_ARG_TYPE_TEMP,
@@ -236,6 +235,10 @@ def log_genome(
     print(f"Logging genome to {database}")
     session = db_orm.connect_to_db(database)
 
+    from rich.progress import Progress
+
+    from pyani_plus import PROGRESS_BAR_COLUMNS
+
     file_total = 0
     if fasta:
         with Progress(*PROGRESS_BAR_COLUMNS) as progress:
@@ -296,6 +299,10 @@ def log_run(  # noqa: PLR0913
         extra=extra,
         create=True,
     )
+
+    from rich.progress import Progress
+
+    from pyani_plus import PROGRESS_BAR_COLUMNS
 
     fasta_to_hash = {}
     fasta_names = check_fasta(fasta)

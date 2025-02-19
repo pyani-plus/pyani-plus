@@ -1694,15 +1694,12 @@ def test_classify(
         fasta_to_hash=fasta_to_hash,
     )
 
-    public_cli.cli_classify(database=tmp_db, outdir=tmp_dir, cov_min=0.9)
+    public_cli.cli_classify(database=tmp_db, outdir=tmp_dir, cov_min=0.9, mode="tANI")
 
     output = capsys.readouterr().out
     assert f"Wrote classify output to {tmp_path}" in output, output
     with (tmp_dir / "fastANI_classify.tsv").open() as handle:
-        assert (
-            handle.readline()
-            == "n_nodes\tmax_cov\tmin_identity\tmax_identity\tmembers\n"
-        )
+        assert handle.readline() == "n_nodes\tmax_cov\tmin_tANI\tmax_tANI\tmembers\n"
 
 
 def test_plot_run_comp(

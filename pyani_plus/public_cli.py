@@ -1101,7 +1101,7 @@ def cli_classify(  # noqa: C901, PLR0913
     unique_cliques = classify.get_unique_cliques(initial_cliques, recursive_cliques)
 
     # Writing the results to .tsv
-    classify.compute_classify_output(unique_cliques, method, outdir)
+    classify.compute_classify_output(unique_cliques, method, outdir, mode)
 
     print(f"Wrote classify output to {outdir}")
     session.close()

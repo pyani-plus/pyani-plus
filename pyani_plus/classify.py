@@ -210,9 +210,16 @@ def get_unique_cliques(
 
 
 def compute_classify_output(
-    cliques: list, method: str, outdir: Path
+    cliques: list, method: str, outdir: Path, mode: EnumModeClassify
 ) -> list[CliqueInfo]:
     """Return list of CliqueInfo describing all cliques found and save them to .tsv file."""
+    # Determine column name based on mode
+    suffix = "identity" if mode == EnumModeClassify.identity else "tANI"
+    column_map = {
+        "min_score": f"min_{suffix}",
+        "max_score": f"max_{suffix}",
+    }
+
     clique_data = [
         CliqueInfo(
             n_nodes=len(clique.nodes),
@@ -232,6 +239,9 @@ def compute_classify_output(
 
     clique_df = pd.DataFrame(clique_data)
     clique_df["members"] = clique_df["members"].apply(lambda x: ",".join(x))
+
+    # Rename columns based on mode
+    clique_df = clique_df.rename(columns=column_map)
 
     output_file = outdir / f"{method}_classify.tsv"
     # Round coverage and identity values to 7 decimal places before saving

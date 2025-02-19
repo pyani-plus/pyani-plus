@@ -34,13 +34,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, db_orm
-
-
-class ToolExecutor(str, Enum):
-    """Enum for the executor command line argument passed to snakemake."""
-
-    local = "local"
-    slurm = "slurm"
+from pyani_plus.public_cli_args import ToolExecutor
 
 
 class ShowProgress(str, Enum):

@@ -964,6 +964,14 @@ def plot_run_comp(
         str,
         typer.Option(help="Which runs (comma separated list, reference first)?"),
     ],
+    columns: Annotated[
+        int,
+        typer.Option(
+            help="How many columns to use when tiling plots of multiple runs."
+            " Default 0 means automatically tries for square tiling.",
+            min=0,
+        ),
+    ] = 0,
 ) -> int:
     """Plot comparisons between multiple runs.
 
@@ -1001,7 +1009,7 @@ def plot_run_comp(
 
     from pyani_plus import plot_run  # lazy import
 
-    done = plot_run.plot_run_comparison(session, ref_run, other_runs, outdir)
+    done = plot_run.plot_run_comparison(session, ref_run, other_runs, outdir, columns)
     print(
         f"Wrote {done} images to {outdir}/{ref_run.configuration.method}_identity_{run_id}_vs_*.*"
     )

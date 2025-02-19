@@ -1749,18 +1749,27 @@ def test_plot_run_comp(
     session.commit()
     session.close()
 
-    plot_out = tmp_dir / "📊"
-    plot_out.mkdir()
+    for cols in (0, 1):
+        plot_out = tmp_dir / f"📊{cols}col"
+        plot_out.mkdir()
+        public_cli.plot_run_comp(
+            database=tmp_db, outdir=plot_out, run_ids="1,2,3", columns=cols
+        )
+        output = capsys.readouterr().out
+        images = len(GRAPHICS_FORMATS)
+        if "tsv" in GRAPHICS_FORMATS:
+            images -= 1
+        assert (
+            f"Wrote {images * 2} images to {plot_out}/ANIb_identity_1_vs_*.*\n"
+            in output
+        ), output
 
-    public_cli.plot_run_comp(database=tmp_db, outdir=plot_out, run_ids="1,2,3")
-    output = capsys.readouterr().out
-    images = len(GRAPHICS_FORMATS)
-    if "tsv" in GRAPHICS_FORMATS:
-        images -= 1
-    assert f"Wrote {images} images to {plot_out}/ANIb_identity_1_vs_*.*\n" in output, (
-        output
-    )
-    assert sorted(_.name for _ in plot_out.glob("*")) == sorted(
-        [f"ANIb_identity_1_vs_others.{ext}" for ext in GRAPHICS_FORMATS if ext != "tsv"]
-        + [f"ANIb_identity_1_vs_{other}.tsv" for other in ("2", "3")]
-    )
+        assert sorted(_.name for _ in plot_out.glob("*")) == sorted(
+            [
+                f"ANIb_identity_1_{mode}_vs_others.{ext}"
+                for ext in GRAPHICS_FORMATS
+                for mode in ("scatter", "diff")
+                if ext != "tsv"
+            ]
+            + [f"ANIb_identity_1_vs_{other}.tsv" for other in ("2", "3")]
+        )

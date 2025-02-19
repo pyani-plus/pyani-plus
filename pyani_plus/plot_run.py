@@ -23,7 +23,7 @@
 
 import sys
 import warnings
-from math import log, nan
+from math import ceil, log, nan, sqrt
 from pathlib import Path
 
 import matplotlib as mpl
@@ -366,11 +366,12 @@ def plot_single_run(  # noqa: C901
     return done
 
 
-def plot_run_comparison(  # noqa: C901, PLR0913, PLR0915
+def plot_run_comparison(  # noqa: C901, PLR0912, PLR0913, PLR0915
     session: Session,
     run: db_orm.Run,
     other_runs: list[int],
     outdir: Path,
+    columns: int = 0,
     field: str = "identity",
     formats: tuple[str, ...] = GRAPHICS_FORMATS,
     hist_bins: int = 30,
@@ -394,154 +395,171 @@ def plot_run_comparison(  # noqa: C901, PLR0913, PLR0915
 
     # Default is 6 by 6 (inches), 100dpi, making ours taller!
     # Start with a tall Figure, enough for vs_count squares plus a thin margin plot
-    # Allocating a notional 5x5 for the scatters, and 1x5 or 5x1 for their
-    # histograms, and 1x5 for the spacer too
-    fig = plt.figure(figsize=(10 + 3, 1 + 5 * vs_count))
-    # Add a gridspec with two rows and vs_count+1 columns
-    # Also adjust the subplot parameters for a square plot.
-    gs = fig.add_gridspec(
-        1 + vs_count,  # hist-x, and then one row for each comparison
-        5,  # scatter, hist-y, spacer, differences, hist-y
-        width_ratios=(5, 1, 1, 5, 1),
-        height_ratios=tuple([1] + [5] * vs_count),
-        left=0.1,
-        right=0.95,  # histograms seem to waste some space
-        bottom=0.15 / vs_count,
-        top=1 - 0.05 / vs_count,
-        wspace=0.05,
-        hspace=0.05,
-    )
-    # Want them all to share the same x-axes, so make that first...
-    scatter_axes = {
-        vs_count - 1: fig.add_subplot(gs[vs_count, 0]),
-    }
-    diff_axes = {
-        vs_count - 1: fig.add_subplot(
-            gs[vs_count, 3], sharex=scatter_axes[vs_count - 1]
-        ),
-    }
-    for plot_number in range(vs_count - 1):
-        scatter_axes[plot_number] = fig.add_subplot(
-            gs[1 + plot_number, 0], sharex=scatter_axes[vs_count - 1]
-        )
-        diff_axes[plot_number] = fig.add_subplot(
-            gs[1 + plot_number, 3], sharex=scatter_axes[vs_count - 1]
-        )
-    for column in [0, 3]:
-        ax_histx = fig.add_subplot(gs[0, column], sharex=scatter_axes[vs_count - 1])
-        ax_histx.spines[["left", "top", "right"]].set_visible(False)
-        ax_histx.get_yaxis().set_visible(False)
-        ax_histx.tick_params(axis="x", labelbottom=False)  # no?
-        # This is a histogram of all the reference run's values - but not all will
-        # have a match in any given comparison run...
-        ax_histx.hist(
-            reference_values_by_hash.values(),
-            bins=hist_bins,
-            orientation="vertical",
-        )
+    # Allocating a notional 5x5 for each scatter of difference plot,
+    # and 1x5 or 5x1 for their histograms, and 1x5 for the spacer too
+    plots_per_row = columns if columns > 0 else ceil(sqrt(vs_count))
+    plots_per_col = ceil(vs_count / plots_per_row)
 
     done = 0
-    with Progress(*PROGRESS_BAR_COLUMNS) as progress:
-        for plot_number, other_run_id in progress.track(
-            enumerate(other_runs), description="Plotting", total=len(other_runs)
-        ):
-            other_run = db_orm.load_run(session, other_run_id, check_complete=False)
-            # Can pre-filter the query list and the suject list in the DB,
-            # but ultimately need matching pairs so final filter in Python:
-            other_values_by_hash = {
-                (_.query_hash, _.subject_hash): _.identity
-                for _ in other_run.comparisons()
-                .where(db_orm.Comparison.query_hash.in_(queries))
-                .where(db_orm.Comparison.subject_hash.in_(subjects))
-                .where(db_orm.Comparison.identity != None)  # noqa: E711
-                if (_.query_hash, _.subject_hash) in reference_values_by_hash
-            }
-            if not other_values_by_hash:
-                msg = f"ERROR: Runs {run.run_id} and {other_run_id} have no comparisons in common"
-                sys.exit(msg)
-            sys.stderr.write(
-                f"INFO: Plotting {other_run.configuration.method} run {other_run_id}"
-                f" vs {run.configuration.method} run {run.run_id},"
-                f" with {len(other_values_by_hash)} comparisons in common\n"
+    for mode in ("scatter", "diff"):
+        fig = plt.figure(figsize=(7 * plots_per_row - 1, 1 + 5 * plots_per_col))
+        # Want (5+1 for plot), (1 spacer), .... (1 spacer), (5+1)
+        w_ratios = tuple([5, 1] + [1, 5, 1] * (plots_per_row - 1))
+        h_ratios = tuple([1] + [5] * plots_per_col)
+        # Add a gridspec; adjust the subplot parameters for a square plot.
+        gs = fig.add_gridspec(
+            1 + plots_per_col,  # hist-x, and then one row for each comparison
+            3 * plots_per_row - 1,  # plot, hist-y, spacer, ..., spacer, plot, hist-y
+            width_ratios=w_ratios,
+            height_ratios=h_ratios,
+            left=0.15 / plots_per_row,
+            right=1 - 0.15 / plots_per_row,
+            bottom=0.15 / plots_per_col,
+            top=1 - 0.05 / plots_per_col,
+            wspace=0.05,
+            hspace=0.05,
+        )
+        del w_ratios, h_ratios
+        # Want them all to share the same x-axes, so make that first...
+        scatter_axes = {
+            0: fig.add_subplot(gs[1, 0]),
+        }
+        y_histograms = {}
+        for plot_number in range(1, vs_count):
+            scatter_axes[plot_number] = fig.add_subplot(
+                gs[
+                    1 + (plot_number // plots_per_row),
+                    3 * (plot_number % plots_per_row),
+                ],
+                sharex=scatter_axes[0],
+                sharey=scatter_axes[0] if mode == "scatter" else None,
+            )
+        # Add the y-histograms to the right of each plot
+        for plot_number, ax in scatter_axes.items():
+            y_histograms[plot_number] = fig.add_subplot(
+                gs[
+                    1 + (plot_number // plots_per_row),
+                    1 + 3 * (plot_number % plots_per_row),
+                ],
+                sharey=ax,
+            )
+        # Adjust the appearance of all the y-value histograms
+        for ax_histy in y_histograms.values():
+            ax_histy.tick_params(axis="y", labelleft=False)
+            ax_histy.get_xaxis().set_visible(False)
+            ax_histy.spines[["top", "right", "bottom"]].set_visible(False)
+
+        for index, ax in scatter_axes.items():
+            # This doesn't catch all the bottom of a row entries
+            if (index + 1) % plots_per_col == 0:
+                ax.set_xlabel(run.name)
+            else:
+                ax.tick_params(axis="x", labelbottom=False)
+
+        # Add the top row of x-histograms
+        for column in range(min(vs_count, plots_per_row)):
+            ax_histx = fig.add_subplot(gs[0, column * 3], sharex=scatter_axes[0])
+            ax_histx.spines[["left", "top", "right"]].set_visible(False)
+            ax_histx.get_yaxis().set_visible(False)
+            ax_histx.tick_params(axis="x", labelbottom=False)  # no?
+            # This is a histogram of all the reference run's values - but not all will
+            # have a match in any given comparison run...
+            ax_histx.hist(
+                reference_values_by_hash.values(),
+                bins=hist_bins,
+                orientation="vertical",
             )
 
-            # other_data dict can be smaller than ref_data!
-            x_values = [reference_values_by_hash[pair] for pair in other_values_by_hash]
-            y_values = list(other_values_by_hash.values())
+        with Progress(*PROGRESS_BAR_COLUMNS) as progress:
+            for plot_number, other_run_id in progress.track(
+                enumerate(other_runs),
+                description=f"Plotting {mode.ljust(8)}",
+                total=len(other_runs),
+            ):
+                other_run = db_orm.load_run(session, other_run_id, check_complete=False)
+                # Can pre-filter the query list and the suject list in the DB,
+                # but ultimately need matching pairs so final filter in Python:
+                other_values_by_hash = {
+                    (_.query_hash, _.subject_hash): _.identity
+                    for _ in other_run.comparisons()
+                    .where(db_orm.Comparison.query_hash.in_(queries))
+                    .where(db_orm.Comparison.subject_hash.in_(subjects))
+                    .where(db_orm.Comparison.identity != None)  # noqa: E711
+                    if (_.query_hash, _.subject_hash) in reference_values_by_hash
+                }
+                if not other_values_by_hash:
+                    msg = f"ERROR: Runs {run.run_id} and {other_run_id} have no comparisons in common"
+                    sys.exit(msg)
+                if mode == "scatter":
+                    # Don't repeat this for the diff plot
+                    sys.stderr.write(
+                        f"INFO: Plotting {other_run.configuration.method} run {other_run_id}"
+                        f" vs {run.configuration.method} run {run.run_id},"
+                        f" with {len(other_values_by_hash)} comparisons in common\n"
+                    )
 
-            if "tsv" in formats:
-                # For simplicity (on export, but also for reuse externally),
-                # one file per pair of runs
-                filename = (
-                    outdir
-                    / f"{run.configuration.method}_{field}_{run.run_id}_vs_{other_run_id}.tsv"
-                )
-                with filename.open("w") as handle:
-                    handle.write(f"#{run.name}\t{other_run.name}\n")
-                    for x, y in zip(x_values, y_values, strict=True):
-                        handle.write(f"{x}\t{y}\n")
+                # other_data dict can be smaller than ref_data!
+                x_values = [
+                    reference_values_by_hash[pair] for pair in other_values_by_hash
+                ]
+                y_values = list(other_values_by_hash.values())
 
-            # Create the plot
-            ax_scatter = scatter_axes[plot_number]
-            ax_scatter.spines[["top", "right"]].set_visible(False)
+                if "tsv" in formats and mode == "scatter":
+                    # For simplicity (on export, but also for reuse externally),
+                    # one file per pair of runs
+                    filename = (
+                        outdir
+                        / f"{run.configuration.method}_{field}_{run.run_id}_vs_{other_run_id}.tsv"
+                    )
+                    with filename.open("w") as handle:
+                        handle.write(f"#{run.name}\t{other_run.name}\n")
+                        for x, y in zip(x_values, y_values, strict=True):
+                            handle.write(f"{x}\t{y}\n")
 
-            # Add red y=x line
-            end_points = [
-                max(min(x_values), min(y_values)),
-                min(max(x_values), max(y_values)),
-            ]
-            ax_scatter.plot(end_points, end_points, "-", color="r")
-            del end_points
-
-            # Draw scatter on top of red line
-            ax_scatter.scatter(
-                x=x_values,
-                y=y_values,
-                s=2,
-                alpha=0.2,
-            )
-
-            diff_values = [y - x for (x, y) in zip(x_values, y_values, strict=False)]
-            ax_diff = diff_axes[plot_number]
-            ax_diff.spines[["top", "right"]].set_visible(False)
-            ax_diff.plot([min(x_values), max(x_values)], [0, 0], "-", color="r")
-            ax_diff.scatter(
-                x=x_values,
-                y=diff_values,
-                s=2,
-                alpha=0.2,
-            )
-
-            for column, current_y_values, ax in [
-                (1, other_values_by_hash.values(), ax_scatter),
-                (4, diff_values, ax_diff),
-            ]:
-                # Adjust captions
-                if plot_number + 1 == vs_count:
-                    ax.set_xlabel(run.name)
+                # Create the plot
+                ax_scatter = scatter_axes[plot_number]
+                ax_scatter.spines[["top", "right"]].set_visible(False)
+                if mode == "diff":
+                    y_values = [
+                        y - x for (x, y) in zip(x_values, y_values, strict=True)
+                    ]
+                    # Horizontal red line y=0
+                    ax_scatter.plot(
+                        [min(x_values), max(x_values)], [0, 0], "-", color="r"
+                    )
                 else:
-                    ax.tick_params(axis="x", labelbottom=False)
-                # Now the y-value histogram
+                    # Diagonal red y=x line
+                    end_points = [
+                        max(min(x_values), min(y_values)),
+                        min(max(x_values), max(y_values)),
+                    ]
+                    ax_scatter.plot(end_points, end_points, "-", color="r")
+                    del end_points
+
+                # Draw scatter on top of red line
+                ax_scatter.scatter(
+                    x=x_values,
+                    y=y_values,
+                    s=2,
+                    alpha=0.2,
+                )
                 ax_scatter.set_ylabel(other_run.name)
-                ax_histy = fig.add_subplot(gs[1 + plot_number, column], sharey=ax)
-                ax_histy.tick_params(axis="y", labelleft=False)
-                ax_histy.get_xaxis().set_visible(False)
-                ax_histy.spines[["top", "right", "bottom"]].set_visible(False)
-                ax_histy.hist(
-                    current_y_values,
+                # Now the y-value histogram
+                y_histograms[plot_number].hist(
+                    y_values,
                     bins=hist_bins,
                     orientation="horizontal",
                 )
 
-    done = 0
-    for ext in formats:
-        filename = (
-            outdir / f"{run.configuration.method}_{field}_{run.run_id}_vs_others.{ext}"
-        )
-        if ext == "tsv":
-            pass
-        else:
-            fig.savefig(filename)
-            done += 1
+        for ext in formats:
+            filename = (
+                outdir
+                / f"{run.configuration.method}_{field}_{run.run_id}_{mode}_vs_others.{ext}"
+            )
+            if ext == "tsv":
+                pass
+            else:
+                fig.savefig(filename)
+                done += 1
 
     return done

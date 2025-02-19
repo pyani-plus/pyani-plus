@@ -412,7 +412,7 @@ def test_wrong_method(
         match="ERROR: Run-id 1 expected guessing results",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, [], ""
+            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -445,7 +445,7 @@ def test_bad_program(
         match="ERROR: configuration.program='should-be-blank' unexpected",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, [], ""
+            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -478,7 +478,7 @@ def test_bad_version(
         match="ERROR: configuration.version='should-be-blank' unexpected",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, [], ""
+            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -511,7 +511,7 @@ def test_no_config(
         match="ERROR: Missing configuration.extra setting",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, [], ""
+            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -543,7 +543,7 @@ def test_bad_config(
         match="ERROR: configuration.extra='file=example.fasta;md5=XXX;label=stem' unexpected",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, [], ""
+            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -576,7 +576,7 @@ def test_missing_alignment(
         match="ERROR: Missing alignment file .*/does-not-exist.fasta",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, [], ""
+            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -613,7 +613,7 @@ def test_bad_checksum(
         match="ERROR: MD5 checksum of .*/example.fasta didn't match.",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, [], ""
+            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -668,11 +668,11 @@ AA
             tmp_dir,
             {},
             {},
-            [
-                "5584c7029328dc48d33f95f0a78f7e57",
-                "689d3fd6881db36b5e08329cf23cecdd",
-                "78975d5144a1cd12e98898d573cf6536",
-            ],
+            {
+                "5584c7029328dc48d33f95f0a78f7e57": 57793,
+                "689d3fd6881db36b5e08329cf23cecdd": 39253,
+                "78975d5144a1cd12e98898d573cf6536": 39594,
+            },
             "689d3fd6881db36b5e08329cf23cecdd",
         )
     session.close()
@@ -720,11 +720,11 @@ AACT
         tmp_dir,
         {},
         {},
-        [
-            "5584c7029328dc48d33f95f0a78f7e57",
-            "689d3fd6881db36b5e08329cf23cecdd",
-            "78975d5144a1cd12e98898d573cf6536",
-        ],
+        {
+            "5584c7029328dc48d33f95f0a78f7e57": 57793,
+            "689d3fd6881db36b5e08329cf23cecdd": 39253,
+            "78975d5144a1cd12e98898d573cf6536": 39594,
+        },
         "5584c7029328dc48d33f95f0a78f7e57",
     )
     with pytest.raises(
@@ -738,11 +738,11 @@ AACT
             tmp_dir,
             {},
             {},
-            [
-                "5584c7029328dc48d33f95f0a78f7e57",
-                "689d3fd6881db36b5e08329cf23cecdd",
-                "78975d5144a1cd12e98898d573cf6536",
-            ],
+            {
+                "5584c7029328dc48d33f95f0a78f7e57": 57793,
+                "689d3fd6881db36b5e08329cf23cecdd": 39253,
+                "78975d5144a1cd12e98898d573cf6536": 39594,
+            },
             "689d3fd6881db36b5e08329cf23cecdd",
         )
     session.close()

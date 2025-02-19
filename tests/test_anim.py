@@ -114,6 +114,7 @@ def test_running_anim(
     run = session.query(db_orm.Run).one()
     assert run.run_id == 1
     hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+    hash_to_length = {_.genome_hash: _.length for _ in run.genomes}
 
     subject_hash = list(hash_to_filename)[1]
     private_cli.compute_anim(
@@ -123,7 +124,7 @@ def test_running_anim(
         input_genomes_tiny,
         hash_to_filename,
         {},  # not used for ANIm
-        query_hashes=list(hash_to_filename),  # order should not matter!
+        query_hashes=hash_to_length,  # order should not matter!
         subject_hash=subject_hash,
     )
     assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004

@@ -74,6 +74,7 @@ def test_running_fastani(
     assert run.run_id == 1
     filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
     hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+    hash_to_lengths = {_.genome_hash: _.length for _ in run.genomes}
 
     private_cli.compute_fastani(
         tmp_dir,
@@ -82,7 +83,7 @@ def test_running_fastani(
         input_genomes_tiny,
         hash_to_filename,
         filename_to_hash,
-        query_hashes=list(hash_to_filename),
+        query_hashes=hash_to_lengths,
         subject_hash=list(hash_to_filename)[1],
     )
     assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004

@@ -551,7 +551,7 @@ def plot_run_comparison(  # noqa: C901, PLR0912, PLR0913, PLR0915
         for ext in formats:
             filename = (
                 outdir
-                / f"{run.configuration.method}_{field}_{mode}_{run.run_id}_vs_others.{ext}"
+                / f"{run.configuration.method}_{field}_{run.run_id}_{mode}_vs_others.{ext}"
             )
             if ext == "tsv":
                 pass

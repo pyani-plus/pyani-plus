@@ -1769,7 +1769,7 @@ def test_plot_run_comp(
 
         assert sorted(_.name for _ in plot_out.glob("*")) == sorted(
             [
-                f"ANIb_identity_{mode}_1_vs_others.{ext}"
+                f"ANIb_identity_1_{mode}_vs_others.{ext}"
                 for ext in GRAPHICS_FORMATS
                 for mode in ("scatter", "diff")
                 if ext != "tsv"

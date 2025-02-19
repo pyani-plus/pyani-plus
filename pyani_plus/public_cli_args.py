@@ -26,6 +26,7 @@ the private and public API definitions without needed to import from each other
 (which adds to the start-up time unnecessarily).
 """
 
+from enum import Enum
 from pathlib import Path
 from typing import Annotated
 
@@ -33,9 +34,31 @@ import click
 import typer
 
 from pyani_plus import FASTA_EXTENSIONS
-from pyani_plus.classify import EnumModeClassify
-from pyani_plus.methods.anim import EnumModeANIm
-from pyani_plus.workflows import ToolExecutor
+
+# CLI option Enums
+# ----------------
+
+
+class ToolExecutor(str, Enum):
+    """Enum for the executor command line argument passed to snakemake."""
+
+    local = "local"
+    slurm = "slurm"
+
+
+class EnumModeANIm(str, Enum):
+    """Enum for the --mode command line argument passed to ANIm."""
+
+    mum = "mum"  # default
+    maxmatch = "maxmatch"
+
+
+class EnumModeClassify(str, Enum):
+    """Enum for the --mode command line argument passed to classify."""
+
+    identity = "identity"  # default
+    tani = "tANI"
+
 
 # Reused required command line arguments (which have no default)
 # --------------------------------------------------------------

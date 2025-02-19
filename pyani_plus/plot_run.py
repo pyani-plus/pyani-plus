@@ -425,8 +425,8 @@ def plot_run_comparison(  # noqa: C901, PLR0912, PLR0913, PLR0915
         for plot_number in range(1, vs_count):
             scatter_axes[plot_number] = fig.add_subplot(
                 gs[
-                    1 + (plot_number % plots_per_col),
-                    3 * (plot_number // plots_per_col),
+                    1 + (plot_number // plots_per_row),
+                    3 * (plot_number % plots_per_row),
                 ],
                 sharex=scatter_axes[0],
                 sharey=scatter_axes[0] if mode == "scatter" else None,
@@ -435,8 +435,8 @@ def plot_run_comparison(  # noqa: C901, PLR0912, PLR0913, PLR0915
         for plot_number, ax in scatter_axes.items():
             y_histograms[plot_number] = fig.add_subplot(
                 gs[
-                    1 + (plot_number % plots_per_col),
-                    1 + 3 * (plot_number // plots_per_col),
+                    1 + (plot_number // plots_per_row),
+                    1 + 3 * (plot_number % plots_per_row),
                 ],
                 sharey=ax,
             )

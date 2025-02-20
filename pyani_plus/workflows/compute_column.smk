@@ -23,13 +23,6 @@
 
 This assumes there are no job dependencies, or they have been resolved already.
 """
-from pyani_plus.workflows import check_input_stems
-
-indir_files = check_input_stems(config["indir"])
-
-
-def get_genomeB(wildcards):
-    return indir_files[wildcards.genomeB]
 
 
 rule compute_column:
@@ -38,13 +31,11 @@ rule compute_column:
         run_id=config["run_id"],
         outdir=config["outdir"],
         temp=config["temp"],
-    input:
-        genomeB=get_genomeB,
     output:
-        "{outdir}/all_vs_{genomeB}.{method}",
+        "{outdir}/column_{column}.{method}",
     shell:
         """
         .pyani-plus-private-cli compute-column --quiet \
             --database "{params.db}" --run-id {params.run_id} \
-            --subject "{input}" {params.temp} && touch "{output}"
+            --subject "{wildcards.column}" {params.temp} && touch "{output}"
         """

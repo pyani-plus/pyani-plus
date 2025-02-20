@@ -451,7 +451,7 @@ def plot_run_comparison(  # noqa: C901, PLR0912, PLR0913, PLR0915
 
         for index, ax in scatter_axes.items():
             # This doesn't catch all the bottom of a row entries
-            if (index + 1) % plots_per_col == 0:
+            if index // plots_per_row + 1 == plots_per_col:
                 ax.set_xlabel(run.name)
             else:
                 ax.tick_params(axis="x", labelbottom=False)

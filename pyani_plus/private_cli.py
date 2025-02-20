@@ -384,6 +384,117 @@ def log_comparison(  # noqa: PLR0913
 
 
 @app.command()
+def compute_tile(  # noqa: C901
+    database: REQ_ARG_TYPE_DATABASE,
+    run_id: REQ_ARG_TYPE_RUN_ID,
+    tile: Annotated[
+        int,
+        typer.Option(
+            help="Tile number in range 0 to floor(sqrt(N))**2 for N genomes.",
+            min=0,
+        ),
+    ],
+    *,
+    temp: OPT_ARG_TYPE_TEMP = None,
+    quiet: OPT_ARG_TYPE_QUIET = False,
+) -> int:
+    """Run the method for one tile and log pairwise comparisons to the database."""
+    if database != ":memory:" and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+
+    # We want to receive any SIGINT as a KeyboardInterrupt even if we
+    # are run via a bash shell or other non-interactive setting:
+    signal.signal(signal.SIGINT, signal.default_int_handler)
+
+    # Under SLURM when a job is cancelled via scancel, it sends SIGTERM
+    # for a graceful shutdown then 30s later a SIGKILL hard kill.
+    # For simplicity, treat SIGTERM as a KeyboardInterrupt too.
+    signal.signal(signal.SIGTERM, signal.default_int_handler)
+
+    session = db_orm.connect_to_db(database)
+    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+    config = run.configuration
+    method = config.method
+
+    try:
+        compute = {
+            "sourmash": compute_tile_sourmash,
+        }[method]
+    except KeyError:
+        msg = f"ERROR: Unknown method {method} for run-id {run_id} in {database}"
+        sys.exit(msg)
+
+    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
+    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+    n = len(hash_to_filename)
+
+    import math  # lazy
+
+    k = math.floor(math.sqrt(n))
+    if tile == k**2:
+        if not quiet:
+            sys.stderr.write(f"DEBUG: Treating tile {tile} as tile 0\n")
+        tile = 0
+    if not 0 <= tile < k**2:
+        msg = f"ERROR: Tile number {tile} should be in range 0 to {k**2} (with {n} genomes using {k}²={k**2} tiles)."
+        sys.exit(msg)
+
+    hash_lengths = {_.genome_hash: _.length for _ in run.genomes}
+    assert len(hash_lengths) == n
+    # Partition the list of genomes into k-groups, giving k**2 tiles
+    # Map genome number to tile row/column number using i*k//n
+    tile_row = tile // k
+    subject_lengths = {
+        h: length
+        for i, (h, length) in enumerate(hash_lengths.items())
+        if (i * k // n) == tile_row
+    }
+    tile_col = tile % k
+    query_lengths = {
+        h: length
+        for i, (h, length) in enumerate(hash_lengths.items())
+        if (i * k // n) == tile_col
+    }
+    if k == 1:
+        assert len(query_lengths) == len(subject_lengths) == n
+    if tile_row == tile_col:
+        assert query_lengths == subject_lengths
+    del hash_lengths
+    if not quiet:
+        sys.stderr.write(
+            f"INFO: Computing {method} run {run.run_id} tile {tile}/{k**2}={k}²,"
+            f" {len(query_lengths)}x{len(subject_lengths)} pairs\n"
+        )
+
+    # On a cluster we are likely in a temp working directory, meaning
+    # if it is a relative path, run.fasta_directory is useless without
+    # evaluating it relative to the DB filename.
+    fasta_dir = Path(run.fasta_directory)
+    if not fasta_dir.is_absolute():
+        fasta_dir = (database.parent / fasta_dir).absolute()
+
+    # Either use the specified temp-directory (and do not clean up),
+    # or use a system temp-directory (and do clean up)
+    if temp:
+        temp = Path(temp) / f"t{tile}"  # avoid worries about name clashes
+        temp.mkdir()
+    with nullcontext(temp) if temp else tempfile.TemporaryDirectory() as tmp_dir:
+        return compute(
+            Path(tmp_dir),
+            session,
+            run,
+            fasta_dir,
+            hash_to_filename,
+            filename_to_hash,
+            query_lengths,
+            subject_lengths,
+            tile,
+            quiet=quiet,
+        )
+
+
+@app.command()
 def compute_column(  # noqa: C901, PLR0912, PLR0915
     database: REQ_ARG_TYPE_DATABASE,
     run_id: REQ_ARG_TYPE_RUN_ID,
@@ -1114,45 +1225,52 @@ def compute_dnadiff(  # noqa: C901, PLR0912, PLR0913, PLR0915
     return 0
 
 
-@app.command(rich_help_panel="Method specific logging")
-def log_sourmash(
-    database: REQ_ARG_TYPE_DATABASE,
-    run_id: REQ_ARG_TYPE_RUN_ID,
-    manysearch: Annotated[
-        Path,
-        typer.Option(
-            help="Sourmash-plugin-branchwater manysearch CSV output file",
-            show_default=False,
-            dir_okay=False,
-            file_okay=True,
-            exists=True,
-        ),
-    ],
+def compute_tile_sourmash(  # noqa: PLR0913
+    tmp_dir: Path,
+    session: Session,
+    run: db_orm.Run,
+    fasta_dir: Path,
+    hash_to_filename: dict[str, str],
+    filename_to_hash: dict[str, str],  # noqa: ARG001
+    query_hashes: dict[str, int],
+    subject_hashes: dict[str, int],
+    tile: int,
     *,
-    quiet: OPT_ARG_TYPE_QUIET = False,
+    quiet: bool = False,
 ) -> int:
-    """Log an all-vs-all sourmash pairwise comparison to database."""
-    if database != ":memory:" and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
-
+    """Compute and log one tile of the sourmash pairwise comparison matrix to database."""
     uname = platform.uname()
     uname_system = uname.system
     uname_release = uname.release
     uname_machine = uname.machine
 
-    if not quiet:
-        print(f"Logging sourmash to {database}")
-    session = db_orm.connect_to_db(database)
-    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-    if run.configuration.method != "sourmash":
-        msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
-        sys.exit(msg)
-
-    _check_tool_version(tools.get_sourmash(), run.configuration)
+    tool = tools.get_sourmash()
+    _check_tool_version(tool, run.configuration)
 
     config_id = run.configuration.configuration_id
-    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
+
+    manysearch = tmp_dir / f"tile_{tile}_manysearch.csv"
+
+    if not quiet:
+        sys.stderr.write(f"DEBUG: Computing sourmash tile {tile}\n")
+        sys.stderr.write(
+            f"DEBUG: {len(query_hashes)} queries {', '.join(query_hashes)}\n"
+        )
+        sys.stderr.write(
+            f"DEBUG: {len(subject_hashes)} subjects {', '.join(subject_hashes)}\n"
+        )
+
+    sourmash.compute_tile_manysearch(
+        tool,
+        tmp_dir,
+        run,
+        fasta_dir,
+        hash_to_filename,
+        query_hashes,
+        subject_hashes,
+        tile,
+        manysearch,
+    )
 
     # Now do a bulk import... but must skip any pre-existing entries
     # otherwise would hit sqlite3.IntegrityError for breaking uniqueness!
@@ -1179,18 +1297,16 @@ def log_sourmash(
                 max_containment,
             ) in sourmash.parse_sourmash_manysearch_csv(
                 manysearch,
-                filename_to_hash,
+                # Need to think about exploiting symmetry for sourmash...
                 # This is used to infer failed alignments:
-                expected_pairs={
-                    (q, s)
-                    for q in filename_to_hash.values()
-                    for s in filename_to_hash.values()
-                },
+                expected_pairs={(q, s) for q in query_hashes for s in subject_hashes},
             )
         ],
     )
 
     session.commit()
+    if not quiet:
+        sys.stderr.write(f"DEBUG: Logged {manysearch}\n")
     return 0
 
 

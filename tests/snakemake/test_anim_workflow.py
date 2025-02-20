@@ -132,10 +132,7 @@ def test_rule_ANIm(  # noqa: N802
         workflow_name="compute_column.smk",
         database=db,
         run_id=1,
-        targets=[
-            anim_targets_outdir / f"all_vs_{s.stem}.anim"
-            for s in input_genomes_tiny.glob("*.f*")
-        ],
+        targets=[anim_targets_outdir / f"column_{_}.anim" for _ in range(3)],
         params=config,
         working_directory=tmp_dir,
         temp=tmp_dir,
@@ -205,10 +202,7 @@ def test_rule_ANIm_bad_align(  # noqa: N802
         workflow_name="compute_column.smk",
         database=db,
         run_id=1,
-        targets=[
-            anim_targets_outdir / f"all_vs_{s.stem}.anim"
-            for s in input_genomes_bad_alignments.glob("*.f*")
-        ],
+        targets=[anim_targets_outdir / f"column_{_}.anim" for _ in range(2)],
         params=config,
         working_directory=tmp_dir,
         temp=tmp_dir,

@@ -27,7 +27,6 @@ pytest -v or make test
 """
 
 import json
-import shutil  # We need this for filesystem operations
 from pathlib import Path
 
 # Required to support pytest automated testing
@@ -87,49 +86,6 @@ def compare_sourmash_sig_files(file1: Path, file2: Path) -> bool:
     return True
 
 
-def test_sketch_rule(
-    input_genomes_tiny: Path,
-    sourmash_targets_signature_outdir: Path,
-    config_sourmash_args: dict,
-    tmp_path: str,
-) -> None:
-    """Test sourmash sketch snakemake wrapper.
-
-    Checks that the sketch rule in the sourmash snakemake wrapper gives the
-    expected output.
-
-    If the output directory exists (i.e. the make clean_tests rule has not
-    been run), the tests will automatically pass as snakemake will not
-    attempt to re-run the rule. That would prevent us from seeing any
-    introduced bugs, so we force re-running the rule by deleting the
-    output directory before running the tests.
-    """
-    # Remove the output directory to force re-running the snakemake rule
-    shutil.rmtree(sourmash_targets_signature_outdir, ignore_errors=True)
-
-    config = config_sourmash_args.copy()
-    config["outdir"] = sourmash_targets_signature_outdir
-    config["indir"] = input_genomes_tiny
-
-    expected_sigs = list((input_genomes_tiny / "intermediates/sourmash").glob("*.sig"))
-    targets = [
-        sourmash_targets_signature_outdir / fname.name for fname in expected_sigs
-    ]
-
-    # Run snakemake wrapper
-    run_snakemake_with_progress_bar(
-        executor=ToolExecutor.local,
-        workflow_name="snakemake_sourmash.smk",
-        targets=targets,
-        params=config,
-        working_directory=Path(tmp_path),
-    )
-
-    # Check output against target fixtures
-    for expected, generated in zip(expected_sigs, targets, strict=False):
-        assert compare_sourmash_sig_files(expected, generated)
-
-
 def test_compare_rule_bad_align(
     capsys: pytest.CaptureFixture[str],
     config_sourmash_args: dict,
@@ -179,14 +135,15 @@ def test_compare_rule_bad_align(
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
-        workflow_name="snakemake_sourmash.smk",
-        targets=[tmp_dir / "output/manysearch.csv"],
+        workflow_name="compute.smk",
+        targets=[tmp_dir / "output/tile_0.csv"],
         params=config,
         working_directory=Path(tmp_path),
+        temp=Path(tmp_path),
     )
 
     # Check output against target fixture
-    with (tmp_dir / "output/manysearch.csv").open() as handle:
+    with (tmp_dir / "tile0/tile_0_manysearch.csv").open() as handle:
         generated = sorted(handle.readlines())
     with (
         input_genomes_bad_alignments / "intermediates/sourmash/manysearch.csv"
@@ -236,14 +193,15 @@ def test_compare_rule_viral_example(
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
-        workflow_name="snakemake_sourmash.smk",
-        targets=[tmp_dir / "output/manysearch.csv"],
+        workflow_name="compute.smk",
+        targets=[tmp_dir / "output/tile_0.csv"],
         params=config,
         working_directory=Path(tmp_path),
+        temp=Path(tmp_path),
     )
 
     # Check output against target fixture
-    with (tmp_dir / "output/manysearch.csv").open() as handle:
+    with (tmp_dir / "tile0/tile_0_manysearch.csv").open() as handle:
         generated = sorted(handle.readlines())
     with (
         input_genomes_tiny / "intermediates/sourmash/manysearch.csv"

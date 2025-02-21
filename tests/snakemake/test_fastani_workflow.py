@@ -129,10 +129,7 @@ def test_rule_fastani(
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
         workflow_name="compute.smk",
-        targets=[
-            fastani_targets_outdir / f"all_vs_{s.stem}.fastani"
-            for s in input_genomes_tiny.glob("*.f*")
-        ],
+        targets=[fastani_targets_outdir / f"column_{i}.fastani" for i in range(3)],
         params=config_fastani_args,
         working_directory=Path(tmp_path),
         temp=Path(tmp_path),

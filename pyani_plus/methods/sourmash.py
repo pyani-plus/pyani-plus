@@ -32,7 +32,6 @@ KMER_SIZE = 31  # default
 
 def parse_sourmash_manysearch_csv(
     manysearch_file: Path,
-    filename_to_hash: dict[str, str],
     expected_pairs: set[tuple[str, str]],
 ) -> Iterator[tuple[str, str, float | None, float | None]]:
     """Parse sourmash-plugin-branchwater manysearch CSV output.
@@ -67,20 +66,12 @@ def parse_sourmash_manysearch_csv(
                 and values[column_max_cont] != "1.0"
             ):
                 msg = (
-                    f"Expected sourmash manysearch {filename_to_hash[values[column_query]]}"
+                    f"Expected sourmash manysearch {values[column_query]}"
                     f" vs self to be one, not {values[column_max_cont]!r}"
                 )
                 raise ValueError(msg)
-            try:
-                query_hash = filename_to_hash[values[column_query]]
-                subject_hash = filename_to_hash[values[column_subject]]
-            except KeyError:
-                msg = (
-                    f"Sourmash manysearch CSV file {manysearch_file.name}"
-                    f" contained unknown query_name '{values[column_query]}'"
-                    f" and/or unknown match_name '{values[column_subject]}'"
-                )
-                raise ValueError(msg) from None
+            query_hash = values[column_query]
+            subject_hash = values[column_subject]
             if (query_hash, subject_hash) in expected_pairs:
                 expected_pairs.remove((query_hash, subject_hash))
             else:

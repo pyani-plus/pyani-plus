@@ -198,6 +198,7 @@ def run_method(  # noqa: PLR0913
         "kmersize": configuration.kmersize,
         "minmatch": configuration.minmatch,
         "extra": configuration.extra,
+        "md5_to_filename": {k: str(v) for (v, k) in filename_to_md5.items()},
     }
     params.update({k: str(v) for k, v in binaries.items()})
     del configuration

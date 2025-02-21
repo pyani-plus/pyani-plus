@@ -27,9 +27,18 @@ import os
 import shutil
 import subprocess
 import sys
+from math import floor, sqrt
 from pathlib import Path
 
 from pyani_plus import FASTA_EXTENSIONS
+
+
+def tiling_k_value(genomes: int) -> int:
+    """Split n by n genomes into k x k tiles, such that k**2 <= n.
+
+    Also tries to avoid too many tiles when n is small.
+    """
+    return 1 if genomes < 10 else floor(sqrt(genomes) * 0.33)  # noqa: PLR2004
 
 
 def filename_stem(filename: str) -> str:

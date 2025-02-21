@@ -30,7 +30,7 @@ used), and reporting on a finished analysis (exporting tables and plots).
 import sys
 import tempfile
 from contextlib import nullcontext
-from math import floor, log, sqrt
+from math import log
 from pathlib import Path
 from typing import Annotated
 
@@ -70,6 +70,7 @@ from pyani_plus.utils import (
     check_fasta,
     file_md5sum,
     filename_stem,
+    tiling_k_value,
 )
 from pyani_plus.workflows import (
     ShowProgress,
@@ -181,7 +182,8 @@ def run_method(  # noqa: PLR0913
     workflow_name = "compute.smk"
     if method in ("sourmash",):
         targets = [
-            f"tile_{_}.{method}" for _ in range(floor(sqrt(len(filename_to_md5))) ** 2)
+            f"tile_{_}.{method}"
+            for _ in range(tiling_k_value(len(filename_to_md5)) ** 2)
         ]
     else:
         targets = [f"column_{_}.{method}" for _ in range(len(filename_to_md5))]

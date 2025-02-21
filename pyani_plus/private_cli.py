@@ -53,6 +53,7 @@ from pyani_plus.utils import (
     file_md5sum,
     filename_stem,
     stage_file,
+    tiling_k_value,
 )
 
 app = typer.Typer(
@@ -429,9 +430,7 @@ def compute_tile(
     hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
     n = len(hash_to_filename)
 
-    import math  # lazy
-
-    k = math.floor(math.sqrt(n))
+    k = tiling_k_value(n)
     if not (0 <= tile < k**2):
         msg = (
             f"ERROR: Tile number {tile} should be in range 0 up to but excluding {k**2}"
@@ -1278,6 +1277,8 @@ def compute_tile_sourmash(  # noqa: PLR0913
         manysearch,
     )
 
+    if not quiet:
+        sys.stderr.write(f"DEBUG: Loading sourmash tile {tile} into database\n")
     # Now do a bulk import... but must skip any pre-existing entries
     # otherwise would hit sqlite3.IntegrityError for breaking uniqueness!
     # Do this via the Sqlite3 supported SQL command "INSERT OR IGNORE"

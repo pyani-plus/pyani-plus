@@ -455,6 +455,22 @@ def compute_tile(
         if (i * k // n) == tile_col
     }
     del hash_lengths
+
+    # What comparisons are still needed? Can we trim the query or subject list?
+    # Should be able to express this with lower <= db <= upper bound (faster?)
+    done = (
+        run.comparisons()
+        .where(db_orm.Comparison.subject_hash.in_(subject_lengths))
+        .where(db_orm.Comparison.query_hash.in_(query_lengths))
+        .count()
+    )
+    if done == len(query_lengths) * len(subject_lengths):
+        sys.stderr.write(
+            f"DEBUG: Skipping tile {tile} as all"
+            f" {len(query_lengths)}x{len(subject_lengths)}={done} comparisons already done\n"
+        )
+        return 0
+
     if not quiet:
         sys.stderr.write(
             f"INFO: Computing {method} run {run.run_id} tile {tile}/{k**2}={k}²,"
@@ -1241,8 +1257,8 @@ def compute_tile_sourmash(  # noqa: PLR0913
 
     manysearch = tmp_dir / f"tile_{tile}_manysearch.csv"
 
+    sys.stderr.write(f"DEBUG: Computing sourmash tile {tile}\n")
     if not quiet:
-        sys.stderr.write(f"DEBUG: Computing sourmash tile {tile}\n")
         sys.stderr.write(
             f"DEBUG: {len(query_hashes)} queries {', '.join(query_hashes)}\n"
         )

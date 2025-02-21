@@ -31,8 +31,9 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus import private_cli
+from pyani_plus import db_orm, private_cli
 from pyani_plus.methods import sourmash
+from pyani_plus.tools import get_sourmash
 
 
 def test_parser_with_bad_branchwater(tmp_path: str) -> None:
@@ -94,6 +95,89 @@ def test_missing_db(tmp_path: str) -> None:
     assert not tmp_db.is_file()
 
     with pytest.raises(SystemExit, match="does not exist"):
+        private_cli.compute_tile(
+            database=tmp_db,
+            run_id=1,
+            tile=0,
+        )
+
+
+def test_sketch_signatures_bad_args(tmp_path: str) -> None:
+    """Try calling sketch_signatures with bad configuration."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "bad.db"
+
+    tool = get_sourmash()
+
+    private_cli.log_configuration(
+        database=tmp_db,
+        method="sourmash",
+        program=tool.exe_path.stem,
+        version=tool.version,
+        create_db=True,
+    )
+
+    session = db_orm.connect_to_db(tmp_db)
+    config = session.query(db_orm.Configuration).one()
+    assert not config.kmersize
+    assert not config.extra
+    with pytest.raises(
+        SystemExit, match="ERROR: sourmash requires a k-mer size, default is 31"
+    ):
+        next(sourmash.sketch_signatures(tool, config, {}, tmp_dir))
+
+    private_cli.log_configuration(
+        database=tmp_db,
+        method="sourmash",
+        program=tool.exe_path.stem,
+        version=tool.version,
+        kmersize=17,
+    )
+
+    session = db_orm.connect_to_db(tmp_db)
+    config = (
+        session.query(db_orm.Configuration)
+        .where(db_orm.Configuration.configuration_id == 2)  # noqa: PLR2004
+        .one()
+    )
+    assert config.kmersize == 17  # noqa: PLR2004
+    assert not config.extra
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: sourmash requires scaled or num, default is scaled=1000",
+    ):
+        next(sourmash.sketch_signatures(tool, config, {}, tmp_dir))
+
+
+def test_compute_with_wrong_version(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Check mismatched sourmash version fails."""
+    tmp_db = Path(tmp_path) / "new.sqlite"
+    assert not tmp_db.is_file()
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus sourmash ...",
+        status="Testing",
+        name="Testing log_sourmash",
+        method="sourmash",
+        program="sourmash",
+        version="42",
+        kmersize=sourmash.KMER_SIZE,
+        extra="scaled=" + str(sourmash.SCALED),
+        create_db=True,
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Run configuration was sourmash 42 but we have sourmash 4.",
+    ):
         private_cli.compute_tile(
             database=tmp_db,
             run_id=1,

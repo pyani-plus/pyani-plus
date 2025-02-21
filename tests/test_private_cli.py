@@ -450,6 +450,99 @@ def test_compute_column_missing_db(tmp_path: str) -> None:
         )
 
 
+def test_compute_tile_sourmash(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Check mismatched sourmash version fails."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "tile.sqlite"
+    assert not tmp_db.is_file()
+
+    tool = tools.get_sourmash()
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus sourmash ...",
+        status="Testing",
+        name="Testing tiling",
+        method="sourmash",
+        program=tool.exe_path.name,
+        version=tool.version,
+        kmersize=51,
+        extra="scaled=1000",
+        create_db=True,
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
+
+    # With only three genomes, get one tile.
+    # With four genomes would get four tiles.
+    private_cli.compute_tile(
+        database=tmp_db, run_id=1, tile=0, temp=tmp_dir, quiet=False
+    )
+    output = capsys.readouterr().err
+    assert "INFO: Computing sourmash run 1 tile 0/1=1², 3x3 pairs\n" in output
+    assert "DEBUG: Computing sourmash tile 0\n" in output
+
+    session = db_orm.connect_to_db(tmp_db)
+    db_orm.load_run(session, check_complete=True)
+    session.close()
+
+
+def test_compute_tile_bad_args(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Check mismatched sourmash version fails."""
+    tmp_db = Path(tmp_path) / "new.sqlite"
+    assert not tmp_db.is_file()
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus guess ...",
+        status="Testing",
+        name="Testing bad args",
+        method="guess",
+        program="guestimator",
+        version="42.0",
+        create_db=True,
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
+
+    with pytest.raises(
+        SystemExit, match="ERROR: Unknown method guess for run-id 1 in .*/new.sqlite"
+    ):
+        private_cli.compute_tile(database=tmp_db, run_id=1, tile=0)
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus sourmash ...",
+        status="Testing",
+        name="Testing bad args",
+        method="sourmash",
+        program="guestimator",
+        version="42.0",
+        create_db=True,
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 2\n")
+
+    with pytest.raises(
+        SystemExit,
+        match=(
+            "ERROR: Tile number -1 should be in range 0 up to but excluding 1"
+            r" \(with 3 genomes using 1²=1 tiles\)."
+        ),
+    ):
+        private_cli.compute_tile(database=tmp_db, run_id=2, tile=-1)
+
+
 def test_compute_column_bad_args(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,

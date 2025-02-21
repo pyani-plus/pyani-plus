@@ -497,8 +497,8 @@ def compute_column(  # noqa: C901, PLR0912, PLR0915
     # Either use the specified temp-directory (and do not clean up),
     # or use a system temp-directory (and do clean up)
     if temp:
-        temp = temp / f"column{column}"  # avoid worries about name clashes
-        temp.mkdir()
+        temp = temp / f"c{column}"  # avoid worries about name clashes
+        temp.mkdir(exist_ok=True)
     with nullcontext(temp) if temp else tempfile.TemporaryDirectory() as tmp_dir:
         return compute(
             Path(tmp_dir),

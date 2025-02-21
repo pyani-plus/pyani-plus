@@ -384,7 +384,7 @@ def log_comparison(  # noqa: PLR0913
 
 
 @app.command()
-def compute_tile(  # noqa: C901
+def compute_tile(
     database: REQ_ARG_TYPE_DATABASE,
     run_id: REQ_ARG_TYPE_RUN_ID,
     tile: Annotated[
@@ -432,16 +432,14 @@ def compute_tile(  # noqa: C901
     import math  # lazy
 
     k = math.floor(math.sqrt(n))
-    if tile == k**2:
-        if not quiet:
-            sys.stderr.write(f"DEBUG: Treating tile {tile} as tile 0\n")
-        tile = 0
-    if not 0 <= tile < k**2:
-        msg = f"ERROR: Tile number {tile} should be in range 0 to {k**2} (with {n} genomes using {k}²={k**2} tiles)."
+    if not (0 <= tile < k**2):
+        msg = (
+            f"ERROR: Tile number {tile} should be in range 0 up to but excluding {k**2}"
+            f" (with {n} genomes using {k}²={k**2} tiles)."
+        )
         sys.exit(msg)
 
     hash_lengths = {_.genome_hash: _.length for _ in run.genomes}
-    assert len(hash_lengths) == n
     # Partition the list of genomes into k-groups, giving k**2 tiles
     # Map genome number to tile row/column number using i*k//n
     tile_row = tile // k
@@ -456,10 +454,6 @@ def compute_tile(  # noqa: C901
         for i, (h, length) in enumerate(hash_lengths.items())
         if (i * k // n) == tile_col
     }
-    if k == 1:
-        assert len(query_lengths) == len(subject_lengths) == n
-    if tile_row == tile_col:
-        assert query_lengths == subject_lengths
     del hash_lengths
     if not quiet:
         sys.stderr.write(
@@ -495,7 +489,7 @@ def compute_tile(  # noqa: C901
 
 
 @app.command()
-def compute_column(  # noqa: C901, PLR0912, PLR0915
+def compute_column(  # noqa: C901
     database: REQ_ARG_TYPE_DATABASE,
     run_id: REQ_ARG_TYPE_RUN_ID,
     subject: Annotated[
@@ -556,13 +550,9 @@ def compute_column(  # noqa: C901, PLR0912, PLR0915
         except ValueError:
             msg = f"ERROR: Did not recognise {subject!r} as an MD5 hash, filename, or column number in run-id {run_id}"
             sys.exit(msg)
-        if column < 0 or len(hash_to_filename) < column:
-            msg = f"ERROR: Column should be in range 0 to {n}, not {subject}"
+        if column < 0 or len(hash_to_filename) <= column:
+            msg = f"ERROR: Column should be in range 0 up to but excluding {n}, not {subject}"
             sys.exit(msg)
-        if column == n:
-            if not quiet:
-                sys.stderr.write("INFO: Treating subject N as 0 (first column)\n")
-            column = 0
         subject_hash = sorted(hash_to_filename)[column]
 
     # What comparisons are needed? Record the query genome lengths too

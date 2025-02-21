@@ -493,7 +493,7 @@ def test_compute_column_bad_args(
         private_cli.compute_column(
             database=tmp_db,
             run_id=1,
-            subject="3",
+            subject="2",
         )
 
     with pytest.raises(
@@ -508,7 +508,7 @@ def test_compute_column_bad_args(
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: Column should be in range 0 to 3, not -1",
+        match="ERROR: Column should be in range 0 up to but excluding 3, not -1",
     ):
         private_cli.compute_column(
             database=tmp_db,
@@ -518,7 +518,7 @@ def test_compute_column_bad_args(
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: Column should be in range 0 to 3, not 4",
+        match="ERROR: Column should be in range 0 up to but excluding 3, not 4",
     ):
         private_cli.compute_column(
             database=tmp_db,

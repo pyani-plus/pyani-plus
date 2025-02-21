@@ -19,56 +19,39 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-"""Snakemake workflow for sourmash"""
-from pathlib import Path
-from pyani_plus.workflows import check_input_stems
+"""Snakemake workflow for pyANI-plus compute methods split by column or tile.
 
-indir_files = check_input_stems(config["indir"])
-
-
-def get_genomeA(wildcards):
-    return indir_files[wildcards.genomeA]
+This assumes there are no job dependencies, or they have been resolved already.
+"""
 
 
-def get_genomeB(wildcards):
-    return indir_files[wildcards.genomeB]
-
-
-# The sketch rule runs the sourmach branchwater equivalent to "sourmash sketch"
-rule sketch:
-    params:
-        indir=config["indir"],
-        outdir=config["outdir"],
-        extra=config["extra"],  # This will consist of either `scaled=X` or `num=X`.
-        kmersize=config["kmersize"],
-    input:
-        genomeA=get_genomeA,
-    output:
-        "{outdir}/{genomeA}.sig",
-    shell:
-        """
-        sourmash scripts singlesketch -I DNA -p 'k={params.kmersize},{params.extra}' {input:q} -o "{output}" > "{output}.log" 2>&1
-        """
-
-
-# The compare rule runs the branchwater equivalent of "sourmash compare"
-rule compare:
+rule compute_column:
     params:
         db=config["db"],
         run_id=config["run_id"],
         outdir=config["outdir"],
-        kmersize=config["kmersize"],
         temp=config["temp"],
-        extra=config["extra"],  # This will consist of either `scaled=X` or `num=X`.
-    input:
-        expand("{{outdir}}/{genome}.sig", genome=sorted(indir_files)),
     output:
-        "{outdir}/manysearch.csv",
+        "{outdir}/column_{column}.{method}",
     shell:
         """
-        sourmash sig collect --quiet -F csv -o all_sigs.csv {input:q} > {output}.log 2>&1 &&
-        sourmash scripts manysearch -m DNA --quiet -t 0 -o {output} all_sigs.csv all_sigs.csv >> {output}.log 2>&1 &&
-        .pyani-plus-private-cli log-sourmash --quiet \
+        .pyani-plus-private-cli compute-column --quiet \
             --database "{params.db}" --run-id {params.run_id} \
-            --manysearch "{output}" {params.temp}
+            --subject "{wildcards.column}" {params.temp} && touch "{output}"
+        """
+
+
+rule compute_tile:
+    params:
+        db=config["db"],
+        run_id=config["run_id"],
+        outdir=config["outdir"],
+        temp=config["temp"],
+    output:
+        "{outdir}/tile_{tile}.{method}",
+    shell:
+        """
+        .pyani-plus-private-cli compute-tile --quiet \
+            --database "{params.db}" --run-id {params.run_id} \
+            --tile "{wildcards.tile}" {params.temp} && touch "{output}"
         """

@@ -30,7 +30,7 @@ used), and reporting on a finished analysis (exporting tables and plots).
 import sys
 import tempfile
 from contextlib import nullcontext
-from math import log
+from math import floor, log, sqrt
 from pathlib import Path
 from typing import Annotated
 
@@ -90,7 +90,6 @@ def start_and_run_method(  # noqa: PLR0913
     name: str | None,
     method: str,
     fasta: Path,
-    targets: list[str],  # filenames without paths
     tool: tools.ExternalToolData | None,
     binaries: dict[str, Path],
     *,
@@ -161,7 +160,6 @@ def start_and_run_method(  # noqa: PLR0913
         database,
         session,
         run,
-        targets,
         binaries,
     )
 
@@ -174,18 +172,19 @@ def run_method(  # noqa: PLR0913
     database: Path,
     session: Session,
     run: db_orm.Run,
-    targets: list[str],  # filenames without paths
     binaries: dict[str, Path],
 ) -> int:
     """Run the snakemake workflow for given method and log run to database."""
     run_id = run.run_id
     configuration = run.configuration
     method = configuration.method
-    workflow_name = (
-        f"snakemake_{method.lower()}.smk"
-        if method in ("sourmash",)
-        else "compute_column.smk"
-    )
+    workflow_name = "compute.smk"
+    if method in ("sourmash",):
+        targets = [
+            f"tile_{_}.{method}" for _ in range(floor(sqrt(len(filename_to_md5))) ** 2)
+        ]
+    else:
+        targets = [f"column_{_}.{method}" for _ in range(len(filename_to_md5))]
     params: dict[str, object] = {
         # Paths etc - see also outdir below
         "indir": Path(run.fasta_directory).resolve(),  # must be absolute
@@ -284,8 +283,6 @@ def cli_anim(  # noqa: PLR0913
         "nucmer": tool.exe_path,
         "delta_filter": tools.get_delta_filter().exe_path,
     }
-    fasta_list = check_fasta(fasta)
-
     return start_and_run_method(
         executor,
         temp,
@@ -294,7 +291,6 @@ def cli_anim(  # noqa: PLR0913
         name,
         "ANIm",
         fasta,
-        [f"all_vs_{Path(_).stem}.anim" for _ in fasta_list],
         tool,
         binaries,
         mode=mode.value,  # turn the enum into a string
@@ -326,8 +322,6 @@ def cli_dnadiff(  # noqa: PLR0913
         "show_diff": tools.get_show_diff().exe_path,
         "show_coords": tools.get_show_coords().exe_path,
     }
-    fasta_list = check_fasta(fasta)
-
     return start_and_run_method(
         executor,
         temp,
@@ -336,7 +330,6 @@ def cli_dnadiff(  # noqa: PLR0913
         name,
         "dnadiff",
         fasta,
-        [f"all_vs_{Path(_).stem}.dnadiff" for _ in fasta_list],
         tool,
         binaries,
     )
@@ -369,8 +362,6 @@ def cli_anib(  # noqa: PLR0913
         "blastn": tool.exe_path,
         "makeblastdb": alt.exe_path,
     }
-    fasta_list = check_fasta(fasta)
-
     return start_and_run_method(
         executor,
         temp,
@@ -379,7 +370,6 @@ def cli_anib(  # noqa: PLR0913
         name,
         "ANIb",
         fasta,
-        [f"all_vs_{Path(_).stem}.anib" for _ in fasta_list],
         tool,
         binaries,
         fragsize=fragsize,
@@ -419,8 +409,6 @@ def cli_fastani(  # noqa: PLR0913
     binaries = {
         "fastani": tool.exe_path,
     }
-    fasta_list = check_fasta(fasta)
-
     return start_and_run_method(
         executor,
         temp,
@@ -429,7 +417,6 @@ def cli_fastani(  # noqa: PLR0913
         name,
         "fastANI",
         fasta,
-        [f"all_vs_{Path(_).stem}.fastani" for _ in fasta_list],
         tool,
         binaries,
         fragsize=fragsize,
@@ -469,7 +456,6 @@ def cli_sourmash(  # noqa: PLR0913
         name,
         "sourmash",
         fasta,
-        ["manysearch.csv"],
         tool,
         binaries,
         kmersize=kmersize,
@@ -514,7 +500,6 @@ def external_alignment(  # noqa: PLR0913
     aln_checksum = file_md5sum(alignment)
     # Doing this order to put the filename LAST, in case of separators in the filename
     extra = f"md5={aln_checksum};label={label};alignment={alignment.name}"
-    fasta_list = check_fasta(fasta)
 
     return start_and_run_method(
         executor,
@@ -524,7 +509,6 @@ def external_alignment(  # noqa: PLR0913
         f"Import of {alignment.name}" if name is None else name,
         "external-alignment",
         fasta,
-        [f"all_vs_{Path(_).stem}.external-alignment" for _ in fasta_list],
         None,  # no tool
         {},  # no binaries
         extra=extra,
@@ -578,20 +562,12 @@ def resume(  # noqa: C901, PLR0912, PLR0915
             binaries = {
                 "fastani": tool.exe_path,
             }
-            # Ideally this would be selective, as this will recompute every column
-            targets = [
-                f"all_vs_{Path(_.fasta_filename).stem}.fastani"
-                for _ in run.fasta_hashes
-            ]
         case "ANIm":
             tool = tools.get_nucmer()
             binaries = {
                 "nucmer": tool.exe_path,
                 "delta_filter": tools.get_delta_filter().exe_path,
             }
-            targets = [
-                f"all_vs_{Path(_.fasta_filename).stem}.anim" for _ in run.fasta_hashes
-            ]
         case "dnadiff":
             tool = tools.get_nucmer()
             binaries = {
@@ -600,32 +576,20 @@ def resume(  # noqa: C901, PLR0912, PLR0915
                 "show_diff": tools.get_show_diff().exe_path,
                 "show_coords": tools.get_show_coords().exe_path,
             }
-            targets = [
-                f"all_vs_{Path(_.fasta_filename).stem}.dnadiff"
-                for _ in run.fasta_hashes
-            ]
         case "ANIb":
             tool = tools.get_blastn()
             binaries = {
                 "blastn": tool.exe_path,
                 "makeblastdb": tools.get_makeblastdb().exe_path,
             }
-            targets = [
-                f"all_vs_{Path(_.fasta_filename).stem}.anib" for _ in run.fasta_hashes
-            ]
         case "sourmash":
             tool = tools.get_sourmash()
             binaries = {
                 "sourmash": tool.exe_path,
             }
-            targets = ["manysearch.csv"]
         case "external-alignment":
             tool = None
             binaries = {}
-            targets = [
-                f"all_vs_{Path(_.fasta_filename).stem}.external-alignment"
-                for _ in run.fasta_hashes
-            ]
         case _:
             msg = f"ERROR: Unknown method {config.method} for run-id {run_id} in {database}"
             sys.exit(msg)
@@ -677,7 +641,6 @@ def resume(  # noqa: C901, PLR0912, PLR0915
         database,
         session,
         run,
-        targets,
         binaries,
     )
 

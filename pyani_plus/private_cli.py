@@ -384,7 +384,7 @@ def log_comparison(  # noqa: PLR0913
 
 
 @app.command()
-def compute_column(  # noqa: C901
+def compute_column(  # noqa: C901, PLR0912, PLR0915
     database: REQ_ARG_TYPE_DATABASE,
     run_id: REQ_ARG_TYPE_RUN_ID,
     subject: Annotated[
@@ -435,8 +435,10 @@ def compute_column(  # noqa: C901
 
     if subject in hash_to_filename:
         subject_hash = subject
+        column = sorted(hash_to_filename).index(subject_hash)
     elif Path(subject).name in filename_to_hash:
         subject_hash = filename_to_hash[Path(subject).name]
+        column = sorted(hash_to_filename).index(subject_hash)
     else:
         try:
             column = int(subject)
@@ -451,7 +453,6 @@ def compute_column(  # noqa: C901
                 sys.stderr.write("INFO: Treating subject N as 0 (first column)\n")
             column = 0
         subject_hash = sorted(hash_to_filename)[column]
-        del column
 
     # What comparisons are needed? Record the query genome lengths too
     # (doing this once at the start to avoid a small lookup for each query)
@@ -495,6 +496,9 @@ def compute_column(  # noqa: C901
 
     # Either use the specified temp-directory (and do not clean up),
     # or use a system temp-directory (and do clean up)
+    if temp:
+        temp = temp / f"column{column}"  # avoid worries about name clashes
+        temp.mkdir()
     with nullcontext(temp) if temp else tempfile.TemporaryDirectory() as tmp_dir:
         return compute(
             Path(tmp_dir),

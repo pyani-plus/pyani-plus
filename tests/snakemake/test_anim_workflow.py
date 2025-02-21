@@ -145,12 +145,12 @@ def test_rule_ANIm(  # noqa: N802
 
     # Check delta-filter output against target fixtures
     for fname in (input_genomes_tiny / "intermediates/ANIm").glob("*.filter"):
-        generated = tmp_dir / fname.name
+        generated = next(tmp_dir.glob(f"*/{fname.name}"))
         assert compare_files_with_skip(fname, generated)
 
     # Check nucmer output against target fixtures
     for fname in (input_genomes_tiny / "intermediates/ANIm").glob("*.delta"):
-        generated = tmp_dir / fname.name
+        generated = next(tmp_dir.glob(f"*/{fname.name}"))
         assert compare_files_with_skip(fname, generated)
 
     compare_db_matrices(db, input_genomes_tiny / "matrices")
@@ -216,12 +216,12 @@ def test_rule_ANIm_bad_align(  # noqa: N802
 
     # Check delta-filter output against target fixtures
     for fname in (input_genomes_bad_alignments / "intermediates/ANIm").glob("*.filter"):
-        generated = tmp_dir / fname.name
+        generated = next(tmp_dir.glob(f"*/{fname.name}"))
         assert compare_files_with_skip(fname, generated)
 
     # Check nucmer output against target fixtures
     for fname in (input_genomes_bad_alignments / "intermediates/ANIm").glob("*.delta"):
-        generated = tmp_dir / fname.name
+        generated = next(tmp_dir.glob(f"*/{fname.name}"))
         assert compare_files_with_skip(fname, generated)
 
     compare_db_matrices(db, input_genomes_bad_alignments / "matrices")

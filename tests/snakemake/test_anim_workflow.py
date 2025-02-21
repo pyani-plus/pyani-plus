@@ -129,7 +129,7 @@ def test_rule_ANIm(  # noqa: N802
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
-        workflow_name="compute_column.smk",
+        workflow_name="compute.smk",
         database=db,
         run_id=1,
         targets=[
@@ -202,7 +202,7 @@ def test_rule_ANIm_bad_align(  # noqa: N802
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
-        workflow_name="compute_column.smk",
+        workflow_name="compute.smk",
         database=db,
         run_id=1,
         targets=[

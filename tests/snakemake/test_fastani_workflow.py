@@ -128,7 +128,7 @@ def test_rule_fastani(
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
-        workflow_name="compute_column.smk",
+        workflow_name="compute.smk",
         targets=[
             fastani_targets_outdir / f"all_vs_{s.stem}.fastani"
             for s in input_genomes_tiny.glob("*.f*")
@@ -180,7 +180,7 @@ def test_duplicate_stems(
     with pytest.raises(ValueError, match=re.escape(msg)):
         run_snakemake_with_progress_bar(
             executor=ToolExecutor.local,
-            workflow_name="compute_column.smk",
+            workflow_name="compute.smk",
             targets=generated_targets,
             params=dup_config,
             working_directory=Path(tmp_path),

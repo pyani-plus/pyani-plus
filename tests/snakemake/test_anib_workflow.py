@@ -111,7 +111,7 @@ def test_rule_anib(
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
-        workflow_name="compute_column.smk",
+        workflow_name="compute.smk",
         targets=[
             anib_targets_outdir / f"all_vs_{s.stem}.anib"
             for s in config_anib_args["indir"].glob("*.f*")

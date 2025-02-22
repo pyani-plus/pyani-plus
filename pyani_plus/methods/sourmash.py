@@ -121,6 +121,8 @@ def compute_tile_manysearch(  # noqa: PLR0913
             str(tool.exe_path),
             "scripts",
             "manysearch",
+            "--cores",
+            "1",
             "-m",
             "DNA",
             "-k",

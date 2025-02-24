@@ -22,40 +22,19 @@
 """Snakemake workflow for sourmash"""
 
 
-def get_fasta(wildcards):
-    return str(config["md5_to_filename"][wildcards.genome_hash])
-
-
-# The sketch rule runs the sourmash branchwater equivalent to "sourmash sketch"
-rule sketch:
-    params:
-        outdir=config["outdir"],
-        extra=config["extra"],  # This will consist of either `scaled=X` or `num=X`.
-        kmersize=config["kmersize"],
-    input:
-        get_fasta,
-    output:
-        "{outdir}/{genome_hash}.sig",
-    shell:
-        """
-        sourmash scripts singlesketch -I DNA \
-            -p 'k={params.kmersize},{params.extra}' \
-            -n "{wildcards.genome_hash}" \
-            {input:q} -o "{output}" > "{output}.log" 2>&1
-        """
-
-
 # The compare rule runs the branchwater equivalent of "sourmash compare"
 rule compare:
     params:
         db=config["db"],
         run_id=config["run_id"],
-        outdir=config["outdir"],
-        kmersize=config["kmersize"],
-        temp=config["temp"],
-        extra=config["extra"],  # This will consist of either `scaled=X` or `num=X`.
     input:
-        expand("{{outdir}}/{genome}.sig", genome=sorted(config["md5_to_filename"])),
+        expand(
+            "{cache}/sourmash_k={kmersize}_{extra}/{genome}.sig",
+            cache=[config["cache"]],
+            genome=sorted(config["md5_to_filename"]),
+            kmersize=[config["kmersize"]],
+            extra=[config["extra"]],
+        ),
     output:
         "{outdir}/manysearch.csv",
     shell:

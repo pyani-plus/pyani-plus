@@ -40,11 +40,14 @@ def prepare_genomes(run: db_orm.Run, cache: Path) -> Iterator[str]:
     Yields the FASTA hashes as their signatures are completed for use with a progress bar.
     """
     config = run.configuration
+    if config.method != "sourmash":
+        msg = f"ERROR: Expected run to be for sourmash, not method {config.method}"
+        sys.exit(msg)
     if not config.kmersize:
         msg = f"ERROR: sourmash requires a k-mer size, default is {KMER_SIZE}"
         sys.exit(msg)
     if not config.extra:
-        msg = f"ERROR: sourmash requires scaled or num, default is scaled={SCALED}"
+        msg = f"ERROR: sourmash requires extra setting, default is scaled={SCALED}"
         sys.exit(msg)
     tool = tools.get_sourmash()
     if not cache.is_dir():

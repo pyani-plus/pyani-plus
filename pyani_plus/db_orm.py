@@ -33,9 +33,11 @@ import sys
 from io import StringIO
 from math import log, nan
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import numpy as np
-import pandas as pd
+if TYPE_CHECKING:
+    from pandas import DataFrame  # pragma: no cover
+
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 from sqlalchemy import (
     ForeignKey,
@@ -397,6 +399,9 @@ class Run(Base):
 
         The caller must commit the updated Run object to the database explicitly!
         """
+        import numpy as np  # lazy import as slow and not generally required
+        import pandas as pd  # lazy import as slow and not generally required
+
         hashes = sorted(association.genome_hash for association in self.fasta_hashes)
         size = len(hashes)
         identity = np.full([size, size], np.nan, float)
@@ -432,7 +437,7 @@ class Run(Base):
         del sim_errors
 
     @property
-    def identities(self) -> pd.DataFrame | None:
+    def identities(self) -> "DataFrame | None":
         """All-vs-all percentage identity matrix for the run from the cached JSON.
 
         If cached, returns an N by N float matrix of percentage identities for the N genomes
@@ -445,10 +450,13 @@ class Run(Base):
         """
         if not self.df_identity:
             return None
+
+        import pandas as pd  # lazy import as slow and not generally required
+
         return pd.read_json(StringIO(self.df_identity), orient="split", dtype=float)
 
     @property
-    def cov_query(self) -> pd.DataFrame | None:
+    def cov_query(self) -> "DataFrame | None":
         """All-vs-all query-coverage matrix for the run from the cached JSON.
 
         If cached, returns an N by N float matrix of percentage identities for the N genomes
@@ -461,10 +469,13 @@ class Run(Base):
         """
         if not self.df_cov_query:
             return None
+
+        import pandas as pd  # lazy import as slow and not generally required
+
         return pd.read_json(StringIO(self.df_cov_query), orient="split", dtype=float)
 
     @property
-    def aln_length(self) -> pd.DataFrame | None:
+    def aln_length(self) -> "DataFrame | None":
         """All-vs-all alignment length matrix for the run from the cached JSON.
 
         If cached, returns an N by N integer matrix of alignment lengths for the N genomes
@@ -477,10 +488,13 @@ class Run(Base):
         """
         if not self.df_aln_length:
             return None
+
+        import pandas as pd  # lazy import as slow and not generally required
+
         return pd.read_json(StringIO(self.df_aln_length), orient="split")
 
     @property
-    def sim_errors(self) -> pd.DataFrame | None:
+    def sim_errors(self) -> "DataFrame | None":
         """All-vs-all similarity errors matrix for the run from the cached JSON.
 
         If cached, returns an N by N integer matrix of similarity errors for the N genomes
@@ -493,10 +507,13 @@ class Run(Base):
         """
         if not self.df_sim_errors:
             return None
+
+        import pandas as pd  # lazy import as slow and not generally required
+
         return pd.read_json(StringIO(self.df_sim_errors), orient="split")
 
     @property
-    def hadamard(self) -> pd.DataFrame | None:
+    def hadamard(self) -> "DataFrame | None":
         """All-vs-all Hadamard matrix (identity times coverage) for the run from the cached JSON.
 
         If cached, returns an N by N Hadamard matrix for the N genomes in the run as a
@@ -511,10 +528,13 @@ class Run(Base):
         # computing it from the cached identity and coverage data-frames?
         if not self.df_hadamard:
             return None
+
+        import pandas as pd  # lazy import as slow and not generally required
+
         return pd.read_json(StringIO(self.df_hadamard), orient="split", dtype=float)
 
     @property
-    def tani(self) -> pd.DataFrame | None:
+    def tani(self) -> "DataFrame | None":
         """All-vs-all tANI matrix (minus natural log of identity times coverage) for the run.
 
         Unlike the Hadamard matrix, this is not currently cached in the DB.
@@ -538,9 +558,7 @@ class Run(Base):
         # propagate any pre-existing NA values via the na_action
         return hadamard.map(lambda x: -log(x) if x else nan, na_action="ignore")
 
-    def relabelled_matrix(
-        self, matrix: pd.DataFrame, label: str = "md5"
-    ) -> pd.DataFrame:
+    def relabelled_matrix(self, matrix: "DataFrame", label: str = "md5") -> "DataFrame":
         """Convert a default MD5 based matrix of this run to another labelling.
 
         Here the matrix argument could be from ``.identities`` or similar, while

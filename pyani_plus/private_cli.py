@@ -35,24 +35,15 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.progress import Progress
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
-from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, tools
-from pyani_plus.methods import anib, anim, dnadiff, fastani, sourmash
+from pyani_plus import db_orm, tools
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_CREATE_DB,
     OPT_ARG_TYPE_TEMP,
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
-)
-from pyani_plus.utils import (
-    check_fasta,
-    check_output,
-    file_md5sum,
-    filename_stem,
-    stage_file,
 )
 
 app = typer.Typer(
@@ -237,6 +228,11 @@ def log_genome(
     print(f"Logging genome to {database}")
     session = db_orm.connect_to_db(database)
 
+    from rich.progress import Progress
+
+    from pyani_plus import PROGRESS_BAR_COLUMNS
+    from pyani_plus.utils import file_md5sum
+
     file_total = 0
     if fasta:
         with Progress(*PROGRESS_BAR_COLUMNS) as progress:
@@ -297,6 +293,11 @@ def log_run(  # noqa: PLR0913
         extra=extra,
         create=True,
     )
+
+    from rich.progress import Progress
+
+    from pyani_plus import PROGRESS_BAR_COLUMNS
+    from pyani_plus.utils import check_fasta, file_md5sum
 
     fasta_to_hash = {}
     fasta_names = check_fasta(fasta)
@@ -360,6 +361,8 @@ def log_comparison(  # noqa: PLR0913
     ):
         msg = f"ERROR - {database} does not contain configuration_id={config_id}"
         sys.exit(msg)
+
+    from pyani_plus.utils import file_md5sum
 
     query_md5 = file_md5sum(query_fasta)
     db_orm.db_genome(session, query_fasta, query_md5)
@@ -548,6 +551,9 @@ def compute_fastani(  # noqa: PLR0913
         msg = f"ERROR: fastANI run-id {run.run_id} is missing minmatch parameter"
         sys.exit(msg)
 
+    from pyani_plus.methods import fastani  # lazy import
+    from pyani_plus.utils import check_output
+
     tmp_output = tmp_dir / f"queries_vs_{subject_hash}.csv"
     tmp_queries = tmp_dir / f"queries_vs_{subject_hash}.txt"
     with tmp_queries.open("w") as handle:
@@ -655,6 +661,9 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
         .one()
         .length
     )
+
+    from pyani_plus.methods import anim  # lazy import
+    from pyani_plus.utils import check_output, stage_file
 
     # nucmer does not handle spaces in filenames, neither quoted nor
     # escaped as slash-space. Therefore symlink or decompress to <MD5>.fasta:
@@ -803,6 +812,10 @@ def compute_anib(  # noqa: PLR0913
         .one()
         .length
     )
+
+    from pyani_plus.methods import anib  # lazy import
+    from pyani_plus.utils import check_output, stage_file
+
     outfmt = "6 " + " ".join(anib.BLAST_COLUMNS)
 
     # makeblastdb does not handle spaces in filenames, neither quoted nor
@@ -950,6 +963,9 @@ def compute_dnadiff(  # noqa: C901, PLR0912, PLR0913, PLR0915
     _check_tool_version(nucmer, run.configuration)
 
     config_id = run.configuration.configuration_id
+
+    from pyani_plus.methods import dnadiff  # lazy import
+    from pyani_plus.utils import check_output, stage_file
 
     # nucmer does not handle spaces in filenames, neither quoted nor
     # escaped as slash-space. Therefore symlink or decompress to <MD5>.fasta:
@@ -1151,6 +1167,8 @@ def log_sourmash(
 
     _check_tool_version(tools.get_sourmash(), run.configuration)
 
+    from pyani_plus.methods import sourmash  # lazy import
+
     config_id = run.configuration.configuration_id
     filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
 
@@ -1252,6 +1270,11 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     label = args["label"]
     del args
 
+    import numpy as np  # lazy import, although might be implicitly loaded already?
+    from Bio.SeqIO.FastaIO import SimpleFastaParser  # deliberate lazy import
+
+    from pyani_plus.utils import file_md5sum, filename_stem
+
     if not quiet:
         print(f"INFO: Parsing {alignment} (MD5={md5}, label={label})")
     if not alignment.is_file():
@@ -1269,9 +1292,6 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
         mapping = {
             filename_stem(_.fasta_filename): _.genome_hash for _ in run.fasta_hashes
         }.get
-
-    import numpy as np  # lazy import, although might be implicitly loaded already?
-    from Bio.SeqIO.FastaIO import SimpleFastaParser  # deliberate lazy import
 
     # First col, computes N, logs 2N-1 (A-vs-A, B-vs-A, C-vs-A, ..., Z-vs-A and mirrors)
     # Second col, computes N-1, logs 2N-3 (skips A-vs-B, computes B-vs-B, ..., Z-vs-B)

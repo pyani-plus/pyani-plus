@@ -22,7 +22,6 @@
 """Code to implement the classify method indetnded to identify cliques within a set of genomes."""
 
 from collections.abc import Callable
-from enum import Enum
 from itertools import combinations
 from pathlib import Path
 from typing import NamedTuple
@@ -33,6 +32,7 @@ import pandas as pd
 from rich.progress import Progress
 
 from pyani_plus import PROGRESS_BAR_COLUMNS
+from pyani_plus.public_cli_args import EnumModeClassify
 
 AGG_FUNCS = {
     "min": min,
@@ -41,14 +41,6 @@ AGG_FUNCS = {
 }
 
 MIN_COVERAGE = 0.50
-
-
-class EnumModeClassify(str, Enum):
-    """Enum for the --mode command line argument passed to classify."""
-
-    identity = "identity"  # default
-    tani = "tANI"
-
 
 MODE = EnumModeClassify.identity  # constant for CLI default
 

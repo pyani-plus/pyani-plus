@@ -21,14 +21,19 @@
 # THE SOFTWARE.
 """Code to implement the classify method indetnded to identify cliques within a set of genomes."""
 
+import math
+from collections import defaultdict
 from collections.abc import Callable
 from itertools import combinations
 from pathlib import Path
 from typing import NamedTuple
 
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
+from matplotlib import cm, patches
+from matplotlib.colors import Normalize
 from rich.progress import Progress
 
 from pyani_plus import PROGRESS_BAR_COLUMNS
@@ -201,17 +206,198 @@ def get_unique_cliques(
     return list(unique_cliques.values())
 
 
-def compute_classify_output(
-    cliques: list, method: str, outdir: Path, mode: EnumModeClassify
-) -> list[CliqueInfo]:
-    """Return list of CliqueInfo describing all cliques found and save them to .tsv file."""
-    # Determine column name based on mode
-    suffix = "identity" if mode == EnumModeClassify.identity else "tANI"
-    column_map = {
-        "min_score": f"min_{suffix}",
-        "max_score": f"max_{suffix}",
-    }
+def get_genome_cligue_ids(dataframe: pd.DataFrame, suffix: str) -> dict:
+    """Return a dictionary mapping each genome to a list of clique ids it belongs to."""
+    # Members of each clique are split into separate entries.
+    dataframe[f"max_{suffix}"] = dataframe[f"max_{suffix}"].fillna(1.0)
+    dataframe["members"] = dataframe["members"].str.split(",")
 
+    genome_clique_ids = defaultdict(list)
+    for idx, row in dataframe.iterrows():
+        for genome in row["members"]:
+            genome_clique_ids[genome].append(idx)
+
+    return genome_clique_ids
+
+
+def get_genome_order(genome_clique_ids: dict) -> dict:
+    """Return dictionary mapping each genome to a position on the y-axis."""
+    # Sort genome_clique_ids by the clique IDs and map each genome to a unique y-position.
+    sorted_genomes = sorted(
+        genome_clique_ids, key=lambda genome: genome_clique_ids[genome]
+    )
+    return {genome: idx for idx, genome in enumerate(sorted_genomes)}
+
+
+def plot_classify(  # noqa: PLR0915
+    genome_positions: dict,
+    dataframe: pd.DataFrame,
+    outdir: Path,
+    method: str,
+    score: str,
+) -> None:
+    """Plot the classify results for a given run.
+
+    The function generates a plot with 3 vertically stacked subplots:
+
+    1. ax1: The number of genomes in cliques and as singletons at different %identity.
+    2. ax2: The percentage of all genomes that are found in cliques and as singletons at different %identity.
+    3. ax3: The lifespan (range of identity) of each clique.
+    """
+    # Set up initial plot (eg. figsize, subplots and colormap)
+    num_genomes = len(genome_positions)
+
+    # Dynamically adjust figure height based on the number of genomes
+    label_spacing = 0.15
+    min_height = 10  # Prevent plot from being too small
+    height = max(num_genomes * label_spacing, min_height)
+
+    # Dynamically adjust adjust y-axis label font size
+    font_size = max(6, min(12, 300 // num_genomes))
+
+    # Create a figure with 3 vertically stacked subplots
+    fig, (ax1, ax2, ax3) = plt.subplots(
+        3,
+        1,
+        figsize=(15, height),
+        gridspec_kw={"height_ratios": [0.2, 0.2, 7], "hspace": 0.01},
+        sharex=True,
+    )
+    fig.subplots_adjust(left=0.2, top=0.85)
+
+    # Colorbar for cliques based on min_identity
+    norm = Normalize(
+        vmin=dataframe[f"min_{score}"].min(), vmax=dataframe[f"min_{score}"].max()
+    )
+    cmap_hot = cm.hot
+    cax = fig.add_axes([0.95, 0.81, 0.02, 0.04])
+    sm = plt.cm.ScalarMappable(cmap=cmap_hot, norm=norm)
+    cb = plt.colorbar(sm, cax=cax, orientation="vertical")
+    cb.set_label(f"Min {score}", fontsize=10)
+    cb.ax.tick_params(labelsize=10)
+
+    # ----- The number of genomes in cliques and as singletons at different %identity (ax1) -----
+    # Define bins for identity range
+    identity_bins = np.linspace(
+        math.floor(dataframe[f"min_{score}"].min() * 100) / 100, 1.0, 100
+    )
+    clique_counts = np.zeros_like(
+        identity_bins[:-1]
+    )  # Stores counts of genomes in cliques
+    singleton_counts = np.zeros_like(
+        identity_bins[:-1]
+    )  # Stores counts of singleton genomes
+
+    # Iterate through each row in the dataframe to populate count arrays
+    for _, row in dataframe.iterrows():
+        x_start, x_end = row[f"min_{score}"], row[f"max_{score}"]  # Identity range
+        mask = (identity_bins[:-1] >= x_start) & (
+            identity_bins[:-1] <= x_end
+        )  # Select bins in range
+
+        if len(row["members"]) > 1:
+            clique_counts[mask] += len(row["members"])  # Increment clique genome count
+        else:
+            singleton_counts[mask] += 1  # Increment singleton count
+
+    # Plot the number of genomes in cliques
+    ax1.plot(
+        identity_bins[:-1],
+        clique_counts,
+        color="blue",
+        linewidth=2,
+        label="Genomes in Cliques",
+    )
+    ax1.fill_between(identity_bins[:-1], clique_counts, color="blue", alpha=0.3)
+
+    # Plot the number of singleton genomes
+    ax1.plot(
+        identity_bins[:-1],
+        singleton_counts,
+        color="red",
+        linewidth=2,
+        linestyle="--",
+        label="Singleton Genomes",
+    )
+    # Customise ax1: set y-label, grid style, and display legend
+    ax1.set_ylabel("Number of \n Genomes", fontsize=10)
+    ax1.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)  # noqa: FBT003
+    ax1.legend()
+
+    # --- The percentage of all genomes that are found in cliques and as singletons at different %identity (ax2) ---
+    total_genomes = clique_counts + singleton_counts  # Total count per identity bin
+    percent_total_genomes = (total_genomes / num_genomes) * 100  # Convert to percentage
+
+    # Plot percentage of genomes (cliques + singletons)
+    ax2.plot(
+        identity_bins[:-1],
+        percent_total_genomes,
+        color="green",
+        linewidth=2,
+        label="% Genomes",
+    )
+    ax2.fill_between(
+        identity_bins[:-1], percent_total_genomes, color="green", alpha=0.3
+    )
+    # Customise ax2: set y-label, grid style, and display legend
+    ax2.set_ylabel("Percentage of \n All Genomes", fontsize=10)
+    ax2.set_ylim(0, 100)
+    ax2.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)  # noqa: FBT003
+    ax2.legend()
+
+    # --- The lifespan (range of identity) of each clique (ax3) ---
+    for _, row in dataframe.iterrows():
+        x_start, x_end = row[f"min_{score}"], row[f"max_{score}"]
+        y_positions = [genome_positions[g] for g in row["members"]]
+        y_min, y_max = min(y_positions), max(y_positions)
+
+        if len(row["members"]) == 1:
+            # Plot single-member groups as dashed horizontal lines
+            ax3.hlines(
+                y=y_min,
+                xmin=x_start,
+                xmax=x_end,
+                colors="grey",
+                linestyles="dashed",
+                linewidth=1.5,
+            )
+        else:
+            # Plot cliques as rectangles with heatmap coloring
+            color = cmap_hot(norm(x_start))
+            rect = patches.Rectangle(
+                (x_start, y_min - 0.4),
+                x_end - x_start,
+                y_max - y_min + 0.8,
+                linewidth=1,
+                edgecolor="black",
+                facecolor=color,
+                alpha=0.6,
+            )
+            ax3.add_patch(rect)
+
+    ax3.set_xlabel(f"{score}")
+    ax3.set_ylabel("Genomes", fontsize=6)
+    ax3.set_yticks(range(num_genomes))
+    ax3.set_yticklabels(
+        genome_positions.keys(), fontsize=font_size
+    )  # Dynamically adjust font size
+    ax3.yaxis.set_label_position("right")
+    ax3.yaxis.tick_right()
+    ax3.set_xlim(math.floor(dataframe[f"min_{score}"].min() * 100) / 100 - 0.01, 1.0)
+    ax3.set_ylim(-1, num_genomes)
+    ax3.axvline(x=0.95, color="red", linewidth=2, linestyle="--")
+    ax3.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)  # noqa: FBT003
+
+    # Save the figure as a PDF file
+    plt.savefig(
+        outdir / f"{method}_classify_plot.pdf", format="pdf", bbox_inches="tight"
+    )
+
+
+def compute_classify_output(
+    cliques: list, method: str, outdir: Path, column_map: dict
+) -> tuple[list[CliqueInfo], pd.DataFrame]:
+    """Return list of CliqueInfo describing all cliques found and save them to .tsv file."""
     clique_data = [
         CliqueInfo(
             n_nodes=len(clique.nodes),
@@ -239,4 +425,4 @@ def compute_classify_output(
     # Round coverage and identity values to 7 decimal places before saving
     clique_df.round(7).to_csv(output_file, sep="\t", index=False)
 
-    return clique_data
+    return clique_data, clique_df

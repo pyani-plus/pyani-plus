@@ -63,6 +63,7 @@ from pyani_plus.public_cli_args import (
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
     REQ_ARG_TYPE_OUTDIR,
+    EnumModeClassify,
 )
 from pyani_plus.utils import (
     available_cores,
@@ -1019,7 +1020,7 @@ def plot_run_comp(
 
 
 @app.command("classify", rich_help_panel="Commands")
-def cli_classify(  # noqa: C901, PLR0913
+def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     database: REQ_ARG_TYPE_DATABASE,
     outdir: REQ_ARG_TYPE_OUTDIR,
     coverage_edges: Annotated[
@@ -1071,8 +1072,10 @@ def cli_classify(  # noqa: C901, PLR0913
     done = run.comparisons().count()
     run_genomes = run.genomes.count()
 
+    single_genome_run = False
     if done == 1 and run_genomes == 1:
         msg = f"WARNING: Run {run_id} has {done} comparison across {run_genomes} genome. Reporting single clique...\n"
+        single_genome_run = True
         sys.stderr.write(msg)  # pragma: no cover
     else:
         print(
@@ -1109,10 +1112,25 @@ def cli_classify(  # noqa: C901, PLR0913
     # Get a list of unique cliques to avoid duplicates. Prioritise initial_cliques
     unique_cliques = classify.get_unique_cliques(initial_cliques, recursive_cliques)
 
-    # Writing the results to .tsv
-    classify.compute_classify_output(unique_cliques, method, outdir, mode)
+    # Determine column name based on mode
+    suffix = "identity" if mode == EnumModeClassify.identity else "tANI"
+    column_map = {
+        "min_score": f"min_{suffix}",
+        "max_score": f"max_{suffix}",
+    }
 
+    # Writing the results to .tsv
+    clique_data, clique_df = classify.compute_classify_output(
+        unique_cliques, method, outdir, column_map
+    )
     print(f"Wrote classify output to {outdir}")
+
+    # Only plot classify if more than one genome in comparisons
+    # NOTE TO SELF: This will still break if all genomes are siglentons!
+    if not single_genome_run:
+        genome_groups = classify.get_genome_cligue_ids(clique_df, suffix)
+        genome_positions = classify.get_genome_order(genome_groups)
+        classify.plot_classify(genome_positions, clique_df, outdir, method, suffix)
     session.close()
     return 0
 

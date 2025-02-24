@@ -384,7 +384,7 @@ def log_comparison(  # noqa: PLR0913
 
 
 @app.command()
-def compute_column(  # noqa: C901
+def compute_column(  # noqa: C901, PLR0912, PLR0915
     database: REQ_ARG_TYPE_DATABASE,
     run_id: REQ_ARG_TYPE_RUN_ID,
     subject: Annotated[
@@ -435,8 +435,10 @@ def compute_column(  # noqa: C901
 
     if subject in hash_to_filename:
         subject_hash = subject
+        column = sorted(hash_to_filename).index(subject_hash)
     elif Path(subject).name in filename_to_hash:
         subject_hash = filename_to_hash[Path(subject).name]
+        column = sorted(hash_to_filename).index(subject_hash)
     else:
         try:
             column = int(subject)
@@ -451,17 +453,21 @@ def compute_column(  # noqa: C901
                 sys.stderr.write("INFO: Treating subject N as 0 (first column)\n")
             column = 0
         subject_hash = sorted(hash_to_filename)[column]
-        del column
 
-    # What comparisons are needed?
-    query_hashes: list[str] = sorted(
-        set(hash_to_filename).difference(
-            comp.query_hash
-            for comp in run.comparisons().where(
-                db_orm.Comparison.subject_hash == subject_hash
-            )
+    # What comparisons are needed? Record the query genome lengths too
+    # (doing this once at the start to avoid a small lookup for each query)
+    missing_query_hashes = set(hash_to_filename).difference(
+        comp.query_hash
+        for comp in run.comparisons().where(
+            db_orm.Comparison.subject_hash == subject_hash
         )
     )
+    query_hashes = {
+        _.genome_hash: _.length
+        for _ in run.genomes
+        if _.genome_hash in missing_query_hashes
+    }
+    del missing_query_hashes
 
     if not query_hashes:
         if not quiet:
@@ -490,6 +496,9 @@ def compute_column(  # noqa: C901
 
     # Either use the specified temp-directory (and do not clean up),
     # or use a system temp-directory (and do clean up)
+    if temp:
+        temp = temp / f"c{column}"  # avoid worries about name clashes
+        temp.mkdir(exist_ok=True)
     with nullcontext(temp) if temp else tempfile.TemporaryDirectory() as tmp_dir:
         return compute(
             Path(tmp_dir),
@@ -511,7 +520,7 @@ def compute_fastani(  # noqa: PLR0913
     fasta_dir: Path,
     hash_to_filename: dict[str, str],
     filename_to_hash: dict[str, str],
-    query_hashes: list[str],
+    query_hashes: dict[str, int],
     subject_hash: str,
     *,
     quiet: bool = False,
@@ -619,7 +628,7 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
     fasta_dir: Path,
     hash_to_filename: dict[str, str],
     filename_to_hash: dict[str, str],  # noqa: ARG001
-    query_hashes: list[str],
+    query_hashes: dict[str, int],
     subject_hash: str,
     *,
     quiet: bool = False,
@@ -654,13 +663,7 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
 
     db_entries = []
     try:
-        for query_hash in query_hashes:
-            query_length = (
-                session.query(db_orm.Genome)
-                .where(db_orm.Genome.genome_hash == query_hash)
-                .one()
-                .length
-            )
+        for query_hash, query_length in query_hashes.items():
             if query_hash != subject_hash:
                 # Another thread may create/delete that FASTA name for our query
                 # - so make a unique name for the temp file:
@@ -775,7 +778,7 @@ def compute_anib(  # noqa: PLR0913
     fasta_dir: Path,
     hash_to_filename: dict[str, str],
     filename_to_hash: dict[str, str],  # noqa: ARG001
-    query_hashes: list[str],
+    query_hashes: dict[str, int],
     subject_hash: str,
     *,
     quiet: bool = False,
@@ -833,7 +836,7 @@ def compute_anib(  # noqa: PLR0913
 
     db_entries = []
     try:
-        for query_hash in query_hashes:
+        for query_hash, query_length in query_hashes.items():
             tmp_tsv = tmp_dir / f"{query_hash}_vs_{subject_hash}.tsv"
 
             # Potential race condition if other columns are being computed with the
@@ -877,13 +880,6 @@ def compute_anib(  # noqa: PLR0913
             )
 
             identity, aln_length, sim_errors = anib.parse_blastn_file(tmp_tsv)
-
-            query_length = (
-                session.query(db_orm.Genome)
-                .where(db_orm.Genome.genome_hash == query_hash)
-                .one()
-                .length
-            )
 
             db_entries.append(
                 {
@@ -936,7 +932,7 @@ def compute_dnadiff(  # noqa: C901, PLR0912, PLR0913, PLR0915
     fasta_dir: Path,
     hash_to_filename: dict[str, str],
     filename_to_hash: dict[str, str],  # noqa: ARG001
-    query_hashes: list[str],
+    query_hashes: dict[str, int],
     subject_hash: str,
     *,
     quiet: bool = False,
@@ -962,13 +958,7 @@ def compute_dnadiff(  # noqa: C901, PLR0912, PLR0913, PLR0915
 
     db_entries = []
     try:
-        for query_hash in query_hashes:
-            query_length = (
-                session.query(db_orm.Genome)
-                .where(db_orm.Genome.genome_hash == query_hash)
-                .one()
-                .length
-            )
+        for query_hash, query_length in query_hashes.items():
             if query_hash != subject_hash:
                 # Another thread may create/delete that FASTA name for our query
                 # - so make a unique name for the temp file:
@@ -1211,7 +1201,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     fasta_dir: Path,  # noqa: ARG001
     hash_to_filename: dict[str, str],  # noqa: ARG001
     filename_to_hash: dict[str, str],  # noqa: ARG001
-    query_hashes: list[str],
+    query_hashes: dict[str, int],
     subject_hash: str,
     *,
     quiet: bool = False,

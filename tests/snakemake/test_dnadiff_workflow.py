@@ -153,19 +153,23 @@ def test_dnadiff(
 
     # Check nucmer output (.delta) against target fixtures
     for fname in (input_genomes_tiny / "intermediates/dnadiff").glob("*.delta"):
-        assert compare_files_with_skip(fname, tmp_dir / fname.name)
+        generated = next(tmp_dir.glob(f"*/{fname.name}"))
+        assert compare_files_with_skip(fname, generated)
 
     # Check nucmer output (.filter) against target fixtures
     for fname in (input_genomes_tiny / "intermediates/dnadiff").glob("*.filter"):
-        assert compare_files_with_skip(fname, tmp_dir / fname.name)
+        generated = next(tmp_dir.glob(f"*/{fname.name}"))
+        assert compare_files_with_skip(fname, generated)
 
     # Check showdiff output (.qdiff) against target fixtures
     for fname in (input_genomes_tiny / "intermediates/dnadiff").glob("*.qdiff"):
-        assert compare_files_with_skip(fname, tmp_dir / fname.name, skip=0)
+        generated = next(tmp_dir.glob(f"*/{fname.name}"))
+        assert compare_files_with_skip(fname, generated, skip=0)
 
     # Check show_coords output (.mcoords) against target fixtures
     for fname in (input_genomes_tiny / "intermediates/dnadiff").glob("*.mcoords"):
-        assert compare_files_with_skip(fname, tmp_dir / fname.name, skip=0)
+        generated = next(tmp_dir.glob(f"*/{fname.name}"))
+        assert compare_files_with_skip(fname, generated, skip=0)
 
     compare_db_matrices(db, input_genomes_tiny / "matrices", absolute_tolerance=5e-5)
 
@@ -232,25 +236,29 @@ def test_dnadiff_bad_align(
     for fname in (input_genomes_bad_alignments / "intermediates/dnadiff").glob(
         "*.delta"
     ):
-        assert compare_files_with_skip(fname, tmp_dir / fname.name)
+        generated = next(tmp_dir.glob(f"*/{fname.name}"))
+        assert compare_files_with_skip(fname, generated)
 
     # Check nucmer output (.filter) against target fixtures
     for fname in (input_genomes_bad_alignments / "intermediates/dnadiff").glob(
         "*.filter"
     ):
-        assert compare_files_with_skip(fname, tmp_dir / fname.name)
+        generated = next(tmp_dir.glob(f"*/{fname.name}"))
+        assert compare_files_with_skip(fname, generated)
 
     # Check showdiff output (.qdiff) against target fixtures
     for fname in (input_genomes_bad_alignments / "intermediates/dnadiff").glob(
         "*.qdiff"
     ):
-        assert compare_files_with_skip(fname, tmp_dir / fname.name, skip=0)
+        generated = next(tmp_dir.glob(f"*/{fname.name}"))
+        assert compare_files_with_skip(fname, generated, skip=0)
 
     # Check show_coords output (.mcoords) against target fixtures
     for fname in (input_genomes_bad_alignments / "intermediates/dnadiff").glob(
         "*.mcoords"
     ):
-        assert compare_files_with_skip(fname, tmp_dir / fname.name, skip=0)
+        generated = next(tmp_dir.glob(f"*/{fname.name}"))
+        assert compare_files_with_skip(fname, generated, skip=0)
 
     compare_db_matrices(
         db, input_genomes_bad_alignments / "matrices", absolute_tolerance=5e-5

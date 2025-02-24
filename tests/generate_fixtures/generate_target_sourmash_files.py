@@ -50,6 +50,7 @@ from itertools import product
 from pathlib import Path
 
 from pyani_plus.tools import get_sourmash
+from pyani_plus.utils import file_md5sum
 
 # Paths to directories (input sequences, output matrices)
 INPUT_DIR, OUT_DIR = Path(sys.argv[1]), Path(sys.argv[2])
@@ -69,6 +70,7 @@ sourmash = get_sourmash()
 print(f"Using nucmer {sourmash.version} at {sourmash.exe_path}")
 
 for genome in inputs.values():
+    checksum = file_md5sum(genome)
     subprocess.run(
         [
             sourmash.exe_path,
@@ -80,9 +82,9 @@ for genome in inputs.values():
             # Seems branchwater requires the name field, which by default is set to
             # the filename (without path) by sourmash scripts singlesketch
             "--name",
-            genome.name,
+            checksum,
             "-o",
-            genome.stem + ".sig",
+            f"{checksum}.sig",
         ],
         cwd=str(OUT_DIR),  # so paths in .sig file are relative
         check=True,

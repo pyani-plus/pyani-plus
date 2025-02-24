@@ -38,7 +38,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from pyani_plus.utils import filename_stem
+from pyani_plus.utils import file_md5sum, filename_stem
 
 # Paths to directories (eg, input, output)
 INPUT_DIR, OUT_DIR = Path(sys.argv[1]), Path(sys.argv[2])
@@ -55,9 +55,13 @@ def parse_compare_files(compare_file: Path) -> float:
     return compare_results.iloc[0, -1]
 
 
+hash_to_stem = {file_md5sum(_): filename_stem(str(_)) for _ in INPUT_DIR.glob("*.f*")}
+
 # Generate target identity matrix for pyani-plus sourmash tests
 matrix = pd.read_csv(INPUT_DIR / "intermediates/sourmash/sourmash.csv")
-matrix.columns = [filename_stem(_) for _ in matrix]
+# To match default pyANI-plus output, must map MD5 used in sourmash.cvs
+# to filename stems
+matrix.columns = [hash_to_stem[_] for _ in matrix]
 matrix.index = matrix.columns
 matrix = matrix.sort_index(axis=0).sort_index(axis=1).T
 # Note we transpose sourmash.csv compared to our own matrices!

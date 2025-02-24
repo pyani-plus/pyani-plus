@@ -1170,7 +1170,7 @@ def log_sourmash(
     from pyani_plus.methods import sourmash  # lazy import
 
     config_id = run.configuration.configuration_id
-    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
+    hashes = {_.genome_hash for _ in run.fasta_hashes}
 
     # Now do a bulk import... but must skip any pre-existing entries
     # otherwise would hit sqlite3.IntegrityError for breaking uniqueness!
@@ -1197,13 +1197,8 @@ def log_sourmash(
                 max_containment,
             ) in sourmash.parse_sourmash_manysearch_csv(
                 manysearch,
-                filename_to_hash,
                 # This is used to infer failed alignments:
-                expected_pairs={
-                    (q, s)
-                    for q in filename_to_hash.values()
-                    for s in filename_to_hash.values()
-                },
+                expected_pairs={(q, s) for q in hashes for s in hashes},
             )
         ],
     )

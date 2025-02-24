@@ -35,6 +35,7 @@ import pytest
 
 from pyani_plus.private_cli import log_run
 from pyani_plus.tools import get_sourmash
+from pyani_plus.utils import file_md5sum
 from pyani_plus.workflows import (
     ToolExecutor,
     run_snakemake_with_progress_bar,
@@ -110,6 +111,9 @@ def test_sketch_rule(
     config = config_sourmash_args.copy()
     config["outdir"] = sourmash_targets_signature_outdir
     config["indir"] = input_genomes_tiny
+    config["md5_to_filename"] = {
+        file_md5sum(_): str(_) for _ in input_genomes_tiny.glob("*.f*")
+    }
 
     expected_sigs = list((input_genomes_tiny / "intermediates/sourmash").glob("*.sig"))
     targets = [
@@ -152,6 +156,9 @@ def test_compare_rule_bad_align(
     config = config_sourmash_args.copy()
     config["outdir"] = tmp_dir / "output"
     config["indir"] = input_genomes_bad_alignments
+    config["md5_to_filename"] = {
+        file_md5sum(_): str(_) for _ in input_genomes_bad_alignments.glob("*.f*")
+    }
 
     # Assuming this will match but worker nodes might have a different version
     sourmash_tool = get_sourmash()
@@ -209,6 +216,9 @@ def test_compare_rule_viral_example(
     config = config_sourmash_args.copy()
     config["outdir"] = tmp_dir / "output"
     config["indir"] = input_genomes_tiny
+    config["md5_to_filename"] = {
+        file_md5sum(_): str(_) for _ in input_genomes_tiny.glob("*.f*")
+    }
 
     # Assuming this will match but worker nodes might have a different version
     sourmash_tool = get_sourmash()

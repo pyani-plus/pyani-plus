@@ -20,34 +20,28 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 """Snakemake workflow for sourmash"""
-from pathlib import Path
-from pyani_plus.workflows import check_input_stems
-
-indir_files = check_input_stems(config["indir"])
 
 
-def get_genomeA(wildcards):
-    return indir_files[wildcards.genomeA]
+def get_fasta(wildcards):
+    return str(config["md5_to_filename"][wildcards.genome_hash])
 
 
-def get_genomeB(wildcards):
-    return indir_files[wildcards.genomeB]
-
-
-# The sketch rule runs the sourmach branchwater equivalent to "sourmash sketch"
+# The sketch rule runs the sourmash branchwater equivalent to "sourmash sketch"
 rule sketch:
     params:
-        indir=config["indir"],
         outdir=config["outdir"],
         extra=config["extra"],  # This will consist of either `scaled=X` or `num=X`.
         kmersize=config["kmersize"],
     input:
-        genomeA=get_genomeA,
+        get_fasta,
     output:
-        "{outdir}/{genomeA}.sig",
+        "{outdir}/{genome_hash}.sig",
     shell:
         """
-        sourmash scripts singlesketch -I DNA -p 'k={params.kmersize},{params.extra}' {input:q} -o "{output}" > "{output}.log" 2>&1
+        sourmash scripts singlesketch -I DNA \
+            -p 'k={params.kmersize},{params.extra}' \
+            -n "{wildcards.genome_hash}" \
+            {input:q} -o "{output}" > "{output}.log" 2>&1
         """
 
 
@@ -61,7 +55,7 @@ rule compare:
         temp=config["temp"],
         extra=config["extra"],  # This will consist of either `scaled=X` or `num=X`.
     input:
-        expand("{{outdir}}/{genome}.sig", genome=sorted(indir_files)),
+        expand("{{outdir}}/{genome}.sig", genome=sorted(config["md5_to_filename"])),
     output:
         "{outdir}/manysearch.csv",
     shell:

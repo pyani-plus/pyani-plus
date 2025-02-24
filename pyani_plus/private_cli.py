@@ -410,9 +410,8 @@ def compute_column(  # noqa: C901
     you must supply a subject filename, hash, or column index to control which
     column of the matrix is to be computed.
 
-    If using a column number, these are taken to be zero based but it will accept
-    0 or N to mean the first subject. This is intended to facilitate use with
-    cluster array jobs.
+    If using a column number, these are taken to be zero based meaning in the range
+    0 up to but excluding the number of genomes in the run.
     """
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"

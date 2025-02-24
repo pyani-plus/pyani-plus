@@ -387,7 +387,7 @@ def log_comparison(  # noqa: PLR0913
 
 
 @app.command()
-def compute_column(  # noqa: C901, PLR0912, PLR0915
+def compute_column(  # noqa: C901
     database: REQ_ARG_TYPE_DATABASE,
     run_id: REQ_ARG_TYPE_RUN_ID,
     subject: Annotated[
@@ -448,13 +448,9 @@ def compute_column(  # noqa: C901, PLR0912, PLR0915
         except ValueError:
             msg = f"ERROR: Did not recognise {subject!r} as an MD5 hash, filename, or column number in run-id {run_id}"
             sys.exit(msg)
-        if column < 0 or len(hash_to_filename) < column:
-            msg = f"ERROR: Column should be in range 0 to {n}, not {subject}"
+        if not (0 <= column < len(hash_to_filename)):
+            msg = f"ERROR: Column should be in range 0 up to but excluding {n}, not {subject}"
             sys.exit(msg)
-        if column == n:
-            if not quiet:
-                sys.stderr.write("INFO: Treating subject N as 0 (first column)\n")
-            column = 0
         subject_hash = sorted(hash_to_filename)[column]
 
     # What comparisons are needed? Record the query genome lengths too

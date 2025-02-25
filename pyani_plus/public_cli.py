@@ -183,14 +183,10 @@ def run_method(  # noqa: PLR0913
     run_id = run.run_id
     configuration = run.configuration
     method = configuration.method
-    if method == "sourmash":
-        workflow_name = "snakemake_sourmash.smk"
-        targets = ["manysearch.csv"]
-    else:
-        workflow_name = "compute_column.smk"
-        targets = [f"column_{_}.{method}" for _ in range(len(filename_to_md5))]
+    workflow_name = "compute_column.smk"
+    targets = [f"column_{_}.{method}" for _ in range(len(filename_to_md5))]
     params: dict[str, object] = {
-        # Paths etc - see also outdir below
+        # Paths etc - see also outdir & cache below
         "indir": Path(run.fasta_directory).resolve(),  # must be absolute
         "db": Path(database).resolve(),  # must be absolute
         "run_id": run_id,
@@ -245,7 +241,7 @@ def run_method(  # noqa: PLR0913
                 target_paths,
                 params,
                 work_path,
-                display=ShowProgress.spin if method == "sourmash" else ShowProgress.bar,
+                display=ShowProgress.bar,
                 database=Path(database),
                 run_id=run_id,
                 temp=temp,

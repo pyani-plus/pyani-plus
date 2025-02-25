@@ -224,131 +224,91 @@ def test_parser_with_bad_header(tmp_path: str) -> None:
         next(parser)
 
 
-def test_missing_db(tmp_path: str) -> None:
-    """Check expected error when DB does not exist."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
-    assert not tmp_db.is_file()
-
-    with pytest.raises(SystemExit, match="does not exist"):
-        private_cli.log_sourmash(
-            database=tmp_db,
-            run_id=1,
-            manysearch=Path("/dev/null"),  # won't get as far as opening this
+def test_compute_bad_args(tmp_path: str) -> None:
+    """Check compute_sourmash error handling."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "bad_args.db"
+    tool = tools.ExternalToolData(exe_path=Path("sourmash"), version="0.0a1")
+    session = db_orm.connect_to_db(tmp_db)
+    run = db_orm.Run()  # empty
+    with pytest.raises(SystemExit, match="ERROR: Not given a cache directory"):
+        private_cli.compute_sourmash(
+            tmp_dir, session, run, tmp_dir, {}, {}, {"ABCDE": 12345}, "HIJKL"
         )
-
-
-def test_logging_wrong_version(
-    capsys: pytest.CaptureFixture[str],
-    tmp_path: str,
-    input_genomes_tiny: Path,
-) -> None:
-    """Check mismatched sourmash version fails."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
-    assert not tmp_db.is_file()
-
-    private_cli.log_run(
-        fasta=input_genomes_tiny,
-        database=tmp_db,
-        cmdline="pyani-plus sourmash ...",
-        status="Testing",
-        name="Testing log_sourmash",
-        method="sourmash",
-        program="sourmash",
-        version="42",
-        kmersize=sourmash.KMER_SIZE,
-        extra="scaled=" + str(sourmash.SCALED),
-        create_db=True,
-    )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
-
     with pytest.raises(
         SystemExit,
-        match="ERROR: Run configuration was sourmash 42 but we have sourmash 4.",
+        match="ERROR: Cache directory /does/not/exist does not exist - check cache setting.",
     ):
-        private_cli.log_sourmash(
-            database=tmp_db,
-            run_id=1,
-            manysearch=Path("/dev/null"),  # won't get as far as opening this
+        private_cli.compute_sourmash(
+            tmp_dir,
+            session,
+            run,
+            tmp_dir,
+            {},
+            {},
+            {"ABCDE": 12345},
+            "HIJKL",
+            cache=Path("/does/not/exist"),
+        )
+
+    tool = tools.get_sourmash()
+    config = db_orm.Configuration(
+        method="sourmash",
+        program=tool.exe_path.name,
+        version=tool.version,
+        kmersize=31,
+        extra="scaled=1234",
+    )
+    run = db_orm.Run(configuration=config)
+    with pytest.raises(
+        SystemExit,
+        match=(
+            "ERROR: Missing sourmash signatures directory"
+            f" {tmp_dir}/sourmash_k=31_scaled=1234 - check cache setting."
+        ),
+    ):
+        private_cli.compute_sourmash(
+            tmp_dir,
+            session,
+            run,
+            tmp_dir,
+            {},
+            {},
+            {"ABCDE": 12345},
+            "HIJKL",
+            cache=tmp_dir,
         )
 
 
-def test_logging_sourmash(
-    capsys: pytest.CaptureFixture[str],
-    tmp_path: str,
-    input_genomes_tiny: Path,
-) -> None:
-    """Check can log a sourmash comparison to DB."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
-    assert not tmp_db.is_file()
-
-    tool = tools.get_sourmash()
-
-    private_cli.log_run(
-        fasta=input_genomes_tiny,
-        database=tmp_db,
-        cmdline="pyani-plus sourmash ...",
-        status="Testing",
-        name="Testing log_sourmash",
-        method="sourmash",
-        program=tool.exe_path.stem,
-        version=tool.version,
-        kmersize=sourmash.KMER_SIZE,
-        extra="scaled=" + str(sourmash.SCALED),
-        create_db=True,
-    )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
-
-    private_cli.log_sourmash(
-        database=tmp_db,
-        run_id=1,
-        manysearch=input_genomes_tiny / "intermediates/sourmash/manysearch.csv",
-    )
-
-    # Check the recorded comparison values
-    session = db_orm.connect_to_db(tmp_db)
-    assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
-    session.close()
-    tmp_db.unlink()
-
-
-def test_logging_sourmash_bad_alignments(
-    capsys: pytest.CaptureFixture[str],
-    tmp_path: str,
-    input_genomes_bad_alignments: Path,
-) -> None:
-    """Check can log a sourmash comparison to DB (bad_alignments)."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
-    assert not tmp_db.is_file()
-
-    tool = tools.get_sourmash()
-
-    private_cli.log_run(
-        fasta=input_genomes_bad_alignments,
-        database=tmp_db,
-        cmdline="pyani-plus sourmash ...",
-        status="Testing",
-        name="Testing log_sourmash",
-        method="sourmash",
-        program=tool.exe_path.stem,
-        version=tool.version,
-        kmersize=sourmash.KMER_SIZE,
-        extra="scaled=" + str(sourmash.SCALED),
-        create_db=True,
-    )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
-
-    private_cli.log_sourmash(
-        database=tmp_db,
-        run_id=1,
-        manysearch=input_genomes_bad_alignments
-        / "intermediates/sourmash/manysearch.csv",
-    )
-
-    # Check the recorded comparison values
-    session = db_orm.connect_to_db(tmp_db)
-    assert session.query(db_orm.Comparison).count() == 4  # noqa: PLR2004
-    session.close()
-    tmp_db.unlink()
+def test_compute_column_bad_args(tmp_path: str) -> None:
+    """Check compute_sourmash_column error handling."""
+    tmp_dir = Path(tmp_path)
+    tool = tools.ExternalToolData(exe_path=Path("sourmash"), version="0.0a1")
+    with pytest.raises(
+        ValueError, match="Given cache directory /does/not/exist does not exist"
+    ):
+        next(
+            sourmash.compute_sourmash_column(
+                tool,
+                "",
+                {
+                    "",
+                },
+                Path("/does/not/exist"),
+                tmp_dir,
+            )
+        )
+    with pytest.raises(
+        SystemExit, match="ERROR: One or more signatures missing: .*/ABCDE.sig"
+    ):
+        next(
+            sourmash.compute_sourmash_column(
+                tool,
+                "",
+                {
+                    "ABCDE",
+                },
+                tmp_dir,
+                tmp_dir,
+            )
+        )

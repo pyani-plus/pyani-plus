@@ -274,26 +274,30 @@ def test_log_comparison_duplicate(
     tmp_db.unlink()
 
 
-def test_log_comparison_serial(
+def test_log_comparison_serial_and_skip_process_genomes(
     capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
 ) -> None:
-    """Confirm can create a mock DB using log-comparison etc. sequentially."""
-    tmp_db = Path(tmp_path) / "serial.sqlite"
+    """Confirm can create a mock DB using log-comparison etc. sequentially.
+
+    Also test process-genomes detects a complete run and aborts.
+    """
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "serial.sqlite"
     assert not tmp_db.is_file()
 
     private_cli.log_configuration(
         tmp_db,
-        method="guessing",
+        method="sourmash",
         program="guestimate",
         version="0.1.2beta3",
-        fragsize=100,
         kmersize=51,
+        extra="scaled=1234",
         create_db=True,
     )
     output = capsys.readouterr().out
     assert output.endswith("Configuration identifier 1\n")
 
-    fasta = list(input_genomes_tiny.glob("*.fna"))  # subset of folder
+    fasta = list(input_genomes_tiny.glob("*.f*"))
     private_cli.log_genome(
         database=tmp_db,
         fasta=fasta,
@@ -328,12 +332,11 @@ def test_log_comparison_serial(
         status="Completed",
         fasta=input_genomes_tiny,
         # Config
-        method="guessing",
+        method="sourmash",
         program="guestimate",
         version="0.1.2beta3",
-        fragsize=100,
         kmersize=51,
-        # Misc
+        extra="scaled=1234",
         create_db=False,
     )
     output = capsys.readouterr().out
@@ -341,6 +344,11 @@ def test_log_comparison_serial(
 
     session = db_orm.connect_to_db(tmp_db)
     assert session.query(db_orm.Comparison).count() == len(fasta) ** 2
+    assert session.query(db_orm.Configuration).count() == 1
+
+    private_cli.prepare_genomes(database=tmp_db, run_id=1, cache=tmp_dir)
+    output = capsys.readouterr().out
+    assert "Skipping preparation, run already has all 9=3² pairwise values" in output
 
 
 def test_log_comparison_parallel(

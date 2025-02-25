@@ -527,6 +527,31 @@ def test_missing_db(tmp_path: str) -> None:
         )
 
 
+def test_prepare_genomes_bad_args(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Check error handling in prepare-genomes."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "bad.sqlite"
+    assert not tmp_db.is_file()
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus sourmash ...",
+        status="Testing",
+        name="Testing compute-column",
+        method="guessing",
+        program="guestimate",
+        version="0.1.2beta3",
+        create_db=True,
+    )
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Unknown method guessing, check tool version?",
+    ):
+        private_cli.prepare_genomes(database=tmp_db, run_id=1, cache=tmp_dir)
+
+
 def test_compute_column_bad_args(
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,

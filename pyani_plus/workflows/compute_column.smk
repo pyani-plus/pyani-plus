@@ -38,6 +38,7 @@ rule compute_column:
         run_id=config["run_id"],
         outdir=config["outdir"],
         temp=config["temp"],
+        cache=config.get("cache", None),
     input:
         genomeB=get_genomeB,
     output:
@@ -46,5 +47,6 @@ rule compute_column:
         """
         .pyani-plus-private-cli compute-column --quiet \
             --database "{params.db}" --run-id {params.run_id} \
-            --subject "{input}" {params.temp} && touch "{output}"
+            --subject "{input}" {params.temp} --cache "{params.cache}" \
+            && touch "{output}"
         """

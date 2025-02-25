@@ -1627,7 +1627,7 @@ def test_classify_warnings(
     db_orm.add_run(
         session,
         config,
-        cmdline="pyani guessing ...",
+        cmdline="pyani fastANI ...",
         fasta_directory=input_genomes_tiny,
         status="Complete",
         name="Test classify when all data present",
@@ -1637,7 +1637,7 @@ def test_classify_warnings(
     db_orm.add_run(
         session,
         config,
-        cmdline="pyani guessing ...",
+        cmdline="pyani fastANI ...",
         fasta_directory=input_genomes_tiny,
         status="Complete",
         name="Test classify when all data present",
@@ -1708,7 +1708,7 @@ def test_classify(
     db_orm.add_run(
         session,
         config,
-        cmdline="pyani guessing ...",
+        cmdline="pyani fastANI ...",
         fasta_directory=input_genomes_tiny,
         status="Complete",
         name="Test classify when all data present",

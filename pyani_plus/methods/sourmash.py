@@ -26,8 +26,58 @@ import sys
 from collections.abc import Iterator
 from pathlib import Path
 
+from pyani_plus import db_orm, tools, utils
+
 SCALED = 1000
 KMER_SIZE = 31  # default
+
+
+def prepare_genomes(run: db_orm.Run, cache: Path) -> Iterator[str]:
+    """Build the sourmatch sketch signatures in the given directory.
+
+    Will use a sub-directory ``sourmash_k={kmersize}_scaled={number}``.
+
+    Yields the FASTA hashes as their signatures are completed for use with a progress bar.
+    """
+    config = run.configuration
+    if config.method != "sourmash":
+        msg = f"ERROR: Expected run to be for sourmash, not method {config.method}"
+        sys.exit(msg)
+    if not config.kmersize:
+        msg = f"ERROR: sourmash requires a k-mer size, default is {KMER_SIZE}"
+        sys.exit(msg)
+    if not config.extra:
+        msg = f"ERROR: sourmash requires extra setting, default is scaled={SCALED}"
+        sys.exit(msg)
+    tool = tools.get_sourmash()
+    if not cache.is_dir():
+        msg = f"ERROR: Cache directory {cache} does not exist"
+        raise ValueError(msg)
+    cache = cache / f"sourmash_k={config.kmersize}_{config.extra}"
+    cache.mkdir(exist_ok=True)
+    fasta_dir = Path(run.fasta_directory)
+    for entry in run.fasta_hashes:
+        fasta_filename = fasta_dir / entry.fasta_filename
+        # Note using sub-folders for different k-mer size etc
+        sig_filename = cache / f"{entry.genome_hash}.sig"
+        if not sig_filename.is_file():
+            utils.check_output(
+                [
+                    str(tool.exe_path),
+                    "scripts",
+                    "singlesketch",
+                    "-I",
+                    "DNA",
+                    "-p",
+                    f"k={config.kmersize},{config.extra}",
+                    "-n",
+                    entry.genome_hash,
+                    fasta_filename,
+                    "-o",
+                    str(sig_filename),
+                ],
+            )
+        yield entry
 
 
 def parse_sourmash_manysearch_csv(

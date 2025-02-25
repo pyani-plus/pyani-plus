@@ -43,10 +43,11 @@ from rich.table import Table
 from rich.text import Text
 from sqlalchemy.orm import Session
 
-from pyani_plus import PROGRESS_BAR_COLUMNS, classify, db_orm, tools
+from pyani_plus import PROGRESS_BAR_COLUMNS, classify, db_orm, private_cli, tools
 from pyani_plus.methods import anib, anim, fastani, sourmash
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_ANIM_MODE,
+    OPT_ARG_TYPE_CACHE,
     OPT_ARG_TYPE_CLASSIFY_MODE,
     OPT_ARG_TYPE_COV_MIN,
     OPT_ARG_TYPE_CREATE_DB,
@@ -84,6 +85,7 @@ app = typer.Typer(
 
 def start_and_run_method(  # noqa: PLR0913
     executor: ToolExecutor,
+    cache: Path | None,
     temp: Path | None,
     workflow_temp: Path | None,
     database: Path,
@@ -155,6 +157,7 @@ def start_and_run_method(  # noqa: PLR0913
 
     return run_method(
         executor,
+        cache,
         temp,
         workflow_temp,
         filename_to_md5,
@@ -168,6 +171,7 @@ def start_and_run_method(  # noqa: PLR0913
 
 def run_method(  # noqa: PLR0913
     executor: ToolExecutor,
+    cache: Path | None,
     temp: Path | None,
     workflow_temp: Path | None,
     filename_to_md5: dict[Path, str],
@@ -216,6 +220,10 @@ def run_method(  # noqa: PLR0913
         session.close()  # Reduce chance of DB locking
         del run
 
+        # Not needed for most methods, will be a no-op:
+        cache = private_cli.validate_cache(cache, create_default=False).resolve()
+        private_cli.prepare_genomes(database, run_id, cache=cache)
+
         # Run snakemake wrapper
         # With a cluster-based running like SLURM, the location of the working and
         # output directories must be viewable from all the worker nodes too.
@@ -231,6 +239,7 @@ def run_method(  # noqa: PLR0913
             work_path = Path(tmp) / "working"
             out_path = Path(tmp) / "output"
             params["outdir"] = out_path.resolve()
+            params["cache"] = cache
             target_paths = [out_path / _ for _ in targets]
             run_snakemake_with_progress_bar(
                 executor,
@@ -289,6 +298,7 @@ def cli_anim(  # noqa: PLR0913
 
     return start_and_run_method(
         executor,
+        None,
         temp,
         wtemp,
         database,
@@ -331,6 +341,7 @@ def cli_dnadiff(  # noqa: PLR0913
 
     return start_and_run_method(
         executor,
+        None,
         temp,
         wtemp,
         database,
@@ -374,6 +385,7 @@ def cli_anib(  # noqa: PLR0913
 
     return start_and_run_method(
         executor,
+        None,
         temp,
         wtemp,
         database,
@@ -424,6 +436,7 @@ def cli_fastani(  # noqa: PLR0913
 
     return start_and_run_method(
         executor,
+        None,
         temp,
         wtemp,
         database,
@@ -448,6 +461,7 @@ def cli_sourmash(  # noqa: PLR0913
     name: OPT_ARG_TYPE_RUN_NAME = None,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    cache: OPT_ARG_TYPE_CACHE = None,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
     # These are for the configuration table:
@@ -464,6 +478,7 @@ def cli_sourmash(  # noqa: PLR0913
     extra = f"scaled={scaled}"
     return start_and_run_method(
         executor,
+        cache,
         temp,
         wtemp,
         database,
@@ -519,6 +534,7 @@ def external_alignment(  # noqa: PLR0913
 
     return start_and_run_method(
         executor,
+        None,
         temp,  # not needed?
         wtemp,  # not needed?
         database,
@@ -533,11 +549,12 @@ def external_alignment(  # noqa: PLR0913
 
 
 @app.command()
-def resume(  # noqa: C901, PLR0912, PLR0915
+def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
     database: REQ_ARG_TYPE_DATABASE,
     *,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    cache: OPT_ARG_TYPE_CACHE = None,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
 ) -> int:
@@ -672,6 +689,7 @@ def resume(  # noqa: C901, PLR0912, PLR0915
 
     return run_method(
         executor,
+        cache,
         temp,
         wtemp,
         filename_to_md5,

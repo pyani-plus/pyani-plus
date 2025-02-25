@@ -27,9 +27,66 @@ import os
 import shutil
 import subprocess
 import sys
+from collections.abc import Iterator
 from pathlib import Path
+from typing import IO
 
 from pyani_plus import FASTA_EXTENSIONS
+
+ASCII_GREATER_THAN = ord(">")  # 64
+
+
+def fasta_bytes_iterator(
+    handle: IO[bytes] | gzip.GzipFile,
+) -> Iterator[tuple[bytes, bytes]]:
+    """Parse FASTA file in binary (bytes) mode.
+
+    Yields tuples of (description including identifier, sequence).
+
+    >>> with open("tests/fixtures/viral_example/OP073605.fasta", "rb") as handle:
+    ...     for title, seq in fasta_bytes_iterator(handle):
+    ...         print(title)
+    ...         print(f"Length {len(seq)} bp")
+    b'OP073605.1 MAG: Bacteriophage sp. isolate 0984_12761, complete genome'
+    Length 57793 bp
+
+    Requires a binary mode input handle:
+
+    >>> with open("tests/fixtures/viral_example/OP073605.fasta") as handle:
+    ...     for title, seq in fasta_bytes_iterator(handle):
+    ...         print(title)
+    ...         print(f"Length {len(seq)}bp")
+    Traceback (most recent call last):
+    ...
+    ValueError: Function fasta_bytes_iterator requires a handle in binary mode
+
+    """
+    # Follows the logic of the Biopython 1.62 to 1.85 SimpleFastaParser which
+    # worked in text (unicode) mode only.
+    if handle.read(0) != b"":
+        msg = "Function fasta_bytes_iterator requires a handle in binary mode"
+        raise ValueError(msg)
+
+    # Skip any text before the first record (e.g. blank lines, comments, header)
+    for line in handle:
+        if line[0] == ASCII_GREATER_THAN:  # i.e. >
+            title = line[1:].rstrip()
+            break
+    else:
+        # no line break, probably an empty file
+        return
+    # Note, remove trailing whitespace, and any internal spaces
+    # (and any embedded \r which are possible in mangled files
+    # when not opened in universal read lines mode)
+    lines: list[bytes] = []
+    for line in handle:
+        if line[0] == ASCII_GREATER_THAN:  # i.e. >
+            yield title, b"".join(lines).translate(None, b" \t\r\n")
+            lines = []
+            title = line[1:].rstrip()
+            continue
+        lines.append(line.rstrip())
+    yield title, b"".join(lines).translate(None, b" \t\r\n")
 
 
 def filename_stem(filename: str) -> str:

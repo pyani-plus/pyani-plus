@@ -850,6 +850,7 @@ def test_sourmash_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
         fasta=input_gzip_bacteria,
         name="Test Run",
         create_db=True,
+        cache=tmp_dir,
     )
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     compare_matrix_files(
@@ -874,6 +875,7 @@ def test_sourmash(
         name="Spaces etc",
         scaled=300,
         create_db=True,
+        cache=tmp_dir,
     )
     output = capsys.readouterr().out
     assert "Database already has 0 of 3²=9 sourmash comparisons, 9 needed\n" in output
@@ -885,6 +887,7 @@ def test_sourmash(
         name="Simple names",
         scaled=300,
         create_db=False,
+        cache=tmp_dir,
     )
     output = capsys.readouterr().out
     assert "Database already has all 3²=9 sourmash comparisons\n" in output
@@ -1148,7 +1151,8 @@ def test_resume_partial_sourmash(
     capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
 ) -> None:
     """Check list-runs and export-run with mock data including a partial sourmash run."""
-    tmp_db = Path(tmp_path) / "resume sourmash.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "resume sourmash.sqlite"
     tool = tools.get_sourmash()
     session = db_orm.connect_to_db(tmp_db)
     config = db_orm.db_configuration(
@@ -1196,7 +1200,7 @@ def test_resume_partial_sourmash(
     assert " Method   ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
     assert " sourmash │    4 │    0 │    5 │  9=3² │ Partial " in output, output
 
-    public_cli.resume(database=tmp_db)
+    public_cli.resume(database=tmp_db, cache=tmp_dir)
     output = capsys.readouterr().out
     assert "Resuming run-id 1\n" in output, output
     assert "Database already has 4 of 3²=9 sourmash comparisons, 5 needed" in output, (

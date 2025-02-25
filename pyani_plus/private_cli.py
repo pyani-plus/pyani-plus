@@ -40,11 +40,14 @@ from sqlalchemy.orm import Session
 
 from pyani_plus import db_orm, tools
 from pyani_plus.public_cli_args import (
+    OPT_ARG_TYPE_CACHE,
     OPT_ARG_TYPE_CREATE_DB,
     OPT_ARG_TYPE_TEMP,
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
 )
+
+ASCII_GAP = ord("-")  # 45
 
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -111,6 +114,7 @@ REQ_ARG_TYPE_PROGRAM = Annotated[
 REQ_ARG_TYPE_VERSION = Annotated[
     str, typer.Option(help="Program version, e.g. 3.1", show_default=False)
 ]
+
 
 # Reused optional command line arguments (used here with None as their default,
 # whereas in the public_cli they have type-appropriate defaults):
@@ -386,8 +390,100 @@ def log_comparison(  # noqa: PLR0913
     return 0
 
 
+def validate_cache(
+    cache: Path | None, *, create_default: bool = True, require: bool = False
+) -> Path:
+    """Validate any cache path from the command line, or determine default.
+
+    This implements the default behaviour documented in OPT_ARG_TYPE_CACHE,
+    with the method specific code expected to use a subfolder based on the
+    method name and optionally key parameters.
+    """
+    if cache is None:
+        # Should this use ~/.cache/pyani-plus/{method} on POSIX?
+        # Note .cache is under $PWD
+        cache = Path(".cache")
+        if not cache.is_dir():
+            if create_default:
+                cache.mkdir(parents=True)
+            elif require:
+                msg = f"Default cache directory {cache} does not exist."
+                sys.exit(msg)
+        sys.stderr.write(f"INFO: Defaulting to cache at {cache}\n")
+    elif not cache.is_dir():
+        # This is an error even if require=False
+        msg = f"ERROR: Specified cache directory {cache} does not exist"
+        sys.exit(msg)
+    return cache
+
+
 @app.command()
-def compute_column(  # noqa: C901
+def prepare_genomes(
+    database: REQ_ARG_TYPE_DATABASE,
+    run_id: Annotated[
+        int | None,
+        typer.Option(help="Which run to prepare", show_default=False),
+    ],
+    cache: OPT_ARG_TYPE_CACHE = None,
+    *,
+    quiet: OPT_ARG_TYPE_QUIET = False,
+) -> int:
+    """Prepare any intermediate files needed prior to computing ANI values.
+
+    This requires you already have a run defined in the database, and would
+    be followed by running the private CLI ``compute-column`` command. Most
+    methods do not need a prepare step, but for example ``sourmash`` does.
+    """
+    # Should this be splittable for running on the cluster? I assume most
+    # cases this is IO bound rather than CPU bound so is this helpful?
+    if database != ":memory:" and not Path(database).is_file():
+        msg = f"ERROR: Database {database} does not exist"
+        sys.exit(msg)
+    session = db_orm.connect_to_db(database)
+    run = db_orm.load_run(session, run_id)
+    n = run.genomes.count()
+    done = run.comparisons().count()
+    if done == n**2:
+        if not quiet:
+            print(
+                f"Skipping preparation, run already has all {n**2}={n}² pairwise values"
+            )
+        return 0
+    config = run.configuration
+    method = config.method
+
+    import importlib
+
+    try:
+        module = importlib.import_module(
+            f"pyani_plus.methods.{method.lower().replace('-', '_')}"
+        )
+    except ModuleNotFoundError:
+        msg = f"ERROR: Unknown method {method}, check tool version?"
+        sys.exit(msg)
+    if not hasattr(module, "prepare_genomes"):
+        sys.stderr.write(f"No per-genome preparation required for {method}\n")
+        return 0
+
+    # This could fail and call sys.exit.
+    cache = validate_cache(cache, require=True, create_default=True)
+
+    from rich.progress import Progress
+
+    from pyani_plus import PROGRESS_BAR_COLUMNS
+
+    with Progress(*PROGRESS_BAR_COLUMNS) as progress:
+        for _ in progress.track(
+            module.prepare_genomes(run, cache),
+            description="Processing...  ",  # spaces to match "Indexing FASTAs" etc
+            total=n,
+        ):
+            pass
+    return 0
+
+
+@app.command()
+def compute_column(  # noqa: C901, PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     run_id: REQ_ARG_TYPE_RUN_ID,
     subject: Annotated[
@@ -401,6 +497,7 @@ def compute_column(  # noqa: C901
         ),
     ],
     *,
+    cache: OPT_ARG_TYPE_CACHE = None,
     temp: OPT_ARG_TYPE_TEMP = None,
     quiet: OPT_ARG_TYPE_QUIET = False,
 ) -> int:
@@ -412,6 +509,10 @@ def compute_column(  # noqa: C901
 
     If using a column number, these are taken to be zero based meaning in the range
     0 up to but excluding the number of genomes in the run.
+
+    Some methods like sourmash require you first run the prepare-genomes command
+    (which for sourmash builds signature files from each FASTA file). You must
+    use the same cache location for that and when you run compute-column.
     """
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
@@ -508,6 +609,7 @@ def compute_column(  # noqa: C901
             query_hashes,
             subject_hash,
             quiet=quiet,
+            cache=cache,
         )
 
 
@@ -522,6 +624,7 @@ def compute_fastani(  # noqa: PLR0913
     subject_hash: str,
     *,
     quiet: bool = False,
+    cache: Path | None = None,  # noqa: ARG001
 ) -> int:
     """Run fastANI many-vs-subject and log column of comparisons to database."""
     uname = platform.uname()
@@ -633,6 +736,7 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
     subject_hash: str,
     *,
     quiet: bool = False,
+    cache: Path | None = None,  # noqa: ARG001
 ) -> int:
     """Run ANIm many-vs-subject and log column of comparisons to database."""
     uname = platform.uname()
@@ -786,6 +890,7 @@ def compute_anib(  # noqa: PLR0913
     subject_hash: str,
     *,
     quiet: bool = False,
+    cache: Path | None = None,  # noqa: ARG001
 ) -> int:
     """Run ANIb many-vs-subject and log column of comparisons to database."""
     uname = platform.uname()
@@ -944,6 +1049,7 @@ def compute_dnadiff(  # noqa: C901, PLR0912, PLR0913, PLR0915
     subject_hash: str,
     *,
     quiet: bool = False,
+    cache: Path | None = None,  # noqa: ARG001
 ) -> int:
     """Run dnadiff many-vs-subject and log column of comparisons to database."""
     uname = platform.uname()
@@ -1213,6 +1319,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     subject_hash: str,
     *,
     quiet: bool = False,
+    cache: Path | None = None,  # noqa: ARG001
 ) -> int:
     """Compute and log column of comparisons from given MSA to database.
 
@@ -1260,9 +1367,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     label = args["label"]
     del args
 
-    import numpy as np  # lazy import, although might be implicitly loaded already?
-    from Bio.SeqIO.FastaIO import SimpleFastaParser  # deliberate lazy import
-
+    from pyani_plus.methods.external_alignment import compute_external_alignment_column
     from pyani_plus.utils import file_md5sum, filename_stem
 
     if not quiet:
@@ -1294,129 +1399,39 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     # Thus when N is even, the first job would consisting of columns 1 and N, next
     # job columns 2 and N-1, etc. Each job does N computations and records 2N comparisons.
     # Similarly when N is odd, although there we have a final half-sized single-column job.
-
     try:
-        # We could interpret the column number as the MSA ordering, but our internal
-        # API by subject hash - and we can't assume the MSA is in any particular order.
-        # Easiest way to solve this is two linear scans of the file, with a seek(0)
-        with alignment.open() as handle:
-            subject_seq = subject_title = ""  # placeholder values
-            s_non_gaps = subject_seq_gaps = None  # placeholder values
-            # Should load the file in binary mode as will be working in bytes
-            for query_title, query_seq in SimpleFastaParser(handle):
-                query_hash = mapping(query_title.split(None, 1)[0])
-                if not query_hash:
-                    msg = f"ERROR: Could not map {query_title.split(None, 1)[0]} as {label}"
-                    sys.exit(msg)
-                if query_hash == subject_hash:
-                    # for use in rest of the loop - an array of bytes!
-                    subject_seq = query_seq
-                    s_array = np.array(list(subject_seq), "S1")
-                    s_non_gaps = s_array != b"-"
-                    subject_seq_gaps = subject_seq.count("-")
-                    subject_title = query_title  # for use in logging
-                    break
-            else:
-                msg = f"Did not find subject {subject_hash} in {alignment.name}"
-                raise ValueError(msg)
-
-            db_entries = []
-
-            handle.seek(0)
-            for query_title, query_seq in SimpleFastaParser(handle):
-                query_hash = mapping(query_title.split(None, 1)[0])
-                if query_hash < subject_hash or query_hash not in query_hashes:
-                    # Exploiting symmetry to avoid double computation,
-                    # or not asked to compute this pairing (as already in the DB)
-                    continue
-                if query_hash == subject_hash:
-                    # 100% identity and coverage, but need to calculate aln_length
-                    db_entries.append(
-                        {
-                            "query_hash": query_hash,
-                            "subject_hash": subject_hash,
-                            "identity": 1.0,
-                            "aln_length": len(query_seq) - query_seq.count("-"),
-                            "sim_errors": 0,
-                            "cov_query": 1.0,
-                            "cov_subject": 1.0,
-                            "configuration_id": config_id,
-                            "uname_system": uname_system,
-                            "uname_release": uname_release,
-                            "uname_machine": uname_machine,
-                        }
-                    )
-                else:
-                    # Full calculation required
-                    if len(query_seq) != len(subject_seq):
-                        msg = (
-                            "ERROR: Bad external-alignment, different lengths"
-                            f" {len(query_seq)} and {len(subject_seq)}"
-                            f" from {query_title.split(None, 1)[0]}"
-                            f" and {subject_title.split(None, 1)[0]}\n"
-                        )
-                        sys.exit(msg)
-
-                    q_array = np.array(list(query_seq), "S1")
-                    q_non_gaps = q_array != b"-"
-                    # & is AND
-                    # | is OR
-                    # ^ is XOR
-                    # ~ is NOT
-                    # e.g. ~(q_gaps | s_gaps) would be entries with no gaps
-                    naive_matches = q_array == s_array  # includes double gaps!
-                    matches = int((naive_matches & q_non_gaps).sum())
-                    one_gapped = q_non_gaps ^ s_non_gaps
-                    non_gap_mismatches = int((~naive_matches & ~one_gapped).sum())
-                    either_gapped = int(one_gapped.sum())
-                    del naive_matches, q_non_gaps, q_array
-
-                    # Now compute the alignment metrics from that
-                    query_cov = (matches + non_gap_mismatches) / (
-                        len(query_seq) - query_seq.count("-")
-                    )
-                    subject_cov = (matches + non_gap_mismatches) / (
-                        len(subject_seq) - subject_seq_gaps
-                    )
-                    aln_length = matches + non_gap_mismatches + either_gapped
-                    sim_errors = non_gap_mismatches + either_gapped
-
-                    db_entries.append(
-                        {
-                            "query_hash": query_hash,
-                            "subject_hash": subject_hash,
-                            "identity": matches / aln_length,
-                            "aln_length": aln_length,
-                            "sim_errors": sim_errors,
-                            "cov_query": query_cov,
-                            "cov_subject": subject_cov,
-                            "configuration_id": config_id,
-                            "uname_system": uname_system,
-                            "uname_release": uname_release,
-                            "uname_machine": uname_machine,
-                        }
-                    )
-                    # Fill in the symmetric entry
-                    db_entries.append(
-                        {
-                            "query_hash": subject_hash,
-                            "subject_hash": query_hash,
-                            "identity": matches / aln_length,
-                            "aln_length": aln_length,
-                            "sim_errors": sim_errors,
-                            "cov_query": subject_cov,
-                            "cov_subject": query_cov,
-                            "configuration_id": config_id,
-                            "uname_system": uname_system,
-                            "uname_release": uname_release,
-                            "uname_machine": uname_machine,
-                        }
-                    )
+        db_entries = []
+        for (
+            q,
+            s,
+            identity,
+            aln_length,
+            sim_errors,
+            cov_query,
+            cov_subject,
+        ) in compute_external_alignment_column(
+            subject_hash, set(query_hashes), alignment, mapping, label
+        ):
+            db_entries.append(
+                {
+                    "query_hash": q,
+                    "subject_hash": s,
+                    "identity": identity,
+                    "aln_length": aln_length,
+                    "sim_errors": sim_errors,
+                    "cov_query": cov_query,
+                    "cov_subject": cov_subject,
+                    "configuration_id": config_id,
+                    "uname_system": uname_system,
+                    "uname_release": uname_release,
+                    "uname_machine": uname_machine,
+                }
+            )
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"  # pragma: no cover
-        sys.stderr.write(msg)  # pragma: no cover
-        run.status = "Worker interrupted"  # pragma: no cover
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
+        sys.stderr.write(msg)
+        run.status = "Worker interrupted"
     if db_entries:
         session.execute(
             sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),

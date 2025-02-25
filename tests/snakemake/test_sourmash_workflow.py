@@ -27,13 +27,12 @@ pytest -v or make test
 """
 
 import json
-import shutil  # We need this for filesystem operations
 from pathlib import Path
 
 # Required to support pytest automated testing
 import pytest
 
-from pyani_plus.private_cli import log_run
+from pyani_plus.private_cli import log_run, prepare_genomes
 from pyani_plus.tools import get_sourmash
 from pyani_plus.utils import file_md5sum
 from pyani_plus.workflows import (
@@ -42,6 +41,9 @@ from pyani_plus.workflows import (
 )
 
 from . import compare_db_matrices
+
+KMERSIZE = 31
+EXTRA = "scaled=300"  # default scaled=1000 not suitable for the 3 viruses
 
 
 @pytest.fixture
@@ -56,8 +58,9 @@ def config_sourmash_args(
         # "outdir": ... is dynamic
         # "indir": ... is dynamic
         "cores": snakemake_cores,
-        "kmersize": 31,
-        "extra": "scaled=300",  # default scaled=1000 not suitable for the 3 viruses
+        "kmersize": KMERSIZE,
+        "extra": EXTRA,
+        "cache": Path(tmp_path) / "cache",
     }
 
 
@@ -88,49 +91,40 @@ def compare_sourmash_sig_files(file1: Path, file2: Path) -> bool:
     return True
 
 
-def test_sketch_rule(
+def test_sketch_prepare(
     input_genomes_tiny: Path,
-    sourmash_targets_signature_outdir: Path,
-    config_sourmash_args: dict,
     tmp_path: str,
 ) -> None:
-    """Test sourmash sketch snakemake wrapper.
+    """Test sourmash sketch via the prepare-genomes command."""
+    tmp_dir = Path(tmp_path)
+    cache = tmp_dir / "cache"
+    cache.mkdir()
 
-    Checks that the sketch rule in the sourmash snakemake wrapper gives the
-    expected output.
+    tmp_db = tmp_dir / "sig-prepare.db"
+    log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus sourmash ...",
+        status="Testing",
+        name="Testing sourmash prepare-genomes",
+        method="sourmash",
+        program="sourmash",
+        version="0.0a0",
+        kmersize=KMERSIZE,
+        extra=EXTRA,
+        create_db=True,
+    )
 
-    If the output directory exists (i.e. the make clean_tests rule has not
-    been run), the tests will automatically pass as snakemake will not
-    attempt to re-run the rule. That would prevent us from seeing any
-    introduced bugs, so we force re-running the rule by deleting the
-    output directory before running the tests.
-    """
-    # Remove the output directory to force re-running the snakemake rule
-    shutil.rmtree(sourmash_targets_signature_outdir, ignore_errors=True)
-
-    config = config_sourmash_args.copy()
-    config["outdir"] = sourmash_targets_signature_outdir
-    config["indir"] = input_genomes_tiny
-    config["md5_to_filename"] = {
-        file_md5sum(_): str(_) for _ in input_genomes_tiny.glob("*.f*")
-    }
-
-    expected_sigs = list((input_genomes_tiny / "intermediates/sourmash").glob("*.sig"))
-    targets = [
-        sourmash_targets_signature_outdir / fname.name for fname in expected_sigs
-    ]
-
-    # Run snakemake wrapper
-    run_snakemake_with_progress_bar(
-        executor=ToolExecutor.local,
-        workflow_name="snakemake_sourmash.smk",
-        targets=targets,
-        params=config,
-        working_directory=Path(tmp_path),
+    # Run prepare-genomes command...
+    prepare_genomes(
+        database=tmp_db,
+        run_id=1,
+        cache=cache,
     )
 
     # Check output against target fixtures
-    for expected, generated in zip(expected_sigs, targets, strict=False):
+    for expected in (input_genomes_tiny / "intermediates/sourmash").glob("*.sig"):
+        generated = cache / f"sourmash_k={KMERSIZE}_{EXTRA}" / expected.name
         assert compare_sourmash_sig_files(expected, generated)
 
 
@@ -152,6 +146,14 @@ def test_compare_rule_bad_align(
     output directory before running the tests.
     """
     tmp_dir = Path(tmp_path)
+    cache = tmp_dir / "cache"
+    cache.mkdir()
+
+    # Setup the cache as if prepare-genomes had made the signatures
+    cache = cache / f"sourmash_k={KMERSIZE}_{EXTRA}"
+    cache.mkdir()
+    for sig in (input_genomes_bad_alignments / "intermediates/sourmash").glob("*.sig"):
+        (cache / sig.name).symlink_to(sig)
 
     config = config_sourmash_args.copy()
     config["outdir"] = tmp_dir / "output"
@@ -212,6 +214,14 @@ def test_compare_rule_viral_example(
 ) -> None:
     """Test sourmash branchwater compare snakemake wrapper."""
     tmp_dir = Path(tmp_path)
+    cache = tmp_dir / "cache"
+    cache.mkdir()
+
+    # Setup the cache as if prepare-genomes had made the signatures
+    cache = cache / f"sourmash_k={KMERSIZE}_{EXTRA}"
+    cache.mkdir()
+    for sig in (input_genomes_tiny / "intermediates/sourmash").glob("*.sig"):
+        (cache / sig.name).symlink_to(sig)
 
     config = config_sourmash_args.copy()
     config["outdir"] = tmp_dir / "output"

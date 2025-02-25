@@ -1076,7 +1076,7 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     if done == 1 and run_genomes == 1:
         msg = f"WARNING: Run {run_id} has {done} comparison across {run_genomes} genome. Reporting single clique...\n"
         single_genome_run = True
-        sys.stderr.write(msg)  # pragma: no cover
+        sys.stderr.write(msg)
     else:
         print(
             f"Run {run_id} has {done} comparisons across {run_genomes} genomes. Running classify..."
@@ -1129,7 +1129,7 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     if not single_genome_run:
         if set(clique_df["n_nodes"]) == {1}:
             msg = "WARNING: All genomes are singletons. No plot can be generated."
-            sys.stderr.write(msg)  # pragma: no cover
+            sys.stderr.write(msg)
         else:
             print("Plotting classify output...")
             genome_groups = classify.get_genome_cligue_ids(clique_df, suffix)

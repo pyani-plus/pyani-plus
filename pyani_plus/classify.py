@@ -249,18 +249,23 @@ def plot_classify(  # noqa: PLR0915
 
     # Dynamically adjust figure height based on the number of genomes
     label_spacing = 0.15
-    min_height = 10  # Prevent plot from being too small
+    min_height = 15  # Prevent plot from being too small
     height = max(num_genomes * label_spacing, min_height)
 
     # Dynamically adjust adjust y-axis label font size
     font_size = max(6, min(12, 300 // num_genomes))
 
+    # Limit hspace to a maximum of 0.1
+    hspace = min(0.1, 8 / num_genomes)
     # Create a figure with 3 vertically stacked subplots
     fig, (ax1, ax2, ax3) = plt.subplots(
         3,
         1,
         figsize=(15, height),
-        gridspec_kw={"height_ratios": [0.2, 0.2, 7], "hspace": 0.04},
+        gridspec_kw={
+            "height_ratios": [0.7, 0.7, max(5, num_genomes * 0.1)],
+            "hspace": hspace,
+        },
         sharex=True,
     )
     fig.subplots_adjust(left=0.2, top=0.85)
@@ -273,7 +278,9 @@ def plot_classify(  # noqa: PLR0915
         vmin=dataframe[f"min_{score}"].min(), vmax=dataframe[f"min_{score}"].max()
     )
     cmap_hot = cm.hot
-    cax = fig.add_axes([0.95, 0.81, 0.02, 0.04])
+    # Add a new axis for the color bar using absolute coordinates
+    # NOTE to self: need to fix the positioning of the bar on the y-axis
+    cax = fig.add_axes([0.95, 0.8, 0.02, 2 / height])
     sm = plt.cm.ScalarMappable(cmap=cmap_hot, norm=norm)
     cb = plt.colorbar(sm, cax=cax, orientation="vertical")
     cb.set_label(f"Min {score}", fontsize=10)
@@ -381,9 +388,7 @@ def plot_classify(  # noqa: PLR0915
     ax3.set_xlabel(f"{score}")
     ax3.set_ylabel("Genomes", fontsize=6)
     ax3.set_yticks(range(num_genomes))
-    ax3.set_yticklabels(
-        genome_positions.keys(), fontsize=font_size
-    )  # Dynamically adjust font size
+    ax3.set_yticklabels(genome_positions.keys(), fontsize=font_size)
     ax3.yaxis.set_label_position("right")
     ax3.yaxis.tick_right()
     ax3.set_xlim(math.floor(dataframe[f"min_{score}"].min() * 100) / 100 - 0.01, 1.0)

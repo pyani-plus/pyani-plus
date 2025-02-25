@@ -474,6 +474,32 @@ def test_log_wrong_config(
         )
 
 
+def test_validate_cache(tmp_path: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Check expected error handling in validate_cache."""
+    tmp_dir = Path(tmp_path)
+    monkeypatch.chdir(tmp_dir)
+
+    assert not Path(".cache").is_dir()
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Specified cache directory /does/not/exist does not exist",
+    ):
+        private_cli.validate_cache(Path("/does/not/exist"))
+
+    default = private_cli.validate_cache(None, create_default=False)
+    assert default == Path(".cache")
+    assert not default.is_dir()
+    with pytest.raises(
+        SystemExit, match="Default cache directory .cache does not exist."
+    ):
+        private_cli.validate_cache(None, create_default=False, require=True)
+
+    default = private_cli.validate_cache(None, create_default=True)
+    assert default == Path(".cache")
+    assert default.is_dir()
+
+
 def test_missing_db(tmp_path: str) -> None:
     """Check expected error when DB does not exist."""
     tmp_db = Path(tmp_path) / "new.sqlite"

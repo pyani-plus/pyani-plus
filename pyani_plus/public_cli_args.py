@@ -192,6 +192,8 @@ OPT_ARG_TYPE_CACHE = Annotated[
             " Default to .cache in the current directory."
         ),
         metavar="DIRECTORY",
+        # Want to distinguish unspecified (None meaning .cache) from explicit .cache
+        show_default=False,
         # Not requiring this exists, not all methods use a cache
         dir_okay=True,
         file_okay=False,

@@ -260,10 +260,13 @@ def plot_classify(  # noqa: PLR0915
         3,
         1,
         figsize=(15, height),
-        gridspec_kw={"height_ratios": [0.2, 0.2, 7], "hspace": 0.01},
+        gridspec_kw={"height_ratios": [0.2, 0.2, 7], "hspace": 0.04},
         sharex=True,
     )
     fig.subplots_adjust(left=0.2, top=0.85)
+    # Ensure x-axis tick labels on all plots
+    ax1.tick_params(labelbottom=True)
+    ax2.tick_params(labelbottom=True)
 
     # Colorbar for cliques based on min_identity
     norm = Normalize(

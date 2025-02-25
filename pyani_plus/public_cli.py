@@ -1125,12 +1125,11 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     )
     print(f"Wrote classify output to {outdir}")
 
-    # Only plot classify if more than one genome in comparisons
+    # Only plot classify if more than one genome in comparisons and the initial graph consist of at least one clique
     if not single_genome_run:
         if set(clique_df["n_nodes"]) == {1}:
             msg = "WARNING: All genomes are singletons. No plot can be generated."
             sys.stderr.write(msg)  # pragma: no cover
-
         else:
             print("Plotting classify output...")
             genome_groups = classify.get_genome_cligue_ids(clique_df, suffix)

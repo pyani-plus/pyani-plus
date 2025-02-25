@@ -1126,11 +1126,16 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     print(f"Wrote classify output to {outdir}")
 
     # Only plot classify if more than one genome in comparisons
-    # NOTE TO SELF: This will still break if all genomes are siglentons!
     if not single_genome_run:
-        genome_groups = classify.get_genome_cligue_ids(clique_df, suffix)
-        genome_positions = classify.get_genome_order(genome_groups)
-        classify.plot_classify(genome_positions, clique_df, outdir, method, suffix)
+        if set(clique_df["n_nodes"]) == {1}:
+            msg = "WARNING: All genomes are singletons. No plot can be generated."
+            sys.stderr.write(msg)  # pragma: no cover
+
+        else:
+            print("Plotting classify output...")
+            genome_groups = classify.get_genome_cligue_ids(clique_df, suffix)
+            genome_positions = classify.get_genome_order(genome_groups)
+            classify.plot_classify(genome_positions, clique_df, outdir, method, suffix)
     session.close()
     return 0
 

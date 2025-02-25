@@ -1606,7 +1606,7 @@ def test_classify_warnings(
 
     fasta_to_hash = {
         filename: file_md5sum(filename)
-        for filename in sorted(input_genomes_tiny.glob("*.fas"))
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
     for filename, md5 in fasta_to_hash.items():
         db_orm.db_genome(session, filename, md5, create=True)
@@ -1631,16 +1631,37 @@ def test_classify_warnings(
         fasta_directory=input_genomes_tiny,
         status="Complete",
         name="Test classify when all data present",
+        fasta_to_hash=dict(list(fasta_to_hash.items())[2:]),
+    )
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani guessing ...",
+        fasta_directory=input_genomes_tiny,
+        status="Complete",
+        name="Test classify when all data present",
         fasta_to_hash=fasta_to_hash,
     )
 
-    public_cli.cli_classify(database=tmp_db, outdir=tmp_dir)
+    public_cli.cli_classify(database=tmp_db, outdir=tmp_dir, run_id=1)
 
     output = capsys.readouterr().err
     assert (
         "WARNING: Run 1 has 1 comparison across 1 genome. Reporting single clique...\n"
         in output
     ), output
+    with (tmp_dir / "fastANI_classify.tsv").open() as handle:
+        assert (
+            handle.readline()
+            == "n_nodes\tmax_cov\tmin_identity\tmax_identity\tmembers\n"
+        )
+    public_cli.cli_classify(database=tmp_db, outdir=tmp_dir, run_id=2, cov_min=1.0)
+
+    output = capsys.readouterr().err
+    assert "WARNING: All genomes are singletons. No plot can be generated." in output, (
+        output
+    )
     with (tmp_dir / "fastANI_classify.tsv").open() as handle:
         assert (
             handle.readline()

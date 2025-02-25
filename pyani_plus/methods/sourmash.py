@@ -137,3 +137,57 @@ def parse_sourmash_manysearch_csv(
     # we infer any remaining pairs are failed alignments:
     for query_hash, subject_hash in expected_pairs:
         yield query_hash, subject_hash, None, None
+
+
+def compute_sourmash_column(
+    tool: tools.ExternalToolData,
+    subject_hash: str,
+    query_hashes: set[str],
+    cache: Path,
+    tmp_dir: Path,
+) -> Iterator[tuple[str, str, float | None, float | None]]:
+    """Call sourmash branchwater manysearch, parse and return pairwise ANI values."""
+    if not cache.is_dir():
+        msg = f"Given cache directory {cache} does not exist"
+        raise ValueError(msg)
+    sigs = [cache / f"{_}.sig" for _ in query_hashes]
+    for sig in sigs:
+        if not sig.is_file():
+            msg = f"ERROR: One or more signatures missing: {sig}"
+            sys.exit(msg)
+    siglist = tmp_dir / f"all_vs_{subject_hash}_sigs.csv"
+    manysearch = tmp_dir / f"all_vs_{subject_hash}_manysearch.csv"
+    utils.check_output(
+        [
+            str(tool.exe_path),
+            "sig",
+            "collect",
+            "--quiet",
+            "-F",
+            "csv",
+            "-o",
+            str(siglist),
+            *[str(_) for _ in sigs],
+        ]
+    )
+    utils.check_output(
+        [
+            str(tool.exe_path),
+            "scripts",
+            "manysearch",
+            "-m",
+            "DNA",
+            "--quiet",
+            "-t",
+            "0",
+            "-o",
+            str(manysearch),
+            str(siglist),
+            str(cache / f"{subject_hash}.sig"),
+        ]
+    )
+    yield from parse_sourmash_manysearch_csv(
+        manysearch,
+        # This is used to infer failed alignments:
+        expected_pairs={(q, subject_hash) for q in query_hashes},
+    )

@@ -30,38 +30,14 @@ import json
 from pathlib import Path
 
 # Required to support pytest automated testing
-import pytest
-
 from pyani_plus.private_cli import log_run, prepare_genomes
+from pyani_plus.public_cli import cli_sourmash, resume
 from pyani_plus.tools import get_sourmash
-from pyani_plus.utils import file_md5sum
-from pyani_plus.workflows import (
-    ToolExecutor,
-    run_snakemake_with_progress_bar,
-)
 
 from . import compare_db_matrices
 
 KMERSIZE = 31
-EXTRA = "scaled=300"  # default scaled=1000 not suitable for the 3 viruses
-
-
-@pytest.fixture
-def config_sourmash_args(
-    snakemake_cores: int,
-    tmp_path: str,
-) -> dict:
-    """Return configuration settings for testing snakemake sourmash rules."""
-    return {
-        "db": Path(tmp_path) / "db.sqlite",
-        "run_id": 1,  # by construction
-        # "outdir": ... is dynamic
-        # "indir": ... is dynamic
-        "cores": snakemake_cores,
-        "kmersize": KMERSIZE,
-        "extra": EXTRA,
-        "cache": Path(tmp_path) / "cache",
-    }
+SCALED = 300  # default scaled=1000 not suitable for the 3 viruses
 
 
 def compare_sourmash_sig_files(file1: Path, file2: Path) -> bool:
@@ -100,6 +76,8 @@ def test_sketch_prepare(
     cache = tmp_dir / "cache"
     cache.mkdir()
 
+    tool = get_sourmash()
+
     tmp_db = tmp_dir / "sig-prepare.db"
     log_run(
         fasta=input_genomes_tiny,
@@ -108,10 +86,10 @@ def test_sketch_prepare(
         status="Testing",
         name="Testing sourmash prepare-genomes",
         method="sourmash",
-        program="sourmash",
-        version="0.0a0",
+        program=tool.exe_path.name,
+        version=tool.version,
         kmersize=KMERSIZE,
-        extra=EXTRA,
+        extra=f"scaled={SCALED}",
         create_db=True,
     )
 
@@ -124,13 +102,14 @@ def test_sketch_prepare(
 
     # Check output against target fixtures
     for expected in (input_genomes_tiny / "intermediates/sourmash").glob("*.sig"):
-        generated = cache / f"sourmash_k={KMERSIZE}_{EXTRA}" / expected.name
+        generated = cache / f"sourmash_k={KMERSIZE}_scaled={SCALED}" / expected.name
         assert compare_sourmash_sig_files(expected, generated)
+
+    resume(database=tmp_db, cache=cache)
+    compare_db_matrices(tmp_db, input_genomes_tiny / "matrices")
 
 
 def test_compare_rule_bad_align(
-    capsys: pytest.CaptureFixture[str],
-    config_sourmash_args: dict,
     input_genomes_bad_alignments: Path,
     tmp_path: str,
 ) -> None:
@@ -138,137 +117,26 @@ def test_compare_rule_bad_align(
 
     Checks that the compare rule in the sourmash snakemake wrapper gives the
     expected output.
-
-    If the output directory exists (i.e. the make clean_tests rule has not
-    been run), the tests will automatically pass as snakemake will not
-    attempt to re-run the rule. That would prevent us from seeing any
-    introduced bugs, so we force re-running the rule by deleting the
-    output directory before running the tests.
     """
     tmp_dir = Path(tmp_path)
     cache = tmp_dir / "cache"
     cache.mkdir()
 
     # Setup the cache as if prepare-genomes had made the signatures
-    cache = cache / f"sourmash_k={KMERSIZE}_{EXTRA}"
+    cache = cache / f"sourmash_k={KMERSIZE}_scaled={SCALED}"
     cache.mkdir()
     for sig in (input_genomes_bad_alignments / "intermediates/sourmash").glob("*.sig"):
         (cache / sig.name).symlink_to(sig)
 
-    config = config_sourmash_args.copy()
-    config["outdir"] = tmp_dir / "output"
-    config["indir"] = input_genomes_bad_alignments
-    config["md5_to_filename"] = {
-        file_md5sum(_): str(_) for _ in input_genomes_bad_alignments.glob("*.f*")
-    }
+    tmp_db = tmp_dir / "bad-align.db"
 
-    # Assuming this will match but worker nodes might have a different version
-    sourmash_tool = get_sourmash()
-
-    # Setup minimal test DB
-    db = config["db"]
-    assert not db.is_file()
-    log_run(
-        fasta=config["indir"],  # i.e. input_genomes_tiny
-        database=db,
-        cmdline="pyani-plus sourmash ...",
-        status="Testing",
-        name="Testing sourmash",
-        method="sourmash",
-        program=sourmash_tool.exe_path.stem,
-        version=sourmash_tool.version,
-        kmersize=config["kmersize"],
-        extra=config["extra"],
+    cli_sourmash(
+        database=tmp_db,
         create_db=True,
+        fasta=input_genomes_bad_alignments,
+        cache=cache,
+        kmersize=KMERSIZE,
+        scaled=SCALED,
+        temp=tmp_dir,
     )
-    assert db.is_file()
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
-
-    # Run snakemake wrapper
-    run_snakemake_with_progress_bar(
-        executor=ToolExecutor.local,
-        workflow_name="snakemake_sourmash.smk",
-        targets=[tmp_dir / "output/manysearch.csv"],
-        params=config,
-        working_directory=Path(tmp_path),
-    )
-
-    # Check output against target fixture
-    with (tmp_dir / "output/manysearch.csv").open() as handle:
-        generated = sorted(handle.readlines())
-    with (
-        input_genomes_bad_alignments / "intermediates/sourmash/manysearch.csv"
-    ).open() as handle:
-        expected = sorted(handle.readlines())
-    assert generated == expected
-
-    compare_db_matrices(db, input_genomes_bad_alignments / "matrices")
-
-
-def test_compare_rule_viral_example(
-    capsys: pytest.CaptureFixture[str],
-    config_sourmash_args: dict,
-    input_genomes_tiny: Path,
-    tmp_path: str,
-) -> None:
-    """Test sourmash branchwater compare snakemake wrapper."""
-    tmp_dir = Path(tmp_path)
-    cache = tmp_dir / "cache"
-    cache.mkdir()
-
-    # Setup the cache as if prepare-genomes had made the signatures
-    cache = cache / f"sourmash_k={KMERSIZE}_{EXTRA}"
-    cache.mkdir()
-    for sig in (input_genomes_tiny / "intermediates/sourmash").glob("*.sig"):
-        (cache / sig.name).symlink_to(sig)
-
-    config = config_sourmash_args.copy()
-    config["outdir"] = tmp_dir / "output"
-    config["indir"] = input_genomes_tiny
-    config["md5_to_filename"] = {
-        file_md5sum(_): str(_) for _ in input_genomes_tiny.glob("*.f*")
-    }
-
-    # Assuming this will match but worker nodes might have a different version
-    sourmash_tool = get_sourmash()
-
-    # Setup minimal test DB
-    db = config["db"]
-    assert not db.is_file()
-    log_run(
-        fasta=config["indir"],  # i.e. input_genomes_tiny
-        database=db,
-        cmdline="pyani-plus sourmash ...",
-        status="Testing",
-        name="Testing sourmash",
-        method="sourmash",
-        program=sourmash_tool.exe_path.stem,
-        version=sourmash_tool.version,
-        kmersize=config["kmersize"],
-        extra=config["extra"],
-        create_db=True,
-    )
-    assert db.is_file()
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
-
-    # Run snakemake wrapper
-    run_snakemake_with_progress_bar(
-        executor=ToolExecutor.local,
-        workflow_name="snakemake_sourmash.smk",
-        targets=[tmp_dir / "output/manysearch.csv"],
-        params=config,
-        working_directory=Path(tmp_path),
-    )
-
-    # Check output against target fixture
-    with (tmp_dir / "output/manysearch.csv").open() as handle:
-        generated = sorted(handle.readlines())
-    with (
-        input_genomes_tiny / "intermediates/sourmash/manysearch.csv"
-    ).open() as handle:
-        expected = sorted(handle.readlines())
-    assert generated == expected
-
-    compare_db_matrices(db, input_genomes_tiny / "matrices")
+    compare_db_matrices(tmp_db, input_genomes_bad_alignments / "matrices")

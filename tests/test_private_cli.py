@@ -474,10 +474,16 @@ def test_log_wrong_config(
         )
 
 
-def test_compute_column_missing_db(tmp_path: str) -> None:
+def test_missing_db(tmp_path: str) -> None:
     """Check expected error when DB does not exist."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
+
+    with pytest.raises(SystemExit, match="does not exist"):
+        private_cli.prepare_genomes(
+            database=tmp_db,
+            run_id=1,
+        )
 
     with pytest.raises(SystemExit, match="does not exist"):
         private_cli.compute_column(
@@ -788,3 +794,11 @@ def test_compute_column_fastani(
         "INFO: No fastANI comparisons needed against 5584c7029328dc48d33f95f0a78f7e57\n"
         in output
     )
+
+    # Don't need prepare-genomes with fastANI, but should get this message
+    private_cli.prepare_genomes(
+        database=tmp_db,
+        run_id=1,
+    )
+    output = capsys.readouterr().err
+    assert "No per-genome preparation required for fastANI\n" in output

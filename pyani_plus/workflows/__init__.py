@@ -145,12 +145,6 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     args.config = [f"{k}='{v}'" for k, v in params.items()]
     if display == ShowProgress.quiet:
         success = args_to_api(args, parser)
-    elif display == ShowProgress.spin:
-        with Progress(*PROGRESS_BAR_COLUMNS) as progress:
-            # Not quite the visual look I want, but close:
-            task = progress.add_task("Comparing pairs", total=None)
-            success = args_to_api(args, parser)
-            progress.update(task, advance=len(targets), total=len(targets))
     else:
         # As of Python 3.8 onwards, the default on macOS ("Darwin") is "spawn"
         # As of Python 3.12, the default of "fork" on Linux triggers a deprecation warning.

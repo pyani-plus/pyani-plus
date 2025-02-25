@@ -28,7 +28,7 @@ from pathlib import Path
 ASCII_GAP = ord("-")  # 45
 
 
-def computer_external_alignment_column(
+def compute_external_alignment_column(
     subject_hash: str,
     query_hashes: set[str],
     alignment: Path,

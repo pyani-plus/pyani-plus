@@ -1262,7 +1262,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     label = args["label"]
     del args
 
-    from pyani_plus.methods.external_alignment import computer_external_alignment_column
+    from pyani_plus.methods.external_alignment import compute_external_alignment_column
     from pyani_plus.utils import file_md5sum, filename_stem
 
     if not quiet:
@@ -1304,7 +1304,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
             sim_errors,
             cov_query,
             cov_subject,
-        ) in computer_external_alignment_column(
+        ) in compute_external_alignment_column(
             subject_hash, set(query_hashes), alignment, mapping, label
         ):
             db_entries.append(

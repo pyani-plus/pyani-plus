@@ -30,11 +30,13 @@ rule compute_column:
         db=config["db"],
         run_id=config["run_id"],
         temp=config["temp"],
+        cache=config.get("cache", None),
     output:
         "{outdir}/column_{column}.{method}",
     shell:
         """
         .pyani-plus-private-cli compute-column --quiet \
             --database "{params.db}" --run-id {params.run_id} \
-            --subject "{wildcards.column}" {params.temp} && touch "{output}"
+            --subject "{wildcards.column}" --cache "{params.cache}" \
+            {params.temp} && touch "{output}"
         """

@@ -597,6 +597,7 @@ def compute_column(  # noqa: C901, PLR0913
             "ANIb": compute_anib,
             "ANIm": compute_anim,
             "dnadiff": compute_dnadiff,
+            "sourmash": compute_sourmash,
             "external-alignment": compute_external_alignment,
         }[method]
     except KeyError:
@@ -1239,26 +1240,25 @@ def compute_dnadiff(  # noqa: C901, PLR0913, PLR0915
     )
 
 
-@app.command(rich_help_panel="Method specific logging")
-def log_sourmash(
-    database: REQ_ARG_TYPE_DATABASE,
-    run_id: REQ_ARG_TYPE_RUN_ID,
-    manysearch: Annotated[
-        Path,
-        typer.Option(
-            help="Sourmash-plugin-branchwater manysearch CSV output file",
-            show_default=False,
-            dir_okay=False,
-            file_okay=True,
-            exists=True,
-        ),
-    ],
+def compute_sourmash(  # noqa: PLR0913
+    tmp_dir: Path,
+    session: Session,
+    run: db_orm.Run,
+    fasta_dir: Path,  # noqa: ARG001
+    hash_to_filename: dict[str, str],  # noqa: ARG001
+    filename_to_hash: dict[str, str],  # noqa: ARG001
+    query_hashes: dict[str, int],
+    subject_hash: str,
     *,
-    quiet: OPT_ARG_TYPE_QUIET = False,
+    quiet: bool = False,  # noqa: ARG001
+    cache: Path | None = None,
 ) -> int:
-    """Log an all-vs-all sourmash pairwise comparison to database."""
-    if database != ":memory:" and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist"
+    """Run many-vs-subject for sourmash and log column to database."""
+    if not cache:
+        msg = "ERROR: Not given a cache directory"
+        sys.exit(msg)
+    if not cache.is_dir():
+        msg = f"ERROR: Cache directory {cache} does not exist - check cache setting."
         sys.exit(msg)
 
     uname = platform.uname()
@@ -1266,44 +1266,42 @@ def log_sourmash(
     uname_release = uname.release
     uname_machine = uname.machine
 
-    if not quiet:
-        print(f"Logging sourmash to {database}")
-    session = db_orm.connect_to_db(database)
-    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-    if run.configuration.method != "sourmash":
-        msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
-        sys.exit(msg)
+    tool = tools.get_sourmash()
+    _check_tool_version(tool, run.configuration)
 
-    _check_tool_version(tools.get_sourmash(), run.configuration)
+    config_id = run.configuration.configuration_id
 
     from pyani_plus.methods import sourmash  # lazy import
 
-    config_id = run.configuration.configuration_id
-    hashes = {_.genome_hash for _ in run.fasta_hashes}
+    sig_cache = (
+        cache / f"sourmash_k={run.configuration.kmersize}_{run.configuration.extra}"
+    )
+    if not sig_cache.is_dir():
+        msg = f"ERROR: Missing sourmash signatures directory {sig_cache} - check cache setting."
+        sys.exit(msg)
 
-    db_entries = [
-        {
-            "query_hash": query_hash,
-            "subject_hash": subject_hash,
-            "identity": max_containment,
-            "cov_query": query_containment,
-            "configuration_id": config_id,
-            "uname_system": uname_system,
-            "uname_release": uname_release,
-            "uname_machine": uname_machine,
-        }
-        for (
-            query_hash,
-            subject_hash,
-            query_containment,
-            max_containment,
-        ) in sourmash.parse_sourmash_manysearch_csv(
-            manysearch,
-            # This is used to infer failed alignments:
-            expected_pairs={(q, s) for q in hashes for s in hashes},
-        )
-    ]
-
+    try:
+        db_entries = []
+        for q, s, q_containment, max_containment in sourmash.compute_sourmash_column(
+            tool, subject_hash, set(query_hashes), sig_cache, tmp_dir
+        ):
+            db_entries.append(
+                {
+                    "query_hash": q,
+                    "subject_hash": s,
+                    "identity": max_containment,
+                    "cov_query": q_containment,
+                    "configuration_id": config_id,
+                    "uname_system": uname_system,
+                    "uname_release": uname_release,
+                    "uname_machine": uname_machine,
+                }
+            )
+    except KeyboardInterrupt:
+        # Try to abort gracefully without wasting the work done.
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
+        sys.stderr.write(msg)
+        run.status = "Worker interrupted"
     return (
         0
         if db_orm.insert_comparisons_with_retries(session, db_entries)

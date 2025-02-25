@@ -35,6 +35,142 @@ from pyani_plus import db_orm, private_cli, tools
 from pyani_plus.methods import sourmash
 
 
+def test_prepare_genomes_bad_method(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
+    """Check error handling of sourmash.prepare_genomes with wrong method."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "bad-args.db"
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus sourmash ...",
+        status="Testing",
+        name="Testing sourmash prepare-genomes",
+        method="guessing",
+        program="guestimator",
+        version="0.0a1",
+        create_db=True,
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
+    session = db_orm.connect_to_db(tmp_db)
+    run = db_orm.load_run(session, run_id=1)
+
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Expected run to be for sourmash, not method guessing",
+    ):
+        next(sourmash.prepare_genomes(run, tmp_dir))  # should error before checks cache
+    session.close()
+
+
+def test_prepare_genomes_bad_kmer(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
+    """Check error handling of sourmash.prepare_genomes without k-mer size."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "bad-args.db"
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus sourmash ...",
+        status="Testing",
+        name="Testing sourmash prepare-genomes",
+        method="sourmash",
+        program="sourmash",
+        version="0.0a1",
+        extra="scaled=" + str(sourmash.SCALED),
+        create_db=True,
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
+    session = db_orm.connect_to_db(tmp_db)
+    run = db_orm.load_run(session, run_id=1)
+
+    with pytest.raises(
+        SystemExit,
+        match=f"ERROR: sourmash requires a k-mer size, default is {sourmash.KMER_SIZE}",
+    ):
+        next(
+            sourmash.prepare_genomes(run, cache=tmp_dir)
+        )  # should error before checks cache
+    session.close()
+
+
+def test_prepare_genomes_bad_cache(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
+    """Check error handling of sourmash.prepare_genomes without k-mer size."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "bad-args.db"
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus sourmash ...",
+        status="Testing",
+        name="Testing sourmash prepare-genomes",
+        method="sourmash",
+        program="sourmash",
+        version="0.0a1",
+        kmersize=sourmash.KMER_SIZE,
+        extra="scaled=" + str(sourmash.SCALED),
+        create_db=True,
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
+    session = db_orm.connect_to_db(tmp_db)
+    run = db_orm.load_run(session, run_id=1)
+
+    with pytest.raises(
+        ValueError,
+        match="ERROR: Cache directory /does/not/exist does not exist",
+    ):
+        next(
+            sourmash.prepare_genomes(run, cache=Path("/does/not/exist"))
+        )  # should error before checks cache
+    session.close()
+
+
+def test_prepare_genomes_bad_extra(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Check error handling of sourmash.prepare_genomes without extra (scaling)."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "bad-args.db"
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus sourmash ...",
+        status="Testing",
+        name="Testing sourmash prepare-genomes",
+        method="sourmash",
+        program="sourmash",
+        version="0.0a1",
+        kmersize=sourmash.KMER_SIZE,
+        create_db=True,
+    )
+    output = capsys.readouterr().out
+    assert output.endswith("Run identifier 1\n")
+    session = db_orm.connect_to_db(tmp_db)
+    run = db_orm.load_run(session, run_id=1)
+
+    with pytest.raises(
+        SystemExit,
+        match=f"ERROR: sourmash requires extra setting, default is scaled={sourmash.SCALED}",
+    ):
+        next(
+            sourmash.prepare_genomes(run, cache=tmp_dir)
+        )  # should error before checks cache
+    session.close()
+
+
 def test_parser_with_bad_branchwater(tmp_path: str) -> None:
     """Check self-vs-self is one in sourmash compare parser."""
     mock_csv = Path(tmp_path) / "faked.csv"

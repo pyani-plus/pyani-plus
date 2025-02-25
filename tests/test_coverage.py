@@ -39,7 +39,7 @@ def do_comparison(
     capsys: pytest.CaptureFixture[str],
     fasta_dir: Path,
     method: Callable,
-    **kwargs: float,
+    **kwargs: float | Path,
 ) -> db_orm.Run:
     """Execute an ANI method and return the run."""
     with tempfile.NamedTemporaryFile(suffix=".db") as tmp_db:
@@ -168,7 +168,9 @@ def test_coverage(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
     )  # 25% and 75% rather than 30% and 70% expected via bp
 
     # Doesn't "work" with default scaling - nulls except for diagonal,
-    run = do_comparison(capsys, seq_dir, public_cli.cli_sourmash, scaled=50)
+    run = do_comparison(
+        capsys, seq_dir, public_cli.cli_sourmash, scaled=50, cache=tmp_dir
+    )
     assert run.df_identity == (
         "{"
         f'"columns":{checksums},"index":{checksums},"data":'

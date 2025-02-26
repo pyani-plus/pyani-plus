@@ -1304,11 +1304,12 @@ def compute_sourmash(  # noqa: PLR0913
                     "uname_machine": uname_machine,
                 }
             )
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:  # pragma: no cover
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
-        sys.stderr.write(msg)
-        run.status = "Worker interrupted"
+        # This runs so quickly that a timer-based unit tests is nigh impossible.
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"  # pragma: no cover
+        sys.stderr.write(msg)  # pragma: no cover
+        run.status = "Worker interrupted"  # pragma: no cover
     if db_entries:
         session.execute(
             sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),

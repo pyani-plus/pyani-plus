@@ -269,23 +269,28 @@ def plot_classify(  # noqa: PLR0913, PLR0915
         },
         sharex=True,
     )
-    fig.subplots_adjust(left=0.2, top=0.85)
+    fig.subplots_adjust(left=0.2, top=0.85, hspace=hspace + 0.2)
+
     # Ensure x-axis tick labels on all plots
     ax1.tick_params(labelbottom=True)
     ax2.tick_params(labelbottom=True)
 
-    # Colorbar for cliques based on min_identity
+    # Setting a colorbar on the bottom of the plot for cliques based on min_identity
     norm = Normalize(
-        vmin=dataframe[f"min_{score}"].min(), vmax=dataframe[f"min_{score}"].max()
+        vmin=math.floor(dataframe[f"min_{score}"].min() * 100) / 100 - 0.01,
+        vmax=dataframe[f"min_{score}"].max(),
     )
     cmap_hot = cm.hot
-    # Add a new axis for the color bar using absolute coordinates
-    # NOTE to self: need to fix the positioning of the bar on the y-axis
-    cax = fig.add_axes([0.95, 0.8, 0.02, 2 / height])
+    colorbar_height = 0.4 / height
+    ax3_box = ax3.get_position()
+    colorbar_y_position = ax3_box.y0 - colorbar_height - 0.03
+    cax = fig.add_axes(
+        [ax3_box.x0, colorbar_y_position, ax3_box.width, colorbar_height]
+    )
     sm = plt.cm.ScalarMappable(cmap=cmap_hot, norm=norm)
-    cb = plt.colorbar(sm, cax=cax, orientation="vertical")
-    cb.set_label(f"Min {score}", fontsize=10)
-    cb.ax.tick_params(labelsize=10)
+    cb = plt.colorbar(sm, cax=cax, orientation="horizontal")
+    cb.set_label(f"Min {score}", fontsize=10, labelpad=5)
+    cb.ax.tick_params(labelsize=10, axis="x", direction="out")
 
     # ----- The number of genomes in cliques and as singletons at different %identity (ax1) -----
     # Define bins for identity range

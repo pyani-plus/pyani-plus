@@ -154,7 +154,22 @@ NONE_ARG_TYPE_EXTRA = Annotated[
 def _check_tool_version(
     tool: tools.ExternalToolData, configuration: db_orm.Configuration
 ) -> None:
-    """Confirm the tool and version matches the given configuration."""
+    """Confirm the tool and version matches the given configuration.
+
+    >>> from pathlib import Path
+    >>> from pyani_plus.tools import ExternalToolData
+    >>> from pyani_plus.db_orm import Configuration
+    >>> tool = ExternalToolData(Path("/bin/guestimator"), "1.3")
+    >>> config = Configuration(method="guessing", program="guestimator", version="1.2")
+    >>> _check_tool_version(tool, config)
+    Traceback (most recent call last):
+    ...
+    SystemExit: ERROR: Run configuration was guestimator 1.2 but we have guestimator 1.3
+
+    This will typically be used when resuming a run, to confirm the tool
+    binary name (the stem) and version detected on the system match the
+    configuration recorded for the run in the database.
+    """
     if (
         configuration.program != tool.exe_path.stem
         or configuration.version != tool.version

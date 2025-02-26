@@ -33,7 +33,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from matplotlib import cm, patches
-from matplotlib.colors import Normalize
+from matplotlib.colors import ListedColormap, Normalize
 from rich.progress import Progress
 
 from pyani_plus import GRAPHICS_FORMATS, PROGRESS_BAR_COLUMNS
@@ -280,7 +280,12 @@ def plot_classify(  # noqa: PLR0913, PLR0915
         vmin=math.floor(dataframe[f"min_{score}"].min() * 100) / 100 - 0.01,
         vmax=dataframe[f"min_{score}"].max(),
     )
+    # Create a colormap with alpha=0.7
     cmap_hot = cm.hot
+    cmap_hot = cmap_hot(np.arange(cmap_hot.N))
+    cmap_hot[:, -1] = 0.7
+    cmap_hot = ListedColormap(cmap_hot)
+
     colorbar_height = 0.4 / height
     ax3_box = ax3.get_position()
     colorbar_y_position = ax3_box.y0 - colorbar_height - 0.03

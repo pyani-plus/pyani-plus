@@ -184,6 +184,21 @@ OPT_ARG_TYPE_CREATE_DB = Annotated[
 OPT_ARG_TYPE_EXECUTOR = Annotated[
     ToolExecutor, typer.Option(help="How should the internal tools be run?")
 ]
+OPT_ARG_TYPE_CACHE = Annotated[
+    Path | None,
+    typer.Option(
+        help=(
+            "Cache location if required for a method (must be visible to cluster workers)."
+            " Default to .cache in the current directory."
+        ),
+        metavar="DIRECTORY",
+        # Want to distinguish unspecified (None meaning .cache) from explicit .cache
+        show_default=False,
+        # Not requiring this exists, not all methods use a cache
+        dir_okay=True,
+        file_okay=False,
+    ),
+]
 # Would like to replace this with Literal["md5", "filename", "stem"] once typer updated
 OPT_ARG_TYPE_LABEL = Annotated[
     str,

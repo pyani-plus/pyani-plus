@@ -39,16 +39,17 @@ def do_self_compare(
     capsys: pytest.CaptureFixture[str],
     fasta_dir: Path,
     method: Callable,
+    **kwargs: Path,
 ) -> db_orm.Comparison:
     """Run a self-vs-self ANI method and return the single comparison."""
     assert len(list(fasta_dir.glob("*.f*"))) == 1
     with tempfile.NamedTemporaryFile(suffix=".db") as tmp_db:
-        # Should we accept **kwargs too? e.g. ANIb fragsize
         method(
             database=tmp_db.name,
             fasta=fasta_dir,
             name="Self-vs-self",
             create_db=True,
+            **kwargs,
         )
         output = capsys.readouterr().out
         assert " run setup with 1 genomes in database\n" in output
@@ -87,7 +88,7 @@ def test_self_vs_self_anim(capsys: pytest.CaptureFixture[str], tmp_path: str) ->
     comp = do_self_compare(capsys, seq_dir, public_cli.cli_fastani)
     assert comp.identity == 1.0, comp
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.cli_sourmash)
+    comp = do_self_compare(capsys, seq_dir, public_cli.cli_sourmash, cache=tmp_dir)
     assert comp.identity == 1.0, comp
 
 
@@ -119,5 +120,5 @@ def test_self_vs_self_fastani(
     comp = do_self_compare(capsys, seq_dir, public_cli.cli_fastani)
     assert comp.identity == 0.999953, comp  # noqa: PLR2004
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.cli_sourmash)
+    comp = do_self_compare(capsys, seq_dir, public_cli.cli_sourmash, cache=tmp_dir)
     assert comp.identity == 1.0, comp

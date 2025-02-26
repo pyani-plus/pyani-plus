@@ -46,6 +46,8 @@ from pyani_plus.public_cli_args import (
     REQ_ARG_TYPE_FASTA_DIR,
 )
 
+ASCII_GAP = ord("-")  # 45
+
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
@@ -1275,9 +1277,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     label = args["label"]
     del args
 
-    import numpy as np  # lazy import, although might be implicitly loaded already?
-    from Bio.SeqIO.FastaIO import SimpleFastaParser  # deliberate lazy import
-
+    from pyani_plus.methods.external_alignment import compute_external_alignment_column
     from pyani_plus.utils import file_md5sum, filename_stem
 
     if not quiet:
@@ -1309,129 +1309,39 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     # Thus when N is even, the first job would consisting of columns 1 and N, next
     # job columns 2 and N-1, etc. Each job does N computations and records 2N comparisons.
     # Similarly when N is odd, although there we have a final half-sized single-column job.
-
     try:
-        # We could interpret the column number as the MSA ordering, but our internal
-        # API by subject hash - and we can't assume the MSA is in any particular order.
-        # Easiest way to solve this is two linear scans of the file, with a seek(0)
-        with alignment.open() as handle:
-            subject_seq = subject_title = ""  # placeholder values
-            s_non_gaps = subject_seq_gaps = None  # placeholder values
-            # Should load the file in binary mode as will be working in bytes
-            for query_title, query_seq in SimpleFastaParser(handle):
-                query_hash = mapping(query_title.split(None, 1)[0])
-                if not query_hash:
-                    msg = f"ERROR: Could not map {query_title.split(None, 1)[0]} as {label}"
-                    sys.exit(msg)
-                if query_hash == subject_hash:
-                    # for use in rest of the loop - an array of bytes!
-                    subject_seq = query_seq
-                    s_array = np.array(list(subject_seq), "S1")
-                    s_non_gaps = s_array != b"-"
-                    subject_seq_gaps = subject_seq.count("-")
-                    subject_title = query_title  # for use in logging
-                    break
-            else:
-                msg = f"Did not find subject {subject_hash} in {alignment.name}"
-                raise ValueError(msg)
-
-            db_entries = []
-
-            handle.seek(0)
-            for query_title, query_seq in SimpleFastaParser(handle):
-                query_hash = mapping(query_title.split(None, 1)[0])
-                if query_hash < subject_hash or query_hash not in query_hashes:
-                    # Exploiting symmetry to avoid double computation,
-                    # or not asked to compute this pairing (as already in the DB)
-                    continue
-                if query_hash == subject_hash:
-                    # 100% identity and coverage, but need to calculate aln_length
-                    db_entries.append(
-                        {
-                            "query_hash": query_hash,
-                            "subject_hash": subject_hash,
-                            "identity": 1.0,
-                            "aln_length": len(query_seq) - query_seq.count("-"),
-                            "sim_errors": 0,
-                            "cov_query": 1.0,
-                            "cov_subject": 1.0,
-                            "configuration_id": config_id,
-                            "uname_system": uname_system,
-                            "uname_release": uname_release,
-                            "uname_machine": uname_machine,
-                        }
-                    )
-                else:
-                    # Full calculation required
-                    if len(query_seq) != len(subject_seq):
-                        msg = (
-                            "ERROR: Bad external-alignment, different lengths"
-                            f" {len(query_seq)} and {len(subject_seq)}"
-                            f" from {query_title.split(None, 1)[0]}"
-                            f" and {subject_title.split(None, 1)[0]}\n"
-                        )
-                        sys.exit(msg)
-
-                    q_array = np.array(list(query_seq), "S1")
-                    q_non_gaps = q_array != b"-"
-                    # & is AND
-                    # | is OR
-                    # ^ is XOR
-                    # ~ is NOT
-                    # e.g. ~(q_gaps | s_gaps) would be entries with no gaps
-                    naive_matches = q_array == s_array  # includes double gaps!
-                    matches = int((naive_matches & q_non_gaps).sum())
-                    one_gapped = q_non_gaps ^ s_non_gaps
-                    non_gap_mismatches = int((~naive_matches & ~one_gapped).sum())
-                    either_gapped = int(one_gapped.sum())
-                    del naive_matches, q_non_gaps, q_array
-
-                    # Now compute the alignment metrics from that
-                    query_cov = (matches + non_gap_mismatches) / (
-                        len(query_seq) - query_seq.count("-")
-                    )
-                    subject_cov = (matches + non_gap_mismatches) / (
-                        len(subject_seq) - subject_seq_gaps
-                    )
-                    aln_length = matches + non_gap_mismatches + either_gapped
-                    sim_errors = non_gap_mismatches + either_gapped
-
-                    db_entries.append(
-                        {
-                            "query_hash": query_hash,
-                            "subject_hash": subject_hash,
-                            "identity": matches / aln_length,
-                            "aln_length": aln_length,
-                            "sim_errors": sim_errors,
-                            "cov_query": query_cov,
-                            "cov_subject": subject_cov,
-                            "configuration_id": config_id,
-                            "uname_system": uname_system,
-                            "uname_release": uname_release,
-                            "uname_machine": uname_machine,
-                        }
-                    )
-                    # Fill in the symmetric entry
-                    db_entries.append(
-                        {
-                            "query_hash": subject_hash,
-                            "subject_hash": query_hash,
-                            "identity": matches / aln_length,
-                            "aln_length": aln_length,
-                            "sim_errors": sim_errors,
-                            "cov_query": subject_cov,
-                            "cov_subject": query_cov,
-                            "configuration_id": config_id,
-                            "uname_system": uname_system,
-                            "uname_release": uname_release,
-                            "uname_machine": uname_machine,
-                        }
-                    )
+        db_entries = []
+        for (
+            q,
+            s,
+            identity,
+            aln_length,
+            sim_errors,
+            cov_query,
+            cov_subject,
+        ) in compute_external_alignment_column(
+            subject_hash, set(query_hashes), alignment, mapping, label
+        ):
+            db_entries.append(
+                {
+                    "query_hash": q,
+                    "subject_hash": s,
+                    "identity": identity,
+                    "aln_length": aln_length,
+                    "sim_errors": sim_errors,
+                    "cov_query": cov_query,
+                    "cov_subject": cov_subject,
+                    "configuration_id": config_id,
+                    "uname_system": uname_system,
+                    "uname_release": uname_release,
+                    "uname_machine": uname_machine,
+                }
+            )
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"  # pragma: no cover
-        sys.stderr.write(msg)  # pragma: no cover
-        run.status = "Worker interrupted"  # pragma: no cover
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
+        sys.stderr.write(msg)
+        run.status = "Worker interrupted"
     if db_entries:
         session.execute(
             sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),

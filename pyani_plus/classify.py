@@ -36,7 +36,7 @@ from matplotlib import cm, patches
 from matplotlib.colors import Normalize
 from rich.progress import Progress
 
-from pyani_plus import PROGRESS_BAR_COLUMNS
+from pyani_plus import GRAPHICS_FORMATS, PROGRESS_BAR_COLUMNS
 from pyani_plus.public_cli_args import EnumModeClassify
 
 AGG_FUNCS = {
@@ -229,12 +229,13 @@ def get_genome_order(genome_clique_ids: dict) -> dict:
     return {genome: idx for idx, genome in enumerate(sorted_genomes)}
 
 
-def plot_classify(  # noqa: PLR0915
+def plot_classify(  # noqa: PLR0913, PLR0915
     genome_positions: dict,
     dataframe: pd.DataFrame,
     outdir: Path,
     method: str,
     score: str,
+    formats: tuple[str, ...] = GRAPHICS_FORMATS,
 ) -> None:
     """Plot the classify results for a given run.
 
@@ -396,10 +397,14 @@ def plot_classify(  # noqa: PLR0915
     ax3.axvline(x=0.95, color="red", linewidth=2, linestyle="--")
     ax3.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)  # noqa: FBT003
 
-    # Save the figure as a PDF file
-    plt.savefig(
-        outdir / f"{method}_classify_plot.pdf", format="pdf", bbox_inches="tight"
-    )
+    # Save the figure in all standard graphics formats
+    for ext in formats:
+        if ext != "tsv":
+            plt.savefig(
+                outdir / f"{method}_classify_plot.{ext}",
+                format=ext,
+                bbox_inches="tight",
+            )
 
 
 def compute_classify_output(

@@ -209,7 +209,10 @@ def get_unique_cliques(
 def get_genome_cligue_ids(dataframe: pd.DataFrame, suffix: str) -> dict:
     """Return a dictionary mapping each genome to a list of clique ids it belongs to."""
     # Members of each clique are split into separate entries.
-    dataframe[f"max_{suffix}"] = dataframe[f"max_{suffix}"].fillna(1.0)
+    # None in max_{score} indicated a singleton which will be 1.0 for identity and 0.0 for tANI
+    dataframe[f"max_{suffix}"] = dataframe[f"max_{suffix}"].fillna(
+        1.0 if suffix == "identity" else 0.0
+    )
     dataframe["members"] = dataframe["members"].str.split(",")
 
     genome_clique_ids = defaultdict(list)
@@ -402,9 +405,13 @@ def plot_classify(  # noqa: PLR0913, PLR0915
     ax3.set_yticklabels(genome_positions.keys(), fontsize=font_size)
     ax3.yaxis.set_label_position("right")
     ax3.yaxis.tick_right()
-    ax3.set_xlim(math.floor(dataframe[f"min_{score}"].min() * 100) / 100 - 0.01, 1.0)
+    ax3.set_xlim(
+        math.floor(dataframe[f"min_{score}"].min() * 100) / 100 - 0.01,
+        dataframe[f"max_{score}"].max(),
+    )
     ax3.set_ylim(-1, num_genomes)
-    ax3.axvline(x=0.95, color="red", linewidth=2, linestyle="--")
+    x_value = 0.95 if score == "identity" else -0.323
+    ax3.axvline(x=x_value, color="red", linewidth=2, linestyle="--")
     ax3.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)  # noqa: FBT003
 
     # Save the figure in all standard graphics formats

@@ -1062,8 +1062,8 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     matrix = None
     if mode == "identity":
         matrix = run.identities
-    elif mode == "tANI":
-        matrix = run.tani
+    elif mode == "tANI" and run.tani is not None:
+        matrix = run.tani.where(run.tani.isna(), run.tani * -1)
 
     if matrix is None:
         msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
@@ -1113,7 +1113,7 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     unique_cliques = classify.get_unique_cliques(initial_cliques, recursive_cliques)
 
     # Determine column name based on mode
-    suffix = "identity" if mode == EnumModeClassify.identity else "tANI"
+    suffix = "identity" if mode == EnumModeClassify.identity else "-tANI"
     column_map = {
         "min_score": f"min_{suffix}",
         "max_score": f"max_{suffix}",

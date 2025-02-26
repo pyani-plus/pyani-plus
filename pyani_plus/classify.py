@@ -33,7 +33,8 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from matplotlib import cm, patches
-from matplotlib.colors import ListedColormap, Normalize
+from matplotlib.collections import LineCollection
+from matplotlib.colors import Normalize
 from rich.progress import Progress
 
 from pyani_plus import GRAPHICS_FORMATS, PROGRESS_BAR_COLUMNS
@@ -242,11 +243,12 @@ def plot_classify(  # noqa: PLR0913, PLR0915
 ) -> None:
     """Plot the classify results for a given run.
 
-    The function generates a plot with 3 vertically stacked subplots:
+    The function generates a plot with 4 vertically stacked subplots:
 
     1. ax1: The number of genomes in cliques and as singletons at different %identity.
     2. ax2: The percentage of all genomes that are found in cliques and as singletons at different %identity.
     3. ax3: The lifespan (range of identity) of each clique.
+    4. ax4: Colorbar/Legend for the colours of cliques in ax3.
     """
     # Set up initial plot (eg. figsize, subplots and colormap)
     num_genomes = len(genome_positions)
@@ -260,19 +262,19 @@ def plot_classify(  # noqa: PLR0913, PLR0915
     font_size = max(6, min(12, 300 // num_genomes))
 
     # Limit hspace to a maximum of 0.1
-    hspace = min(0.1, 8 / num_genomes)
+    hspace = min(0.1, 10 / num_genomes)
     # Create a figure with 3 vertically stacked subplots
-    fig, (ax1, ax2, ax3) = plt.subplots(
-        3,
+    fig, (ax1, ax2, ax3, ax4) = plt.subplots(
+        4,
         1,
         figsize=(15, height),
         gridspec_kw={
-            "height_ratios": [0.7, 0.7, max(5, num_genomes * 0.1)],
+            "height_ratios": [0.7, 0.7, max(5, num_genomes * 0.1), 0.2],
             "hspace": hspace,
         },
         sharex=True,
     )
-    fig.subplots_adjust(left=0.2, top=0.85, hspace=hspace + 0.2)
+    fig.subplots_adjust(left=0.2, top=0.85, hspace=hspace)
 
     # Ensure x-axis tick labels on all plots
     ax1.tick_params(labelbottom=True)
@@ -285,20 +287,6 @@ def plot_classify(  # noqa: PLR0913, PLR0915
     )
     # Create a colormap with alpha=0.7
     cmap_hot = cm.hot
-    cmap_hot = cmap_hot(np.arange(cmap_hot.N))
-    cmap_hot[:, -1] = 0.7
-    cmap_hot = ListedColormap(cmap_hot)
-
-    colorbar_height = 0.4 / height
-    ax3_box = ax3.get_position()
-    colorbar_y_position = ax3_box.y0 - colorbar_height - 0.03
-    cax = fig.add_axes(
-        [ax3_box.x0, colorbar_y_position, ax3_box.width, colorbar_height]
-    )
-    sm = plt.cm.ScalarMappable(cmap=cmap_hot, norm=norm)
-    cb = plt.colorbar(sm, cax=cax, orientation="horizontal")
-    cb.set_label(f"Min {score}", fontsize=10, labelpad=5)
-    cb.ax.tick_params(labelsize=10, axis="x", direction="out")
 
     # ----- The number of genomes in cliques and as singletons at different %identity (ax1) -----
     # Define bins for identity range
@@ -366,7 +354,7 @@ def plot_classify(  # noqa: PLR0913, PLR0915
     # Customise ax2: set y-label, grid style, and display legend
     ax2.set_ylabel("Percentage of \n All Genomes", fontsize=10)
     ax2.set_ylim(0, 100)
-    ax2.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)  # noqa: FBT003
+    ax2.grid(True, linestyle="--", linewidth=0.5, alpha=0.9)  # noqa: FBT003
     ax2.legend()
 
     # --- The lifespan (range of identity) of each clique (ax3) ---
@@ -395,7 +383,7 @@ def plot_classify(  # noqa: PLR0913, PLR0915
                 linewidth=1,
                 edgecolor="black",
                 facecolor=color,
-                alpha=0.6,
+                alpha=0.8,
             )
             ax3.add_patch(rect)
 
@@ -412,8 +400,21 @@ def plot_classify(  # noqa: PLR0913, PLR0915
     ax3.set_ylim(-1, num_genomes)
     x_value = 0.95 if score == "identity" else -0.323
     ax3.axvline(x=x_value, color="red", linewidth=2, linestyle="--")
-    ax3.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)  # noqa: FBT003
+    ax3.grid(True, linestyle="--", linewidth=0.5, alpha=0.9)  # noqa: FBT003
 
+    # -------- Colorbar (ax4) ----------
+    gradient_values = np.linspace(norm.vmin, norm.vmax, 10000)
+    lines = [[(value, 0), (value, 1)] for value in gradient_values]
+    colors = cmap_hot(norm(gradient_values))
+
+    line_collection = LineCollection(lines, colors=colors, linewidths=0.5)
+    ax4.add_collection(line_collection)
+    ax4.set_xlim(norm.vmin, norm.vmax)
+    ax4.set_ylim(0, 1)
+    ax4.set_xlabel(f"Min {score}", fontsize=10)
+    ax4.xaxis.set_label_position("bottom")
+    ax4.set_yticks([])  # No y-axis
+    ax4.tick_params(axis="x", labelsize=10, direction="out")
     # Save the figure in all standard graphics formats
     for ext in formats:
         if ext != "tsv":

@@ -29,7 +29,6 @@ rule compute_column:
     params:
         db=config["db"],
         run_id=config["run_id"],
-        outdir=config["outdir"],
         temp=config["temp"],
         cache=config.get("cache", None),
     output:

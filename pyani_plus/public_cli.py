@@ -236,7 +236,6 @@ def run_method(  # noqa: PLR0913
         ):
             work_path = Path(tmp) / "working"
             out_path = Path(tmp) / "output"
-            params["outdir"] = out_path.resolve()
             params["cache"] = cache
             target_paths = [out_path / _ for _ in targets]
             run_snakemake_with_progress_bar(

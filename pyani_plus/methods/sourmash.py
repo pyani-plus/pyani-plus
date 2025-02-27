@@ -139,9 +139,9 @@ def parse_sourmash_manysearch_csv(
         yield query_hash, subject_hash, None, None
 
 
-def compute_sourmash_column(
+def compute_sourmash_tile(
     tool: tools.ExternalToolData,
-    subject_hash: str,
+    subject_hashes: set[str],
     query_hashes: set[str],
     cache: Path,
     tmp_dir: Path,
@@ -150,26 +150,31 @@ def compute_sourmash_column(
     if not cache.is_dir():
         msg = f"Given cache directory {cache} does not exist"
         raise ValueError(msg)
-    sigs = [cache / f"{_}.sig" for _ in query_hashes]
-    for sig in sigs:
-        if not sig.is_file():
-            msg = f"ERROR: One or more signatures missing: {sig}"
-            sys.exit(msg)
-    siglist = tmp_dir / f"all_vs_{subject_hash}_sigs.csv"
-    manysearch = tmp_dir / f"all_vs_{subject_hash}_manysearch.csv"
-    utils.check_output(
-        [
-            str(tool.exe_path),
-            "sig",
-            "collect",
-            "--quiet",
-            "-F",
-            "csv",
-            "-o",
-            str(siglist),
-            *[str(_) for _ in sigs],
-        ]
-    )
+    query_sig_list = tmp_dir / "query_sigs.csv"
+    subject_sig_list = tmp_dir / "subject_sigs.csv"
+    manysearch = tmp_dir / "manysearch.csv"
+    for csv, sigs in (
+        (query_sig_list, query_hashes),
+        (subject_sig_list, subject_hashes),
+    ):
+        if csv.is_file():
+            sys.stderr.write(
+                f"WARNING: Race condition? Replacing intermediate file {csv}\n"
+            )
+            csv.unlink()
+        utils.check_output(
+            [
+                str(tool.exe_path),
+                "sig",
+                "collect",
+                "--quiet",
+                "-F",
+                "csv",
+                "-o",
+                str(csv),
+                *[str(cache / f"{_}.sig") for _ in sigs],
+            ]
+        )
     utils.check_output(
         [
             str(tool.exe_path),
@@ -182,12 +187,12 @@ def compute_sourmash_column(
             "0",
             "-o",
             str(manysearch),
-            str(siglist),
-            str(cache / f"{subject_hash}.sig"),
+            str(query_sig_list),
+            str(subject_sig_list),
         ]
     )
     yield from parse_sourmash_manysearch_csv(
         manysearch,
         # This is used to infer failed alignments:
-        expected_pairs={(q, subject_hash) for q in query_hashes},
+        expected_pairs={(q, s) for q in query_hashes for s in subject_hashes},
     )

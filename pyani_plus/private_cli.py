@@ -500,7 +500,7 @@ def prepare_genomes(
 
 
 @app.command()
-def compute_column(  # noqa: C901, PLR0913
+def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     database: REQ_ARG_TYPE_DATABASE,
     run_id: REQ_ARG_TYPE_RUN_ID,
     subject: Annotated[
@@ -525,7 +525,8 @@ def compute_column(  # noqa: C901, PLR0913
     column of the matrix is to be computed.
 
     If using a column number, these are taken to be zero based meaning in the range
-    0 up to but excluding the number of genomes in the run.
+    0 up to but excluding the number of genomes in the run. Using n instead means
+    compute all the columns.
 
     Some methods like sourmash require you first run the prepare-genomes command
     (which for sourmash builds signature files from each FASTA file). You must
@@ -565,25 +566,41 @@ def compute_column(  # noqa: C901, PLR0913
         except ValueError:
             msg = f"ERROR: Did not recognise {subject!r} as an MD5 hash, filename, or column number in run-id {run_id}"
             sys.exit(msg)
-        if not (0 <= column < len(hash_to_filename)):
-            msg = f"ERROR: Column should be in range 0 up to but excluding {n}, not {subject}"
+        if 0 <= column < n:
+            subject_hash = sorted(hash_to_filename)[column]
+        elif column == n:
+            if method == "sourmash":
+                subject_hash = ""
+            else:
+                msg = "ERROR: All columns currently only implemented for sourmash"
+                sys.exit(msg)
+        else:
+            msg = (
+                "ERROR: Single column should be in range 0 up to but excluding"
+                f" {n}, or for some methods {n} meaning all columns, but not {subject}"
+            )
             sys.exit(msg)
-        subject_hash = sorted(hash_to_filename)[column]
 
-    # What comparisons are needed? Record the query genome lengths too
-    # (doing this once at the start to avoid a small lookup for each query)
-    missing_query_hashes = set(hash_to_filename).difference(
-        comp.query_hash
-        for comp in run.comparisons().where(
-            db_orm.Comparison.subject_hash == subject_hash
+    if column == n:
+        # Computing all the matrix, but are there might be some rows/cols already done?
+        query_hashes = {
+            _.genome_hash: _.length for _ in run.genomes
+        }  # assume all needed
+    else:
+        # What comparisons are needed? Record the query genome lengths too
+        # (doing this once at the start to avoid a small lookup for each query)
+        missing_query_hashes = set(hash_to_filename).difference(
+            comp.query_hash
+            for comp in run.comparisons().where(
+                db_orm.Comparison.subject_hash == subject_hash
+            )
         )
-    )
-    query_hashes = {
-        _.genome_hash: _.length
-        for _ in run.genomes
-        if _.genome_hash in missing_query_hashes
-    }
-    del missing_query_hashes
+        query_hashes = {
+            _.genome_hash: _.length
+            for _ in run.genomes
+            if _.genome_hash in missing_query_hashes
+        }
+        del missing_query_hashes
 
     if not query_hashes:
         if not quiet:
@@ -1282,8 +1299,12 @@ def compute_sourmash(  # noqa: PLR0913
 
     try:
         db_entries = []
-        for q, s, q_containment, max_containment in sourmash.compute_sourmash_column(
-            tool, subject_hash, set(query_hashes), sig_cache, tmp_dir
+        for q, s, q_containment, max_containment in sourmash.compute_sourmash_tile(
+            tool,
+            {subject_hash} if subject_hash else set(query_hashes),
+            set(query_hashes),
+            sig_cache,
+            tmp_dir,
         ):
             db_entries.append(
                 {

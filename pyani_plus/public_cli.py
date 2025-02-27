@@ -184,7 +184,11 @@ def run_method(  # noqa: PLR0913
     configuration = run.configuration
     method = configuration.method
     workflow_name = "compute_column.smk"
-    targets = [f"column_{_}.{method}" for _ in range(len(filename_to_md5))]
+    if method == "sourmash":
+        # Do all the columns at once!
+        targets = [f"column_{len(filename_to_md5)}.{method}"]
+    else:
+        targets = [f"column_{_}.{method}" for _ in range(len(filename_to_md5))]
     params: dict[str, object] = {
         # Paths etc - see also outdir & cache below
         "indir": Path(run.fasta_directory).resolve(),  # must be absolute

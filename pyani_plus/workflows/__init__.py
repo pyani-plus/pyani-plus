@@ -33,7 +33,7 @@ from snakemake.cli import args_to_api, parse_args
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
-from pyani_plus import FASTA_EXTENSIONS, PROGRESS_BAR_COLUMNS, db_orm
+from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm
 from pyani_plus.public_cli_args import ToolExecutor
 
 
@@ -43,32 +43,6 @@ class ShowProgress(str, Enum):
     quiet = "quiet"
     bar = "bar"
     spin = "spin"
-
-
-def check_input_stems(indir: str) -> dict[str, Path]:
-    """Check input files against approved list of extensions.
-
-    If duplicate stems with approved extensions are present
-    raise a ValueError.
-    """
-    extensions = tuple(FASTA_EXTENSIONS.union(_ + ".gz" for _ in FASTA_EXTENSIONS))
-
-    stems = [_.stem for _ in Path(indir).glob("*") if _.name.endswith(extensions)]
-
-    if len(stems) == len(set(stems)):
-        input_files = {
-            _.stem: _ for _ in Path(indir).glob("*") if _.name.endswith(extensions)
-        }
-    else:
-        duplicates = [
-            item for item in stems if stems.count(item) > 1 and item in set(stems)
-        ]
-        msg = (
-            f"Duplicated stems found for {sorted(set(duplicates))}. Please investigate."
-        )
-        raise ValueError(msg)
-
-    return input_files
 
 
 def progress_bar_via_db_comparisons(
@@ -148,11 +122,6 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     if show_progress_bar and (database is None or run_id is None):
         msg = "Both database and run_id are required with display as progress bar"
         raise ValueError(msg)
-
-    # Check this now to give clear up-front error - this function will be
-    # call from within the actual snakemake workflow files themselves:
-    if "indir" in params:
-        check_input_stems(params["indir"])
 
     # Path to anim snakemake file
     snakefile = Path(__file__).with_name(workflow_name)

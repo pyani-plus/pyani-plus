@@ -29,7 +29,6 @@ rule compute_column:
     params:
         db=config["db"],
         run_id=config["run_id"],
-        outdir=config["outdir"],
         temp=config["temp"],
     output:
         "{outdir}/column_{column}.{method}",

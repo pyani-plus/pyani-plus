@@ -27,9 +27,6 @@ make test
 """
 
 import filecmp
-import os
-import re
-import shutil
 from pathlib import Path
 
 import pytest
@@ -141,43 +138,3 @@ def test_rule_fastani(
         assert filecmp.cmp(file, tmp_dir / file), f"Wrong fastANI output in {file.name}"
 
     compare_db_matrices(db, input_genomes_tiny / "matrices")
-
-
-def test_duplicate_stems(
-    fastani_targets_outdir: Path,
-    config_fastani_args: dict,
-    tmp_path: str,
-) -> None:
-    """Test fastANI snakemake wrapper with duplicated stems in inputs.
-
-    Checks this error condition is caught by duplicating the main fastani
-    test, but using a modified copy of the input directory under temp.
-    """
-    # Remove the output directory to force re-running the snakemake rule
-    shutil.rmtree(fastani_targets_outdir, ignore_errors=True)
-
-    dup_input_dir = Path(tmp_path) / "duplicated_stems"
-    dup_input_dir.mkdir()
-    stems = set()
-    for sequence in config_fastani_args["indir"].glob("*.f*"):
-        # For every input FASTA file, make two versions - XXX.fasta and XXX.fna
-        os.symlink(sequence, dup_input_dir / (sequence.stem + ".fasta"))
-        os.symlink(sequence, dup_input_dir / (sequence.stem + ".fna"))
-        stems.add(sequence.stem)
-    dup_config = config_fastani_args.copy()
-    dup_config["indir"] = dup_input_dir
-    msg = f"Duplicated stems found for {sorted(stems)}. Please investigate."
-
-    generated_targets = [
-        fastani_targets_outdir / f"column_{_}.fastani" for _ in range(6)
-    ]
-
-    with pytest.raises(ValueError, match=re.escape(msg)):
-        run_snakemake_with_progress_bar(
-            executor=ToolExecutor.local,
-            workflow_name="compute_column.smk",
-            targets=generated_targets,
-            params=dup_config,
-            working_directory=Path(tmp_path),
-            temp=Path(tmp_path),
-        )

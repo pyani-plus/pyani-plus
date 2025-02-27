@@ -34,6 +34,7 @@ from typing import IO
 from pyani_plus import FASTA_EXTENSIONS
 
 ASCII_GREATER_THAN = ord(">")  # 64
+WHITESPACE = b" \t\r\n"
 
 
 def fasta_bytes_iterator(
@@ -81,12 +82,12 @@ def fasta_bytes_iterator(
     lines: list[bytes] = []
     for line in handle:
         if line[0] == ASCII_GREATER_THAN:  # i.e. >
-            yield title, b"".join(lines).translate(None, b" \t\r\n")
+            yield title, b"".join(lines).translate(None, WHITESPACE)
             lines = []
             title = line[1:].rstrip()
             continue
         lines.append(line.rstrip())
-    yield title, b"".join(lines).translate(None, b" \t\r\n")
+    yield title, b"".join(lines).translate(None, WHITESPACE)
 
 
 def filename_stem(filename: str) -> str:

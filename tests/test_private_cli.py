@@ -573,7 +573,10 @@ def test_compute_column_bad_args(
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: Column should be in range 0 up to but excluding 3, not -1",
+        match=(
+            "ERROR: Single column should be in range 0 up to but excluding 3,"
+            " or for some methods 3 meaning all columns, but not -1"
+        ),
     ):
         private_cli.compute_column(
             database=tmp_db,
@@ -583,7 +586,7 @@ def test_compute_column_bad_args(
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: Column should be in range 0 up to but excluding 3, not 3",
+        match="ERROR: All columns currently only implemented for sourmash",
     ):
         private_cli.compute_column(
             database=tmp_db,

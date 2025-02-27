@@ -999,35 +999,38 @@ def insert_comparisons_with_retries(
     try:
         session.execute(sqlite_insert(Comparison).on_conflict_do_nothing(), db_entries)
         session.commit()
-    except OperationalError:
+    except OperationalError:  # pragma: no cover
         pass
     else:
         return True
-    msg = f"WARNING: Attempt 1/3 failed to record {source}\n"
-    sys.stdout.write(msg)
+    msg = f"WARNING: Attempt 1/3 failed to record {source}\n"  # pragma: no cover
 
-    sleep(10)
+    sys.stdout.write(msg)  # pragma: no cover
 
-    try:
+    sleep(10)  # pragma: no cover
+
+    try:  # pragma: no cover
         session.execute(sqlite_insert(Comparison).on_conflict_do_nothing(), db_entries)
         session.commit()
-    except OperationalError:
+    except OperationalError:  # pragma: no cover
         pass
-    else:
+    else:  # pragma: no cover
         return True
-    msg = f"WARNING: Attempt 2/3 failed to record {source}\n"
-    sys.stdout.write(msg)
+    msg = f"WARNING: Attempt 2/3 failed to record {source}\n"  # pragma: no cover
 
-    sleep(30)
+    sys.stdout.write(msg)  # pragma: no cover
 
-    try:
+    sleep(30)  # pragma: no cover
+
+    try:  # pragma: no cover
         session.execute(sqlite_insert(Comparison).on_conflict_do_nothing(), db_entries)
         session.commit()
-    except OperationalError:
+    except OperationalError:  # pragma: no cover
         pass
-    else:
+    else:  # pragma: no cover
         return True
-    msg = f"ERROR: Attempt 3/3 failed to record {source}\n"
-    sys.stdout.write(msg)
+    msg = f"ERROR: Attempt 3/3 failed to record {source}\n"  # pragma: no cover
 
-    return False
+    sys.stdout.write(msg)  # pragma: no cover
+
+    return False  # pragma: no cover

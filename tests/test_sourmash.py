@@ -280,17 +280,19 @@ def test_compute_bad_args(tmp_path: str) -> None:
         )
 
 
-def test_compute_column_bad_args(tmp_path: str) -> None:
-    """Check compute_sourmash_column error handling."""
+def test_compute_tile_bad_args(tmp_path: str) -> None:
+    """Check compute_sourmash_tile error handling."""
     tmp_dir = Path(tmp_path)
     tool = tools.ExternalToolData(exe_path=Path("sourmash"), version="0.0a1")
     with pytest.raises(
         ValueError, match="Given cache directory /does/not/exist does not exist"
     ):
         next(
-            sourmash.compute_sourmash_column(
+            sourmash.compute_sourmash_tile(
                 tool,
-                "",
+                {
+                    "",
+                },
                 {
                     "",
                 },
@@ -299,12 +301,14 @@ def test_compute_column_bad_args(tmp_path: str) -> None:
             )
         )
     with pytest.raises(
-        SystemExit, match="ERROR: One or more signatures missing: .*/ABCDE.sig"
+        SystemExit, match="ERROR: Return code 1 from: sourmash sig collect "
     ):
         next(
-            sourmash.compute_sourmash_column(
+            sourmash.compute_sourmash_tile(
                 tool,
-                "",
+                {
+                    "ACBDE",
+                },
                 {
                     "ABCDE",
                 },
@@ -312,3 +316,33 @@ def test_compute_column_bad_args(tmp_path: str) -> None:
                 tmp_dir,
             )
         )
+
+
+def test_compute_tile_stale_cvs(
+    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+) -> None:
+    """Check compute_sourmash_tile with stale sig-lists."""
+    tmp_dir = Path(tmp_path)
+
+    query_csv = tmp_dir / "query_sigs.csv"
+    query_csv.touch()
+    subject_csv = tmp_dir / "subject_sigs.csv"
+    subject_csv.touch()
+
+    tool = tools.get_sourmash()
+    next(
+        sourmash.compute_sourmash_tile(
+            tool,
+            {"689d3fd6881db36b5e08329cf23cecdd", "5584c7029328dc48d33f95f0a78f7e57"},
+            {"689d3fd6881db36b5e08329cf23cecdd", "78975d5144a1cd12e98898d573cf6536"},
+            input_genomes_tiny / "intermediates/sourmash",
+            tmp_dir,
+        )
+    )
+    output = capsys.readouterr().err
+    assert (
+        f"WARNING: Race condition? Replacing intermediate file {query_csv}" in output
+    ), output
+    assert (
+        f"WARNING: Race condition? Replacing intermediate file {subject_csv}" in output
+    ), output

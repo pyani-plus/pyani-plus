@@ -176,33 +176,18 @@ def run_method(  # noqa: PLR0913
     database: Path,
     session: Session,
     run: db_orm.Run,
-    binaries: dict[str, Path],
+    binaries: dict[str, Path],  # noqa: ARG001
 ) -> int:
     """Run the snakemake workflow for given method and log run to database."""
     run_id = run.run_id
     configuration = run.configuration
     method = configuration.method
+    workflow_name = "compute_column.smk"
     if method == "sourmash":
-        workflow_name = "snakemake_sourmash.smk"
-        targets = ["manysearch.csv"]
+        # Do all the columns at once!
+        targets = [f"column_{len(filename_to_md5)}.{method}"]
     else:
-        workflow_name = "compute_column.smk"
         targets = [f"column_{_}.{method}" for _ in range(len(filename_to_md5))]
-    params: dict[str, object] = {
-        # Paths etc - see also outdir below
-        "indir": Path(run.fasta_directory).resolve(),  # must be absolute
-        "db": Path(database).resolve(),  # must be absolute
-        "run_id": run_id,
-        "cores": available_cores(),  # should make configurable
-        # Method settings:
-        "fragsize": configuration.fragsize,
-        "mode": configuration.mode,
-        "kmersize": configuration.kmersize,
-        "minmatch": configuration.minmatch,
-        "extra": configuration.extra,
-        "md5_to_filename": {k: str(v) for (v, k) in filename_to_md5.items()},
-    }
-    params.update({k: str(v) for k, v in binaries.items()})
     del configuration
 
     done = run.comparisons().count()
@@ -236,16 +221,19 @@ def run_method(  # noqa: PLR0913
         ):
             work_path = Path(tmp) / "working"
             out_path = Path(tmp) / "output"
-            params["outdir"] = out_path.resolve()
-            params["cache"] = cache
             target_paths = [out_path / _ for _ in targets]
             run_snakemake_with_progress_bar(
                 executor,
                 workflow_name,
                 target_paths,
-                params,
+                {
+                    "cache": cache,
+                    "db": str(Path(database).resolve()),  # must be absolute
+                    "run_id": run_id,
+                    "cores": available_cores(),  # should make configurable
+                },
                 work_path,
-                display=ShowProgress.spin if method == "sourmash" else ShowProgress.bar,
+                display=ShowProgress.bar,
                 database=Path(database),
                 run_id=run_id,
                 temp=temp,

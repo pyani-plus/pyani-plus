@@ -445,43 +445,6 @@ def test_log_comparison_parallel(
     assert session.query(db_orm.Comparison).count() == len(fasta) ** 2
 
 
-def test_log_wrong_config(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
-) -> None:
-    """Confirm can't run/log a comparison to another method."""
-    tmp_db = Path(tmp_path) / "guestimate.sqlite"
-    assert not tmp_db.is_file()
-    faked = Path(tmp_path) / "MGV-GENOME-0264574_vs_MGV-GENOME-0266457.tmp"
-    with faked.open("w") as handle:
-        handle.write("# Faked\n")
-
-    private_cli.log_run(
-        database=tmp_db,
-        # Run
-        cmdline="pyani_plus run ...",
-        name="Guess Run",
-        status="Empty",
-        fasta=input_genomes_tiny,
-        # Config
-        method="guessing",
-        program="guestimate",
-        version="0.1.2beta3",
-        fragsize=100,
-        kmersize=51,
-        # Misc
-        create_db=True,
-    )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
-
-    with pytest.raises(SystemExit, match="ERROR: Run-id 1 expected guessing results"):
-        private_cli.log_sourmash(
-            tmp_db,
-            run_id=1,
-            manysearch=faked,
-        )
-
-
 def test_validate_cache(tmp_path: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """Check expected error handling in validate_cache."""
     tmp_dir = Path(tmp_path)
@@ -610,7 +573,10 @@ def test_compute_column_bad_args(
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: Column should be in range 0 up to but excluding 3, not -1",
+        match=(
+            "ERROR: Single column should be in range 0 up to but excluding 3,"
+            " or for some methods 3 meaning all columns, but not -1"
+        ),
     ):
         private_cli.compute_column(
             database=tmp_db,
@@ -620,7 +586,7 @@ def test_compute_column_bad_args(
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: Column should be in range 0 up to but excluding 3, not 3",
+        match="ERROR: All columns currently only implemented for sourmash",
     ):
         private_cli.compute_column(
             database=tmp_db,

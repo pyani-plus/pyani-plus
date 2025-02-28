@@ -93,7 +93,6 @@ def start_and_run_method(  # noqa: PLR0913
     method: str,
     fasta: Path,
     tool: tools.ExternalToolData | None,
-    binaries: dict[str, Path],
     *,
     fragsize: int | None = None,
     mode: str | None = None,
@@ -163,7 +162,6 @@ def start_and_run_method(  # noqa: PLR0913
         database,
         session,
         run,
-        binaries,
     )
 
 
@@ -176,33 +174,17 @@ def run_method(  # noqa: PLR0913
     database: Path,
     session: Session,
     run: db_orm.Run,
-    binaries: dict[str, Path],
 ) -> int:
     """Run the snakemake workflow for given method and log run to database."""
     run_id = run.run_id
     configuration = run.configuration
     method = configuration.method
+    workflow_name = "compute_column.smk"
     if method == "sourmash":
-        workflow_name = "snakemake_sourmash.smk"
-        targets = ["manysearch.csv"]
+        # Do all the columns at once!
+        targets = [f"column_{len(filename_to_md5)}.{method}"]
     else:
-        workflow_name = "compute_column.smk"
         targets = [f"column_{_}.{method}" for _ in range(len(filename_to_md5))]
-    params: dict[str, object] = {
-        # Paths etc - see also outdir below
-        "indir": Path(run.fasta_directory).resolve(),  # must be absolute
-        "db": Path(database).resolve(),  # must be absolute
-        "run_id": run_id,
-        "cores": available_cores(),  # should make configurable
-        # Method settings:
-        "fragsize": configuration.fragsize,
-        "mode": configuration.mode,
-        "kmersize": configuration.kmersize,
-        "minmatch": configuration.minmatch,
-        "extra": configuration.extra,
-        "md5_to_filename": {k: str(v) for (v, k) in filename_to_md5.items()},
-    }
-    params.update({k: str(v) for k, v in binaries.items()})
     del configuration
 
     done = run.comparisons().count()
@@ -236,16 +218,19 @@ def run_method(  # noqa: PLR0913
         ):
             work_path = Path(tmp) / "working"
             out_path = Path(tmp) / "output"
-            params["outdir"] = out_path.resolve()
-            params["cache"] = cache
             target_paths = [out_path / _ for _ in targets]
             run_snakemake_with_progress_bar(
                 executor,
                 workflow_name,
                 target_paths,
-                params,
+                {
+                    "cache": cache,
+                    "db": str(Path(database).resolve()),  # must be absolute
+                    "run_id": run_id,
+                    "cores": available_cores(),  # should make configurable
+                },
                 work_path,
-                display=ShowProgress.spin if method == "sourmash" else ShowProgress.bar,
+                display=ShowProgress.bar,
                 database=Path(database),
                 run_id=run_id,
                 temp=temp,
@@ -286,12 +271,6 @@ def cli_anim(  # noqa: PLR0913
 ) -> int:
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
-
-    tool = tools.get_nucmer()
-    binaries = {
-        "nucmer": tool.exe_path,
-        "delta_filter": tools.get_delta_filter().exe_path,
-    }
     return start_and_run_method(
         executor,
         None,
@@ -301,8 +280,7 @@ def cli_anim(  # noqa: PLR0913
         name,
         "ANIm",
         fasta,
-        tool,
-        binaries,
+        tools.get_nucmer(),
         mode=mode.value,  # turn the enum into a string
     )
 
@@ -322,16 +300,6 @@ def cli_dnadiff(  # noqa: PLR0913
 ) -> int:
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
-
-    # We don't actually call the tool dnadiff (which has its own version),
-    # rather we call nucmer, delta-filter, show-diff and show-coords from MUMmer
-    tool = tools.get_nucmer()
-    binaries = {
-        "nucmer": tool.exe_path,
-        "delta_filter": tools.get_delta_filter().exe_path,
-        "show_diff": tools.get_show_diff().exe_path,
-        "show_coords": tools.get_show_coords().exe_path,
-    }
     return start_and_run_method(
         executor,
         None,
@@ -341,8 +309,7 @@ def cli_dnadiff(  # noqa: PLR0913
         name,
         "dnadiff",
         fasta,
-        tool,
-        binaries,
+        tools.get_nucmer(),
     )
 
 
@@ -369,10 +336,6 @@ def cli_anib(  # noqa: PLR0913
     if tool.version != alt.version:
         msg = f"ERROR: blastn {tool.version} vs makeblastdb {alt.version}"
         sys.exit(msg)
-    binaries = {
-        "blastn": tool.exe_path,
-        "makeblastdb": alt.exe_path,
-    }
     return start_and_run_method(
         executor,
         None,
@@ -383,7 +346,6 @@ def cli_anib(  # noqa: PLR0913
         "ANIb",
         fasta,
         tool,
-        binaries,
         fragsize=fragsize,
     )
 
@@ -416,11 +378,6 @@ def cli_fastani(  # noqa: PLR0913
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
-
-    tool = tools.get_fastani()
-    binaries = {
-        "fastani": tool.exe_path,
-    }
     return start_and_run_method(
         executor,
         None,
@@ -430,8 +387,7 @@ def cli_fastani(  # noqa: PLR0913
         name,
         "fastANI",
         fasta,
-        tool,
-        binaries,
+        tools.get_fastani(),
         fragsize=fragsize,
         kmersize=kmersize,
         minmatch=minmatch,
@@ -456,12 +412,6 @@ def cli_sourmash(  # noqa: PLR0913
 ) -> int:
     """Execute sourmash-plugin-branchwater ANI calculations, logged to a pyANI-plus SQLite3 database."""
     check_db(database, create_db)
-
-    tool = tools.get_sourmash()
-    binaries = {
-        "sourmash": tool.exe_path,
-    }
-    extra = f"scaled={scaled}"
     return start_and_run_method(
         executor,
         cache,
@@ -471,10 +421,9 @@ def cli_sourmash(  # noqa: PLR0913
         name,
         "sourmash",
         fasta,
-        tool,
-        binaries,
+        tools.get_sourmash(),
         kmersize=kmersize,
-        extra=extra,
+        extra=f"scaled={scaled}",
     )
 
 
@@ -525,13 +474,12 @@ def external_alignment(  # noqa: PLR0913
         "external-alignment",
         fasta,
         None,  # no tool
-        {},  # no binaries
         extra=extra,
     )
 
 
 @app.command()
-def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
+def resume(  # noqa: C901, PLR0912, PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     *,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
@@ -575,37 +523,16 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
     match config.method:
         case "fastANI":
             tool = tools.get_fastani()
-            binaries = {
-                "fastani": tool.exe_path,
-            }
         case "ANIm":
             tool = tools.get_nucmer()
-            binaries = {
-                "nucmer": tool.exe_path,
-                "delta_filter": tools.get_delta_filter().exe_path,
-            }
         case "dnadiff":
             tool = tools.get_nucmer()
-            binaries = {
-                "nucmer": tool.exe_path,
-                "delta_filter": tools.get_delta_filter().exe_path,
-                "show_diff": tools.get_show_diff().exe_path,
-                "show_coords": tools.get_show_coords().exe_path,
-            }
         case "ANIb":
             tool = tools.get_blastn()
-            binaries = {
-                "blastn": tool.exe_path,
-                "makeblastdb": tools.get_makeblastdb().exe_path,
-            }
         case "sourmash":
             tool = tools.get_sourmash()
-            binaries = {
-                "sourmash": tool.exe_path,
-            }
         case "external-alignment":
             tool = None
-            binaries = {}
         case _:
             msg = f"ERROR: Unknown method {config.method} for run-id {run_id} in {database}"
             sys.exit(msg)
@@ -658,7 +585,6 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
         database,
         session,
         run,
-        binaries,
     )
 
 

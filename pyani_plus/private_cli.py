@@ -35,7 +35,6 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from pyani_plus import db_orm, tools
@@ -153,6 +152,9 @@ NONE_ARG_TYPE_EXTRA = Annotated[
         help="Comparison method specific mode", rich_help_panel="Method parameters"
     ),
 ]
+
+
+RECORDING_FAILED = 2  # return code for successful calculation but failed to save to DB
 
 
 def _check_tool_version(
@@ -498,7 +500,7 @@ def prepare_genomes(
 
 
 @app.command()
-def compute_column(  # noqa: C901, PLR0913
+def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     database: REQ_ARG_TYPE_DATABASE,
     run_id: REQ_ARG_TYPE_RUN_ID,
     subject: Annotated[
@@ -523,7 +525,8 @@ def compute_column(  # noqa: C901, PLR0913
     column of the matrix is to be computed.
 
     If using a column number, these are taken to be zero based meaning in the range
-    0 up to but excluding the number of genomes in the run.
+    0 up to but excluding the number of genomes in the run. Using n instead means
+    compute all the columns.
 
     Some methods like sourmash require you first run the prepare-genomes command
     (which for sourmash builds signature files from each FASTA file). You must
@@ -563,25 +566,41 @@ def compute_column(  # noqa: C901, PLR0913
         except ValueError:
             msg = f"ERROR: Did not recognise {subject!r} as an MD5 hash, filename, or column number in run-id {run_id}"
             sys.exit(msg)
-        if not (0 <= column < len(hash_to_filename)):
-            msg = f"ERROR: Column should be in range 0 up to but excluding {n}, not {subject}"
+        if 0 <= column < n:
+            subject_hash = sorted(hash_to_filename)[column]
+        elif column == n:
+            if method == "sourmash":
+                subject_hash = ""
+            else:
+                msg = "ERROR: All columns currently only implemented for sourmash"
+                sys.exit(msg)
+        else:
+            msg = (
+                "ERROR: Single column should be in range 0 up to but excluding"
+                f" {n}, or for some methods {n} meaning all columns, but not {subject}"
+            )
             sys.exit(msg)
-        subject_hash = sorted(hash_to_filename)[column]
 
-    # What comparisons are needed? Record the query genome lengths too
-    # (doing this once at the start to avoid a small lookup for each query)
-    missing_query_hashes = set(hash_to_filename).difference(
-        comp.query_hash
-        for comp in run.comparisons().where(
-            db_orm.Comparison.subject_hash == subject_hash
+    if column == n:
+        # Computing all the matrix, but are there might be some rows/cols already done?
+        query_hashes = {
+            _.genome_hash: _.length for _ in run.genomes
+        }  # assume all needed
+    else:
+        # What comparisons are needed? Record the query genome lengths too
+        # (doing this once at the start to avoid a small lookup for each query)
+        missing_query_hashes = set(hash_to_filename).difference(
+            comp.query_hash
+            for comp in run.comparisons().where(
+                db_orm.Comparison.subject_hash == subject_hash
+            )
         )
-    )
-    query_hashes = {
-        _.genome_hash: _.length
-        for _ in run.genomes
-        if _.genome_hash in missing_query_hashes
-    }
-    del missing_query_hashes
+        query_hashes = {
+            _.genome_hash: _.length
+            for _ in run.genomes
+            if _.genome_hash in missing_query_hashes
+        }
+        del missing_query_hashes
 
     if not query_hashes:
         if not quiet:
@@ -595,6 +614,7 @@ def compute_column(  # noqa: C901, PLR0913
             "ANIb": compute_anib,
             "ANIm": compute_anim,
             "dnadiff": compute_dnadiff,
+            "sourmash": compute_sourmash,
             "external-alignment": compute_external_alignment,
         }[method]
     except KeyError:
@@ -697,47 +717,44 @@ def compute_fastani(  # noqa: PLR0913
         ],
     )
 
-    # Now do a bulk import. There shouldn't be any unless perhaps we have a
-    # race condition with another thread, but skip any pre-existing entries via
-    # Sqlite3's "INSERT OR IGNORE" using dialect's on_conflict_do_nothing method.
-    session.execute(
-        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
-        [
-            {
-                "query_hash": query_hash,
-                "subject_hash": subject_hash,
-                "identity": identity,
-                # Proxy values:
-                "aln_length": None
-                if orthologous_matches is None
-                else round(run.configuration.fragsize * orthologous_matches),
-                "sim_errors": None
-                if fragments is None or orthologous_matches is None
-                else fragments - orthologous_matches,
-                "cov_query": None
-                if fragments is None or orthologous_matches is None
-                else orthologous_matches / fragments,
-                "configuration_id": config_id,
-                "uname_system": uname_system,
-                "uname_release": uname_release,
-                "uname_machine": uname_machine,
-            }
-            for (
-                query_hash,
-                subject_hash,
-                identity,
-                orthologous_matches,
-                fragments,
-            ) in fastani.parse_fastani_file(
-                tmp_output,
-                filename_to_hash,
-                # This is used to infer failed alignments:
-                expected_pairs={(_, subject_hash) for _ in query_hashes},
-            )
-        ],
+    db_entries = [
+        {
+            "query_hash": query_hash,
+            "subject_hash": subject_hash,
+            "identity": identity,
+            # Proxy values:
+            "aln_length": None
+            if orthologous_matches is None
+            else round(run.configuration.fragsize * orthologous_matches),
+            "sim_errors": None
+            if fragments is None or orthologous_matches is None
+            else fragments - orthologous_matches,
+            "cov_query": None
+            if fragments is None or orthologous_matches is None
+            else orthologous_matches / fragments,
+            "configuration_id": config_id,
+            "uname_system": uname_system,
+            "uname_release": uname_release,
+            "uname_machine": uname_machine,
+        }
+        for (
+            query_hash,
+            subject_hash,
+            identity,
+            orthologous_matches,
+            fragments,
+        ) in fastani.parse_fastani_file(
+            tmp_output,
+            filename_to_hash,
+            # This is used to infer failed alignments:
+            expected_pairs={(_, subject_hash) for _ in query_hashes},
+        )
+    ]
+    return (
+        0
+        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        else RECORDING_FAILED
     )
-    session.commit()
-    return 0
 
 
 def compute_anim(  # noqa: C901, PLR0913, PLR0915
@@ -882,16 +899,14 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
         sys.stderr.write(msg)
         run.status = "Worker interrupted"
 
-    if db_entries:
-        session.execute(
-            sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(), db_entries
-        )
-    session.commit()
-
     if hash_to_filename[subject_hash].endswith(".gz"):
         subject_fasta.unlink()  # remove our decompressed copy
 
-    return 0
+    return (
+        0
+        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        else RECORDING_FAILED
+    )
 
 
 def compute_anib(  # noqa: PLR0913
@@ -1044,16 +1059,14 @@ def compute_anib(  # noqa: PLR0913
         sys.stderr.write(msg)
         run.status = "Worker interrupted"
 
-    if db_entries:
-        session.execute(
-            sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(), db_entries
-        )
-    session.commit()
-
-    return 0
+    return (
+        0
+        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        else RECORDING_FAILED
+    )
 
 
-def compute_dnadiff(  # noqa: C901, PLR0912, PLR0913, PLR0915
+def compute_dnadiff(  # noqa: C901, PLR0913, PLR0915
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
@@ -1234,38 +1247,35 @@ def compute_dnadiff(  # noqa: C901, PLR0912, PLR0913, PLR0915
         sys.stderr.write(msg)
         run.status = "Worker interrupted"
 
-    if db_entries:
-        session.execute(
-            sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(), db_entries
-        )
-    session.commit()
-
     if hash_to_filename[subject_hash].endswith(".gz"):
         subject_fasta.unlink()  # remove our decompressed copy
 
-    return 0
+    return (
+        0
+        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        else RECORDING_FAILED
+    )
 
 
-@app.command(rich_help_panel="Method specific logging")
-def log_sourmash(
-    database: REQ_ARG_TYPE_DATABASE,
-    run_id: REQ_ARG_TYPE_RUN_ID,
-    manysearch: Annotated[
-        Path,
-        typer.Option(
-            help="Sourmash-plugin-branchwater manysearch CSV output file",
-            show_default=False,
-            dir_okay=False,
-            file_okay=True,
-            exists=True,
-        ),
-    ],
+def compute_sourmash(  # noqa: PLR0913
+    tmp_dir: Path,
+    session: Session,
+    run: db_orm.Run,
+    fasta_dir: Path,  # noqa: ARG001
+    hash_to_filename: dict[str, str],  # noqa: ARG001
+    filename_to_hash: dict[str, str],  # noqa: ARG001
+    query_hashes: dict[str, int],
+    subject_hash: str,
     *,
-    quiet: OPT_ARG_TYPE_QUIET = False,
+    quiet: bool = False,  # noqa: ARG001
+    cache: Path | None = None,
 ) -> int:
-    """Log an all-vs-all sourmash pairwise comparison to database."""
-    if database != ":memory:" and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist"
+    """Run many-vs-subject for sourmash and log column to database."""
+    if not cache:
+        msg = "ERROR: Not given a cache directory"
+        sys.exit(msg)
+    if not cache.is_dir():
+        msg = f"ERROR: Cache directory {cache} does not exist - check cache setting."
         sys.exit(msg)
 
     uname = platform.uname()
@@ -1273,54 +1283,51 @@ def log_sourmash(
     uname_release = uname.release
     uname_machine = uname.machine
 
-    if not quiet:
-        print(f"Logging sourmash to {database}")
-    session = db_orm.connect_to_db(database)
-    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-    if run.configuration.method != "sourmash":
-        msg = f"ERROR: Run-id {run_id} expected {run.configuration.method} results"
-        sys.exit(msg)
+    tool = tools.get_sourmash()
+    _check_tool_version(tool, run.configuration)
 
-    _check_tool_version(tools.get_sourmash(), run.configuration)
+    config_id = run.configuration.configuration_id
 
     from pyani_plus.methods import sourmash  # lazy import
 
-    config_id = run.configuration.configuration_id
-    hashes = {_.genome_hash for _ in run.fasta_hashes}
-
-    # Now do a bulk import... but must skip any pre-existing entries
-    # otherwise would hit sqlite3.IntegrityError for breaking uniqueness!
-    # Do this via the Sqlite3 supported SQL command "INSERT OR IGNORE"
-    # using the dialect's on_conflict_do_nothing method.
-    # Repeating those calculations is a waste, but a performance trade off
-    session.execute(
-        sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
-        [
-            {
-                "query_hash": query_hash,
-                "subject_hash": subject_hash,
-                "identity": max_containment,
-                "cov_query": query_containment,
-                "configuration_id": config_id,
-                "uname_system": uname_system,
-                "uname_release": uname_release,
-                "uname_machine": uname_machine,
-            }
-            for (
-                query_hash,
-                subject_hash,
-                query_containment,
-                max_containment,
-            ) in sourmash.parse_sourmash_manysearch_csv(
-                manysearch,
-                # This is used to infer failed alignments:
-                expected_pairs={(q, s) for q in hashes for s in hashes},
-            )
-        ],
+    sig_cache = (
+        cache / f"sourmash_k={run.configuration.kmersize}_{run.configuration.extra}"
     )
+    if not sig_cache.is_dir():
+        msg = f"ERROR: Missing sourmash signatures directory {sig_cache} - check cache setting."
+        sys.exit(msg)
 
-    session.commit()
-    return 0
+    try:
+        db_entries = []
+        for q, s, q_containment, max_containment in sourmash.compute_sourmash_tile(
+            tool,
+            {subject_hash} if subject_hash else set(query_hashes),
+            set(query_hashes),
+            sig_cache,
+            tmp_dir,
+        ):
+            db_entries.append(
+                {
+                    "query_hash": q,
+                    "subject_hash": s,
+                    "identity": max_containment,
+                    "cov_query": q_containment,
+                    "configuration_id": config_id,
+                    "uname_system": uname_system,
+                    "uname_release": uname_release,
+                    "uname_machine": uname_machine,
+                }
+            )
+    except KeyboardInterrupt:  # pragma: no cover
+        # Try to abort gracefully without wasting the work done.
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"  # pragma: no cover
+        sys.stderr.write(msg)  # pragma: no cover
+        run.status = "Worker interrupted"  # pragma: no cover
+    return (
+        0
+        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        else RECORDING_FAILED
+    )
 
 
 def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
@@ -1447,13 +1454,12 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
         msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
         sys.stderr.write(msg)
         run.status = "Worker interrupted"
-    if db_entries:
-        session.execute(
-            sqlite_insert(db_orm.Comparison).on_conflict_do_nothing(),
-            db_entries,
-        )
-    session.commit()
-    return 0
+
+    return (
+        0
+        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        else RECORDING_FAILED
+    )
 
 
 if __name__ == "__main__":

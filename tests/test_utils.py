@@ -49,12 +49,16 @@ def test_md5_path() -> None:
     )
 
 
-def test_md5_invalid() -> None:
+def test_md5_invalid(tmp_path: str) -> None:
     """Confirm our MD5 function failure mode with non-existent filename."""
-    with pytest.raises(
-        ValueError, match="Input file /does/not/exist.txt is not a file or symlink"
-    ):
+    tmp_dir = Path(tmp_path)
+    with pytest.raises(ValueError, match="Input /does/not/exist.txt not found"):
         utils.file_md5sum("/does/not/exist.txt")
+
+    bad_link = tmp_dir / "bad-link.fasta"
+    bad_link.symlink_to("/does/not/exist.fasta")
+    with pytest.raises(ValueError, match="Input .*/bad-link.fasta is a broken symlink"):
+        utils.file_md5sum(bad_link)
 
 
 def test_check_output() -> None:
@@ -69,7 +73,7 @@ def test_check_output() -> None:
         utils.check_output(["blastn", "-task", "blast"])
 
 
-def test_stage_file(tmp_path: Path) -> None:
+def test_stage_file(tmp_path: str) -> None:
     """Check error conditions when staging a file."""
     tmp_dir = Path(tmp_path)
 

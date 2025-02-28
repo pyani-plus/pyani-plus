@@ -186,7 +186,11 @@ def file_md5sum(filename: Path | str) -> str:
                 for chunk in iter(lambda: fhandle.read(65536), b""):
                     hash_md5.update(chunk)
     except FileNotFoundError:
-        msg = f"Input file {fname} is not a file or symlink"
+        msg = (
+            f"Input {fname} is a broken symlink"
+            if fname.is_symlink()
+            else f"Input {fname} not found"
+        )
         raise ValueError(msg) from None
 
     return hash_md5.hexdigest()

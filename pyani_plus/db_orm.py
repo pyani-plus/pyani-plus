@@ -404,29 +404,41 @@ class Run(Base):
 
         hashes = sorted(association.genome_hash for association in self.fasta_hashes)
         size = len(hashes)
+
+        # Doing this in two passes to avoid having all the large matrices in RAM at once
         identity = np.full([size, size], np.nan, float)
         cov_query = np.full([size, size], np.nan, float)
-        aln_length = np.full([size, size], np.nan, float)
-        sim_errors = np.full([size, size], np.nan, float)
         for comp in self.comparisons():
             row = hashes.index(comp.query_hash)
             col = hashes.index(comp.subject_hash)
             identity[row, col] = comp.identity
             cov_query[row, col] = comp.cov_query
-            aln_length[row, col] = comp.aln_length
-            sim_errors[row, col] = comp.sim_errors
-        # Hadamard matrix is (element wise) identity * coverage
-        self.df_hadamard = pd.DataFrame(
-            data=identity * cov_query, index=hashes, columns=hashes, dtype=float
-        ).to_json(orient="split")
+
         self.df_identity = pd.DataFrame(
             data=identity, index=hashes, columns=hashes, dtype=float
         ).to_json(orient="split")
-        del identity
         self.df_cov_query = pd.DataFrame(
             data=cov_query, index=hashes, columns=hashes, dtype=float
         ).to_json(orient="split")
+
+        # Hadamard matrix is (element wise) identity * coverage
+        # Compute this in-situ to avoid having a third large matrix in RAM
+        identity *= cov_query  # now hadamard, not identity
         del cov_query
+        self.df_hadamard = pd.DataFrame(
+            data=identity, index=hashes, columns=hashes, dtype=float
+        ).to_json(orient="split")
+        del identity
+
+        # Second pass, could easily be split into two loops but no need:
+        aln_length = np.full([size, size], np.nan, float)
+        sim_errors = np.full([size, size], np.nan, float)
+        for comp in self.comparisons():
+            row = hashes.index(comp.query_hash)
+            col = hashes.index(comp.subject_hash)
+            aln_length[row, col] = comp.aln_length
+            sim_errors[row, col] = comp.sim_errors
+
         self.df_aln_length = pd.DataFrame(
             data=aln_length, index=hashes, columns=hashes, dtype=float
         ).to_json(orient="split")

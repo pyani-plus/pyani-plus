@@ -47,7 +47,7 @@ from sqlalchemy import (
     insert,
 )
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from sqlalchemy.exc import NoResultFound, OperationalError
+from sqlalchemy.exc import InvalidRequestError, NoResultFound, OperationalError
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -1007,7 +1007,7 @@ def insert_comparisons_with_retries(
     try:
         session.execute(sqlite_insert(Comparison).on_conflict_do_nothing(), db_entries)
         session.commit()
-    except OperationalError:  # pragma: no cover
+    except (OperationalError, InvalidRequestError):  # pragma: no cover
         pass
     else:
         return True
@@ -1020,7 +1020,7 @@ def insert_comparisons_with_retries(
     try:  # pragma: no cover
         session.execute(sqlite_insert(Comparison).on_conflict_do_nothing(), db_entries)
         session.commit()
-    except OperationalError:  # pragma: no cover
+    except (OperationalError, InvalidRequestError):  # pragma: no cover
         pass
     else:  # pragma: no cover
         return True
@@ -1033,7 +1033,7 @@ def insert_comparisons_with_retries(
     try:  # pragma: no cover
         session.execute(sqlite_insert(Comparison).on_conflict_do_nothing(), db_entries)
         session.commit()
-    except OperationalError:  # pragma: no cover
+    except (OperationalError, InvalidRequestError):  # pragma: no cover
         pass
     else:  # pragma: no cover
         return True

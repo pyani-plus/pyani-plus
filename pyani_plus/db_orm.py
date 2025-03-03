@@ -33,6 +33,7 @@ import sys
 from io import StringIO
 from math import log, nan
 from pathlib import Path
+from time import sleep
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -966,3 +967,70 @@ def attempt_insert(
         return values  # pragma: no cover
     else:
         return []  # success!
+
+
+def insert_comparisons_with_retries(
+    session: Session,
+    db_entries: list[dict[str, str | float | int | None]],
+    source: str = "comparisons",
+) -> bool:
+    """Insert given comparisons, ignoring conflicts (duplicates), with retries.
+
+    Although we try to avoid re-computing values already in the database, that can
+    happen (e.g. race conditions, or a performance trade-off with fast methods).
+    To avoid sqlite3.IntegrityError for breaking uniqueness we use the SQLite3
+    supported SQL command "INSERT OR IGNORE" using the dialect's on_conflict_do_nothing
+    method.
+
+    This is intended for use in all our compute methods where we want to record lots
+    of comparison entries after computation - but occasionally the commit fails due to
+    locking (race conditions especially with the SQLite3 database accessed over the
+    network). This therefore makes three attempts with pauses of 10s and 30s.
+
+    Even if there are no rows given, it will still call commit!
+
+    Returns True for success (including rows being empty), False if the commit failed
+    after all attempts are exhausted.
+    """
+    if not db_entries:
+        session.commit()
+        return True
+
+    try:
+        session.execute(sqlite_insert(Comparison).on_conflict_do_nothing(), db_entries)
+        session.commit()
+    except OperationalError:  # pragma: no cover
+        pass
+    else:
+        return True
+    msg = f"WARNING: Attempt 1/3 failed to record {source}\n"  # pragma: no cover
+
+    sys.stdout.write(msg)  # pragma: no cover
+
+    sleep(10)  # pragma: no cover
+
+    try:  # pragma: no cover
+        session.execute(sqlite_insert(Comparison).on_conflict_do_nothing(), db_entries)
+        session.commit()
+    except OperationalError:  # pragma: no cover
+        pass
+    else:  # pragma: no cover
+        return True
+    msg = f"WARNING: Attempt 2/3 failed to record {source}\n"  # pragma: no cover
+
+    sys.stdout.write(msg)  # pragma: no cover
+
+    sleep(30)  # pragma: no cover
+
+    try:  # pragma: no cover
+        session.execute(sqlite_insert(Comparison).on_conflict_do_nothing(), db_entries)
+        session.commit()
+    except OperationalError:  # pragma: no cover
+        pass
+    else:  # pragma: no cover
+        return True
+    msg = f"ERROR: Attempt 3/3 failed to record {source}\n"  # pragma: no cover
+
+    sys.stdout.write(msg)  # pragma: no cover
+
+    return False  # pragma: no cover

@@ -183,9 +183,9 @@ def run_method(  # noqa: PLR0913
     workflow_name = "compute_column.smk"
     if method == "sourmash":
         # Do all the columns at once!
-        targets = [f"column_{len(filename_to_md5)}.{method}"]
+        targets = [f"column_0.{method}"]
     else:
-        targets = [f"column_{_}.{method}" for _ in range(len(filename_to_md5))]
+        targets = [f"column_{_ + 1}.{method}" for _ in range(len(filename_to_md5))]
     del configuration
 
     done = run.comparisons().count()

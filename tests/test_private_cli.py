@@ -486,7 +486,7 @@ def test_missing_db(tmp_path: str) -> None:
         private_cli.compute_column(
             database=tmp_db,
             run_id=1,
-            subject=0,
+            subject=1,
         )
 
 
@@ -558,7 +558,7 @@ def test_compute_column_bad_args(
         private_cli.compute_column(
             database=tmp_db,
             run_id=1,
-            subject="0",
+            subject="1",
         )
 
     with pytest.raises(
@@ -574,8 +574,8 @@ def test_compute_column_bad_args(
     with pytest.raises(
         SystemExit,
         match=(
-            "ERROR: Single column should be in range 0 up to but excluding 3,"
-            " or for some methods 3 meaning all columns, but not -1"
+            "ERROR: Single column should be in range 1 to 3,"
+            " or for some methods 0 meaning all columns, but not -1"
         ),
     ):
         private_cli.compute_column(
@@ -591,7 +591,7 @@ def test_compute_column_bad_args(
         private_cli.compute_column(
             database=tmp_db,
             run_id=1,
-            subject="3",
+            subject="0",
         )
 
 
@@ -627,7 +627,7 @@ def test_compute_column_bad_anib(
         private_cli.compute_column(
             database=tmp_db,
             run_id=1,
-            subject="0",
+            subject="1",
         )
 
 
@@ -663,7 +663,7 @@ def test_compute_column_bad_anim(
         private_cli.compute_column(
             database=tmp_db,
             run_id=1,
-            subject="0",
+            subject="1",
         )
 
 
@@ -699,7 +699,7 @@ def test_compute_column_bad_fastani(
         private_cli.compute_column(
             database=tmp_db,
             run_id=1,
-            subject="0",
+            subject="1",
         )
 
     tool = tools.get_fastani()
@@ -725,7 +725,7 @@ def test_compute_column_bad_fastani(
         private_cli.compute_column(
             database=tmp_db,
             run_id=2,
-            subject="0",
+            subject="1",
         )
 
     tool = tools.get_fastani()
@@ -752,7 +752,7 @@ def test_compute_column_bad_fastani(
         private_cli.compute_column(
             database=tmp_db,
             run_id=3,
-            subject="0",
+            subject="1",
         )
 
 
@@ -788,7 +788,7 @@ def test_compute_column_fastani(
     private_cli.compute_column(
         database=tmp_db,
         run_id=1,
-        subject="0",  # here passing column number
+        subject="1",  # here passing column number
         temp=tmp_dir,
     )
     output = capsys.readouterr().out

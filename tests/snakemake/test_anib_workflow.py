@@ -112,7 +112,7 @@ def test_rule_anib(
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
-        targets=[anib_targets_outdir / f"column_{_}.anib" for _ in range(3)],
+        targets=[anib_targets_outdir / f"column_{_ + 1}.anib" for _ in range(3)],
         params=config_anib_args,
         working_directory=tmp_dir,
         temp=tmp_dir,

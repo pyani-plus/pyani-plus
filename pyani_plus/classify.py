@@ -239,6 +239,7 @@ def plot_classify(  # noqa: PLR0913, PLR0915
     outdir: Path,
     method: str,
     score: str,
+    vertical_line: float,
     formats: tuple[str, ...] = GRAPHICS_FORMATS,
 ) -> None:
     """Plot the classify results for a given run.
@@ -398,7 +399,11 @@ def plot_classify(  # noqa: PLR0913, PLR0915
         dataframe[f"max_{score}"].max(),
     )
     ax3.set_ylim(-1, num_genomes)
-    x_value = 0.95 if score == "identity" else -0.323
+    x_value = (
+        vertical_line
+        if vertical_line != 0.95  # noqa: PLR2004
+        else (0.95 if score == "identity" else -0.323)
+    )
     ax3.axvline(x=x_value, color="red", linewidth=2, linestyle="--")
     ax3.grid(True, linestyle="--", linewidth=0.5, alpha=0.9)  # noqa: FBT003
 

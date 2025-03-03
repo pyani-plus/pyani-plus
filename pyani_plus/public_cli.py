@@ -1037,6 +1037,14 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
             rich_help_panel="Method parameters",
         ),
     ] = "mean",
+    vertical_line: Annotated[
+        float,
+        typer.Option(
+            help="Threshold for red vertical line at identity/tANI.",
+            rich_help_panel="Method parameters",
+            max=1.0,
+        ),
+    ] = 0.95,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
     label: OPT_ARG_TYPE_LABEL = "stem",
     cov_min: OPT_ARG_TYPE_COV_MIN = classify.MIN_COVERAGE,
@@ -1134,7 +1142,9 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
             print("Plotting classify output...")
             genome_groups = classify.get_genome_cligue_ids(clique_df, suffix)
             genome_positions = classify.get_genome_order(genome_groups)
-            classify.plot_classify(genome_positions, clique_df, outdir, method, suffix)
+            classify.plot_classify(
+                genome_positions, clique_df, outdir, method, suffix, vertical_line
+            )
     session.close()
     return 0
 

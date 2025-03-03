@@ -331,16 +331,13 @@ def test_export_run_failures(tmp_path: str) -> None:
     ):
         public_cli.export_run(database=Path("/does/not/exist"), outdir=tmp_dir)
 
-    with pytest.raises(
-        SystemExit, match="ERROR: Output directory /does/not/exist does not exist"
-    ):
-        public_cli.export_run(database=":memory:", outdir=Path("/does/not/exist/"))
-
-    tmp_db = tmp_dir / "export.sqlite"
-    session = db_orm.connect_to_db(tmp_db)
+    tmp_db = tmp_dir / "empty.sqlite"
+    tmp_db.touch()
     with pytest.raises(SystemExit, match="ERROR: Database contains no runs."):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir)
 
+    tmp_db = tmp_dir / "export.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
     config = db_orm.db_configuration(
         session, "fastANI", "fastani", "1.2.3", create=True
     )
@@ -453,11 +450,6 @@ def test_plot_run_failures(tmp_path: str) -> None:
     ):
         public_cli.plot_run(database=Path("/does/not/exist"), outdir=tmp_dir)
 
-    with pytest.raises(
-        SystemExit, match="ERROR: Output directory /does/not/exist does not exist"
-    ):
-        public_cli.plot_run(database=":memory:", outdir=Path("/does/not/exist/"))
-
     tmp_db = tmp_dir / "export.sqlite"
     session = db_orm.connect_to_db(tmp_db)
     with pytest.raises(SystemExit, match="ERROR: Database contains no runs."):
@@ -506,13 +498,6 @@ def test_plot_run_comp_failures(tmp_path: str, input_genomes_tiny: Path) -> None
     ):
         public_cli.plot_run_comp(
             database=Path("/does/not/exist"), outdir=tmp_dir, run_ids="1,2"
-        )
-
-    with pytest.raises(
-        SystemExit, match="ERROR: Output directory /does/not/exist does not exist"
-    ):
-        public_cli.plot_run_comp(
-            database=":memory:", outdir=Path("/does/not/exist/"), run_ids="1,2"
         )
 
     tmp_db = tmp_dir / "export.sqlite"
@@ -1588,11 +1573,6 @@ def test_classify_failures(tmp_path: str) -> None:
         SystemExit, match="ERROR: Database /does/not/exist does not exist"
     ):
         public_cli.cli_classify(database=Path("/does/not/exist"), outdir=tmp_dir)
-
-    with pytest.raises(
-        SystemExit, match="ERROR: Output directory /does/not/exist does not exist"
-    ):
-        public_cli.cli_classify(database=":memory:", outdir=Path("/does/not/exist/"))
 
 
 def test_classify_warnings(

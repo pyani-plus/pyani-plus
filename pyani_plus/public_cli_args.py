@@ -75,9 +75,8 @@ REQ_ARG_TYPE_DATABASE = Annotated[
 REQ_ARG_TYPE_OUTDIR = Annotated[
     Path,
     typer.Option(
-        help="Output directory",
+        help="Output directory. If it does not exist, it will be created.",
         show_default=False,
-        exists=True,
         dir_okay=True,
         file_okay=False,
     ),

@@ -202,7 +202,6 @@ def run_method(  # noqa: PLR0913
         del run
 
         # Not needed for most methods, will be a no-op:
-        cache = private_cli.validate_cache(cache, create_default=False).resolve()
         private_cli.prepare_genomes(database, run_id, cache=cache)
 
         # Run snakemake wrapper

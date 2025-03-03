@@ -142,7 +142,7 @@ def test_dnadiff(
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
-        targets=[dnadiff_targets_outdir / f"column_{_}.dnadiff" for _ in range(3)],
+        targets=[dnadiff_targets_outdir / f"column_{_ + 1}.dnadiff" for _ in range(3)],
         params=config,
         working_directory=tmp_dir,
         temp=tmp_dir,
@@ -220,7 +220,7 @@ def test_dnadiff_bad_align(
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
-        targets=[dnadiff_targets_outdir / f"column_{_}.dnadiff" for _ in range(2)],
+        targets=[dnadiff_targets_outdir / f"column_{_ + 1}.dnadiff" for _ in range(2)],
         params=config,
         working_directory=tmp_dir,
         temp=tmp_dir,

@@ -126,7 +126,7 @@ def test_rule_fastani(
     run_snakemake_with_progress_bar(
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
-        targets=[fastani_targets_outdir / f"column_{_}.fastani" for _ in range(3)],
+        targets=[fastani_targets_outdir / f"column_{_ + 1}.fastani" for _ in range(3)],
         params=config_fastani_args,
         working_directory=Path(tmp_path),
         temp=Path(tmp_path),

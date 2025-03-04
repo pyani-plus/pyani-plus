@@ -45,6 +45,7 @@ from sqlalchemy import (
     UniqueConstraint,
     create_engine,
     insert,
+    select,
 )
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import InvalidRequestError, NoResultFound, OperationalError
@@ -410,7 +411,26 @@ class Run(Base):
         cov_query = np.full([size, size], np.nan, float)
         aln_length = np.full([size, size], np.nan, float)
         sim_errors = np.full([size, size], np.nan, float)
-        for comp in self.comparisons():
+
+        # Using .comparisons() loads all the fields taking much more memory:
+        run_query = aliased(RunGenomeAssociation, name="run_query")
+        run_subjt = aliased(RunGenomeAssociation, name="run_subject")
+        db_query = (
+            select(
+                Comparison.query_hash,
+                Comparison.subject_hash,
+                Comparison.identity,
+                Comparison.cov_query,
+                Comparison.aln_length,
+                Comparison.sim_errors,
+            )
+            .where(Comparison.configuration_id == self.configuration_id)
+            .join(run_query, Comparison.query_hash == run_query.genome_hash)
+            .join(run_subjt, Comparison.subject_hash == run_subjt.genome_hash)
+            .where(run_query.run_id == self.run_id)
+            .where(run_subjt.run_id == self.run_id)
+        )
+        for comp in object_session(self).execute(db_query):
             row = hashes.index(comp.query_hash)
             col = hashes.index(comp.subject_hash)
             identity[row, col] = comp.identity

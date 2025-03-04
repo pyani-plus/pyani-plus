@@ -89,7 +89,7 @@ def plot_heatmap(  # noqa: PLR0913
     maxfigsize = 120
     calcfigsize = matrix.shape[0] * 1.1
     figsize = min(max(8, calcfigsize), maxfigsize)
-    if figsize == maxfigsize:
+    if figsize == maxfigsize:  # pragma: nocover
         scale = maxfigsize / calcfigsize
         sns.set_context("notebook", font_scale=scale)
 

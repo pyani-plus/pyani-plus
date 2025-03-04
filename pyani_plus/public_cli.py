@@ -202,7 +202,6 @@ def run_method(  # noqa: PLR0913
         del run
 
         # Not needed for most methods, will be a no-op:
-        cache = private_cli.validate_cache(cache, create_default=False).resolve()
         private_cli.prepare_genomes(database, run_id, cache=cache)
 
         # Run snakemake wrapper
@@ -334,7 +333,7 @@ def cli_anib(  # noqa: PLR0913
 
     tool = tools.get_blastn()
     alt = tools.get_makeblastdb()
-    if tool.version != alt.version:
+    if tool.version != alt.version:  # pragma: nocover
         msg = f"ERROR: blastn {tool.version} vs makeblastdb {alt.version}"
         sys.exit(msg)
     return start_and_run_method(
@@ -738,13 +737,14 @@ def export_run(  # noqa: C901
     run. For partial runs the long form table will be exported, but not the
     matrices.
     """
-    if not outdir.is_dir():
-        msg = f"ERROR: Output directory {outdir} does not exist"
-        sys.exit(msg)
-
     if database == ":memory:" or not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
+
+    if not outdir.is_dir():
+        msg = f"WARNING: Output directory {outdir} does not exist, making it.\n"
+        sys.stderr.write(msg)
+        outdir.mkdir()
 
     session = db_orm.connect_to_db(database)
     run = db_orm.load_run(session, run_id, check_empty=True)
@@ -841,13 +841,14 @@ def plot_run(
     The output directory must already exist. The heatmap files will be named
     <method>_<property>.<extension> and any pre-existing files will be overwritten.
     """
-    if not outdir.is_dir():
-        msg = f"ERROR: Output directory {outdir} does not exist"
-        sys.exit(msg)
-
     if database == ":memory:" or not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
+
+    if not outdir.is_dir():
+        msg = f"WARNING: Output directory {outdir} does not exist, making it.\n"
+        sys.stderr.write(msg)
+        outdir.mkdir()
 
     session = db_orm.connect_to_db(database)
     run = db_orm.load_run(session, run_id, check_complete=True)
@@ -886,13 +887,14 @@ def plot_run_comp(
     <method>_<property>_<run-id>_vs_*.<extension> and any
     pre-existing files will be overwritten.
     """
-    if not outdir.is_dir():
-        msg = f"ERROR: Output directory {outdir} does not exist"
-        sys.exit(msg)
-
     if database == ":memory:" or not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
+
+    if not outdir.is_dir():
+        msg = f"WARNING: Output directory {outdir} does not exist, making it.\n"
+        sys.stderr.write(msg)
+        outdir.mkdir()
 
     try:
         runs = [int(_) for _ in run_ids.split(",")]
@@ -956,13 +958,14 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     mode: OPT_ARG_TYPE_CLASSIFY_MODE = classify.MODE,
 ) -> int:
     """Classify genomes into clusters based on ANI results."""
-    if not outdir.is_dir():
-        msg = f"ERROR: Output directory {outdir} does not exist"
-        sys.exit(msg)
-
     if database == ":memory:" or not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
+
+    if not outdir.is_dir():
+        msg = f"WARNING: Output directory {outdir} does not exist, making it.\n"
+        sys.stderr.write(msg)
+        outdir.mkdir()
 
     session = db_orm.connect_to_db(database)
     run = db_orm.load_run(session, run_id, check_complete=True)

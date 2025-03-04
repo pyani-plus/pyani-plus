@@ -331,16 +331,13 @@ def test_export_run_failures(tmp_path: str) -> None:
     ):
         public_cli.export_run(database=Path("/does/not/exist"), outdir=tmp_dir)
 
-    with pytest.raises(
-        SystemExit, match="ERROR: Output directory /does/not/exist does not exist"
-    ):
-        public_cli.export_run(database=":memory:", outdir=Path("/does/not/exist/"))
-
-    tmp_db = tmp_dir / "export.sqlite"
-    session = db_orm.connect_to_db(tmp_db)
+    tmp_db = tmp_dir / "empty.sqlite"
+    tmp_db.touch()
     with pytest.raises(SystemExit, match="ERROR: Database contains no runs."):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir)
 
+    tmp_db = tmp_dir / "export.sqlite"
+    session = db_orm.connect_to_db(tmp_db)
     config = db_orm.db_configuration(
         session, "fastANI", "fastani", "1.2.3", create=True
     )
@@ -430,18 +427,18 @@ def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
         SystemExit,
         match="ERROR: Duplicate filename stems, consider using MD5 labelling.",
     ):
-        public_cli.export_run(database=tmp_db, outdir=tmp_dir)
+        public_cli.export_run(database=tmp_db, outdir=tmp_dir / "out1")
 
     with pytest.raises(
         SystemExit,
         match="ERROR: Duplicate filename stems, consider using MD5 labelling.",
     ):
-        public_cli.plot_run(database=tmp_db, outdir=tmp_dir)
+        public_cli.plot_run(database=tmp_db, outdir=tmp_dir / "out2")
     with pytest.raises(
         SystemExit,
         match="ERROR: Duplicate filename stems, consider using MD5 labelling.",
     ):
-        public_cli.cli_classify(database=tmp_db, outdir=tmp_dir)
+        public_cli.cli_classify(database=tmp_db, outdir=tmp_dir / "out3")
 
 
 def test_plot_run_failures(tmp_path: str) -> None:
@@ -452,11 +449,6 @@ def test_plot_run_failures(tmp_path: str) -> None:
         SystemExit, match="ERROR: Database /does/not/exist does not exist"
     ):
         public_cli.plot_run(database=Path("/does/not/exist"), outdir=tmp_dir)
-
-    with pytest.raises(
-        SystemExit, match="ERROR: Output directory /does/not/exist does not exist"
-    ):
-        public_cli.plot_run(database=":memory:", outdir=Path("/does/not/exist/"))
 
     tmp_db = tmp_dir / "export.sqlite"
     session = db_orm.connect_to_db(tmp_db)
@@ -506,13 +498,6 @@ def test_plot_run_comp_failures(tmp_path: str, input_genomes_tiny: Path) -> None
     ):
         public_cli.plot_run_comp(
             database=Path("/does/not/exist"), outdir=tmp_dir, run_ids="1,2"
-        )
-
-    with pytest.raises(
-        SystemExit, match="ERROR: Output directory /does/not/exist does not exist"
-    ):
-        public_cli.plot_run_comp(
-            database=":memory:", outdir=Path("/does/not/exist/"), run_ids="1,2"
         )
 
     tmp_db = tmp_dir / "export.sqlite"
@@ -1489,10 +1474,12 @@ def test_plot_skip_nulls(
     session.close()
 
     plot_out = tmp_dir / "plots"
-    plot_out.mkdir()
     public_cli.plot_run(database=tmp_db, outdir=plot_out)
 
     stdout, stderr = capsys.readouterr()
+    assert (
+        f"WARNING: Output directory {plot_out} does not exist, making it.\n" in stderr
+    ), stderr
     assert "WARNING: Cannot plot query_cov as all NA\n" in stderr, stderr
     assert "Cannot plot hadamard as all NA\n" in stderr, stderr
     assert "Cannot plot tANI as all NA\n" in stderr, stderr
@@ -1588,11 +1575,6 @@ def test_classify_failures(tmp_path: str) -> None:
         SystemExit, match="ERROR: Database /does/not/exist does not exist"
     ):
         public_cli.cli_classify(database=Path("/does/not/exist"), outdir=tmp_dir)
-
-    with pytest.raises(
-        SystemExit, match="ERROR: Output directory /does/not/exist does not exist"
-    ):
-        public_cli.cli_classify(database=":memory:", outdir=Path("/does/not/exist/"))
 
 
 def test_classify_warnings(
@@ -1776,7 +1758,6 @@ def test_plot_run_comp(
 
     for cols in (0, 1):
         plot_out = tmp_dir / f"📊{cols}col"
-        plot_out.mkdir()
         public_cli.plot_run_comp(
             database=tmp_db, outdir=plot_out, run_ids="1,2,3", columns=cols
         )

@@ -333,7 +333,7 @@ def cli_anib(  # noqa: PLR0913
 
     tool = tools.get_blastn()
     alt = tools.get_makeblastdb()
-    if tool.version != alt.version:
+    if tool.version != alt.version:  # pragma: nocover
         msg = f"ERROR: blastn {tool.version} vs makeblastdb {alt.version}"
         sys.exit(msg)
     return start_and_run_method(

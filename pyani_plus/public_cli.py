@@ -166,6 +166,47 @@ def start_and_run_method(  # noqa: PLR0913
     )
 
 
+def run_diy(
+    database: Path,
+    cache: Path | None,
+    temp: Path | None,
+    run: db_orm.Run,
+) -> int:
+    """Print instructions for running the private CLI manually."""
+    sys.stdout.write("To run the computations manually, we must do the following.\n")
+    if run.configuration.method == "sourmash":
+        sys.stdout.write("First, compute the pairwise values:\n")
+        sys.stdout.write(
+            f"$ .pyani-plus-private-cli compute-column --database '{database}' --run-id {run.run_id} --subject 0"
+        )
+        if cache:
+            sys.stdout.write(f" --cache '{cache}'")
+        if temp:
+            sys.stdout.write(f" --temp '{temp}'")
+        sys.stdout.write("\n")
+    else:
+        n = run.genomes.count()
+        sys.stdout.write(
+            "First, using a bash for-loop (shown here), SLURM array, or similar, compute each column:\n"
+        )
+        sys.stdout.write(
+            f"$ for COL in {{1..{n}}}; do .pyani-plus-private-cli compute-column"
+            f" --database '{database}' --run-id {run.run_id} --subject $COL"
+        )
+        if cache:
+            sys.stdout.write(f" --cache '{cache}'")
+        if temp:
+            sys.stdout.write(f" --temp '{temp}'")
+        sys.stdout.write("; done\n")
+    sys.stdout.write(
+        "Second, resume pyANI-plus to cache the matrices and record the run as done:\n"
+    )
+    sys.stdout.write(
+        f"$ pyani-plus resume --database '{database}' --run-id {run.run_id}\n"
+    )
+    return 0
+
+
 def run_method(  # noqa: PLR0913
     executor: ToolExecutor,
     cache: Path | None,
@@ -177,6 +218,8 @@ def run_method(  # noqa: PLR0913
     run: db_orm.Run,
 ) -> int:
     """Run the snakemake workflow for given method and log run to database."""
+    if executor == ToolExecutor.diy:
+        return run_diy(database, cache, temp, run)
     run_id = run.run_id
     configuration = run.configuration
     method = configuration.method

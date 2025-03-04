@@ -44,6 +44,7 @@ class ToolExecutor(str, Enum):
 
     local = "local"
     slurm = "slurm"
+    diy = "diy"
 
 
 class EnumModeANIm(str, Enum):

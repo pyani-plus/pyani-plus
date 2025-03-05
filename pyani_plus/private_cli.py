@@ -1278,7 +1278,26 @@ def compute_sourmash(  # noqa: PLR0913
         msg = f"ERROR: Cache directory {cache} does not exist - check cache setting."
         sys.exit(msg)
 
-    import itertools
+    # Not using try/except due to mypy false positive about redefining the function
+    if sys.version_info >= (3, 12):
+        from itertools import batched  # new in Python 3.12
+    else:  # pragma: nocover
+        from collections.abc import Iterator
+        from itertools import islice
+
+        def batched(iterable: Iterator[tuple], n: int) -> Iterator[tuple]:
+            """Batch data from the iterable into tuples of length n.
+
+            The last batch may be shorter than n.
+
+            batched('ABCDEFG', 3) → ABC DEF G
+            """
+            if n < 1:
+                msg = "n must be at least one"
+                raise ValueError(msg)
+            iterator = iter(iterable)
+            while batch := tuple(islice(iterator, n)):
+                yield batch
 
     uname = platform.uname()
     uname_system = uname.system
@@ -1301,7 +1320,7 @@ def compute_sourmash(  # noqa: PLR0913
 
     try:
         db_entries: list[dict[str, str | float | None]] = []
-        for batch in itertools.batched(
+        for batch in batched(
             sourmash.compute_sourmash_tile(
                 tool,
                 {subject_hash} if subject_hash else set(query_hashes),

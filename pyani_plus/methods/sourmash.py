@@ -50,7 +50,7 @@ def prepare_genomes(run: db_orm.Run, cache: Path) -> Iterator[str]:
         msg = f"ERROR: sourmash requires extra setting, default is scaled={SCALED}"
         sys.exit(msg)
     tool = tools.get_sourmash()
-    if not cache.is_dir() and not cache.is_symlink():
+    if not cache.is_dir():
         msg = f"ERROR: Cache directory {cache} does not exist"
         raise ValueError(msg)
     cache = cache / f"sourmash_k={config.kmersize}_{config.extra}"

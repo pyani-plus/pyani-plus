@@ -1278,6 +1278,27 @@ def compute_sourmash(  # noqa: PLR0913
         msg = f"ERROR: Cache directory {cache} does not exist - check cache setting."
         sys.exit(msg)
 
+    # Not using try/except due to mypy false positive about redefining the function
+    if sys.version_info >= (3, 12):
+        from itertools import batched  # new in Python 3.12
+    else:  # pragma: nocover
+        from collections.abc import Iterator
+        from itertools import islice
+
+        def batched(iterable: Iterator[tuple], n: int) -> Iterator[tuple]:
+            """Batch data from the iterable into tuples of length n.
+
+            The last batch may be shorter than n.
+
+            batched('ABCDEFG', 3) → ABC DEF G
+            """
+            if n < 1:
+                msg = "n must be at least one"
+                raise ValueError(msg)
+            iterator = iter(iterable)
+            while batch := tuple(islice(iterator, n)):
+                yield batch
+
     uname = platform.uname()
     uname_system = uname.system
     uname_release = uname.release
@@ -1298,15 +1319,18 @@ def compute_sourmash(  # noqa: PLR0913
         sys.exit(msg)
 
     try:
-        db_entries = []
-        for q, s, q_containment, max_containment in sourmash.compute_sourmash_tile(
-            tool,
-            {subject_hash} if subject_hash else set(query_hashes),
-            set(query_hashes),
-            sig_cache,
-            tmp_dir,
+        db_entries: list[dict[str, str | float | None]] = []
+        for batch in batched(
+            sourmash.compute_sourmash_tile(
+                tool,
+                {subject_hash} if subject_hash else set(query_hashes),
+                set(query_hashes),
+                sig_cache,
+                tmp_dir,
+            ),
+            100000,
         ):
-            db_entries.append(
+            db_entries.extend(
                 {
                     "query_hash": q,
                     "subject_hash": s,
@@ -1317,7 +1341,9 @@ def compute_sourmash(  # noqa: PLR0913
                     "uname_release": uname_release,
                     "uname_machine": uname_machine,
                 }
+                for q, s, q_containment, max_containment in batch
             )
+            db_entries = db_orm.attempt_insert(session, db_entries, db_orm.Comparison)
     except KeyboardInterrupt:  # pragma: no cover
         # Try to abort gracefully without wasting the work done.
         msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"  # pragma: no cover

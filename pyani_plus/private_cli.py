@@ -1278,6 +1278,8 @@ def compute_sourmash(  # noqa: PLR0913
         msg = f"ERROR: Cache directory {cache} does not exist - check cache setting."
         sys.exit(msg)
 
+    import itertools
+
     uname = platform.uname()
     uname_system = uname.system
     uname_release = uname.release
@@ -1298,15 +1300,18 @@ def compute_sourmash(  # noqa: PLR0913
         sys.exit(msg)
 
     try:
-        db_entries = []
-        for q, s, q_containment, max_containment in sourmash.compute_sourmash_tile(
-            tool,
-            {subject_hash} if subject_hash else set(query_hashes),
-            set(query_hashes),
-            sig_cache,
-            tmp_dir,
+        db_entries: list[dict[str, str | float | None]] = []
+        for batch in itertools.batched(
+            sourmash.compute_sourmash_tile(
+                tool,
+                {subject_hash} if subject_hash else set(query_hashes),
+                set(query_hashes),
+                sig_cache,
+                tmp_dir,
+            ),
+            100000,
         ):
-            db_entries.append(
+            db_entries.extend(
                 {
                     "query_hash": q,
                     "subject_hash": s,
@@ -1317,7 +1322,9 @@ def compute_sourmash(  # noqa: PLR0913
                     "uname_release": uname_release,
                     "uname_machine": uname_machine,
                 }
+                for q, s, q_containment, max_containment in batch
             )
+            db_entries = db_orm.attempt_insert(session, db_entries, db_orm.Comparison)
     except KeyboardInterrupt:  # pragma: no cover
         # Try to abort gracefully without wasting the work done.
         msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"  # pragma: no cover

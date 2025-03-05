@@ -64,7 +64,7 @@ colormaps.register(
         (
             (0.0, DULL_BLUE),
             (0.5, WHITE),
-            (1.0, DULL_BLUE),
+            (1.0, DULL_RED),
         ),
     )
 )

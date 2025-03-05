@@ -420,7 +420,7 @@ def validate_cache(
         # Should this use ~/.cache/pyani-plus/{method} on POSIX?
         # Note .cache is under $PWD
         cache = Path(".cache")
-        if not cache.is_dir():
+        if not cache.is_dir() and not cache.is_symlink():
             if create_default:
                 cache.mkdir(parents=True)
             elif require:

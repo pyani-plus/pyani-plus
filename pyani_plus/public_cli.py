@@ -173,8 +173,12 @@ def run_diy(
     run: db_orm.Run,
 ) -> int:
     """Print instructions for running the private CLI manually."""
-    sys.stdout.write("To run the computations manually, we must do the following.\n")
+    sys.stdout.write(
+        "To run the computations manually, with those settings, we must do the following.\n"
+    )
     if run.configuration.method == "sourmash":
+        if not cache:
+            cache = private_cli.validate_cache(cache, require=True, create_default=True)
         sys.stdout.write("First, compute the pairwise values:\n")
         sys.stdout.write(
             f"$ .pyani-plus-private-cli compute-column --database '{database}' --run-id {run.run_id} --subject 0"

@@ -280,7 +280,7 @@ def plot_scatter(
     return len(formats)
 
 
-def plot_single_run(  # noqa: C901
+def plot_single_run(
     run: db_orm.Run,
     outdir: Path,
     label: str,
@@ -303,7 +303,6 @@ def plot_single_run(  # noqa: C901
         ("hadamard", "viridis", 0),
         ("tANI", "viridis_r", -5),  # must follow hadamard!
     ]
-    did_any_heatmaps = False
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         task = progress.add_task(
             "Plotting", total=len(scores_and_color_schemes) * 2 + 2
@@ -361,11 +360,7 @@ def plot_single_run(  # noqa: C901
             done += plot_heatmap(
                 matrix, outdir, name, method, color_scheme, formats, na_fill
             )
-            did_any_heatmaps = True
             progress.advance(task)
-    if not did_any_heatmaps:
-        msg = "ERROR: Unable to plot any heatmaps (check for nulls)"
-        sys.exit(msg)
     return done
 
 

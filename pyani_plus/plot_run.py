@@ -39,6 +39,7 @@ from pyani_plus import GRAPHICS_FORMATS, PROGRESS_BAR_COLUMNS, db_orm
 
 mpl.use("agg")  # non-interactive backend
 
+ORANGE = (0.934, 0.422, 0)
 GREY = (0.7, 0.7, 0.7)
 DULL_BLUE = (0.137, 0.412, 0.737)
 WHITE = (1.0, 1.0, 1.0)
@@ -77,6 +78,7 @@ def plot_heatmap(  # noqa: PLR0913
     method: str,
     color_scheme: str,
     formats: tuple[str, ...] = GRAPHICS_FORMATS,
+    na_fill: float = 0,
 ) -> int:
     """Plot heatmaps for the given matrix."""
     # Can't use square=True with seaborn clustermap, and when clustering
@@ -109,8 +111,9 @@ def plot_heatmap(  # noqa: PLR0913
             ),
         )
         figure = sns.clustermap(
-            matrix,
-            cmap=color_scheme,
+            matrix.fillna(na_fill),
+            mask=matrix.isna(),
+            cmap=colormaps[color_scheme].with_extremes(bad=ORANGE),
             vmin=0,
             vmax=5 if name == "tANI" else 1,
             figsize=(figsize, figsize),
@@ -277,7 +280,7 @@ def plot_scatter(
     return len(formats)
 
 
-def plot_single_run(  # noqa: C901
+def plot_single_run(
     run: db_orm.Run,
     outdir: Path,
     label: str,
@@ -295,12 +298,11 @@ def plot_single_run(  # noqa: C901
     """
     method = run.configuration.method
     scores_and_color_schemes = [
-        ("identity", "spbnd_BuRd"),
-        ("query_cov", "BuRd"),
-        ("hadamard", "viridis"),
-        ("tANI", "viridis_r"),  # must follow hadamard!
+        ("identity", "spbnd_BuRd", 0),
+        ("query_cov", "BuRd", 0),
+        ("hadamard", "viridis", 0),
+        ("tANI", "viridis_r", -5),  # must follow hadamard!
     ]
-    did_any_heatmaps = False
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         task = progress.add_task(
             "Plotting", total=len(scores_and_color_schemes) * 2 + 2
@@ -311,7 +313,7 @@ def plot_single_run(  # noqa: C901
         progress.advance(task)
         progress.advance(task)
 
-        for name, color_scheme in scores_and_color_schemes:
+        for name, color_scheme, na_fill in scores_and_color_schemes:
             # The matrices are large, so load them one at a time
             if name == "identity":
                 matrix = run.identities
@@ -350,19 +352,15 @@ def plot_single_run(  # noqa: C901
 
             if nulls:
                 msg = (
-                    f"WARNING: Cannot plot {name} as matrix contains {nulls} nulls"
+                    f"WARNING: {name} matrix contains {nulls} nulls"
                     f" (out of {n}²={n**2} {method} comparisons)\n"
                 )
                 sys.stderr.write(msg)
-            else:
-                done += plot_heatmap(
-                    matrix, outdir, name, method, color_scheme, formats
-                )
-                did_any_heatmaps = True
+
+            done += plot_heatmap(
+                matrix, outdir, name, method, color_scheme, formats, na_fill
+            )
             progress.advance(task)
-    if not did_any_heatmaps:
-        msg = "ERROR: Unable to plot any heatmaps (check for nulls)"
-        sys.exit(msg)
     return done
 
 

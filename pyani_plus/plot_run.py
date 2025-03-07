@@ -190,6 +190,7 @@ def plot_distribution(
             pass
         else:
             figure.savefig(filename)
+    plt.close()
     return len(formats)
 
 
@@ -272,7 +273,7 @@ def plot_scatter(
             else:
                 joint_grid.savefig(filename)
         # Clear plot to avoid over-plotting next image
-        plt.clf()
+        plt.close()
 
     return len(formats)
 
@@ -561,5 +562,5 @@ def plot_run_comparison(  # noqa: C901, PLR0912, PLR0913, PLR0915
             else:
                 fig.savefig(filename)
                 done += 1
-
+        plt.close()
     return done

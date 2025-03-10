@@ -45,7 +45,7 @@ jobs:
         run: python -m pip install --upgrade pip
 
       - name: Install Requirements
-        run: conda install -y --file requirements.txt --file requirements-dev.txt --file requirements-thirdparty-macos.txt
+        run: conda install -y --file requirements-dev.txt --file requirements-thirdparty-macos.txt
 
       - name: Install pyani-plus
         run: pip install -e .

@@ -1541,28 +1541,22 @@ def test_plot_bad_nulls(
 
     plot_out = tmp_dir / "plots"
     plot_out.mkdir()
-
-    with pytest.raises(
-        SystemExit,
-        match=(r"ERROR: Unable to plot any heatmaps \(check for nulls\)"),
-    ):
-        public_cli.plot_run(database=tmp_db, outdir=plot_out)
-
+    public_cli.plot_run(database=tmp_db, outdir=plot_out)
     stderr = capsys.readouterr().err
     assert (
-        "WARNING: Cannot plot identity as matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
+        "WARNING: identity matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
         in stderr
     ), stderr
     assert (
-        "WARNING: Cannot plot query_cov as matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
+        "WARNING: query_cov matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
         in stderr
     ), stderr
     assert (
-        "WARNING: Cannot plot hadamard as matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
+        "WARNING: hadamard matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
         in stderr
     ), stderr
     assert (
-        "WARNING: Cannot plot tANI as matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
+        "WARNING: tANI matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
         in stderr
     ), stderr
 

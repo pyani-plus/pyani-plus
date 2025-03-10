@@ -54,7 +54,7 @@ app = typer.Typer(
 
 REQ_ARG_TYPE_RUN_ID = Annotated[
     int,
-    typer.Option(help="Database run ID", show_default=False),
+    typer.Option("--run-id", "-r", help="Database run ID", show_default=False),
 ]
 REQ_ARG_TYPE_CONFIG_ID = Annotated[
     int,

@@ -312,7 +312,7 @@ def test_compute_column_sigint_external_alignment(
             "--subject",
             # Compute first column (slowest), which would not log until finished
             # (unless interrupted):
-            "0",
+            "1",
         ],
         cwd=tmp_dir,
     ) as process:

@@ -524,8 +524,8 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     you must supply a subject filename, hash, or column index to control which
     column of the matrix is to be computed.
 
-    If using a column number, these are taken to be zero based meaning in the range
-    0 up to but excluding the number of genomes in the run. Using n instead means
+    If using a column number, these are taken to be one based meaning in the range
+    1 up to and including the number of genomes in the run. Using 0 instead means
     compute all the columns.
 
     Some methods like sourmash require you first run the prepare-genomes command
@@ -556,19 +556,19 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
 
     if subject in hash_to_filename:
         subject_hash = subject
-        column = sorted(hash_to_filename).index(subject_hash)
+        column = sorted(hash_to_filename).index(subject_hash) + 1
     elif Path(subject).name in filename_to_hash:
         subject_hash = filename_to_hash[Path(subject).name]
-        column = sorted(hash_to_filename).index(subject_hash)
+        column = sorted(hash_to_filename).index(subject_hash) + 1
     else:
         try:
             column = int(subject)
         except ValueError:
             msg = f"ERROR: Did not recognise {subject!r} as an MD5 hash, filename, or column number in run-id {run_id}"
             sys.exit(msg)
-        if 0 <= column < n:
-            subject_hash = sorted(hash_to_filename)[column]
-        elif column == n:
+        if 0 < column <= n:
+            subject_hash = sorted(hash_to_filename)[column - 1]
+        elif column == 0:
             if method == "sourmash":
                 subject_hash = ""
             else:
@@ -576,12 +576,12 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
                 sys.exit(msg)
         else:
             msg = (
-                "ERROR: Single column should be in range 0 up to but excluding"
-                f" {n}, or for some methods {n} meaning all columns, but not {subject}"
+                f"ERROR: Single column should be in range 1 to {n},"
+                f" or for some methods {0} meaning all columns, but not {subject}"
             )
             sys.exit(msg)
 
-    if column == n:
+    if column == 0:
         # Computing all the matrix, but are there might be some rows/cols already done?
         query_hashes = {
             _.genome_hash: _.length for _ in run.genomes

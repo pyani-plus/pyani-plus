@@ -1593,7 +1593,6 @@ def test_classify_warnings(
     caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Check classify warnings."""
     tmp_dir = Path(tmp_path)
@@ -1649,20 +1648,19 @@ def test_classify_warnings(
     public_cli.cli_classify(database=tmp_db, outdir=tmp_dir, run_id=1)
     output = caplog.text
     assert (
-        "WARNING: Run 1 has 1 comparison across 1 genome. Reporting single clique...\n"
-        in output
+        "Run 1 has 1 comparison across 1 genome. Reporting single clique...\n" in output
     ), output
+
     with (tmp_dir / "fastANI_classify.tsv").open() as handle:
         assert (
             handle.readline()
             == "n_nodes\tmax_cov\tmin_identity\tmax_identity\tmembers\n"
         )
+    caplog.clear()
+    caplog.set_level(logging.INFO)
     public_cli.cli_classify(database=tmp_db, outdir=tmp_dir, run_id=2, cov_min=1.0)
-
-    output = capsys.readouterr().err
-    assert "WARNING: All genomes are singletons. No plot can be generated." in output, (
-        output
-    )
+    output = caplog.text
+    assert "All genomes are singletons. No plot can be generated." in output, output
     with (tmp_dir / "fastANI_classify.tsv").open() as handle:
         assert (
             handle.readline()
@@ -1670,8 +1668,10 @@ def test_classify_warnings(
         )
 
 
-def test_classify(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+def test_classify_normal(
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check working example of classify."""
     tmp_dir = Path(tmp_path)
@@ -1716,9 +1716,10 @@ def test_classify(
         fasta_to_hash=fasta_to_hash,
     )
 
+    caplog.clear()
+    caplog.set_level(logging.INFO)
     public_cli.cli_classify(database=tmp_db, outdir=tmp_dir, cov_min=0.9, mode="tANI")
-
-    output = capsys.readouterr().out
+    output = caplog.text
     assert f"Wrote classify output to {tmp_path}" in output, output
     with (tmp_dir / "fastANI_classify.tsv").open() as handle:
         assert handle.readline() == "n_nodes\tmax_cov\tmin_-tANI\tmax_-tANI\tmembers\n"

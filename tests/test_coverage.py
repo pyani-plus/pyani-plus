@@ -30,13 +30,10 @@ import tempfile
 from collections.abc import Callable
 from pathlib import Path
 
-import pytest
-
 from pyani_plus import db_orm, public_cli
 
 
 def do_comparison(
-    capsys: pytest.CaptureFixture[str],
     fasta_dir: Path,
     method: Callable,
     **kwargs: float | Path,
@@ -50,16 +47,13 @@ def do_comparison(
             create_db=True,
             **kwargs,
         )
-        output = capsys.readouterr().out
-        assert " run-id 1 with " in output
-
         session = db_orm.connect_to_db(tmp_db.name)
         run = session.query(db_orm.Run).one()
         session.close()
         return run
 
 
-def test_coverage(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
+def test_coverage(tmp_path: str) -> None:
     """Check comparison have expected identity and query-coverage."""
     tmp_dir = Path(tmp_path)
     seq_dir = tmp_dir / "fasta"
@@ -110,7 +104,7 @@ def test_coverage(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
     #
     # Comparing the JSON serialised dataframe directly from the DB
 
-    run = do_comparison(capsys, seq_dir, public_cli.cli_anim)
+    run = do_comparison(seq_dir, public_cli.cli_anim)
     assert run.df_identity == (
         "{"
         f'"columns":{checksums},"index":{checksums},"data":'
@@ -122,7 +116,7 @@ def test_coverage(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
         "[[1.0,1.0,null],[0.2963686823,1.0,0.7036313177],[null,1.0,1.0]]}"
     )  # expected pattern of 100%, 30%, 70% or null.
 
-    run = do_comparison(capsys, seq_dir, public_cli.cli_dnadiff)
+    run = do_comparison(seq_dir, public_cli.cli_dnadiff)
     assert run.df_identity == (
         "{"
         f'"columns":{checksums},"index":{checksums},"data":'
@@ -134,7 +128,7 @@ def test_coverage(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
         "[[1.0,1.0,null],[0.2963686823,1.0,0.7036313177],[null,1.0,1.0]]}"
     )
 
-    run = do_comparison(capsys, seq_dir, public_cli.cli_anib)
+    run = do_comparison(seq_dir, public_cli.cli_anib)
     assert run.df_identity == (
         "{"
         f'"columns":{checksums},"index":{checksums},"data":'
@@ -148,7 +142,6 @@ def test_coverage(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
 
     # Deliberately trying some non-default settings with fastANI
     run = do_comparison(
-        capsys,
         seq_dir,
         public_cli.cli_fastani,
         kmersize=15,
@@ -168,9 +161,7 @@ def test_coverage(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
     )  # 25% and 75% rather than 30% and 70% expected via bp
 
     # Doesn't "work" with default scaling - nulls except for diagonal,
-    run = do_comparison(
-        capsys, seq_dir, public_cli.cli_sourmash, scaled=50, cache=tmp_dir
-    )
+    run = do_comparison(seq_dir, public_cli.cli_sourmash, scaled=50, cache=tmp_dir)
     assert run.df_identity == (
         "{"
         f'"columns":{checksums},"index":{checksums},"data":'

@@ -27,6 +27,7 @@ new analysis (which can build on existing comparisons if the same DB is
 used), and reporting on a finished analysis (exporting tables and plots).
 """
 
+import logging
 import sys
 import tempfile
 from contextlib import nullcontext
@@ -38,6 +39,7 @@ import click
 import networkx as nx
 import typer
 from rich.console import Console
+from rich.logging import RichHandler
 from rich.progress import Progress
 from rich.table import Table
 from rich.text import Text
@@ -78,6 +80,13 @@ from pyani_plus.workflows import (
     ToolExecutor,
     run_snakemake_with_progress_bar,
 )
+
+FORMAT = "%(message)s"
+logging.basicConfig(
+    level="NOTSET", format=FORMAT, datefmt="[%X]", handlers=[RichHandler(markup=True)]
+)
+
+logger = logging.getLogger("rich")
 
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -249,7 +258,8 @@ def run_method(  # noqa: PLR0913
     run.cache_comparisons()  # will this needs a progress bar too with large n?
     run.status = "Done"
     session.commit()
-    print(f"Completed {method} run-id {run_id} with {n} genomes in database {database}")
+    msg = f"Completed {method} run-id {run_id} with {n} genomes in database {database}"
+    logger.info(msg)
     session.close()
     return 0
 
@@ -506,12 +516,13 @@ def resume(  # noqa: C901, PLR0912, PLR0913
     run = db_orm.load_run(session, run_id)
     if run_id is None:
         run_id = run.run_id  # relevant if was None
-        print(f"INFO: Resuming run-id {run_id}")
+        print(f"Resuming run-id {run_id}")
     config = run.configuration
-    print(
-        f"INFO: This is a {config.method} run on {run.genomes.count()} genomes, "
+    msg = (
+        f"This is a {config.method} run on {run.genomes.count()} genomes, "
         f"using {config.program} version {config.version}"
     )
+    logger.info(msg)
     if not run.genomes.count():
         msg = f"ERROR: No genomes recorded for run-id {run_id}, cannot resume."
         sys.exit(msg)
@@ -671,30 +682,34 @@ def delete_run(
     run = db_orm.load_run(session, run_id, check_complete=False)
     if run_id is None:
         run_id = run.run_id
-        print("INFO: Deleting most recent run")
+        logger.info("Deleting most recent run")
         confirm = True
 
     # Could use rish colours, match how list-runs colours the counts?
     done = run.comparisons().count()
     n = run.genomes.count()
     if n and done == n**2:
-        print(
-            f"INFO: Run {run_id} contains all {n**2}={n}²"
+        msg = (
+            f"Run {run_id} contains all {n**2}={n}²"
             f" {run.configuration.method} comparisons, status: {run.status}"
         )
+        logger.info(msg)
         confirm = True
     else:
-        print(
-            f"INFO: Run {run_id} contains {done}/{n**2}={n}²"
+        msg = (
+            f"Run {run_id} contains {done}/{n**2}={n}²"
             f" {run.configuration.method} comparisons, status: {run.status}"
         )
+        logger.info(msg)
         if done:
             confirm = True
-    print(f"INFO: Run name: {run.name}")
+    msg = f"Run name: {run.name}"
+    logger.info(msg)
 
     if run.status == "Running":  # should be a constant or enum?
         # Should we also look at the date of the run? If old probably it failed.
-        print("WARNING: Deleting a run still being computed will cause it to fail!")
+        msg = "Deleting a run still being computed will cause it to fail!\n"
+        logger.warning(msg)
         confirm = True
 
     if confirm and not force:
@@ -742,15 +757,16 @@ def export_run(  # noqa: C901
         sys.exit(msg)
 
     if not outdir.is_dir():
-        msg = f"WARNING: Output directory {outdir} does not exist, making it.\n"
-        sys.stderr.write(msg)
+        msg = f"Output directory {outdir} does not exist, making it.\n"
+        logger.warning(msg)
         outdir.mkdir()
 
     session = db_orm.connect_to_db(database)
     run = db_orm.load_run(session, run_id, check_empty=True)
     if run_id is None:
         run_id = run.run_id
-        print(f"INFO: Exporting run-id {run_id}")
+        msg = f"Exporting run-id {run_id}"
+        logger.info(msg)
 
     # Question: Should we export a plain text of JSON summary of the configuration etc?
     # Question: Should we include the run-id in the matrix filenames?
@@ -796,7 +812,8 @@ def export_run(  # noqa: C901
                 f"\t{float_or_na(_.aln_length)}"
                 f"\t{float_or_na(_.sim_errors)}\n"
             )
-    print(f"Wrote long-form to {outdir}/{long_filename}")
+    msg = f"Wrote long-form to {outdir}/{long_filename}"
+    logger.info(msg)
 
     # Reload the run checking it is complete (quick) (might abort here!),
     # and caching the matrices if needed (slower):
@@ -810,10 +827,10 @@ def export_run(  # noqa: C901
         (run.hadamard, f"{method}_hadamard.tsv"),
         (run.tani, f"{method}_tANI.tsv"),
     ):
-        if matrix is None:
+        if matrix is None:  # pragma: no cover
             # This is mainly for mypy to assert the matrix is not None
-            msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
-            sys.exit(msg)  # pragma: no cover
+            msg = f"ERROR: Could not load run {method} matrix"
+            sys.exit(msg)
 
         try:
             matrix = run.relabelled_matrix(matrix, label)  # noqa: PLW2901
@@ -823,7 +840,8 @@ def export_run(  # noqa: C901
 
         matrix.to_csv(outdir / filename, sep="\t")
 
-    print(f"Wrote matrices to {outdir}/{method}_*.tsv")
+    msg = f"Wrote matrices to {outdir}/{method}_*.tsv"
+    logger.info(msg)
 
     session.close()
     return 0
@@ -846,20 +864,22 @@ def plot_run(
         sys.exit(msg)
 
     if not outdir.is_dir():
-        msg = f"WARNING: Output directory {outdir} does not exist, making it.\n"
-        sys.stderr.write(msg)
+        msg = f"Output directory {outdir} does not exist, making it.\n"
+        logger.warning(msg)
         outdir.mkdir()
 
     session = db_orm.connect_to_db(database)
     run = db_orm.load_run(session, run_id, check_complete=True)
     if run_id is None:
         run_id = run.run_id
-        print(f"INFO: Plotting {run.configuration.method} run-id {run_id}")
+        msg = f"Plotting {run.configuration.method} run-id {run_id}"
+        logger.info(msg)
 
     from pyani_plus import plot_run  # lazy import
 
     count = plot_run.plot_single_run(run, outdir, label)
-    print(f"Wrote {count} images to {outdir}/{run.configuration.method}_*.*")
+    msg = f"Wrote {count} images to {outdir}/{run.configuration.method}_*.*"
+    logger.info(msg)
     session.close()
     return 0 if count else 1
 
@@ -919,9 +939,8 @@ def plot_run_comp(
     from pyani_plus import plot_run  # lazy import
 
     done = plot_run.plot_run_comparison(session, ref_run, other_runs, outdir, columns)
-    print(
-        f"Wrote {done} images to {outdir}/{ref_run.configuration.method}_identity_{run_id}_vs_*.*"
-    )
+    msg = f"Wrote {done} images to {outdir}/{ref_run.configuration.method}_identity_{run_id}_vs_*.*"
+    logger.info(msg)
     session.close()
     return 0
 
@@ -963,15 +982,16 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
         sys.exit(msg)
 
     if not outdir.is_dir():
-        msg = f"WARNING: Output directory {outdir} does not exist, making it.\n"
-        sys.stderr.write(msg)
+        msg = f"Output directory {outdir} does not exist, making it.\n"
+        logger.warning(msg)
         outdir.mkdir()
 
     session = db_orm.connect_to_db(database)
     run = db_orm.load_run(session, run_id, check_complete=True)
     if run_id is None:
         run_id = run.run_id
-        print(f"INFO: Exporting run-id {run_id}")
+        msg = f"Exporting run-id {run_id}"
+        logger.info(msg)
 
     method = run.configuration.method
 
@@ -990,13 +1010,12 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
 
     single_genome_run = False
     if done == 1 and run_genomes == 1:
-        msg = f"WARNING: Run {run_id} has {done} comparison across {run_genomes} genome. Reporting single clique...\n"
         single_genome_run = True
-        sys.stderr.write(msg)
+        msg = f"WARNING: Run {run_id} has {done} comparison across {run_genomes} genome. Reporting single clique...\n"
+        logger.warning(msg)
     else:
-        print(
-            f"Run {run_id} has {done} comparisons across {run_genomes} genomes. Running classify..."
-        )
+        msg = f"Run {run_id} has {done} comparisons across {run_genomes} genomes. Running classify..."
+        logger.info(msg)
 
     cov = run.cov_query
     if cov is None:

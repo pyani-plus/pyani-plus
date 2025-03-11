@@ -1018,9 +1018,9 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
         logger.info(msg)
 
     cov = run.cov_query
-    if cov is None:
-        msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
-        sys.exit(msg)  # pragma: no cover
+    if cov is None:  # pragma: no cover
+        msg = f"ERROR: Could not load run {method} matrix"
+        sys.exit(msg)
 
     try:
         score_matrix = run.relabelled_matrix(matrix, label)
@@ -1058,15 +1058,16 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     clique_data, clique_df = classify.compute_classify_output(
         unique_cliques, method, outdir, column_map
     )
-    print(f"Wrote classify output to {outdir}")
+    msg = f"Wrote classify output to {outdir}"
+    logger.info(msg)
 
     # Only plot classify if more than one genome in comparisons and the initial graph consist of at least one clique
     if not single_genome_run:
         if set(clique_df["n_nodes"]) == {1}:
-            msg = "WARNING: All genomes are singletons. No plot can be generated."
-            sys.stderr.write(msg)
+            msg = "All genomes are singletons. No plot can be generated."
+            logger.warning(msg)
         else:
-            print("Plotting classify output...")
+            logger.info("Plotting classify output...")
             genome_groups = classify.get_genome_cligue_ids(clique_df, suffix)
             genome_positions = classify.get_genome_order(genome_groups)
             classify.plot_classify(

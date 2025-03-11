@@ -28,6 +28,7 @@ pytest -v
 
 import filecmp
 import gzip
+import logging
 import shutil
 from pathlib import Path
 
@@ -164,9 +165,13 @@ def test_resume_empty(tmp_path: str) -> None:
 
 
 def test_partial_run(  # noqa: PLR0915
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check list-runs and export-run with mock data including a partial run."""
+    caplog.set_level(logging.INFO)
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "list runs.sqlite"
     session = db_orm.connect_to_db(tmp_db)
@@ -231,27 +236,31 @@ def test_partial_run(  # noqa: PLR0915
 
     # Unlike a typical method calculation, we have not triggered
     # .cache_comparisons() yet, so that will happen in export_run.
+    caplog.clear()
     public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_path, label="md5")
-    output = capsys.readouterr().out
-    assert f"Wrote matrices to {tmp_path}" in output, output
+    output = caplog.text
+    assert f"Wrote matrices to {tmp_path}" in output, (output, capsys.readouterr().out)
     with (tmp_dir / "fastANI_identity.tsv").open() as handle:
         assert (
             handle.readline()
             == "\t5584c7029328dc48d33f95f0a78f7e57\t78975d5144a1cd12e98898d573cf6536\n"
         )
 
+    caplog.clear()
     public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_path, label="stem")
-    output = capsys.readouterr().out
-    assert f"Wrote matrices to {tmp_path}" in output, output
+    output = caplog.text
+    assert f"Wrote matrices to {tmp_path}" in output, (output, capsys.readouterr().out)
+
     with (tmp_dir / "fastANI_identity.tsv").open() as handle:
         assert handle.readline() == "\tMGV-GENOME-0266457\tOP073605\n"
 
+    caplog.clear()
     public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_path, label="filename")
-    output = capsys.readouterr().out
+    output = caplog.text
     assert f"Wrote matrices to {tmp_path}" in output, output
     with (tmp_dir / "fastANI_identity.tsv").open() as handle:
         assert handle.readline() == "\tMGV-GENOME-0266457.fna\tOP073605.fasta\n"
-    output = capsys.readouterr().out  # clear the above commands
+    caplog.clear()  # clear the above commands
 
     # By construction run 2 is partial, only 4 of 9 matrix entries are
     # defined - this should fail
@@ -294,24 +303,29 @@ def test_partial_run(  # noqa: PLR0915
     output = capsys.readouterr().out
 
     # Now delete the runs, and confirm what is left behind...
+    caplog.clear()
     public_cli.delete_run(database=tmp_db, run_id=1)
-    output = capsys.readouterr().out
-    assert "INFO: Run 1 contains 0/0=0² fastANI comparisons, status: Empty\n" in output
+    output = caplog.text
+    assert "Run 1 contains 0/0=0² fastANI comparisons, status: Empty\n" in output
 
     # Forcing as this has data
+    caplog.clear()
     public_cli.delete_run(database=tmp_db, run_id=3, force=True)
-    output = capsys.readouterr().out
-    assert "INFO: Run 3 contains all 4=2² fastANI comparisons, status: Done\n" in output
+    output = caplog.text
+    assert "Run 3 contains all 4=2² fastANI comparisons, status: Done\n" in output
 
     # Finally delete run 2, this will assume last one remaining
+    caplog.clear()
     public_cli.delete_run(database=tmp_db, force=True)
-    output = capsys.readouterr().out
-    assert (
-        "INFO: Deleting most recent run\n"
-        "INFO: Run 2 contains 4/9=3² fastANI comparisons, status: Running\n"
-        "INFO: Run name: Trial B\n"
-        "WARNING: Deleting a run still being computed will cause it to fail!\n"
-    ) in output
+    output = caplog.text
+    assert "Deleting most recent run" in output, output
+    assert "Run 2 contains 4/9=3² fastANI comparisons, status: Running" in output, (
+        output
+    )
+    assert "Run name: Trial B" in output, output
+    assert "Deleting a run still being computed will cause it to fail!" in output, (
+        output
+    )
 
     assert session.query(db_orm.Run).count() == 0
     assert session.query(db_orm.RunGenomeAssociation).count() == 0
@@ -1425,7 +1439,10 @@ def test_resume_fasta_gone(
 
 
 def test_plot_skip_nulls(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check export-run behaviour when have null values."""
     tmp_dir = Path(tmp_path)
@@ -1474,16 +1491,17 @@ def test_plot_skip_nulls(
     session.close()
 
     plot_out = tmp_dir / "plots"
+    caplog.clear()
+    caplog.set_level(logging.INFO)
     public_cli.plot_run(database=tmp_db, outdir=plot_out)
+    output = caplog.text
 
     stdout, stderr = capsys.readouterr()
-    assert (
-        f"WARNING: Output directory {plot_out} does not exist, making it.\n" in stderr
-    ), stderr
+    assert f"Output directory {plot_out} does not exist, making it." in output, output
     assert "WARNING: Cannot plot query_cov as all NA\n" in stderr, stderr
     assert "Cannot plot hadamard as all NA\n" in stderr, stderr
     assert "Cannot plot tANI as all NA\n" in stderr, stderr
-    assert f"Wrote {2 * len(GRAPHICS_FORMATS)} images to {plot_out}" in stdout
+    assert f"Wrote {2 * len(GRAPHICS_FORMATS)} images to {plot_out}" in output, output
     assert sorted(_.name for _ in plot_out.glob("*_heatmap.*")) == sorted(
         f"guessing_identity_heatmap.{ext}" for ext in GRAPHICS_FORMATS
     )
@@ -1572,7 +1590,10 @@ def test_classify_failures(tmp_path: str) -> None:
 
 
 def test_classify_warnings(
-    tmp_path: str, input_genomes_tiny: Path, capsys: pytest.CaptureFixture[str]
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Check classify warnings."""
     tmp_dir = Path(tmp_path)
@@ -1624,9 +1645,9 @@ def test_classify_warnings(
         fasta_to_hash=fasta_to_hash,
     )
 
+    caplog.clear()
     public_cli.cli_classify(database=tmp_db, outdir=tmp_dir, run_id=1)
-
-    output = capsys.readouterr().err
+    output = caplog.text
     assert (
         "WARNING: Run 1 has 1 comparison across 1 genome. Reporting single clique...\n"
         in output
@@ -1704,7 +1725,7 @@ def test_classify(
 
 
 def test_plot_run_comp(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -1752,10 +1773,12 @@ def test_plot_run_comp(
 
     for cols in (0, 1):
         plot_out = tmp_dir / f"📊{cols}col"
+        caplog.clear()
+        caplog.set_level(logging.INFO)
         public_cli.plot_run_comp(
             database=tmp_db, outdir=plot_out, run_ids="1,2,3", columns=cols
         )
-        output = capsys.readouterr().out
+        output = caplog.text
         images = len(GRAPHICS_FORMATS)
         if "tsv" in GRAPHICS_FORMATS:
             images -= 1

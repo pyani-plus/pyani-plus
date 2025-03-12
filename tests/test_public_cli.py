@@ -1479,7 +1479,6 @@ def test_resume_fasta_gone(
 
 def test_plot_skip_nulls(
     caplog: pytest.LogCaptureFixture,
-    capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -1535,11 +1534,10 @@ def test_plot_skip_nulls(
     public_cli.plot_run(database=tmp_db, outdir=plot_out)
     output = caplog.text
 
-    stdout, stderr = capsys.readouterr()
     assert f"Output directory {plot_out} does not exist, making it." in output, output
-    assert "WARNING: Cannot plot query_cov as all NA\n" in stderr, stderr
-    assert "Cannot plot hadamard as all NA\n" in stderr, stderr
-    assert "Cannot plot tANI as all NA\n" in stderr, stderr
+    assert "Cannot plot query_cov as all NA\n" in output, output
+    assert "Cannot plot hadamard as all NA\n" in output, output
+    assert "Cannot plot tANI as all NA\n" in output, output
     assert f"Wrote {2 * len(GRAPHICS_FORMATS)} images to {plot_out}" in output, output
     assert sorted(_.name for _ in plot_out.glob("*_heatmap.*")) == sorted(
         f"guessing_identity_heatmap.{ext}" for ext in GRAPHICS_FORMATS
@@ -1547,7 +1545,9 @@ def test_plot_skip_nulls(
 
 
 def test_plot_bad_nulls(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check export-run behaviour when have null values except on diagonal."""
     tmp_dir = Path(tmp_path)
@@ -1598,24 +1598,21 @@ def test_plot_bad_nulls(
 
     plot_out = tmp_dir / "plots"
     plot_out.mkdir()
+    caplog.clear()
     public_cli.plot_run(database=tmp_db, outdir=plot_out)
-    stderr = capsys.readouterr().err
+    output = caplog.text
     assert (
-        "WARNING: identity matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
-        in stderr
-    ), stderr
+        "identity matrix contains 2 nulls (out of 2²=4 guessing comparisons)" in output
+    ), output
     assert (
-        "WARNING: query_cov matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
-        in stderr
-    ), stderr
+        "query_cov matrix contains 2 nulls (out of 2²=4 guessing comparisons)" in output
+    ), output
     assert (
-        "WARNING: hadamard matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
-        in stderr
-    ), stderr
+        "hadamard matrix contains 2 nulls (out of 2²=4 guessing comparisons)" in output
+    ), output
     assert (
-        "WARNING: tANI matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
-        in stderr
-    ), stderr
+        "tANI matrix contains 2 nulls (out of 2²=4 guessing comparisons)" in output
+    ), output
 
 
 def test_classify_failures(tmp_path: str) -> None:

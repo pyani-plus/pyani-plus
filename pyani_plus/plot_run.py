@@ -345,7 +345,7 @@ def plot_single_run(
             n = len(matrix)
             if nulls == n**2:
                 msg = f"WARNING: Cannot plot {name} as all NA\n"
-                sys.stderr.write(msg)
+                logger.warning(msg)
                 progress.advance(task)  # skipping distribution plots
                 progress.advance(task)  # skipping heatmap
                 continue
@@ -355,10 +355,10 @@ def plot_single_run(
 
             if nulls:
                 msg = (
-                    f"WARNING: {name} matrix contains {nulls} nulls"
-                    f" (out of {n}²={n**2} {method} comparisons)\n"
+                    f"{name} matrix contains {nulls} nulls"
+                    f" (out of {n}²={n**2} {method} comparisons)"
                 )
-                sys.stderr.write(msg)
+                logger.warning(msg)
 
             done += plot_heatmap(
                 matrix, outdir, name, method, color_scheme, formats, na_fill

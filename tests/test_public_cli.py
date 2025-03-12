@@ -1816,7 +1816,10 @@ def test_plot_run_comp(
         caplog.clear()
         caplog.set_level(logging.INFO)
         public_cli.plot_run_comp(
-            database=tmp_db, outdir=plot_out, run_ids="1,2,3", columns=cols
+            database=tmp_db,
+            outdir=plot_out,
+            run_ids="1,2,3",
+            columns=cols,
         )
         output = caplog.text
         images = len(GRAPHICS_FORMATS)

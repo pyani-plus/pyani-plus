@@ -66,7 +66,9 @@ class EnumModeClassify(str, Enum):
 REQ_ARG_TYPE_DATABASE = Annotated[
     Path,
     typer.Option(
-        help="Path to pyANI-plus SQLite3 database",
+        "--database",
+        "-d",
+        help="Path to pyANI-plus SQLite3 database.",
         show_default=False,
         dir_okay=False,
         file_okay=True,
@@ -75,7 +77,9 @@ REQ_ARG_TYPE_DATABASE = Annotated[
 REQ_ARG_TYPE_OUTDIR = Annotated[
     Path,
     typer.Option(
-        help="Output directory. If it does not exist, it will be created.",
+        "--outdir",
+        "-o",
+        help="Output directory. Created if does not already exist.",
         show_default=False,
         dir_okay=True,
         file_okay=False,
@@ -84,7 +88,7 @@ REQ_ARG_TYPE_OUTDIR = Annotated[
 REQ_ARG_TYPE_FASTA_DIR = Annotated[
     Path,
     typer.Argument(
-        help=f"Directory of FASTA files (extensions {', '.join(sorted(FASTA_EXTENSIONS))})",
+        help=f"Directory of FASTA files (extensions {', '.join(sorted(FASTA_EXTENSIONS))}).",
         show_default=False,
     ),
 ]
@@ -95,7 +99,12 @@ REQ_ARG_TYPE_FASTA_DIR = Annotated[
 
 OPT_ARG_TYPE_RUN_ID = Annotated[
     int | None,
-    typer.Option(help="Which run from the database (defaults to latest)"),
+    typer.Option(
+        "--run-id",
+        "-r",
+        help="Which run from the database (defaults to latest).",
+        show_default=False,
+    ),
 ]
 OPT_ARG_TYPE_RUN_NAME = Annotated[
     # Using None to mean the dynamic default value here:
@@ -137,7 +146,7 @@ OPT_ARG_TYPE_TEMP = Annotated[
 OPT_ARG_TYPE_FRAGSIZE = Annotated[
     int,
     typer.Option(
-        help="Comparison method fragment size",
+        help="Comparison method fragment size.",
         rich_help_panel="Method parameters",
         min=1,
     ),
@@ -147,7 +156,7 @@ OPT_ARG_TYPE_FRAGSIZE = Annotated[
 OPT_ARG_TYPE_KMERSIZE = Annotated[
     int,
     typer.Option(
-        help="Comparison method k-mer size",
+        help="Comparison method k-mer size.",
         rich_help_panel="Method parameters",
         min=1,
     ),
@@ -155,7 +164,7 @@ OPT_ARG_TYPE_KMERSIZE = Annotated[
 OPT_ARG_TYPE_MINMATCH = Annotated[
     float,
     typer.Option(
-        help="Comparison method min-match",
+        help="Comparison method min-match.",
         rich_help_panel="Method parameters",
         min=0.0,
         max=1.0,
@@ -164,21 +173,21 @@ OPT_ARG_TYPE_MINMATCH = Annotated[
 OPT_ARG_TYPE_ANIM_MODE = Annotated[
     EnumModeANIm,
     typer.Option(
-        help="Nucmer mode for ANIm",
+        help="Nucmer mode for ANIm.",
         rich_help_panel="Method parameters",
     ),
 ]
 OPT_ARG_TYPE_SOURMASH_SCALED = Annotated[
     int,
     typer.Option(
-        help="Sets the compression ratio",
+        help="Sets the compression scaling ratio.",
         rich_help_panel="Method parameters",
         min=1,
     ),
 ]
 OPT_ARG_TYPE_CREATE_DB = Annotated[
     # Listing name(s) explicitly to avoid automatic matching --no-create-db
-    bool, typer.Option("--create-db", help="Create database if does not exist")
+    bool, typer.Option("--create-db", help="Create database if does not exist.")
 ]
 OPT_ARG_TYPE_EXECUTOR = Annotated[
     ToolExecutor, typer.Option(help="How should the internal tools be run?")
@@ -188,7 +197,7 @@ OPT_ARG_TYPE_CACHE = Annotated[
     typer.Option(
         help=(
             "Cache location if required for a method (must be visible to cluster workers)."
-            " Default to .cache in the current directory."
+            " Defaults to .cache in the current directory."
         ),
         metavar="DIRECTORY",
         # Want to distinguish unspecified (None meaning .cache) from explicit .cache
@@ -203,7 +212,7 @@ OPT_ARG_TYPE_LABEL = Annotated[
     str,
     typer.Option(
         click_type=click.Choice(["md5", "filename", "stem"]),
-        help="How to label the genomes",
+        help="How to label the genomes.",
     ),
 ]
 OPT_ARG_TYPE_COV_MIN = Annotated[
@@ -218,7 +227,7 @@ OPT_ARG_TYPE_COV_MIN = Annotated[
 OPT_ARG_TYPE_CLASSIFY_MODE = Annotated[
     EnumModeClassify,
     typer.Option(
-        help="Classify mode intended to identify cliques within a set of genomes",
+        help="Classify mode intended to identify cliques within a set of genomes.",
         rich_help_panel="Method parameters",
     ),
 ]

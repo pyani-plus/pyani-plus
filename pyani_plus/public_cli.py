@@ -161,7 +161,8 @@ def start_and_run_method(  # noqa: PLR0913
         fasta_to_hash=filename_to_md5,
     )
     session.commit()  # Redundant?
-    print(f"{method} run setup with {n} genomes in database")
+    msg = f"{method} run setup with {n} genomes in database"
+    logger.info(msg)
 
     return run_method(
         executor,
@@ -200,11 +201,11 @@ def run_method(  # noqa: PLR0913
     done = run.comparisons().count()
     n = len(filename_to_md5)
     if done == n**2:
-        print(f"Database already has all {n}²={n**2} {method} comparisons")
+        msg = f"Database already has all {n}²={n**2} {method} comparisons"
+        logger.info(msg)
     else:
-        print(
-            f"Database already has {done} of {n}²={n**2} {method} comparisons, {n**2 - done} needed"
-        )
+        msg = f"Database already has {done} of {n}²={n**2} {method} comparisons, {n**2 - done} needed"
+        logger.info(msg)
         run.status = "Running"
         session.commit()
         session.close()  # Reduce chance of DB locking
@@ -489,7 +490,7 @@ def external_alignment(  # noqa: PLR0913
 
 
 @app.command()
-def resume(  # noqa: C901, PLR0912, PLR0913
+def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
     database: REQ_ARG_TYPE_DATABASE,
     *,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
@@ -516,7 +517,8 @@ def resume(  # noqa: C901, PLR0912, PLR0913
     run = db_orm.load_run(session, run_id)
     if run_id is None:
         run_id = run.run_id  # relevant if was None
-        print(f"Resuming run-id {run_id}")
+        msg = f"Resuming run-id {run_id}"
+        logger.info(msg)
     config = run.configuration
     msg = (
         f"This is a {config.method} run on {run.genomes.count()} genomes, "

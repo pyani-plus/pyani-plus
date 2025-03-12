@@ -26,7 +26,7 @@ These tests are intended to be run from the repository root using:
 make test
 """
 
-# Required to support pytest automated testing
+import logging
 from pathlib import Path
 
 import pytest
@@ -113,7 +113,7 @@ MOCK_3_BY_11_DF_COV_QUERY = (
 
 
 def test_simple_mock_alignment_stem(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -133,11 +133,12 @@ def test_simple_mock_alignment_stem(
     with tmp_alignment.open("w") as handle:
         handle.write(MOCK_3_BY_11_ALIGNMENT)
 
+    caplog.set_level(logging.INFO)
     public_cli.external_alignment(
         input_genomes_tiny, tmp_db, create_db=True, alignment=tmp_alignment
     )
-    output = capsys.readouterr().out
-    assert "\nexternal-alignment run setup with 3 genomes" in output, output
+    output = caplog.text
+    assert "external-alignment run setup with 3 genomes" in output, output
 
     session = db_orm.connect_to_db(tmp_db)
     assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
@@ -148,7 +149,7 @@ def test_simple_mock_alignment_stem(
 
 
 def test_simple_mock_alignment_md5(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -170,11 +171,12 @@ CGG-T
 CGGAT
     """)
 
+    caplog.set_level(logging.INFO)
     public_cli.external_alignment(
         input_genomes_tiny, tmp_db, create_db=True, alignment=tmp_alignment, label="md5"
     )
-    output = capsys.readouterr().out
-    assert "\nexternal-alignment run setup with 3 genomes" in output, output
+    output = caplog.text
+    assert "external-alignment run setup with 3 genomes" in output, output
 
     session = db_orm.connect_to_db(tmp_db)
     assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
@@ -187,7 +189,7 @@ CGGAT
 
 
 def test_simple_mock_alignment_filename(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -209,6 +211,7 @@ def test_simple_mock_alignment_filename(
 -C-GG-T
     """)
 
+    caplog.set_level(logging.INFO)
     public_cli.external_alignment(
         input_genomes_tiny,
         tmp_db,
@@ -216,8 +219,8 @@ def test_simple_mock_alignment_filename(
         alignment=tmp_alignment,
         label="filename",
     )
-    output = capsys.readouterr().out
-    assert "\nexternal-alignment run setup with 3 genomes" in output, output
+    output = caplog.text
+    assert "external-alignment run setup with 3 genomes" in output, output
 
     session = db_orm.connect_to_db(tmp_db)
     assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
@@ -230,7 +233,7 @@ def test_simple_mock_alignment_filename(
 
 
 def test_resume(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -257,8 +260,9 @@ def test_resume(
         create_db=True,
     )
 
+    caplog.set_level(logging.INFO)
     public_cli.resume(tmp_db)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert (
         "Database already has 0 of 3²=9 external-alignment comparisons, 9 needed"
         in output
@@ -272,7 +276,7 @@ def test_resume(
 
 
 def test_resume_partial(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -310,8 +314,9 @@ def test_resume_partial(
         cov_subject=1.0,
     )  # values as per test_simple_mock_alignment_stem
 
+    caplog.set_level(logging.INFO)
     public_cli.resume(tmp_db)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert (
         "Database already has 1 of 3²=9 external-alignment comparisons, 8 needed"
         in output

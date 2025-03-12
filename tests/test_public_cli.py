@@ -580,12 +580,13 @@ def test_plot_run_comp_failures(tmp_path: str, input_genomes_tiny: Path) -> None
 
 
 def test_anim(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
     evil_example: Path,
 ) -> None:
     """Check ANIm run."""
+    caplog.set_level(logging.INFO)
     tmp_dir = Path(tmp_path)
     # DB name with spaces, single quotes, emoji, in path & filename
     (tmp_dir / "user's 🔎 output").mkdir()
@@ -596,7 +597,7 @@ def test_anim(
         name="Spaces etc",
         create_db=True,
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has 0 of 3²=9 ANIm comparisons, 9 needed\n" in output
 
     session = db_orm.connect_to_db(tmp_db)
@@ -604,13 +605,14 @@ def test_anim(
     session.close()
 
     # Now do it again - it should reuse the calculations:
+    caplog.clear()
     public_cli.cli_anim(
         database=tmp_db,
         fasta=input_genomes_tiny,
         name="Simple names",
         create_db=False,
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has all 3²=9 ANIm comparisons\n" in output
 
     session = db_orm.connect_to_db(tmp_db)
@@ -654,18 +656,19 @@ def test_anim_gzip(
 
 
 def test_dnadiff(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
     evil_example: Path,
 ) -> None:
     """Check dnadiff run (default settings)."""
+    caplog.set_level(logging.INFO)
     tmp_dir = Path(tmp_path) / "dnadiff's test 📋"
     tmp_dir.mkdir()
     tmp_db = tmp_dir / "dnadiff test.sqlite"
     # Leaving out name, so can check the default worked
     public_cli.cli_dnadiff(database=tmp_db, fasta=evil_example, create_db=True)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has 0 of 3²=9 dnadiff comparisons, 9 needed\n" in output
     session = db_orm.connect_to_db(tmp_db)
     run = session.query(db_orm.Run).one()
@@ -673,13 +676,14 @@ def test_dnadiff(
     session.close()
 
     # Now do it again - it should reuse the calculations:
+    caplog.clear()
     public_cli.cli_dnadiff(
         database=tmp_db,
         fasta=input_genomes_tiny,
         name="Simple names",
         create_db=False,
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has all 3²=9 dnadiff comparisons\n" in output
 
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
@@ -713,12 +717,13 @@ def test_dnadiff_gzip(
 
 
 def test_anib(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
     evil_example: Path,
 ) -> None:
     """Check ANIb run (spaces, emoji, etc in filenames)."""
+    caplog.set_level(logging.INFO)
     tmp_dir = Path(tmp_path) / "ANIb-test-🎱"  # no spaces! makeblastdb -out breaks
     tmp_dir.mkdir()
     tmp_db = tmp_dir / "anib test.sqlite"
@@ -729,10 +734,11 @@ def test_anib(
         create_db=True,
         temp=tmp_dir,
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has 0 of 3²=9 ANIb comparisons, 9 needed\n" in output
 
     # Run it again, nothing to recompute but easier to check output
+    caplog.clear()
     public_cli.cli_anib(
         database=tmp_db,
         fasta=input_genomes_tiny,
@@ -740,7 +746,7 @@ def test_anib(
         create_db=True,
         temp=tmp_dir,
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has all 3²=9 ANIb comparisons\n" in output
 
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
@@ -782,12 +788,13 @@ def test_anib_gzip(
 
 
 def test_fastani(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
     evil_example: Path,
 ) -> None:
     """Check fastANI run (spaces, emoji, etc in filenames)."""
+    caplog.set_level(logging.INFO)
     tmp_dir = Path(tmp_path) / "fastANI's test 🏎️"
     tmp_dir.mkdir()
     tmp_db = tmp_dir / "fastani's test.sqlite"
@@ -798,10 +805,11 @@ def test_fastani(
         create_db=True,
         temp=tmp_dir,
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has 0 of 3²=9 fastANI comparisons, 9 needed\n" in output
 
     # Run it again, nothing to recompute but easier to check output
+    caplog.clear()
     public_cli.cli_fastani(
         database=tmp_db,
         fasta=input_genomes_tiny,
@@ -809,7 +817,7 @@ def test_fastani(
         create_db=False,
         temp=tmp_dir,
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has all 3²=9 fastANI comparisons\n" in output
 
     # Confirm output matches
@@ -859,12 +867,13 @@ def test_sourmash_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
 
 
 def test_sourmash(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
     evil_example: Path,
 ) -> None:
     """Check sourmash run (default settings except scaled=300)."""
+    caplog.set_level(logging.INFO)
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "sourmash test.sqlite"
 
@@ -876,10 +885,11 @@ def test_sourmash(
         create_db=True,
         cache=tmp_dir,
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has 0 of 3²=9 sourmash comparisons, 9 needed\n" in output
 
     # Run it again, nothing to recompute but easier to check output
+    caplog.clear()
     public_cli.cli_sourmash(
         database=tmp_db,
         fasta=input_genomes_tiny,
@@ -888,7 +898,7 @@ def test_sourmash(
         create_db=False,
         cache=tmp_dir,
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has all 3²=9 sourmash comparisons\n" in output
 
     # Confirm output matches
@@ -948,9 +958,13 @@ def test_fastani_dups(tmp_path: str) -> None:
 
 
 def test_resume_partial_fastani(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check list-runs and export-run with mock data including a partial fastANI run."""
+    caplog.set_level(logging.INFO)
     tmp_db = Path(tmp_path) / "partial resume.sqlite"
     tool = tools.get_fastani()
     session = db_orm.connect_to_db(tmp_db)
@@ -1003,8 +1017,9 @@ def test_resume_partial_fastani(
     assert " Method  ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
     assert " fastANI │    8 │    0 │    1 │  9=3² │ Partial " in output, output
 
+    caplog.clear()
     public_cli.resume(database=tmp_db)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Resuming run-id 1\n" in output, output
     assert "Database already has 8 of 3²=9 fastANI comparisons, 1 needed" in output, (
         output
@@ -1017,9 +1032,13 @@ def test_resume_partial_fastani(
 
 
 def test_resume_partial_anib(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check list-runs and export-run with mock data including a partial ANIb run."""
+    caplog.set_level(logging.INFO)
     tmp_db = Path(tmp_path) / "resume.sqlite"
     tool = tools.get_blastn()
     session = db_orm.connect_to_db(tmp_db)
@@ -1070,8 +1089,9 @@ def test_resume_partial_anib(
     assert " Method ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
     assert " ANIb   │    8 │    0 │    1 │  9=3² │ Partial " in output, output
 
+    caplog.clear()
     public_cli.resume(database=tmp_db)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Resuming run-id 1\n" in output, output
     assert "Database already has 8 of 3²=9 ANIb comparisons, 1 needed" in output, output
 
@@ -1082,9 +1102,13 @@ def test_resume_partial_anib(
 
 
 def test_resume_partial_anim(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check list-runs and export-run with mock data including a partial ANIm run."""
+    caplog.set_level(logging.INFO)
     tmp_db = Path(tmp_path) / "resume.sqlite"
     tool = tools.get_nucmer()
     session = db_orm.connect_to_db(tmp_db)
@@ -1135,8 +1159,9 @@ def test_resume_partial_anim(
     assert " Method ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
     assert " ANIm   │    8 │    0 │    1 │  9=3² │ Partial " in output, output
 
+    caplog.clear()
     public_cli.resume(database=tmp_db)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Resuming run-id 1\n" in output, output
     assert "Database already has 8 of 3²=9 ANIm comparisons, 1 needed" in output, output
 
@@ -1147,9 +1172,13 @@ def test_resume_partial_anim(
 
 
 def test_resume_partial_sourmash(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check list-runs and export-run with mock data including a partial sourmash run."""
+    caplog.set_level(logging.INFO)
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "resume sourmash.sqlite"
     tool = tools.get_sourmash()
@@ -1199,8 +1228,9 @@ def test_resume_partial_sourmash(
     assert " Method   ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
     assert " sourmash │    4 │    0 │    5 │  9=3² │ Partial " in output, output
 
+    caplog.clear()
     public_cli.resume(database=tmp_db, cache=tmp_dir)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Resuming run-id 1\n" in output, output
     assert "Database already has 4 of 3²=9 sourmash comparisons, 5 needed" in output, (
         output
@@ -1294,9 +1324,12 @@ def test_resume_unknown(tmp_path: str, input_genomes_tiny: Path) -> None:
 
 
 def test_resume_complete(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check resume works for all the methods (using completed runs for speed)."""
+    caplog.set_level(logging.INFO)
     tmp_db = Path(tmp_path) / "resume.sqlite"
     session = db_orm.connect_to_db(tmp_db)
 
@@ -1345,16 +1378,20 @@ def test_resume_complete(
             name=f"Test resuming a complete {method} run",
             fasta_to_hash=fasta_to_hash,
         )
+        caplog.clear()
         public_cli.resume(database=tmp_db)
-        output = capsys.readouterr().out
+        output = caplog.text
         assert f"Resuming run-id {index + 1}\n" in output, output
         assert f"Database already has all 3²=9 {method} comparisons" in output, output
 
 
 def test_resume_fasta_gone(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check resume error handling when a FASTA file is missing."""
+    caplog.set_level(logging.INFO)
     tmp_dir = Path(tmp_path)
     tmp_indir = tmp_dir / "input"
     tmp_indir.mkdir()
@@ -1422,8 +1459,9 @@ def test_resume_fasta_gone(
     # Should work with all the FASTA files, even though now in a different directory
     # to that logged in the genome table (as could happen via an older run):
     (tmp_indir / Path(missing).name).symlink_to(Path(missing))
+    caplog.clear()
     public_cli.resume(database=tmp_db)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has all 3²=9 ANIb comparisons" in output, output
 
     # Should work even with extra FASTA files, real world use case:
@@ -1433,8 +1471,9 @@ def test_resume_fasta_gone(
     # Resume the run - it should only operate on the first 100 genomes!
     with (tmp_indir / "extra.fasta").open("w") as handle:
         handle.write(">recently-added-genome\nACGTACGTAGT\n")
+    caplog.clear()
     public_cli.resume(database=tmp_db)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has all 3²=9 ANIb comparisons" in output, output
 
 

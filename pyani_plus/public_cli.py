@@ -879,7 +879,7 @@ def plot_run(
 
     from pyani_plus import plot_run  # lazy import
 
-    count = plot_run.plot_single_run(run, outdir, label)
+    count = plot_run.plot_single_run(logger, run, outdir, label)
     msg = f"Wrote {count} images to {outdir}/{run.configuration.method}_*.*"
     logger.info(msg)
     session.close()
@@ -940,7 +940,9 @@ def plot_run_comp(
 
     from pyani_plus import plot_run  # lazy import
 
-    done = plot_run.plot_run_comparison(session, ref_run, other_runs, outdir, columns)
+    done = plot_run.plot_run_comparison(
+        logger, session, ref_run, other_runs, outdir, columns
+    )
     msg = f"Wrote {done} images to {outdir}/{ref_run.configuration.method}_identity_{run_id}_vs_*.*"
     logger.info(msg)
     session.close()

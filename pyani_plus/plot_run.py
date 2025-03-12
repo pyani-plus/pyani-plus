@@ -21,6 +21,7 @@
 # THE SOFTWARE.
 """Code for plotting a single run (heatmaps etc)."""
 
+import logging
 import sys
 import warnings
 from math import ceil, log, nan, sqrt
@@ -198,6 +199,7 @@ def plot_distribution(
 
 
 def plot_scatter(
+    logger: logging.Logger,
     run: db_orm.Run,
     outdir: Path,
     formats: tuple[str, ...] = GRAPHICS_FORMATS,
@@ -229,21 +231,20 @@ def plot_scatter(
         count = len(pairs)  # including missing values
         values = [(x, y, c) for (x, y, c) in pairs if x is not None and y is not None]
         if not values:
-            msg = f"WARNING: No valid identity, {y_caption} values from {method} run\n"
-            sys.stderr.write(msg)
+            msg = f"No valid identity, {y_caption} values from {method} run"
+            logger.warning(msg)
             return 0
-        sys.stderr.write(
-            f"INFO: Plotting {len(values)}/{count} {y_caption} vs identity comparisons\n"
-        )
+        msg = f"Plotting {len(values)}/{count} {y_caption} vs identity comparisons"
+        logger.info(msg)
 
         x_values = [x for (x, y, c) in values]
         y_values = [y for (x, y, c) in values]
         c_values = [c for (x, y, c) in values]
 
-        sys.stderr.write(f"DEBUG: Identity range {min(x_values)} to {max(x_values)}\n")
-        sys.stderr.write(
-            f"DEBUG: {y_caption} range {min(y_values)} to {max(y_values)}\n"
-        )
+        msg = f"Identity range {min(x_values)} to {max(x_values)}"
+        logger.debug(msg)
+        msg = f"{y_caption} range {min(y_values)} to {max(y_values)}"
+        logger.debug(msg)
 
         # Create the plot
         joint_grid = sns.jointplot(
@@ -282,6 +283,7 @@ def plot_scatter(
 
 
 def plot_single_run(
+    logger: logging.Logger,
     run: db_orm.Run,
     outdir: Path,
     label: str,
@@ -309,7 +311,7 @@ def plot_single_run(
             "Plotting", total=len(scores_and_color_schemes) * 2 + 2
         )
         # This will print any warnings itself:
-        done = plot_scatter(run, outdir)
+        done = plot_scatter(logger, run, outdir)
         # Need finer grained progress logging:
         progress.advance(task)
         progress.advance(task)
@@ -366,6 +368,7 @@ def plot_single_run(
 
 
 def plot_run_comparison(  # noqa: C901, PLR0912, PLR0913, PLR0915
+    logger: logging.Logger,
     session: Session,
     run: db_orm.Run,
     other_runs: list[int],
@@ -385,10 +388,11 @@ def plot_run_comparison(  # noqa: C901, PLR0912, PLR0913, PLR0915
     }
     queries = {_[0] for _ in reference_values_by_hash}
     subjects = {_[1] for _ in reference_values_by_hash}
-    sys.stderr.write(
-        f"INFO: Plotting {len(other_runs)} runs against {run.configuration.method}"
-        f" run {run.run_id} which has {len(reference_values_by_hash)} comparisons\n"
+    msg = (
+        f"Plotting {len(other_runs)} runs against {run.configuration.method}"
+        f" run {run.run_id} which has {len(reference_values_by_hash)} comparisons"
     )
+    logger.info(msg)
 
     vs_count = len(other_runs)
 
@@ -491,11 +495,12 @@ def plot_run_comparison(  # noqa: C901, PLR0912, PLR0913, PLR0915
                     sys.exit(msg)
                 if mode == "scatter":
                     # Don't repeat this for the diff plot
-                    sys.stderr.write(
-                        f"INFO: Plotting {other_run.configuration.method} run {other_run_id}"
+                    msg = (
+                        f"Plotting {other_run.configuration.method} run {other_run_id}"
                         f" vs {run.configuration.method} run {run.run_id},"
-                        f" with {len(other_values_by_hash)} comparisons in common\n"
+                        f" with {len(other_values_by_hash)} comparisons in common"
                     )
+                    logger.info(msg)
 
                 # other_data dict can be smaller than ref_data!
                 x_values = [

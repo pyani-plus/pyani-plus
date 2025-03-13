@@ -23,6 +23,7 @@
 
 import gzip
 import hashlib
+import logging
 import os
 import shutil
 import subprocess
@@ -313,3 +314,22 @@ def stage_file(
     else:
         # Make a symlink pointing to the original
         staged_filename.symlink_to(input_filename)
+
+
+def add_file_logger(
+    logger: logging.Logger, log_folder: Path | None, log_filename: Path | str
+) -> None:
+    """Add a file-based logger alongside our default Rich console logger.
+
+    The file logger defaults to DEBUG level.
+    """
+    filename = (log_folder / log_filename) if log_folder else Path(log_filename)
+    file_handler = logging.FileHandler(log_filename, mode="a")
+    fmt = "%(asctime)s %(levelname)9s %(filename)21s:%(lineno)-3s | %(message)s"
+    formatter = logging.Formatter(fmt=fmt, datefmt="%Y-%m-%d %H:%M:%S")
+    file_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
+
+    msg = f"Logging to {filename}"
+    logger.info(msg)  # Want this to appear on the terminal

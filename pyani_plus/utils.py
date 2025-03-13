@@ -316,15 +316,20 @@ def stage_file(
         staged_filename.symlink_to(input_filename)
 
 
-def add_file_logger(
-    logger: logging.Logger, log_folder: Path | None, log_filename: Path | str
-) -> None:
-    """Add a file-based logger alongside our default Rich console logger.
+def setup_logger(log_folder: Path | None, name: str) -> logging.Logger:
+    """Return a file-based logger alongside a Rich console logger.
 
-    The file logger defaults to DEBUG level.
+    The file logger defaults to DEBUG level, but the less verbose INFO for the terminal.
     """
-    filename = (log_folder / log_filename) if log_folder else Path(log_filename)
-    file_handler = logging.FileHandler(log_filename, mode="a")
+    logger = logging.getLogger(f"{__package__}.{name}")
+    logger.setLevel(logging.DEBUG)
+    if logger.hasHandlers():  # remove all previous handlers to avoid duplicate entries
+        logger.handlers.clear()
+
+    filename = (log_folder / (name + ".log")) if log_folder else Path(name + ".log")
+    file_handler = logging.FileHandler(filename, mode="a")
+    file_handler.setLevel(logging.DEBUG)
+
     fmt = "%(asctime)s %(levelname)9s %(filename)21s:%(lineno)-3s | %(message)s"
     formatter = logging.Formatter(fmt=fmt, datefmt="%Y-%m-%d %H:%M:%S")
     file_handler.setFormatter(formatter)
@@ -333,3 +338,5 @@ def add_file_logger(
 
     msg = f"Logging to {filename}"
     logger.info(msg)  # Want this to appear on the terminal
+
+    return logger

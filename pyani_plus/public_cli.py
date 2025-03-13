@@ -83,7 +83,17 @@ from pyani_plus.workflows import (
 
 FORMAT = "%(message)s"
 logging.basicConfig(
-    level="NOTSET", format=FORMAT, datefmt="[%X]", handlers=[RichHandler(markup=True)]
+    level="INFO",
+    format=FORMAT,
+    datefmt="[%X]",
+    handlers=[
+        RichHandler(
+            markup=True,
+            omit_repeated_times=False,
+            rich_tracebacks=True,
+            tracebacks_suppress=["click", "sqlalchemy"],
+        )
+    ],
 )
 
 logger = logging.getLogger("rich")

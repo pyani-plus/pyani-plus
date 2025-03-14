@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus import db_orm, private_cli, tools
+from pyani_plus import db_orm, private_cli, setup_logger, tools
 from pyani_plus.methods import sourmash
 
 
@@ -231,15 +231,17 @@ def test_compute_bad_args(tmp_path: str) -> None:
     tool = tools.ExternalToolData(exe_path=Path("sourmash"), version="0.0a1")
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.Run()  # empty
+    logger = setup_logger(tmp_dir, "sourmash")
     with pytest.raises(SystemExit, match="ERROR: Not given a cache directory"):
         private_cli.compute_sourmash(
-            tmp_dir, session, run, tmp_dir, {}, {}, {"ABCDE": 12345}, "HIJKL"
+            logger, tmp_dir, session, run, tmp_dir, {}, {}, {"ABCDE": 12345}, "HIJKL"
         )
     with pytest.raises(
         SystemExit,
         match="ERROR: Cache directory /does/not/exist does not exist - check cache setting.",
     ):
         private_cli.compute_sourmash(
+            logger,
             tmp_dir,
             session,
             run,
@@ -268,6 +270,7 @@ def test_compute_bad_args(tmp_path: str) -> None:
         ),
     ):
         private_cli.compute_sourmash(
+            logger,
             tmp_dir,
             session,
             run,

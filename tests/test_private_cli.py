@@ -275,7 +275,10 @@ def test_log_comparison_duplicate(
 
 
 def test_log_comparison_serial_and_skip_process_genomes(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Confirm can create a mock DB using log-comparison etc. sequentially.
 
@@ -346,8 +349,9 @@ def test_log_comparison_serial_and_skip_process_genomes(
     assert session.query(db_orm.Comparison).count() == len(fasta) ** 2
     assert session.query(db_orm.Configuration).count() == 1
 
+    caplog.clear()
     private_cli.prepare_genomes(database=tmp_db, run_id=1, cache=tmp_dir)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Skipping preparation, run already has all 9=3² pairwise values" in output
 
 
@@ -757,6 +761,7 @@ def test_compute_column_bad_fastani(
 
 
 def test_compute_column_fastani(
+    caplog: pytest.LogCaptureFixture,
     capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
@@ -791,39 +796,37 @@ def test_compute_column_fastani(
         subject="1",  # here passing column number
         temp=tmp_dir,
     )
-    output = capsys.readouterr().out
-    assert (
-        "Calling fastANI for 3 queries vs 5584c7029328dc48d33f95f0a78f7e57\n" in output
-    )
+    output = caplog.text
+    assert "Calling fastANI for 3 queries vs 5584c7029328dc48d33f95f0a78f7e57" in output
 
     # This time should skip any computation:
+    caplog.clear()
     private_cli.compute_column(
         database=tmp_db,
         run_id=1,
         subject="5584c7029328dc48d33f95f0a78f7e57",  # here passing hash
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert (
-        "INFO: No fastANI comparisons needed against 5584c7029328dc48d33f95f0a78f7e57\n"
+        "No fastANI comparisons needed against 5584c7029328dc48d33f95f0a78f7e57"
         in output
     )
 
     # Again, should skip any computation:
+    caplog.clear()
     private_cli.compute_column(
         database=tmp_db,
         run_id=1,
         subject="OP073605.fasta",  # here passing filename
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert (
-        "INFO: No fastANI comparisons needed against 5584c7029328dc48d33f95f0a78f7e57\n"
+        "No fastANI comparisons needed against 5584c7029328dc48d33f95f0a78f7e57"
         in output
     )
 
     # Don't need prepare-genomes with fastANI, but should get this message
-    private_cli.prepare_genomes(
-        database=tmp_db,
-        run_id=1,
-    )
-    output = capsys.readouterr().err
-    assert "No per-genome preparation required for fastANI\n" in output
+    caplog.clear()
+    private_cli.prepare_genomes(database=tmp_db, run_id=1, quiet=False)
+    output = caplog.text
+    assert "No per-genome preparation required for fastANI" in output

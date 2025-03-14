@@ -26,6 +26,7 @@ These tests are intended to be run from the repository root using:
 pytest -v
 """
 
+import logging
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
@@ -36,7 +37,7 @@ from pyani_plus import db_orm, public_cli
 
 
 def do_self_compare(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     fasta_dir: Path,
     method: Callable,
     **kwargs: Path,
@@ -44,6 +45,8 @@ def do_self_compare(
     """Run a self-vs-self ANI method and return the single comparison."""
     assert len(list(fasta_dir.glob("*.f*"))) == 1
     with tempfile.NamedTemporaryFile(suffix=".db") as tmp_db:
+        caplog.set_level(logging.INFO)
+        caplog.clear()
         method(
             database=tmp_db.name,
             fasta=fasta_dir,
@@ -51,7 +54,7 @@ def do_self_compare(
             create_db=True,
             **kwargs,
         )
-        output = capsys.readouterr().out
+        output = caplog.text
         assert " run setup with 1 genomes in database\n" in output
 
         session = db_orm.connect_to_db(tmp_db.name)
@@ -60,7 +63,7 @@ def do_self_compare(
         return comp
 
 
-def test_self_vs_self_anim(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
+def test_self_vs_self_anim(caplog: pytest.LogCaptureFixture, tmp_path: str) -> None:
     """Check a self comparison where ANIm only 99.6307% identity.
 
     This is a real contig from GCA_001829655.1_ASM182965v1_genomic.fna
@@ -76,25 +79,23 @@ def test_self_vs_self_anim(capsys: pytest.CaptureFixture[str], tmp_path: str) ->
     )
     assert len(list(seq_dir.glob("*.f*"))) == 1
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.cli_anim)
+    comp = do_self_compare(caplog, seq_dir, public_cli.cli_anim)
     assert comp.identity == 0.9963070429965708, comp  # noqa: PLR2004
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.cli_dnadiff)
+    comp = do_self_compare(caplog, seq_dir, public_cli.cli_dnadiff)
     assert comp.identity == 1.0, comp
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.cli_anib)
+    comp = do_self_compare(caplog, seq_dir, public_cli.cli_anib)
     assert comp.identity == 1.0, comp
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.cli_fastani)
+    comp = do_self_compare(caplog, seq_dir, public_cli.cli_fastani)
     assert comp.identity == 1.0, comp
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.cli_sourmash, cache=tmp_dir)
+    comp = do_self_compare(caplog, seq_dir, public_cli.cli_sourmash, cache=tmp_dir)
     assert comp.identity == 1.0, comp
 
 
-def test_self_vs_self_fastani(
-    capsys: pytest.CaptureFixture[str], tmp_path: str
-) -> None:
+def test_self_vs_self_fastani(caplog: pytest.LogCaptureFixture, tmp_path: str) -> None:
     """Check a self comparison where fastANI only 99.9953% identity.
 
     This is a real contig from GCA_001829655.1_ASM182965v1_genomic.fna
@@ -108,17 +109,17 @@ def test_self_vs_self_fastani(
     )
     assert len(list(seq_dir.glob("*.f*"))) == 1
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.cli_anim)
+    comp = do_self_compare(caplog, seq_dir, public_cli.cli_anim)
     assert comp.identity == 1.0, comp
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.cli_dnadiff)
+    comp = do_self_compare(caplog, seq_dir, public_cli.cli_dnadiff)
     assert comp.identity == 1.0, comp
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.cli_anib)
+    comp = do_self_compare(caplog, seq_dir, public_cli.cli_anib)
     assert comp.identity == 1.0, comp
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.cli_fastani)
+    comp = do_self_compare(caplog, seq_dir, public_cli.cli_fastani)
     assert comp.identity == 0.999953, comp  # noqa: PLR2004
 
-    comp = do_self_compare(capsys, seq_dir, public_cli.cli_sourmash, cache=tmp_dir)
+    comp = do_self_compare(caplog, seq_dir, public_cli.cli_sourmash, cache=tmp_dir)
     assert comp.identity == 1.0, comp

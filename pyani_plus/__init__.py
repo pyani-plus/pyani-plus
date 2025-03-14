@@ -55,13 +55,16 @@ PROGRESS_BAR_COLUMNS = [
 ]
 
 
-def setup_logger(log_folder: Path | None, name: str) -> logging.Logger:
+def setup_logger(
+    log_folder: Path | None, name: str, *, terminal_level: int = logging.DEBUG
+) -> logging.Logger:
     """Return a file-based logger alongside a Rich console logger.
 
     The file logger defaults to DEBUG level, but the less verbose INFO for the terminal.
+    If quiet=True, then the terminal logging level is reduced to ERROR.
     """
     logger = logging.getLogger(f"{__package__}.{name}")
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(terminal_level)
     if logger.hasHandlers():  # remove all previous handlers to avoid duplicate entries
         logger.handlers.clear()
 

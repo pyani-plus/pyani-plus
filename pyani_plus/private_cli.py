@@ -522,7 +522,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     ],
     *,
     cache: OPT_ARG_TYPE_CACHE = None,
-    temp: OPT_ARG_TYPE_TEMP = None,
+    temp: OPT_ARG_TYPE_TEMP = Path("-"),
     quiet: OPT_ARG_TYPE_QUIET = False,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
 ) -> int:
@@ -648,6 +648,8 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
 
     # Either use the specified temp-directory (and do not clean up),
     # or use a system temp-directory (and do clean up)
+    if temp == Path("-"):  # dummy value accepted at command line
+        temp = None
     if temp:
         temp = temp / f"c{column}"  # avoid worries about name clashes
         temp.mkdir(exist_ok=True)

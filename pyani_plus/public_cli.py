@@ -411,7 +411,7 @@ def cli_fastani(  # noqa: PLR0913
     log: OPT_ARG_TYPE_LOG = Path(),
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
-    logger = setup_logger(log, "fastani.log")
+    logger = setup_logger(log, "fastani")
     check_db(database, create_db)
     return start_and_run_method(
         logger,

@@ -117,7 +117,7 @@ def test_delete_empty(tmp_path: str) -> None:
     with pytest.raises(
         SystemExit, match="ERROR: Database /does/not/exist does not exist"
     ):
-        public_cli.delete_run(database=Path("/does/not/exist"))
+        public_cli.delete_run(database=Path("/does/not/exist"), log=Path("-"))
 
     tmp_db = Path(tmp_path) / "list-runs-empty.sqlite"
     session = db_orm.connect_to_db(tmp_db)

@@ -326,6 +326,10 @@ def setup_logger(log_folder: Path | None, name: str) -> logging.Logger:
     if logger.hasHandlers():  # remove all previous handlers to avoid duplicate entries
         logger.handlers.clear()
 
+    if log_folder == Path("-"):
+        logger.debug("Not logging to file.")
+        return logger
+
     filename = (log_folder / (name + ".log")) if log_folder else Path(name + ".log")
     file_handler = logging.FileHandler(filename, mode="a")
     file_handler.setLevel(logging.DEBUG)

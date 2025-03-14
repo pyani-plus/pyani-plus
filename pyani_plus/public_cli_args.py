@@ -93,9 +93,12 @@ REQ_ARG_TYPE_FASTA_DIR = Annotated[
 # ---------------------------------------------------------------
 # These are named OPT_ARG_TYPE_* short for optional-argument type
 OPT_ARG_TYPE_LOG = Annotated[
-    Path | None,
+    Path,
     typer.Option(
-        help="Where to record log(s) (defaults to current directory).",
+        help=(
+            "Where to record log(s) (defaults to current directory)."
+            " Use '-' for no logging."  # Path("") gives PWD
+        ),
         rich_help_panel="Debugging",
         show_default=False,
         exists=True,

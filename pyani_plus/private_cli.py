@@ -52,6 +52,17 @@ app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 
+OPT_ARG_TYPE_LOG = Annotated[
+    Path | None,
+    typer.Option(
+        help="Where to record log(s) (defaults to current directory).",
+        rich_help_panel="Debugging",
+        show_default=False,
+        exists=True,
+        dir_okay=True,
+        file_okay=False,
+    ),
+]
 REQ_ARG_TYPE_RUN_ID = Annotated[
     int,
     typer.Option(help="Database run ID", show_default=False),

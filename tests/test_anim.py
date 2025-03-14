@@ -116,7 +116,7 @@ def test_running_anim(
     hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
     hash_to_length = {_.genome_hash: _.length for _ in run.genomes}
 
-    logger = setup_logger(tmp_dir, "ANIm")
+    logger = setup_logger(None)
 
     subject_hash = list(hash_to_filename)[1]
     private_cli.compute_anim(

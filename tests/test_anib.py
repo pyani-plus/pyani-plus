@@ -137,7 +137,7 @@ def test_running_anib(
     hash_to_length = {_.genome_hash: _.length for _ in run.genomes}
 
     subject_hash = list(hash_to_filename)[1]
-    logger = setup_logger(tmp_dir, "ANIb")
+    logger = setup_logger(None)
     private_cli.compute_anib(
         logger,
         tmp_dir,

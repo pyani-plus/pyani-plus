@@ -42,6 +42,7 @@ from rich.progress import (
 __version__ = "0.0.1"
 
 # The following are assorted centrally defined constants:
+LOG_FILE = Path("pyani-plus.log")
 FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}  # we'll consider .fasta.gz etc too
 GRAPHICS_FORMATS = ("tsv", "png", "jpg", "svgz", "pdf")  # note no dots!
 PROGRESS_BAR_COLUMNS = [
@@ -56,24 +57,26 @@ PROGRESS_BAR_COLUMNS = [
 
 
 def setup_logger(
-    log_folder: Path | None, name: str, *, terminal_level: int = logging.DEBUG
+    log_file: Path | None, *, terminal_level: int = logging.DEBUG
 ) -> logging.Logger:
     """Return a file-based logger alongside a Rich console logger.
+
+    Default filename is ``pyani-plus.log``. Use ``Path("-")`` for no log file.
 
     The file logger defaults to DEBUG level, but the less verbose INFO for the terminal.
     If quiet=True, then the terminal logging level is reduced to ERROR.
     """
-    logger = logging.getLogger(f"{__package__}.{name}")
+    logger = logging.getLogger(f"{__package__}")
     logger.setLevel(terminal_level)
     if logger.hasHandlers():  # remove all previous handlers to avoid duplicate entries
         logger.handlers.clear()
 
-    if log_folder == Path("-"):
+    if log_file == Path("-"):
         logger.debug("Not logging to file.")
         return logger
-
-    filename = (log_folder / (name + ".log")) if log_folder else Path(name + ".log")
-    file_handler = logging.FileHandler(filename, mode="a")
+    if not log_file:
+        log_file = Path(LOG_FILE)
+    file_handler = logging.FileHandler(log_file, mode="a")
     file_handler.setLevel(logging.DEBUG)
 
     fmt = "%(asctime)s %(levelname)9s %(filename)21s:%(lineno)-3s | %(message)s"
@@ -82,7 +85,7 @@ def setup_logger(
 
     logger.addHandler(file_handler)
 
-    msg = f"Logging to {filename}"
+    msg = f"Logging to {log_file}"
     logger.info(msg)  # Want this to appear on the terminal
 
     return logger

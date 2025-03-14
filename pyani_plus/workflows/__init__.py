@@ -97,6 +97,7 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     run_id: int | None = None,
     interval: float = 0.5,
     temp: Path | None = None,
+    log: Path | None = None,
 ) -> None:
     """Run snakemake with a progress bar.
 
@@ -107,16 +108,10 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     itself, and need not be passed to this function.
     """
     success = False
-    # Including the --temp as part of the parameter as a way to avoid
-    # adding --temp without an argument:
     if temp:
-        # Must quote the directory name if it has spaces etc:
-        params["temp"] = f'--temp "{temp.resolve()}" '
-    else:
-        # With empty string or '' or "" snakemake puts the literal string
-        # None into the command line. So can't use that.
-        # So as a horrible hack, have to put in something, so repeat --quiet
-        params["temp"] = "--quiet"
+        params["temp"] = str(temp.resolve())
+    if log:
+        params["log"] = str(log.resolve())
 
     show_progress_bar = display == ShowProgress.bar
     if show_progress_bar and (database is None or run_id is None):

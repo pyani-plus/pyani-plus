@@ -139,7 +139,6 @@ OPT_ARG_TYPE_TEMP = Annotated[
         " remove this afterwards.",
         rich_help_panel="Debugging",
         show_default=False,
-        exists=True,
         dir_okay=True,
         file_okay=False,
     ),

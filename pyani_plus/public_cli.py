@@ -117,6 +117,7 @@ def start_and_run_method(  # noqa: PLR0913
     temp: Path | None,
     workflow_temp: Path | None,
     database: Path,
+    log: Path,
     name: str | None,
     method: str,
     fasta: Path,
@@ -190,6 +191,7 @@ def start_and_run_method(  # noqa: PLR0913
         workflow_temp,
         filename_to_md5,
         database,
+        log,
         session,
         run,
     )
@@ -203,6 +205,7 @@ def run_method(  # noqa: PLR0913
     workflow_temp: Path | None,
     filename_to_md5: dict[Path, str],
     database: Path,
+    log: Path,
     session: Session,
     run: db_orm.Run,
 ) -> int:
@@ -264,6 +267,7 @@ def run_method(  # noqa: PLR0913
                 database=Path(database),
                 run_id=run_id,
                 temp=temp,
+                log=log,
             )
 
         # Reconnect to the DB
@@ -311,6 +315,7 @@ def cli_anim(  # noqa: PLR0913
         temp,
         wtemp,
         database,
+        log,
         name,
         "ANIm",
         fasta,
@@ -343,6 +348,7 @@ def cli_dnadiff(  # noqa: PLR0913
         temp,
         wtemp,
         database,
+        log,
         name,
         "dnadiff",
         fasta,
@@ -382,6 +388,7 @@ def cli_anib(  # noqa: PLR0913
         temp,
         wtemp,
         database,
+        log,
         name,
         "ANIb",
         fasta,
@@ -427,6 +434,7 @@ def cli_fastani(  # noqa: PLR0913
         temp,
         wtemp,
         database,
+        log,
         name,
         "fastANI",
         fasta,
@@ -464,6 +472,7 @@ def cli_sourmash(  # noqa: PLR0913
         temp,
         wtemp,
         database,
+        log,
         name,
         "sourmash",
         fasta,
@@ -519,6 +528,7 @@ def external_alignment(  # noqa: PLR0913
         temp,  # not needed?
         wtemp,  # not needed?
         database,
+        log,
         f"Import of {alignment.name}" if name is None else name,
         "external-alignment",
         fasta,
@@ -637,6 +647,7 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
         wtemp,
         filename_to_md5,
         database,
+        log,
         session,
         run,
     )

@@ -45,7 +45,14 @@ from rich.table import Table
 from rich.text import Text
 from sqlalchemy.orm import Session
 
-from pyani_plus import PROGRESS_BAR_COLUMNS, classify, db_orm, private_cli, tools
+from pyani_plus import (
+    PROGRESS_BAR_COLUMNS,
+    classify,
+    db_orm,
+    private_cli,
+    setup_logger,
+    tools,
+)
 from pyani_plus.methods import anib, anim, fastani, sourmash
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_ANIM_MODE,
@@ -75,7 +82,6 @@ from pyani_plus.utils import (
     check_fasta,
     file_md5sum,
     filename_stem,
-    setup_logger,
 )
 from pyani_plus.workflows import (
     ShowProgress,

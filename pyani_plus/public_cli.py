@@ -292,7 +292,7 @@ def cli_anim(  # noqa: PLR0913
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
-    log: OPT_ARG_TYPE_LOG = None,
+    log: OPT_ARG_TYPE_LOG = Path(),
 ) -> int:
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
     logger = setup_logger(log, "ANIm")
@@ -324,7 +324,7 @@ def cli_dnadiff(  # noqa: PLR0913
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
-    log: OPT_ARG_TYPE_LOG = None,
+    log: OPT_ARG_TYPE_LOG = Path(),
 ) -> int:
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
     logger = setup_logger(log, "dnadiff")
@@ -357,7 +357,7 @@ def cli_anib(  # noqa: PLR0913
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
-    log: OPT_ARG_TYPE_LOG = None,
+    log: OPT_ARG_TYPE_LOG = Path(),
 ) -> int:
     """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
     logger = setup_logger(log, "ANIb")
@@ -408,7 +408,7 @@ def cli_fastani(  # noqa: PLR0913
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
-    log: OPT_ARG_TYPE_LOG = None,
+    log: OPT_ARG_TYPE_LOG = Path(),
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
     logger = setup_logger(log, "fastani.log")
@@ -442,7 +442,7 @@ def cli_sourmash(  # noqa: PLR0913
     cache: OPT_ARG_TYPE_CACHE = None,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
-    log: OPT_ARG_TYPE_LOG = None,
+    log: OPT_ARG_TYPE_LOG = Path(),
     # These are for the configuration table:
     scaled: OPT_ARG_TYPE_SOURMASH_SCALED = sourmash.SCALED,  # 1000
     kmersize: OPT_ARG_TYPE_KMERSIZE = sourmash.KMER_SIZE,
@@ -477,7 +477,7 @@ def external_alignment(  # noqa: PLR0913
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
-    log: OPT_ARG_TYPE_LOG = None,
+    log: OPT_ARG_TYPE_LOG = Path(),
     # These are for the configuration table:
     alignment: Annotated[
         Path,
@@ -529,7 +529,7 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
     cache: OPT_ARG_TYPE_CACHE = None,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
-    log: OPT_ARG_TYPE_LOG = None,
+    log: OPT_ARG_TYPE_LOG = Path(),
 ) -> int:
     """Resume any (partial) run already logged in the database.
 
@@ -638,7 +638,7 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
 @app.command()
 def list_runs(
     database: REQ_ARG_TYPE_DATABASE,
-    log: OPT_ARG_TYPE_LOG = None,
+    log: OPT_ARG_TYPE_LOG = Path(),
 ) -> int:
     """List the runs defined in a given pyANI-plus SQLite3 database."""
     logger = setup_logger(log, "list-runs")
@@ -702,7 +702,7 @@ def delete_run(
         # Listing name(s) explicitly to avoid automatic matching --no-create-db
         bool, typer.Option("-f", "--force", help="Delete without confirmation")
     ] = False,
-    log: OPT_ARG_TYPE_LOG = None,
+    log: OPT_ARG_TYPE_LOG = Path(),
 ) -> int:
     """Delete any single run from the given pyANI-plus SQLite3 database.
 
@@ -780,7 +780,7 @@ def export_run(  # noqa: C901
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
     label: OPT_ARG_TYPE_LABEL = "stem",
-    log: OPT_ARG_TYPE_LOG = None,
+    log: OPT_ARG_TYPE_LOG = Path(),
 ) -> int:
     """Export any single run from the given pyANI-plus SQLite3 database.
 
@@ -897,7 +897,7 @@ def plot_run(
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
     label: OPT_ARG_TYPE_LABEL = "stem",
-    log: OPT_ARG_TYPE_LOG = None,
+    log: OPT_ARG_TYPE_LOG = Path(),
 ) -> int:
     """Plot heatmaps and distributions for any single run.
 
@@ -946,7 +946,7 @@ def plot_run_comp(
             min=0,
         ),
     ] = 0,
-    log: OPT_ARG_TYPE_LOG = None,
+    log: OPT_ARG_TYPE_LOG = Path(),
 ) -> int:
     """Plot comparisons between multiple runs.
 
@@ -1025,7 +1025,7 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     label: OPT_ARG_TYPE_LABEL = "stem",
     cov_min: OPT_ARG_TYPE_COV_MIN = classify.MIN_COVERAGE,
     mode: OPT_ARG_TYPE_CLASSIFY_MODE = classify.MODE,
-    log: OPT_ARG_TYPE_LOG = None,
+    log: OPT_ARG_TYPE_LOG = Path(),
 ) -> int:
     """Classify genomes into clusters based on ANI results."""
     logger = setup_logger(log, "classify")

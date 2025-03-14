@@ -412,7 +412,7 @@ def test_wrong_method(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, 1)
-    logger = setup_logger(tmp_dir, "external-alignment")
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
         match="ERROR: Run-id 1 expected guessing results",
@@ -446,7 +446,7 @@ def test_bad_program(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, 1)
-    logger = setup_logger(tmp_dir, "external-alignment")
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
         match="ERROR: configuration.program='should-be-blank' unexpected",
@@ -480,7 +480,7 @@ def test_bad_version(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, 1)
-    logger = setup_logger(tmp_dir, "external-alignment")
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
         match="ERROR: configuration.version='should-be-blank' unexpected",
@@ -514,7 +514,7 @@ def test_no_config(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, 1)
-    logger = setup_logger(tmp_dir, "external-alignment")
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
         match="ERROR: Missing configuration.extra setting",
@@ -547,7 +547,7 @@ def test_bad_config(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session)
-    logger = setup_logger(tmp_dir, "external-alignment")
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
         match="ERROR: configuration.extra='file=example.fasta;md5=XXX;label=stem' unexpected",
@@ -581,7 +581,7 @@ def test_missing_alignment(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session)
-    logger = setup_logger(tmp_dir, "external-alignment")
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
         match="ERROR: Missing alignment file .*/does-not-exist.fasta",
@@ -619,7 +619,7 @@ def test_bad_checksum(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session)
-    logger = setup_logger(tmp_dir, "external-alignment")
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
         match="ERROR: MD5 checksum of .*/example.fasta didn't match.",
@@ -666,7 +666,7 @@ AA
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session)
-    logger = setup_logger(tmp_dir, "external-alignment")
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
         match=(
@@ -726,7 +726,8 @@ AACT
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session)
-    logger = setup_logger(tmp_dir, "external-alignment")
+    logger = setup_logger(None)
+    logger = setup_logger(None)
     # This one should work...
     private_cli.compute_external_alignment(
         logger,

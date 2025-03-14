@@ -72,7 +72,7 @@ def test_running_fastani(
     session = db_orm.connect_to_db(tmp_db)
     run = session.query(db_orm.Run).one()
     assert run.run_id == 1
-    logger = setup_logger(tmp_dir, "fastani")
+    logger = setup_logger(None)
     filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
     hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
     hash_to_lengths = {_.genome_hash: _.length for _ in run.genomes}

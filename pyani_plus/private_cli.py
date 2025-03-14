@@ -38,7 +38,7 @@ from typing import Annotated
 import typer
 from sqlalchemy.orm import Session
 
-from pyani_plus import db_orm, setup_logger, tools
+from pyani_plus import LOG_FILE, db_orm, setup_logger, tools
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_CACHE,
     OPT_ARG_TYPE_CREATE_DB,
@@ -446,7 +446,7 @@ def prepare_genomes(
     cache: OPT_ARG_TYPE_CACHE = None,
     *,
     quiet: OPT_ARG_TYPE_QUIET = False,
-    log: OPT_ARG_TYPE_LOG = Path(),
+    log: OPT_ARG_TYPE_LOG = LOG_FILE,
 ) -> int:
     """Prepare any intermediate files needed prior to computing ANI values.
 
@@ -456,9 +456,7 @@ def prepare_genomes(
     """
     # Should this be splittable for running on the cluster? I assume most
     # cases this is IO bound rather than CPU bound so is this helpful?
-    logger = setup_logger(
-        log, "prepare-genomes", terminal_level=logging.ERROR if quiet else logging.INFO
-    )
+    logger = setup_logger(log, terminal_level=logging.ERROR if quiet else logging.INFO)
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
@@ -526,7 +524,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     cache: OPT_ARG_TYPE_CACHE = None,
     temp: OPT_ARG_TYPE_TEMP = None,
     quiet: OPT_ARG_TYPE_QUIET = False,
-    log: OPT_ARG_TYPE_LOG = Path(),
+    log: OPT_ARG_TYPE_LOG = LOG_FILE,
 ) -> int:
     """Run the method for one column and log pairwise comparisons to the database.
 
@@ -542,9 +540,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     (which for sourmash builds signature files from each FASTA file). You must
     use the same cache location for that and when you run compute-column.
     """
-    logger = setup_logger(
-        log, "compute-column", terminal_level=logging.ERROR if quiet else logging.INFO
-    )
+    logger = setup_logger(log, terminal_level=logging.ERROR if quiet else logging.INFO)
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
@@ -595,9 +591,9 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
             sys.exit(msg)
 
     # Column worker specific log files!
+    log = Path(str(log)[: -len(log.suffix)] + f".{column}" + log.suffix)
     logger = setup_logger(
         log,
-        f"compute-column-{column}",
         terminal_level=logging.ERROR if quiet else logging.INFO,
     )
 

@@ -231,7 +231,7 @@ def test_compute_bad_args(tmp_path: str) -> None:
     tool = tools.ExternalToolData(exe_path=Path("sourmash"), version="0.0a1")
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.Run()  # empty
-    logger = setup_logger(tmp_dir, "sourmash")
+    logger = setup_logger(None)
     with pytest.raises(SystemExit, match="ERROR: Not given a cache directory"):
         private_cli.compute_sourmash(
             logger, tmp_dir, session, run, tmp_dir, {}, {}, {"ABCDE": 12345}, "HIJKL"

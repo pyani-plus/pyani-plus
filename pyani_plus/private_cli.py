@@ -667,6 +667,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
 
     with nullcontext(temp) if temp else tempfile.TemporaryDirectory() as tmp_dir:
         return compute(
+            logger,
             Path(tmp_dir),
             session,
             run,
@@ -675,12 +676,12 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
             filename_to_hash,
             query_hashes,
             subject_hash,
-            quiet=quiet,
             cache=cache,
         )
 
 
 def compute_fastani(  # noqa: PLR0913
+    logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
@@ -690,7 +691,6 @@ def compute_fastani(  # noqa: PLR0913
     query_hashes: dict[str, int],
     subject_hash: str,
     *,
-    quiet: bool = False,  # noqa: ARG001
     cache: Path | None = None,  # noqa: ARG001
 ) -> int:
     """Run fastANI many-vs-subject and log column of comparisons to database."""
@@ -743,7 +743,7 @@ def compute_fastani(  # noqa: PLR0913
             str(minmatch),
         ],
     )
-
+    logger.debug("Called fastANI, about to parse output.")
     db_entries = [
         {
             "query_hash": query_hash,
@@ -784,7 +784,8 @@ def compute_fastani(  # noqa: PLR0913
     )
 
 
-def compute_anim(  # noqa: C901, PLR0913, PLR0915
+def compute_anim(  # noqa: PLR0913, PLR0915
+    logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
@@ -794,7 +795,6 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
     query_hashes: dict[str, int],
     subject_hash: str,
     *,
-    quiet: bool = False,
     cache: Path | None = None,  # noqa: ARG001
 ) -> int:
     """Run ANIm many-vs-subject and log column of comparisons to database."""
@@ -844,11 +844,11 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
             delta = tmp_dir / f"{query_hash}_vs_{subject_hash}.delta"
             deltafilter = tmp_dir / f"{query_hash}_vs_{subject_hash}.filter"
 
-            if not quiet:
-                print(
-                    f"INFO: Calling nucmer for {hash_to_filename[query_hash]}"
-                    f" vs {hash_to_filename[subject_hash]}"
-                )
+            msg = (
+                f"Calling nucmer for {hash_to_filename[query_hash]}"
+                f" vs {hash_to_filename[subject_hash]}"
+            )
+            logger.info(msg)
 
             # Here mode will be "mum" (default) or "maxmatch", meaning nucmer --mum etc.
             check_output(
@@ -866,12 +866,11 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
                 msg = f"ERROR: nucmer didn't make {delta}"  # pragma: no cover
                 sys.exit(msg)  # pragma: no cover
 
-            if not quiet:
-                print(
-                    f"INFO: Calling delta filter for {hash_to_filename[query_hash]}"
-                    f" vs {hash_to_filename[subject_hash]}"
-                )
-
+            msg = (
+                f"Calling delta filter for {hash_to_filename[query_hash]}"
+                f" vs {hash_to_filename[subject_hash]}"
+            )
+            logger.info(msg)
             # The constant -1 option is used for 1-to-1 alignments in the delta-filter,
             # with no other options available for the end user.
             output = check_output(
@@ -937,6 +936,7 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
 
 
 def compute_anib(  # noqa: PLR0913
+    logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
@@ -946,7 +946,6 @@ def compute_anib(  # noqa: PLR0913
     query_hashes: dict[str, int],
     subject_hash: str,
     *,
-    quiet: bool = False,
     cache: Path | None = None,  # noqa: ARG001
 ) -> int:
     """Run ANIb many-vs-subject and log column of comparisons to database."""
@@ -982,9 +981,8 @@ def compute_anib(  # noqa: PLR0913
 
     tmp_db = tmp_dir / subject_hash  # prefix for BLAST DB
 
-    if not quiet:
-        print(f"INFO: Calling makeblastdb for {hash_to_filename[subject_hash]}")
-
+    msg = f"Calling makeblastdb for {hash_to_filename[subject_hash]}"
+    logger.info(msg)
     check_output(
         [
             str(tools.get_makeblastdb().exe_path),
@@ -1021,12 +1019,11 @@ def compute_anib(  # noqa: PLR0913
                 fragsize,
             )
 
-            if not quiet:
-                print(
-                    f"INFO: Calling blastn for {hash_to_filename[query_hash]}"
-                    f" vs {hash_to_filename[subject_hash]}"
-                )
-
+            msg = (
+                f"Calling blastn for {hash_to_filename[query_hash]}"
+                f" vs {hash_to_filename[subject_hash]}"
+            )
+            logger.info(msg)
             check_output(
                 [
                     str(tool.exe_path),
@@ -1093,7 +1090,8 @@ def compute_anib(  # noqa: PLR0913
     )
 
 
-def compute_dnadiff(  # noqa: C901, PLR0913, PLR0915
+def compute_dnadiff(  # noqa: PLR0913, PLR0915
+    logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
@@ -1103,7 +1101,6 @@ def compute_dnadiff(  # noqa: C901, PLR0913, PLR0915
     query_hashes: dict[str, int],
     subject_hash: str,
     *,
-    quiet: bool = False,
     cache: Path | None = None,  # noqa: ARG001
 ) -> int:
     """Run dnadiff many-vs-subject and log column of comparisons to database."""
@@ -1146,11 +1143,11 @@ def compute_dnadiff(  # noqa: C901, PLR0913, PLR0915
             qdiff = tmp_dir / f"{query_hash}_vs_{subject_hash}.qdiff"
             mcoords = tmp_dir / f"{query_hash}_vs_{subject_hash}.mcoords"
 
-            if not quiet:
-                print(
-                    f"INFO: Calling nucmer for {hash_to_filename[query_hash]}"
-                    f" vs {hash_to_filename[subject_hash]}"
-                )
+            msg = (
+                f"Calling nucmer for {hash_to_filename[query_hash]}"
+                f" vs {hash_to_filename[subject_hash]}"
+            )
+            logger.info(msg)
             # This should not be run in the same tmp_dir as ANIm, as the nucmer output will clash
             check_output(
                 [
@@ -1167,11 +1164,11 @@ def compute_dnadiff(  # noqa: C901, PLR0913, PLR0915
                 msg = f"ERROR: nucmer didn't make {delta}"  # pragma: no cover
                 sys.exit(msg)  # pragma: no cover
 
-            if not quiet:
-                print(
-                    f"INFO: Calling delta-filter for {hash_to_filename[query_hash]}"
-                    f" vs {hash_to_filename[subject_hash]}"
-                )
+            msg = (
+                f"Calling delta-filter for {hash_to_filename[query_hash]}"
+                f" vs {hash_to_filename[subject_hash]}"
+            )
+            logger.info(msg)
             output = check_output(
                 [
                     str(delta_filter.exe_path),
@@ -1183,11 +1180,11 @@ def compute_dnadiff(  # noqa: C901, PLR0913, PLR0915
             with deltafilter.open("w") as handle:
                 handle.write(output)
 
-            if not quiet:
-                print(
-                    f"INFO: Calling show-diff for {hash_to_filename[query_hash]}"
-                    f" vs {hash_to_filename[subject_hash]}"
-                )
+            msg = (
+                f"Calling show-diff for {hash_to_filename[query_hash]}"
+                f" vs {hash_to_filename[subject_hash]}"
+            )
+            logger.info(msg)
             output = check_output(
                 [
                     str(show_diff.exe_path),
@@ -1199,11 +1196,11 @@ def compute_dnadiff(  # noqa: C901, PLR0913, PLR0915
             with qdiff.open("w") as handle:
                 handle.write(output)
 
-            if not quiet:
-                print(
-                    f"INFO: Calling show-coords for {hash_to_filename[query_hash]}"
-                    f" vs {hash_to_filename[subject_hash]}"
-                )
+            msg = (
+                f"Calling show-coords for {hash_to_filename[query_hash]}"
+                f" vs {hash_to_filename[subject_hash]}"
+            )
+            logger.info(msg)
             output = check_output(
                 [
                     str(show_coords.exe_path),
@@ -1285,6 +1282,7 @@ def compute_dnadiff(  # noqa: C901, PLR0913, PLR0915
 
 
 def compute_sourmash(  # noqa: PLR0913
+    logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
@@ -1294,7 +1292,6 @@ def compute_sourmash(  # noqa: PLR0913
     query_hashes: dict[str, int],
     subject_hash: str,
     *,
-    quiet: bool = False,  # noqa: ARG001
     cache: Path | None = None,
 ) -> int:
     """Run many-vs-subject for sourmash and log column to database."""
@@ -1357,6 +1354,7 @@ def compute_sourmash(  # noqa: PLR0913
             ),
             100000,
         ):
+            logger.debug("Computed batch, about to log to database.")
             db_entries.extend(
                 {
                     "query_hash": q,
@@ -1384,6 +1382,7 @@ def compute_sourmash(  # noqa: PLR0913
 
 
 def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
+    logger: logging.Logger,
     tmp_dir: Path,  # noqa: ARG001
     session: Session,
     run: db_orm.Run,
@@ -1393,7 +1392,6 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     query_hashes: dict[str, int],
     subject_hash: str,
     *,
-    quiet: bool = False,
     cache: Path | None = None,  # noqa: ARG001
 ) -> int:
     """Compute and log column of comparisons from given MSA to database.
@@ -1434,8 +1432,8 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 f"Expected SQLite3 URL to start sqlite:/// not {url}"
             )
             raise ValueError(msg)  # pragma: nocover
-        if not quiet:
-            print(f"DEBUG: Treating {alignment} as relative to {url}")
+        msg = f"Treating {alignment} as relative to {url}"
+        logger.debug(msg)
         alignment = Path(url[10:]).parent / alignment
 
     md5 = args["md5"]
@@ -1445,8 +1443,8 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     from pyani_plus.methods.external_alignment import compute_external_alignment_column
     from pyani_plus.utils import file_md5sum, filename_stem
 
-    if not quiet:
-        print(f"INFO: Parsing {alignment} (MD5={md5}, label={label})")
+    msg = f"Parsing {alignment} (MD5={md5}, label={label})"
+    logger.info(msg)
     if not alignment.is_file():
         msg = f"ERROR: Missing alignment file {alignment}"
         sys.exit(msg)

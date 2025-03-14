@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus import db_orm, private_cli, public_cli
+from pyani_plus import db_orm, private_cli, public_cli, setup_logger
 from pyani_plus.utils import file_md5sum
 
 # Listing the fragments in MD5 order to match the matrix in DB:
@@ -412,12 +412,13 @@ def test_wrong_method(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, 1)
+    logger = setup_logger(tmp_dir, "external-alignment")
     with pytest.raises(
         SystemExit,
         match="ERROR: Run-id 1 expected guessing results",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -445,12 +446,13 @@ def test_bad_program(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, 1)
+    logger = setup_logger(tmp_dir, "external-alignment")
     with pytest.raises(
         SystemExit,
         match="ERROR: configuration.program='should-be-blank' unexpected",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -478,12 +480,13 @@ def test_bad_version(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, 1)
+    logger = setup_logger(tmp_dir, "external-alignment")
     with pytest.raises(
         SystemExit,
         match="ERROR: configuration.version='should-be-blank' unexpected",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -511,12 +514,13 @@ def test_no_config(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, 1)
+    logger = setup_logger(tmp_dir, "external-alignment")
     with pytest.raises(
         SystemExit,
         match="ERROR: Missing configuration.extra setting",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -543,12 +547,13 @@ def test_bad_config(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session)
+    logger = setup_logger(tmp_dir, "external-alignment")
     with pytest.raises(
         SystemExit,
         match="ERROR: configuration.extra='file=example.fasta;md5=XXX;label=stem' unexpected",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -576,12 +581,13 @@ def test_missing_alignment(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session)
+    logger = setup_logger(tmp_dir, "external-alignment")
     with pytest.raises(
         SystemExit,
         match="ERROR: Missing alignment file .*/does-not-exist.fasta",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -613,12 +619,13 @@ def test_bad_checksum(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session)
+    logger = setup_logger(tmp_dir, "external-alignment")
     with pytest.raises(
         SystemExit,
         match="ERROR: MD5 checksum of .*/example.fasta didn't match.",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -659,6 +666,7 @@ AA
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session)
+    logger = setup_logger(tmp_dir, "external-alignment")
     with pytest.raises(
         SystemExit,
         match=(
@@ -667,6 +675,7 @@ AA
         ),
     ):
         private_cli.compute_external_alignment(
+            logger,
             tmp_dir,
             session,
             run,
@@ -717,8 +726,10 @@ AACT
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session)
+    logger = setup_logger(tmp_dir, "external-alignment")
     # This one should work...
     private_cli.compute_external_alignment(
+        logger,
         tmp_dir,
         session,
         run,
@@ -737,6 +748,7 @@ AACT
         match="Did not find subject 689d3fd6881db36b5e08329cf23cecdd in broken.fasta",
     ):
         private_cli.compute_external_alignment(
+            logger,
             tmp_dir,
             session,
             run,

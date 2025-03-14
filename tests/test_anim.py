@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus import db_orm, private_cli, tools, utils
+from pyani_plus import db_orm, private_cli, setup_logger, tools, utils
 from pyani_plus.methods import anim
 
 from . import get_matrix_entry
@@ -116,8 +116,11 @@ def test_running_anim(
     hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
     hash_to_length = {_.genome_hash: _.length for _ in run.genomes}
 
+    logger = setup_logger(tmp_dir, "ANIm")
+
     subject_hash = list(hash_to_filename)[1]
     private_cli.compute_anim(
+        logger,
         tmp_dir,
         session,
         run,

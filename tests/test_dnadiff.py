@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus import db_orm, private_cli, tools
+from pyani_plus import db_orm, private_cli, setup_logger, tools
 from pyani_plus.methods import dnadiff
 
 from . import get_matrix_entry
@@ -117,12 +117,14 @@ def test_running_dnadiff(
 
     session = db_orm.connect_to_db(tmp_db)
     run = session.query(db_orm.Run).one()
+    logger = setup_logger(tmp_dir, "dnadiff")
     assert run.run_id == 1
     hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
     hash_to_length = {_.genome_hash: _.length for _ in run.genomes}
 
     subject_hash = list(hash_to_filename)[1]
     private_cli.compute_dnadiff(
+        logger,
         tmp_dir,
         session,
         run,

@@ -25,6 +25,7 @@ The commands defined here are intended to be used from within pyANI-plus via
 snakemake, for example from worker nodes, to log results to the database.
 """
 
+import logging
 import os
 import platform
 import signal
@@ -37,10 +38,11 @@ from typing import Annotated
 import typer
 from sqlalchemy.orm import Session
 
-from pyani_plus import db_orm, tools
+from pyani_plus import db_orm, setup_logger, tools
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_CACHE,
     OPT_ARG_TYPE_CREATE_DB,
+    OPT_ARG_TYPE_LOG,
     OPT_ARG_TYPE_TEMP,
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
@@ -52,17 +54,6 @@ app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 
-OPT_ARG_TYPE_LOG = Annotated[
-    Path | None,
-    typer.Option(
-        help="Where to record log(s) (defaults to current directory).",
-        rich_help_panel="Debugging",
-        show_default=False,
-        exists=True,
-        dir_okay=True,
-        file_okay=False,
-    ),
-]
 REQ_ARG_TYPE_RUN_ID = Annotated[
     int,
     typer.Option(help="Database run ID", show_default=False),
@@ -455,6 +446,7 @@ def prepare_genomes(
     cache: OPT_ARG_TYPE_CACHE = None,
     *,
     quiet: OPT_ARG_TYPE_QUIET = False,
+    log: OPT_ARG_TYPE_LOG = Path(),
 ) -> int:
     """Prepare any intermediate files needed prior to computing ANI values.
 
@@ -464,6 +456,9 @@ def prepare_genomes(
     """
     # Should this be splittable for running on the cluster? I assume most
     # cases this is IO bound rather than CPU bound so is this helpful?
+    logger = setup_logger(
+        log, "prepare-genomes", terminal_level=logging.ERROR if quiet else logging.INFO
+    )
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
@@ -473,9 +468,10 @@ def prepare_genomes(
     done = run.comparisons().count()
     if done == n**2:
         if not quiet:
-            print(
+            msg = (
                 f"Skipping preparation, run already has all {n**2}={n}² pairwise values"
             )
+            logger.info(msg)
         return 0
     config = run.configuration
     method = config.method
@@ -490,7 +486,8 @@ def prepare_genomes(
         msg = f"ERROR: Unknown method {method}, check tool version?"
         sys.exit(msg)
     if not hasattr(module, "prepare_genomes"):
-        sys.stderr.write(f"No per-genome preparation required for {method}\n")
+        msg = f"No per-genome preparation required for {method}"
+        logger.info(msg)
         return 0
 
     # This could fail and call sys.exit.
@@ -507,6 +504,7 @@ def prepare_genomes(
             total=n,
         ):
             pass
+    logger.debug("Done")
     return 0
 
 
@@ -528,6 +526,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     cache: OPT_ARG_TYPE_CACHE = None,
     temp: OPT_ARG_TYPE_TEMP = None,
     quiet: OPT_ARG_TYPE_QUIET = False,
+    log: OPT_ARG_TYPE_LOG = Path(),
 ) -> int:
     """Run the method for one column and log pairwise comparisons to the database.
 
@@ -543,6 +542,9 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     (which for sourmash builds signature files from each FASTA file). You must
     use the same cache location for that and when you run compute-column.
     """
+    logger = setup_logger(
+        log, "compute-column", terminal_level=logging.ERROR if quiet else logging.INFO
+    )
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
@@ -592,6 +594,13 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
             )
             sys.exit(msg)
 
+    # Column worker specific log files!
+    logger = setup_logger(
+        log,
+        f"compute-column-{column}",
+        terminal_level=logging.ERROR if quiet else logging.INFO,
+    )
+
     if column == 0:
         # Computing all the matrix, but are there might be some rows/cols already done?
         query_hashes = {
@@ -614,8 +623,8 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
         del missing_query_hashes
 
     if not query_hashes:
-        if not quiet:
-            print(f"INFO: No {method} comparisons needed against {subject_hash}")
+        msg = f"No {method} comparisons needed against {subject_hash}"
+        logger.info(msg)
         return 0
 
     # Will probably want to move each of these functions to the relevant method module...
@@ -638,12 +647,24 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     fasta_dir = Path(run.fasta_directory)
     if not fasta_dir.is_absolute():
         fasta_dir = (database.parent / fasta_dir).absolute()
+    msg = f"FASTA folder {fasta_dir}"
+    logger.debug(msg)
 
     # Either use the specified temp-directory (and do not clean up),
     # or use a system temp-directory (and do clean up)
     if temp:
         temp = temp / f"c{column}"  # avoid worries about name clashes
         temp.mkdir(exist_ok=True)
+        msg = f"Using temp folder {temp}"
+        logger.debug(msg)
+
+    msg = (
+        f"Calling {method} for {len(query_hashes)} queries"
+        if column == 0
+        else f"Calling {method} for {len(query_hashes)} queries vs {subject_hash}."
+    )
+    logger.info(msg)
+
     with nullcontext(temp) if temp else tempfile.TemporaryDirectory() as tmp_dir:
         return compute(
             Path(tmp_dir),
@@ -669,7 +690,7 @@ def compute_fastani(  # noqa: PLR0913
     query_hashes: dict[str, int],
     subject_hash: str,
     *,
-    quiet: bool = False,
+    quiet: bool = False,  # noqa: ARG001
     cache: Path | None = None,  # noqa: ARG001
 ) -> int:
     """Run fastANI many-vs-subject and log column of comparisons to database."""
@@ -703,11 +724,6 @@ def compute_fastani(  # noqa: PLR0913
     with tmp_queries.open("w") as handle:
         for query_hash in query_hashes:
             handle.write(f"{fasta_dir / hash_to_filename[query_hash]}\n")
-
-    if not quiet:
-        print(
-            f"INFO: Calling fastANI for {len(query_hashes)} queries vs {subject_hash}"
-        )
 
     check_output(
         [

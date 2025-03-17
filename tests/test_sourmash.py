@@ -35,9 +35,7 @@ from pyani_plus import db_orm, private_cli, setup_logger, tools
 from pyani_plus.methods import sourmash
 
 
-def test_prepare_genomes_bad_method(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
-) -> None:
+def test_prepare_genomes_bad_method(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check error handling of sourmash.prepare_genomes with wrong method."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "bad-args.db"
@@ -53,8 +51,6 @@ def test_prepare_genomes_bad_method(
         version="0.0a1",
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, run_id=1)
 
@@ -66,9 +62,7 @@ def test_prepare_genomes_bad_method(
     session.close()
 
 
-def test_prepare_genomes_bad_kmer(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
-) -> None:
+def test_prepare_genomes_bad_kmer(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check error handling of sourmash.prepare_genomes without k-mer size."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "bad-args.db"
@@ -85,8 +79,6 @@ def test_prepare_genomes_bad_kmer(
         extra="scaled=" + str(sourmash.SCALED),
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, run_id=1)
 
@@ -100,9 +92,7 @@ def test_prepare_genomes_bad_kmer(
     session.close()
 
 
-def test_prepare_genomes_bad_cache(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
-) -> None:
+def test_prepare_genomes_bad_cache(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check error handling of sourmash.prepare_genomes without k-mer size."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "bad-args.db"
@@ -120,8 +110,6 @@ def test_prepare_genomes_bad_cache(
         extra="scaled=" + str(sourmash.SCALED),
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, run_id=1)
 
@@ -136,7 +124,6 @@ def test_prepare_genomes_bad_cache(
 
 
 def test_prepare_genomes_bad_extra(
-    capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -156,8 +143,6 @@ def test_prepare_genomes_bad_extra(
         kmersize=sourmash.KMER_SIZE,
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, run_id=1)
 

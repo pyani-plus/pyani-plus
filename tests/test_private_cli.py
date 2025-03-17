@@ -36,7 +36,7 @@ from sqlalchemy.exc import NoResultFound
 from pyani_plus import db_orm, private_cli, tools
 
 
-def test_log_configuration(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
+def test_log_configuration(caplog: pytest.LogCaptureFixture, tmp_path: str) -> None:
     """Confirm can create a new empty database via log-configuration."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
@@ -62,10 +62,11 @@ def test_log_configuration(capsys: pytest.CaptureFixture[str], tmp_path: str) ->
         kmersize=51,
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Configuration identifier 1\n")
+    output = caplog.text
+    assert "Configuration identifier 1" in output
 
     # This time should already be a DB there
+    caplog.clear()
     private_cli.log_configuration(
         tmp_db,
         method="guessing",
@@ -75,9 +76,8 @@ def test_log_configuration(capsys: pytest.CaptureFixture[str], tmp_path: str) ->
         kmersize=31,
         create_db=False,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Configuration identifier 2\n")
-
+    output = caplog.text
+    assert "Configuration identifier 2" in output
     tmp_db.unlink()
 
 
@@ -104,7 +104,7 @@ def test_log_genome(tmp_path: str, input_genomes_tiny: Path) -> None:
     )
 
 
-def test_log_run(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
+def test_log_run(caplog: pytest.LogCaptureFixture, tmp_path: str) -> None:
     """Confirm can create a new empty DB via log-run."""
     tmp_db = Path(tmp_path) / "new.sqlite"
     assert not tmp_db.is_file()
@@ -149,6 +149,7 @@ def test_log_run(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
         handle.write(">Tiny\nACGTACGTTA\n")
 
     # This time create it
+    caplog.clear()
     private_cli.log_run(
         database=tmp_db,
         # Run
@@ -165,8 +166,8 @@ def test_log_run(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
         # Misc
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
+    output = caplog.text
+    assert "Run identifier 1" in output
 
     tmp_db.unlink()
 
@@ -215,7 +216,8 @@ def test_log_comparison_no_config(tmp_path: str, input_genomes_tiny: Path) -> No
 
 
 def test_log_comparison_duplicate(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Confirm no error logging comparison twice."""
     tmp_db = Path(tmp_path) / "new.sqlite"
@@ -230,8 +232,6 @@ def test_log_comparison_duplicate(
         kmersize=51,
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Configuration identifier 1\n")
 
     private_cli.log_genome(
         database=tmp_db,
@@ -276,7 +276,6 @@ def test_log_comparison_duplicate(
 
 def test_log_comparison_serial_and_skip_process_genomes(
     caplog: pytest.LogCaptureFixture,
-    capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -297,8 +296,8 @@ def test_log_comparison_serial_and_skip_process_genomes(
         extra="scaled=1234",
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Configuration identifier 1\n")
+    output = caplog.text
+    assert "Configuration identifier 1" in output
 
     fasta = list(input_genomes_tiny.glob("*.f*"))
     private_cli.log_genome(
@@ -327,6 +326,7 @@ def test_log_comparison_serial_and_skip_process_genomes(
     # Can now log the run with status=completed
     # Or, if we already logged it with status=started, would need to update
     # the existing run table entry with the cached matrices and completed status
+    caplog.clear()
     private_cli.log_run(
         database=tmp_db,
         # Run
@@ -342,8 +342,8 @@ def test_log_comparison_serial_and_skip_process_genomes(
         extra="scaled=1234",
         create_db=False,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
+    output = caplog.text
+    assert "Run identifier 1" in output
 
     session = db_orm.connect_to_db(tmp_db)
     assert session.query(db_orm.Comparison).count() == len(fasta) ** 2
@@ -356,7 +356,9 @@ def test_log_comparison_serial_and_skip_process_genomes(
 
 
 def test_log_comparison_parallel(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Confirm can create a mock DB using log-comparison etc. in parallel."""
     tmp_db = Path(tmp_path) / "parallel.sqlite"
@@ -371,8 +373,8 @@ def test_log_comparison_parallel(
         kmersize=51,
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Configuration identifier 1\n")
+    output = caplog.text
+    assert "Configuration identifier 1" in output
 
     fasta = list(input_genomes_tiny.glob("*.f*"))
     # Avoid implicit fork, should match the defaults on Python 3.14 onwards:
@@ -426,6 +428,7 @@ def test_log_comparison_parallel(
     # Can now log the run with status=completed
     # Or, if we already logged it with status=started, would need to update
     # the existing run table entry with the cached matrices and completed status
+    caplog.clear()
     private_cli.log_run(
         database=tmp_db,
         # Run
@@ -442,8 +445,8 @@ def test_log_comparison_parallel(
         # Misc
         create_db=False,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
+    output = caplog.text
+    assert "Run identifier 1" in output
 
     session = db_orm.connect_to_db(tmp_db)
     assert session.query(db_orm.Comparison).count() == len(fasta) ** 2
@@ -520,7 +523,7 @@ def test_prepare_genomes_bad_args(tmp_path: str, input_genomes_tiny: Path) -> No
 
 
 def test_compute_column_bad_args(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -541,8 +544,8 @@ def test_compute_column_bad_args(
         kmersize=51,
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
+    output = caplog.text
+    assert "Run identifier 1" in output
 
     # If this was the public API, should handle it more gracefully:
     with pytest.raises(
@@ -600,7 +603,7 @@ def test_compute_column_bad_args(
 
 
 def test_compute_column_bad_anib(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -621,8 +624,8 @@ def test_compute_column_bad_anib(
         # fragsize=...,  <-- missing!
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
+    output = caplog.text
+    assert "Run identifier 1" in output
 
     with pytest.raises(
         SystemExit,
@@ -636,7 +639,6 @@ def test_compute_column_bad_anib(
 
 
 def test_compute_column_bad_anim(
-    capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -657,8 +659,6 @@ def test_compute_column_bad_anim(
         # mode=...,  <-- missing!
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
 
     with pytest.raises(
         SystemExit,
@@ -672,7 +672,7 @@ def test_compute_column_bad_anim(
 
 
 def test_compute_column_bad_fastani(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -693,8 +693,8 @@ def test_compute_column_bad_fastani(
         # fragsize=...,  <-- missing!
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
+    output = caplog.text
+    assert "Run identifier 1" in output
 
     with pytest.raises(
         SystemExit,
@@ -707,6 +707,7 @@ def test_compute_column_bad_fastani(
         )
 
     tool = tools.get_fastani()
+    caplog.clear()
     private_cli.log_run(
         fasta=input_genomes_tiny,
         database=tmp_db,
@@ -719,8 +720,8 @@ def test_compute_column_bad_fastani(
         fragsize=1000,
         # kmersize=...,  <-- missing!
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 2\n")
+    output = caplog.text
+    assert "Run identifier 2" in output
 
     with pytest.raises(
         SystemExit,
@@ -733,6 +734,7 @@ def test_compute_column_bad_fastani(
         )
 
     tool = tools.get_fastani()
+    caplog.clear()
     private_cli.log_run(
         fasta=input_genomes_tiny,
         database=tmp_db,
@@ -746,9 +748,8 @@ def test_compute_column_bad_fastani(
         kmersize=9,
         # minmatch=..., <-- missing!
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 3\n")
-
+    output = caplog.text
+    assert "Run identifier 3" in output
     with pytest.raises(
         SystemExit,
         match="ERROR: fastANI run-id 3 is missing minmatch parameter",
@@ -762,7 +763,6 @@ def test_compute_column_bad_fastani(
 
 def test_compute_column_fastani(
     caplog: pytest.LogCaptureFixture,
-    capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -787,8 +787,6 @@ def test_compute_column_fastani(
         minmatch=0.9,
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
 
     private_cli.compute_column(
         database=tmp_db,

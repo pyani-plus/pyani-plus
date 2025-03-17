@@ -88,8 +88,6 @@ def test_compute_column_sigint_anib(
             fragsize=1000,
             create_db=True,
         )
-    output = capfd.readouterr().out
-    assert output.endswith("Run identifier 1\n")
 
     with subprocess.Popen(
         [
@@ -154,8 +152,6 @@ def test_compute_column_sigint_dnadiff(
         version=tool.version,
         create_db=True,
     )
-    output = capfd.readouterr().out
-    assert output.endswith("Run identifier 1\n")
 
     with subprocess.Popen(
         [
@@ -219,8 +215,6 @@ def test_compute_column_sigint_anim(
         version=tool.version,
         create_db=True,
     )
-    output = capfd.readouterr().out
-    assert output.endswith("Run identifier 1\n")
 
     with subprocess.Popen(
         [
@@ -297,8 +291,6 @@ def test_compute_column_sigint_external_alignment(
         extra=f"md5={md5};label=stem;alignment={tmp_alignment}",
         create_db=True,
     )
-    output = capfd.readouterr().out
-    assert output.endswith("Run identifier 1\n")
 
     with subprocess.Popen(
         [

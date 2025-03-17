@@ -90,7 +90,6 @@ def test_parse_qdiff_bad_alignments(input_genomes_bad_alignments: Path) -> None:
 
 
 def test_running_dnadiff(
-    capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -112,8 +111,6 @@ def test_running_dnadiff(
         version=tool.version,
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
 
     session = db_orm.connect_to_db(tmp_db)
     run = session.query(db_orm.Run).one()

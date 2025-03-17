@@ -208,11 +208,13 @@ def log_configuration(  # noqa: PLR0913
 
     Any pre-existing configuration entry is left as is.
     """
+    logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not create_db and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist, but not using --create-db"
         sys.exit(msg)
 
-    print(f"Logging configuration to {database}")
+    msg = f"Logging configuration to {database}"
+    logger.info(msg)
     session = db_orm.connect_to_db(database)
     config = db_orm.db_configuration(
         session=session,
@@ -227,7 +229,8 @@ def log_configuration(  # noqa: PLR0913
         create=True,
     )
     session.commit()  # should be redundant
-    print(f"Configuration identifier {config.configuration_id}")
+    msg = f"Configuration identifier {config.configuration_id}"
+    logger.info(msg)
     session.close()
 
     return 0
@@ -244,11 +247,13 @@ def log_genome(
 
     Any pre-existing duplicate FASTA entries are left as is.
     """
+    logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not create_db and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist, but not using --create-db"
         sys.exit(msg)
 
-    print(f"Logging genome to {database}")
+    msg = f"Logging genome to {database}"
+    logger.info(msg)
     session = db_orm.connect_to_db(database)
 
     from rich.progress import Progress
@@ -265,8 +270,8 @@ def log_genome(
                 db_orm.db_genome(session, filename, md5, create=True)
     session.commit()
     session.close()
-    print(f"Processed {file_total} FASTA files")
-
+    msg = f"Processed {file_total} FASTA files"
+    logger.info(msg)
     return 0
 
 
@@ -296,11 +301,13 @@ def log_run(  # noqa: PLR0913
     comparisons have been completed and you want to refresh the cached matrices
     and update the run status).
     """
+    logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not create_db and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist, but not using --create-db"
         sys.exit(msg)
 
-    print(f"Logging run to {database}")
+    msg = f"Logging run to {database}"
+    logger.info(msg)
     session = db_orm.connect_to_db(database)
 
     # Reuse existing config, or log a new one
@@ -349,8 +356,8 @@ def log_run(  # noqa: PLR0913
 
     session.commit()
     session.close()
-    print(f"Run identifier {run_id}")
-
+    msg = f"Run identifier {run_id}"
+    logger.info(msg)
     return 0
 
 
@@ -370,11 +377,13 @@ def log_comparison(  # noqa: PLR0913
     cov_subject: Annotated[float | None, typer.Option(help="Alignment length")] = None,
 ) -> int:
     """Log single pairwise comparison to database."""
+    logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
         sys.exit(msg)
 
-    print(f"Logging comparison to {database}")
+    msg = f"Logging comparison to {database}"
+    logger.info(msg)
     session = db_orm.connect_to_db(database)
     # Give a better error message that if adding comparison fails:
     if (

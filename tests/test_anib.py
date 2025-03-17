@@ -104,7 +104,6 @@ def test_parse_blastn(input_genomes_tiny: Path) -> None:
 
 
 def test_running_anib(
-    capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -127,8 +126,6 @@ def test_running_anib(
         fragsize=anib.FRAGSIZE,  # will be used by default in log_anib
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
 
     session = db_orm.connect_to_db(tmp_db)
     run = session.query(db_orm.Run).one()

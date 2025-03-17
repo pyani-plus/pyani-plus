@@ -41,7 +41,6 @@ def test_bad_path() -> None:
 
 
 def test_running_fastani(
-    capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -66,8 +65,6 @@ def test_running_fastani(
         minmatch=0.9,
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
 
     session = db_orm.connect_to_db(tmp_db)
     run = session.query(db_orm.Run).one()

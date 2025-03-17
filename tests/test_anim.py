@@ -84,7 +84,6 @@ def test_aligned_bases_count(aligned_regions: dict) -> None:
 
 
 def test_running_anim(
-    capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -107,8 +106,6 @@ def test_running_anim(
         mode=anim.MODE,
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
 
     session = db_orm.connect_to_db(tmp_db)
     run = session.query(db_orm.Run).one()

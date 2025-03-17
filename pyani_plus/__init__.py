@@ -29,6 +29,7 @@ additional schedulers and methods.
 """
 
 import logging
+import sys
 from pathlib import Path
 
 from rich.progress import (
@@ -89,3 +90,12 @@ def setup_logger(
     logger.info(msg)  # Want this to appear on the terminal
 
     return logger
+
+
+def log_sys_exit(logger: logging.Logger, msg: str) -> None:
+    """Log CRITICAL level message, then exit with that message.
+
+    Yes, this is a bit repetitive but, means using `pytest.raises` remains simple.
+    """
+    logger.critical(msg)
+    sys.exit(msg)

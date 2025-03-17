@@ -35,7 +35,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from pyani_plus import GRAPHICS_FORMATS, db_orm, public_cli, tools
+from pyani_plus import GRAPHICS_FORMATS, db_orm, public_cli, setup_logger, tools
 from pyani_plus.utils import file_md5sum
 
 
@@ -91,25 +91,27 @@ def compare_matrix_files(
 
 def test_check_db() -> None:
     """Check check_db error conditions."""
+    logger = setup_logger(Path("-"))
     with pytest.raises(
         SystemExit,
         match="ERROR: Database /does/not/exist does not exist, but not using --create-db",
     ):
-        public_cli.check_db(Path("/does/not/exist"), create_db=False)
+        public_cli.check_db(logger, Path("/does/not/exist"), create_db=False)
 
     # This is fine:
-    public_cli.check_db(":memory:", create_db=True)
+    public_cli.check_db(logger, ":memory:", create_db=True)
 
 
 def test_check_fasta(tmp_path: str) -> None:
     """Check error conditions."""
+    logger = setup_logger(Path("-"))
     with pytest.raises(
         SystemExit, match="ERROR: FASTA input /does/not/exist is not a directory"
     ):
-        public_cli.check_fasta(Path("/does/not/exist"))
+        public_cli.check_fasta(logger, Path("/does/not/exist"))
 
     with pytest.raises(SystemExit, match="ERROR: No FASTA input genomes under "):
-        public_cli.check_fasta(Path(tmp_path))
+        public_cli.check_fasta(logger, Path(tmp_path))
 
 
 def test_delete_empty(tmp_path: str) -> None:

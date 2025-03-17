@@ -23,6 +23,7 @@
 
 import gzip
 import hashlib
+import logging
 import os
 import shutil
 import subprocess
@@ -31,7 +32,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import IO
 
-from pyani_plus import FASTA_EXTENSIONS
+from pyani_plus import FASTA_EXTENSIONS, log_sys_exit
 
 ASCII_GREATER_THAN = ord(">")  # 64
 WHITESPACE = b" \t\r\n"
@@ -214,18 +215,18 @@ def available_cores() -> int:
     return available
 
 
-def check_db(database: Path | str, create_db: bool) -> None:  # noqa: FBT001
+def check_db(logger: logging.Logger, database: Path | str, create_db: bool) -> None:  # noqa: FBT001
     """Check DB exists, or using create_db=True."""
     if database != ":memory:" and not create_db and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist, but not using --create-db"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
 
-def check_fasta(fasta: Path) -> list[Path]:
+def check_fasta(logger: logging.Logger, fasta: Path) -> list[Path]:
     """Check fasta is a directory and return list of FASTA files in it."""
     if not fasta.is_dir():
         msg = f"ERROR: FASTA input {fasta} is not a directory"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     fasta_names: list[Path] = []
     for pattern in FASTA_EXTENSIONS:
@@ -233,7 +234,7 @@ def check_fasta(fasta: Path) -> list[Path]:
         fasta_names.extend(fasta.glob("*" + pattern + ".gz"))
     if not fasta_names:
         msg = f"ERROR: No FASTA input genomes under {fasta} with extensions {', '.join(FASTA_EXTENSIONS)}"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     return fasta_names
 
@@ -272,7 +273,7 @@ def check_output(args: list[str]) -> str:
                 msg += line + "\n"
     sys.stderr.flush()
 
-    # Calling sys.exit(X) is equivalent to raising SystemExit(X),
+    # Calling log_sys_exit(X) is equivalent to raising SystemExit(X),
     # where if X is an integer this is the return code, otherwise
     # X is printed to stderr and the return code is 1.
     #
@@ -283,7 +284,11 @@ def check_output(args: list[str]) -> str:
 
 
 def stage_file(
-    input_filename: Path, staged_filename: Path, *, decompress: bool = True
+    logger: logging.Logger,
+    input_filename: Path,
+    staged_filename: Path,
+    *,
+    decompress: bool = True,
 ) -> None:
     """Prepare a symlink or decompressed copy of the given file.
 
@@ -296,12 +301,12 @@ def stage_file(
     """
     if not input_filename.is_file():
         msg = f"ERROR: Missing input file {input_filename}"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
     if staged_filename.is_file():
         # This could be a race condition?
         # Perhaps if resume with explicit temp directory given?
         msg = f"ERROR: Intermediate file {staged_filename} already exists!"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     if input_filename.suffix == ".gz" and decompress:
         # Decompress to the given temporary filename

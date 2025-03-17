@@ -38,7 +38,7 @@ from typing import Annotated
 import typer
 from sqlalchemy.orm import Session
 
-from pyani_plus import LOG_FILE, db_orm, setup_logger, tools
+from pyani_plus import LOG_FILE, db_orm, log_sys_exit, setup_logger, tools
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_CACHE,
     OPT_ARG_TYPE_CREATE_DB,
@@ -160,16 +160,20 @@ RECORDING_FAILED = 2  # return code for successful calculation but failed to sav
 
 
 def _check_tool_version(
-    tool: tools.ExternalToolData, configuration: db_orm.Configuration
+    logger: logging.Logger,
+    tool: tools.ExternalToolData,
+    configuration: db_orm.Configuration,
 ) -> None:
     """Confirm the tool and version matches the given configuration.
 
     >>> from pathlib import Path
+    >>> from pyani_plus import setup_logger
     >>> from pyani_plus.tools import ExternalToolData
     >>> from pyani_plus.db_orm import Configuration
+    >>> logger = setup_logger(None)
     >>> tool = ExternalToolData(Path("/bin/guestimator"), "1.3")
     >>> config = Configuration(method="guessing", program="guestimator", version="1.2")
-    >>> _check_tool_version(tool, config)
+    >>> _check_tool_version(logger, tool, config)
     Traceback (most recent call last):
     ...
     SystemExit: ERROR: Run configuration was guestimator 1.2 but we have guestimator 1.3
@@ -187,7 +191,7 @@ def _check_tool_version(
             f" {configuration.program} {configuration.version}"
             f" but we have {tool.exe_path.stem} {tool.version}"
         )
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
 
 @app.command(rich_help_panel="Low-level logging")
@@ -330,7 +334,7 @@ def log_run(  # noqa: PLR0913
     from pyani_plus.utils import check_fasta, file_md5sum
 
     fasta_to_hash = {}
-    fasta_names = check_fasta(fasta)
+    fasta_names = check_fasta(logger, fasta)
     if fasta_names:
         # Reuse existing genome entries and/or log new ones
         with Progress(*PROGRESS_BAR_COLUMNS) as progress:
@@ -392,7 +396,7 @@ def log_comparison(  # noqa: PLR0913
         .count()
     ):
         msg = f"ERROR - {database} does not contain configuration_id={config_id}"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     from pyani_plus.utils import file_md5sum
 
@@ -419,7 +423,11 @@ def log_comparison(  # noqa: PLR0913
 
 
 def validate_cache(
-    cache: Path | None, *, create_default: bool = True, require: bool = False
+    logger: logging.Logger,
+    cache: Path | None,
+    *,
+    create_default: bool = True,
+    require: bool = False,
 ) -> Path:
     """Validate any cache path from the command line, or determine default.
 
@@ -436,12 +444,13 @@ def validate_cache(
                 cache.mkdir(parents=True)
             elif require:
                 msg = f"Default cache directory {cache} does not exist."
-                sys.exit(msg)
-        sys.stderr.write(f"INFO: Defaulting to cache at {cache}\n")
+                log_sys_exit(logger, msg)
+        msg = f"INFO: Defaulting to cache at {cache}"
+        logger.info(msg)
     elif not cache.is_dir():
         # This is an error even if require=False
         msg = f"ERROR: Specified cache directory {cache} does not exist"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
     return cache
 
 
@@ -468,7 +477,7 @@ def prepare_genomes(
     logger = setup_logger(log, terminal_level=logging.ERROR if quiet else logging.INFO)
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
     session = db_orm.connect_to_db(database)
     run = db_orm.load_run(session, run_id)
     n = run.genomes.count()
@@ -491,14 +500,14 @@ def prepare_genomes(
         )
     except ModuleNotFoundError:
         msg = f"ERROR: Unknown method {method}, check tool version?"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
     if not hasattr(module, "prepare_genomes"):
         msg = f"No per-genome preparation required for {method}"
         logger.info(msg)
         return 0
 
     # This could fail and call sys.exit.
-    cache = validate_cache(cache, require=True, create_default=True)
+    cache = validate_cache(logger, cache, require=True, create_default=True)
 
     from rich.progress import Progress
 
@@ -552,7 +561,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     logger = setup_logger(log, terminal_level=logging.ERROR if quiet else logging.INFO)
     if database != ":memory:" and not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     # We want to receive any SIGINT as a KeyboardInterrupt even if we
     # are run via a bash shell or other non-interactive setting:
@@ -583,7 +592,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
             column = int(subject)
         except ValueError:
             msg = f"ERROR: Did not recognise {subject!r} as an MD5 hash, filename, or column number in run-id {run_id}"
-            sys.exit(msg)
+            log_sys_exit(logger, msg)
         if 0 < column <= n:
             subject_hash = sorted(hash_to_filename)[column - 1]
         elif column == 0:
@@ -591,13 +600,13 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
                 subject_hash = ""
             else:
                 msg = "ERROR: All columns currently only implemented for sourmash"
-                sys.exit(msg)
+                log_sys_exit(logger, msg)
         else:
             msg = (
                 f"ERROR: Single column should be in range 1 to {n},"
                 f" or for some methods {0} meaning all columns, but not {subject}"
             )
-            sys.exit(msg)
+            log_sys_exit(logger, msg)
 
     # Column worker specific log files!
     log = Path(str(log)[: -len(log.suffix)] + f".{column}" + log.suffix)
@@ -644,7 +653,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
         }[method]
     except KeyError:
         msg = f"ERROR: Unknown method {method} for run-id {run_id} in {database}"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     # On a cluster we are likely in a temp working directory, meaning
     # if it is a relative path, run.fasta_directory is useless without
@@ -707,21 +716,21 @@ def compute_fastani(  # noqa: PLR0913
     uname_machine = uname.machine
 
     tool = tools.get_fastani()
-    _check_tool_version(tool, run.configuration)
+    _check_tool_version(logger, tool, run.configuration)
 
     config_id = run.configuration.configuration_id
     fragsize = run.configuration.fragsize
     if not fragsize:
         msg = f"ERROR: fastANI run-id {run.run_id} is missing fragsize parameter"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
     kmersize = run.configuration.kmersize
     if not kmersize:
         msg = f"ERROR: fastANI run-id {run.run_id} is missing kmersize parameter"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
     minmatch = run.configuration.minmatch
     if not minmatch:
         msg = f"ERROR: fastANI run-id {run.run_id} is missing minmatch parameter"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     from pyani_plus.methods import fastani  # lazy import
     from pyani_plus.utils import check_output
@@ -812,13 +821,13 @@ def compute_anim(  # noqa: PLR0913, PLR0915
 
     nucmer = tools.get_nucmer()
     delta_filter = tools.get_delta_filter()
-    _check_tool_version(nucmer, run.configuration)
+    _check_tool_version(logger, nucmer, run.configuration)
 
     config_id = run.configuration.configuration_id
     mode = run.configuration.mode
     if not mode:
         msg = f"ERROR: ANIm run-id {run.run_id} is missing mode parameter"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     subject_length = (
         session.query(db_orm.Genome)
@@ -833,7 +842,7 @@ def compute_anim(  # noqa: PLR0913, PLR0915
     # nucmer does not handle spaces in filenames, neither quoted nor
     # escaped as slash-space. Therefore symlink or decompress to <MD5>.fasta:
     subject_fasta = tmp_dir / f"{subject_hash}.fasta"
-    stage_file(fasta_dir / hash_to_filename[subject_hash], subject_fasta)
+    stage_file(logger, fasta_dir / hash_to_filename[subject_hash], subject_fasta)
 
     db_entries = []
     try:
@@ -842,7 +851,9 @@ def compute_anim(  # noqa: PLR0913, PLR0915
                 # Another thread may create/delete that FASTA name for our query
                 # - so make a unique name for the temp file:
                 query_fasta = tmp_dir / f"{query_hash}_vs_{subject_hash}.fasta"
-                stage_file(fasta_dir / hash_to_filename[query_hash], query_fasta)
+                stage_file(
+                    logger, fasta_dir / hash_to_filename[query_hash], query_fasta
+                )
             else:
                 # Can reuse the subject's decompressed file/symlink
                 query_fasta = subject_fasta
@@ -871,7 +882,7 @@ def compute_anim(  # noqa: PLR0913, PLR0915
             )
             if not delta.is_file():
                 msg = f"ERROR: nucmer didn't make {delta}"  # pragma: no cover
-                sys.exit(msg)  # pragma: no cover
+                log_sys_exit(logger, msg)  # pragma: no cover
 
             msg = (
                 f"Calling delta filter for {hash_to_filename[query_hash]}"
@@ -962,13 +973,13 @@ def compute_anib(  # noqa: PLR0913
     uname_machine = uname.machine
 
     tool = tools.get_blastn()
-    _check_tool_version(tool, run.configuration)
+    _check_tool_version(logger, tool, run.configuration)
 
     config_id = run.configuration_id
     fragsize = run.configuration.fragsize
     if not fragsize:
         msg = f"ERROR: ANIb run-id {run.run_id} is missing fragsize parameter"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
     subject_length = (
         session.query(db_orm.Genome)
         .where(db_orm.Genome.genome_hash == subject_hash)
@@ -984,7 +995,7 @@ def compute_anib(  # noqa: PLR0913
     # makeblastdb does not handle spaces in filenames, neither quoted nor
     # escaped as slash-space. Therefore symlink or decompress to <MD5>.fasta:
     subject_fasta = tmp_dir / f"{subject_hash}.fasta"
-    stage_file(fasta_dir / hash_to_filename[subject_hash], subject_fasta)
+    stage_file(logger, fasta_dir / hash_to_filename[subject_hash], subject_fasta)
 
     tmp_db = tmp_dir / subject_hash  # prefix for BLAST DB
 
@@ -1120,7 +1131,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
     delta_filter = tools.get_delta_filter()
     show_diff = tools.get_show_diff()
     show_coords = tools.get_show_coords()
-    _check_tool_version(nucmer, run.configuration)
+    _check_tool_version(logger, nucmer, run.configuration)
 
     config_id = run.configuration.configuration_id
 
@@ -1130,7 +1141,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
     # nucmer does not handle spaces in filenames, neither quoted nor
     # escaped as slash-space. Therefore symlink or decompress to <MD5>.fasta:
     subject_fasta = tmp_dir / f"{subject_hash}.fasta"
-    stage_file(fasta_dir / hash_to_filename[subject_hash], subject_fasta)
+    stage_file(logger, fasta_dir / hash_to_filename[subject_hash], subject_fasta)
 
     db_entries = []
     try:
@@ -1139,7 +1150,9 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
                 # Another thread may create/delete that FASTA name for our query
                 # - so make a unique name for the temp file:
                 query_fasta = tmp_dir / f"{query_hash}_vs_{subject_hash}.fasta"
-                stage_file(fasta_dir / hash_to_filename[query_hash], query_fasta)
+                stage_file(
+                    logger, fasta_dir / hash_to_filename[query_hash], query_fasta
+                )
             else:
                 # Can reuse the subject's decompressed file/symlink
                 query_fasta = subject_fasta
@@ -1169,7 +1182,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
             )
             if not delta.is_file():
                 msg = f"ERROR: nucmer didn't make {delta}"  # pragma: no cover
-                sys.exit(msg)  # pragma: no cover
+                log_sys_exit(logger, msg)  # pragma: no cover
 
             msg = (
                 f"Calling delta-filter for {hash_to_filename[query_hash]}"
@@ -1304,10 +1317,14 @@ def compute_sourmash(  # noqa: PLR0913
     """Run many-vs-subject for sourmash and log column to database."""
     if not cache:
         msg = "ERROR: Not given a cache directory"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
+        # not called but mypy doesn't understand (yet)
+        return 1  # pragma: nocover
     if not cache.is_dir():
         msg = f"ERROR: Cache directory {cache} does not exist - check cache setting."
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
+        # not called but mypy doesn't understand (yet)
+        return 1  # pragma: nocover
 
     # Not using try/except due to mypy false positive about redefining the function
     if sys.version_info >= (3, 12):
@@ -1336,7 +1353,7 @@ def compute_sourmash(  # noqa: PLR0913
     uname_machine = uname.machine
 
     tool = tools.get_sourmash()
-    _check_tool_version(tool, run.configuration)
+    _check_tool_version(logger, tool, run.configuration)
 
     config_id = run.configuration.configuration_id
 
@@ -1347,7 +1364,7 @@ def compute_sourmash(  # noqa: PLR0913
     )
     if not sig_cache.is_dir():
         msg = f"ERROR: Missing sourmash signatures directory {sig_cache} - check cache setting."
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     try:
         db_entries: list[dict[str, str | float | None]] = []
@@ -1414,20 +1431,20 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     config_id = run.configuration.configuration_id
     if run.configuration.method != "external-alignment":
         msg = f"ERROR: Run-id {run.run_id} expected {run.configuration.method} results"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
     if run.configuration.program:
         msg = f"ERROR: configuration.program={run.configuration.program!r} unexpected"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
     if run.configuration.version:
         msg = f"ERROR: configuration.version={run.configuration.version!r} unexpected"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
     if not run.configuration.extra:
         msg = "ERROR: Missing configuration.extra setting"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
     args = dict(_.split("=", 1) for _ in run.configuration.extra.split(";", 2))
     if list(args) != ["md5", "label", "alignment"]:
         msg = f"ERROR: configuration.extra={run.configuration.extra!r} unexpected"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     alignment = Path(args["alignment"])
     if not alignment.is_absolute():
@@ -1454,10 +1471,10 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     logger.info(msg)
     if not alignment.is_file():
         msg = f"ERROR: Missing alignment file {alignment}"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
     if md5 != file_md5sum(alignment):
         msg = f"ERROR: MD5 checksum of {alignment} didn't match."
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     if label == "md5":
         mapping = lambda x: x  # noqa: E731

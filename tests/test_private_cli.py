@@ -33,7 +33,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy.exc import NoResultFound
 
-from pyani_plus import db_orm, private_cli, tools
+from pyani_plus import db_orm, private_cli, setup_logger, tools
 
 
 def test_log_configuration(caplog: pytest.LogCaptureFixture, tmp_path: str) -> None:
@@ -458,22 +458,22 @@ def test_validate_cache(tmp_path: str, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_dir)
 
     assert not Path(".cache").is_dir()
-
+    logger = setup_logger(Path("-"))
     with pytest.raises(
         SystemExit,
         match="ERROR: Specified cache directory /does/not/exist does not exist",
     ):
-        private_cli.validate_cache(Path("/does/not/exist"))
+        private_cli.validate_cache(logger, Path("/does/not/exist"))
 
-    default = private_cli.validate_cache(None, create_default=False)
+    default = private_cli.validate_cache(logger, None, create_default=False)
     assert default == Path(".cache")
     assert not default.is_dir()
     with pytest.raises(
         SystemExit, match="Default cache directory .cache does not exist."
     ):
-        private_cli.validate_cache(None, create_default=False, require=True)
+        private_cli.validate_cache(logger, None, create_default=False, require=True)
 
-    default = private_cli.validate_cache(None, create_default=True)
+    default = private_cli.validate_cache(logger, None, create_default=True)
     assert default == Path(".cache")
     assert default.is_dir()
 

@@ -30,7 +30,7 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus import utils
+from pyani_plus import setup_logger, utils
 
 
 def test_md5_str() -> None:
@@ -76,12 +76,14 @@ def test_check_output() -> None:
 def test_stage_file(tmp_path: str) -> None:
     """Check error conditions when staging a file."""
     tmp_dir = Path(tmp_path)
-
+    logger = setup_logger(Path("-"))
     with pytest.raises(
         SystemExit,
         match=r"ERROR: Missing input file /does/not/exist.in",
     ):
-        utils.stage_file(Path("/does/not/exist.in"), Path("/does/not/exist.out"))
+        utils.stage_file(
+            logger, Path("/does/not/exist.in"), Path("/does/not/exist.out")
+        )
 
     tmp_inp = tmp_dir / "example.fasta.gz"
     tmp_inp.touch()
@@ -92,4 +94,4 @@ def test_stage_file(tmp_path: str) -> None:
         SystemExit,
         match=r"ERROR: Intermediate file .*/example.fasta already exists!",
     ):
-        utils.stage_file(tmp_inp, tmp_out)
+        utils.stage_file(logger, tmp_inp, tmp_out)

@@ -50,6 +50,7 @@ from pyani_plus import (
     PROGRESS_BAR_COLUMNS,
     classify,
     db_orm,
+    log_sys_exit,
     private_cli,
     setup_logger,
     tools,
@@ -130,7 +131,7 @@ def start_and_run_method(  # noqa: PLR0913
     extra: str | None = None,
 ) -> int:
     """Run the snakemake workflow for given method and log run to database."""
-    fasta_names = check_fasta(fasta)
+    fasta_names = check_fasta(logger, fasta)
 
     # We should have caught all the obvious failures earlier,
     # including missing inputs or missing external tools.
@@ -164,7 +165,7 @@ def start_and_run_method(  # noqa: PLR0913
                     sorted({str(k) for k, v in filename_to_md5.items() if v == md5})
                 )
                 msg = f"ERROR - Multiple genomes with same MD5 checksum {md5}:{dups}"
-                sys.exit(msg)
+                log_sys_exit(logger, msg)
             hashes.add(md5)
             db_orm.db_genome(session, filename, md5, create=True)
 
@@ -278,7 +279,7 @@ def run_method(  # noqa: PLR0913
     if done != n**2:
         # There is no obvious way to test this hypothetical failure:
         msg = f"ERROR: Only have {done} of {n}²={n**2} {method} comparisons needed"  # pragma: no cover
-        sys.exit(msg)  # pragma: no cover
+        log_sys_exit(logger, msg)  # pragma: no cover
 
     run.cache_comparisons()  # will this needs a progress bar too with large n?
     run.status = "Done"
@@ -307,7 +308,7 @@ def cli_anim(  # noqa: PLR0913
 ) -> int:
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
     logger = setup_logger(log)
-    check_db(database, create_db)
+    check_db(logger, database, create_db)
     return start_and_run_method(
         logger,
         executor,
@@ -340,7 +341,7 @@ def cli_dnadiff(  # noqa: PLR0913
 ) -> int:
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
     logger = setup_logger(log)
-    check_db(database, create_db)
+    check_db(logger, database, create_db)
     return start_and_run_method(
         logger,
         executor,
@@ -374,13 +375,12 @@ def cli_anib(  # noqa: PLR0913
 ) -> int:
     """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
     logger = setup_logger(log)
-    check_db(database, create_db)
-
+    check_db(logger, database, create_db)
     tool = tools.get_blastn()
     alt = tools.get_makeblastdb()
     if tool.version != alt.version:  # pragma: nocover
         msg = f"ERROR: blastn {tool.version} vs makeblastdb {alt.version}"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
     return start_and_run_method(
         logger,
         executor,
@@ -426,7 +426,7 @@ def cli_fastani(  # noqa: PLR0913
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
     logger = setup_logger(log)
-    check_db(database, create_db)
+    check_db(logger, database, create_db)
     return start_and_run_method(
         logger,
         executor,
@@ -464,7 +464,7 @@ def cli_sourmash(  # noqa: PLR0913
 ) -> int:
     """Execute sourmash-plugin-branchwater ANI calculations, logged to a pyANI-plus SQLite3 database."""
     logger = setup_logger(log)
-    check_db(database, create_db)
+    check_db(logger, database, create_db)
     return start_and_run_method(
         logger,
         executor,
@@ -516,8 +516,7 @@ def external_alignment(  # noqa: PLR0913
 ) -> int:
     """Compute pairwise ANI from given multiple-sequence-alignment (MSA) file."""
     logger = setup_logger(log)
-    check_db(database, create_db)
-
+    check_db(logger, database, create_db)
     aln_checksum = file_md5sum(alignment)
     # Doing this order to put the filename LAST, in case of separators in the filename
     extra = f"md5={aln_checksum};label={label};alignment={alignment.name}"
@@ -561,7 +560,7 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
     logger = setup_logger(log)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     session = db_orm.connect_to_db(database)
     run = db_orm.load_run(session, run_id)
@@ -577,7 +576,7 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
     logger.info(msg)
     if not run.genomes.count():
         msg = f"ERROR: No genomes recorded for run-id {run_id}, cannot resume."
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     # The params dict has two kinds of entries,
     # - tool paths, which ought to be handled more neatly
@@ -598,20 +597,20 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
             tool = None
         case _:
             msg = f"ERROR: Unknown method {config.method} for run-id {run_id} in {database}"
-            sys.exit(msg)
+            log_sys_exit(logger, msg)
     if not tool:
         if config.program != "" or config.version != "":
             msg = (
                 "ERROR: We expect no tool information, but"
                 f" run-id {run_id} used {config.program} version {config.version} instead."
             )
-            sys.exit(msg)
+            log_sys_exit(logger, msg)
     elif tool.exe_path.stem != config.program or tool.version != config.version:
         msg = (
             f"ERROR: We have {tool.exe_path.stem} version {tool.version}, but"
             f" run-id {run_id} used {config.program} version {config.version} instead."
         )
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     del tool
 
@@ -620,7 +619,7 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
     fasta = Path(run.fasta_directory)
     if not fasta.is_dir():
         msg = f"ERROR: run-id {run_id} used input folder {fasta}, but that is not a directory (now)."
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     # Recombine the fasta directory name from the runs table with the plain filename from
     # the run-genome linking table
@@ -633,7 +632,7 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 f"ERROR: run-id {run_id} used {filename} with MD5 {md5}"
                 f" but this FASTA file no longer exists"
             )
-            sys.exit(msg)
+            log_sys_exit(logger, msg)
 
     # Resuming
     run.status = "Resuming"
@@ -662,7 +661,7 @@ def list_runs(
     logger = setup_logger(log)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     session = db_orm.connect_to_db(database)
     runs = session.query(db_orm.Run)
@@ -734,7 +733,7 @@ def delete_run(
     logger = setup_logger(log)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     confirm = False
 
@@ -816,7 +815,7 @@ def export_run(  # noqa: C901
     logger = setup_logger(log)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     if not outdir.is_dir():
         msg = f"Output directory {outdir} does not exist, making it.\n"
@@ -892,13 +891,14 @@ def export_run(  # noqa: C901
         if matrix is None:  # pragma: no cover
             # This is mainly for mypy to assert the matrix is not None
             msg = f"ERROR: Could not load run {method} matrix"
-            sys.exit(msg)
+            log_sys_exit(logger, msg)
+            return 1  # not called but mbpy doesn't understand that (yet)
 
         try:
             matrix = run.relabelled_matrix(matrix, label)  # noqa: PLW2901
         except ValueError as err:
             msg = f"ERROR: {err}"
-            sys.exit(msg)
+            log_sys_exit(logger, msg)
 
         matrix.to_csv(outdir / filename, sep="\t")
 
@@ -925,7 +925,7 @@ def plot_run(
     logger = setup_logger(log)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     if not outdir.is_dir():
         msg = f"Output directory {outdir} does not exist, making it.\n"
@@ -975,7 +975,7 @@ def plot_run_comp(
     logger = setup_logger(log)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     if not outdir.is_dir():
         msg = f"WARNING: Output directory {outdir} does not exist, making it.\n"
@@ -986,21 +986,21 @@ def plot_run_comp(
         runs = [int(_) for _ in run_ids.split(",")]
     except ValueError:
         msg = f"ERROR: Expected comma separated list of runs, not: {run_ids}"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     run_id = runs[0]  # the reference
     other_runs = runs[1:]
 
     if not other_runs:
         msg = "ERROR: Need at least two runs for a comparison"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     session = db_orm.connect_to_db(database)
     ref_run = db_orm.load_run(session, run_id, check_complete=False)
 
     if not ref_run.comparisons().count():
         msg = f"ERROR: Run {run_id} has no comparisons"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     from pyani_plus import plot_run  # lazy import
 
@@ -1049,7 +1049,7 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     logger = setup_logger(log)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     if not outdir.is_dir():
         msg = f"Output directory {outdir} does not exist, making it.\n"
@@ -1073,7 +1073,7 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
 
     if matrix is None:
         msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
-        sys.exit(msg)  # pragma: no cover
+        log_sys_exit(logger, msg)  # pragma: no cover
 
     done = run.comparisons().count()
     run_genomes = run.genomes.count()
@@ -1090,14 +1090,14 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     cov = run.cov_query
     if cov is None:  # pragma: no cover
         msg = f"ERROR: Could not load run {method} matrix"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     try:
         score_matrix = run.relabelled_matrix(matrix, label)
         cov = run.relabelled_matrix(cov, label)
     except ValueError as err:
         msg = f"ERROR: {err}"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     # Map the string inputs to callable functions
     coverage_agg_func = classify.AGG_FUNCS[coverage_edges]

@@ -22,7 +22,6 @@
 """Code for plotting a single run (heatmaps etc)."""
 
 import logging
-import sys
 import warnings
 from math import ceil, log, nan, sqrt
 from pathlib import Path
@@ -36,7 +35,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from rich.progress import Progress
 from sqlalchemy.orm import Session
 
-from pyani_plus import GRAPHICS_FORMATS, PROGRESS_BAR_COLUMNS, db_orm
+from pyani_plus import GRAPHICS_FORMATS, PROGRESS_BAR_COLUMNS, db_orm, log_sys_exit
 
 mpl.use("agg")  # non-interactive backend
 
@@ -325,10 +324,11 @@ def plot_single_run(
             elif name == "hadamard":
                 matrix = run.hadamard
 
-            if matrix is None:
+            if matrix is None:  # pragma: no cover
                 # This is mainly for mypy to assert the matrix is not None
-                msg = f"ERROR: Could not load run {method} {name} matrix"  # pragma: no cover
-                sys.exit(msg)  # pragma: no cover
+                msg = f"ERROR: Could not load run {method} {name} matrix"
+                log_sys_exit(logger, msg)
+                return 0  # won't be called but mypy doesn't understand (yet)
 
             if name == "tANI":
                 # Using run.tani would reload Hadamard and then log transform it.
@@ -339,7 +339,7 @@ def plot_single_run(
                     matrix = run.relabelled_matrix(matrix, label)
                 except ValueError as err:
                     msg = f"ERROR: {err}"
-                    sys.exit(msg)
+                    log_sys_exit(logger, msg)
 
             nulls = int(matrix.isnull().sum().sum())  # noqa: PD003
             n = len(matrix)
@@ -492,7 +492,7 @@ def plot_run_comparison(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 }
                 if not other_values_by_hash:
                     msg = f"ERROR: Runs {run.run_id} and {other_run_id} have no comparisons in common"
-                    sys.exit(msg)
+                    log_sys_exit(logger, msg)
                 if mode == "scatter":
                     # Don't repeat this for the diff plot
                     msg = (

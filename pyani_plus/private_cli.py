@@ -176,7 +176,7 @@ def _check_tool_version(
     >>> _check_tool_version(logger, tool, config)
     Traceback (most recent call last):
     ...
-    SystemExit: ERROR: Run configuration was guestimator 1.2 but we have guestimator 1.3
+    SystemExit: Run configuration was guestimator 1.2 but we have guestimator 1.3
 
     This will typically be used when resuming a run, to confirm the tool
     binary name (the stem) and version detected on the system match the
@@ -187,7 +187,7 @@ def _check_tool_version(
         or configuration.version != tool.version
     ):
         msg = (
-            "ERROR: Run configuration was"
+            "Run configuration was"
             f" {configuration.program} {configuration.version}"
             f" but we have {tool.exe_path.stem} {tool.version}"
         )
@@ -214,7 +214,7 @@ def log_configuration(  # noqa: PLR0913
     """
     logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not create_db and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist, but not using --create-db"
+        msg = f"Database {database} does not exist, but not using --create-db"
         sys.exit(msg)
 
     msg = f"Logging configuration to {database}"
@@ -253,7 +253,7 @@ def log_genome(
     """
     logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not create_db and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist, but not using --create-db"
+        msg = f"Database {database} does not exist, but not using --create-db"
         sys.exit(msg)
 
     msg = f"Logging genome to {database}"
@@ -307,7 +307,7 @@ def log_run(  # noqa: PLR0913
     """
     logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not create_db and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist, but not using --create-db"
+        msg = f"Database {database} does not exist, but not using --create-db"
         sys.exit(msg)
 
     msg = f"Logging run to {database}"
@@ -383,7 +383,7 @@ def log_comparison(  # noqa: PLR0913
     """Log single pairwise comparison to database."""
     logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist"
+        msg = f"Database {database} does not exist"
         sys.exit(msg)
 
     msg = f"Logging comparison to {database}"
@@ -395,7 +395,7 @@ def log_comparison(  # noqa: PLR0913
         .where(db_orm.Configuration.configuration_id == config_id)
         .count()
     ):
-        msg = f"ERROR - {database} does not contain configuration_id={config_id}"
+        msg = f" {database} does not contain configuration_id={config_id}"
         log_sys_exit(logger, msg)
 
     from pyani_plus.utils import file_md5sum
@@ -449,7 +449,7 @@ def validate_cache(
         logger.info(msg)
     elif not cache.is_dir():
         # This is an error even if require=False
-        msg = f"ERROR: Specified cache directory {cache} does not exist"
+        msg = f"Specified cache directory {cache} does not exist"
         log_sys_exit(logger, msg)
     return cache
 
@@ -476,7 +476,7 @@ def prepare_genomes(
     # cases this is IO bound rather than CPU bound so is this helpful?
     logger = setup_logger(log, terminal_level=logging.ERROR if quiet else logging.INFO)
     if database != ":memory:" and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist"
+        msg = f"Database {database} does not exist"
         log_sys_exit(logger, msg)
     session = db_orm.connect_to_db(database)
     run = db_orm.load_run(session, run_id)
@@ -499,7 +499,7 @@ def prepare_genomes(
             f"pyani_plus.methods.{method.lower().replace('-', '_')}"
         )
     except ModuleNotFoundError:
-        msg = f"ERROR: Unknown method {method}, check tool version?"
+        msg = f"Unknown method {method}, check tool version?"
         log_sys_exit(logger, msg)
     if not hasattr(module, "prepare_genomes"):
         msg = f"No per-genome preparation required for {method}"
@@ -560,7 +560,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     """
     logger = setup_logger(log, terminal_level=logging.ERROR if quiet else logging.INFO)
     if database != ":memory:" and not Path(database).is_file():
-        msg = f"ERROR: Database {database} does not exist"
+        msg = f"Database {database} does not exist"
         log_sys_exit(logger, msg)
 
     # We want to receive any SIGINT as a KeyboardInterrupt even if we
@@ -591,7 +591,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
         try:
             column = int(subject)
         except ValueError:
-            msg = f"ERROR: Did not recognise {subject!r} as an MD5 hash, filename, or column number in run-id {run_id}"
+            msg = f"Did not recognise {subject!r} as an MD5 hash, filename, or column number in run-id {run_id}"
             log_sys_exit(logger, msg)
         if 0 < column <= n:
             subject_hash = sorted(hash_to_filename)[column - 1]
@@ -599,11 +599,11 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
             if method == "sourmash":
                 subject_hash = ""
             else:
-                msg = "ERROR: All columns currently only implemented for sourmash"
+                msg = "All columns currently only implemented for sourmash"
                 log_sys_exit(logger, msg)
         else:
             msg = (
-                f"ERROR: Single column should be in range 1 to {n},"
+                f"Single column should be in range 1 to {n},"
                 f" or for some methods {0} meaning all columns, but not {subject}"
             )
             log_sys_exit(logger, msg)
@@ -614,6 +614,8 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
         log,
         terminal_level=logging.ERROR if quiet else logging.INFO,
     )
+    msg = f"Logging {method} compute-column to {log}"
+    logger.info(msg)
 
     if column == 0:
         # Computing all the matrix, but are there might be some rows/cols already done?
@@ -652,7 +654,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
             "external-alignment": compute_external_alignment,
         }[method]
     except KeyError:
-        msg = f"ERROR: Unknown method {method} for run-id {run_id} in {database}"
+        msg = f"Unknown method {method} for run-id {run_id} in {database}"
         log_sys_exit(logger, msg)
 
     # On a cluster we are likely in a temp working directory, meaning
@@ -721,15 +723,15 @@ def compute_fastani(  # noqa: PLR0913
     config_id = run.configuration.configuration_id
     fragsize = run.configuration.fragsize
     if not fragsize:
-        msg = f"ERROR: fastANI run-id {run.run_id} is missing fragsize parameter"
+        msg = f"fastANI run-id {run.run_id} is missing fragsize parameter"
         log_sys_exit(logger, msg)
     kmersize = run.configuration.kmersize
     if not kmersize:
-        msg = f"ERROR: fastANI run-id {run.run_id} is missing kmersize parameter"
+        msg = f"fastANI run-id {run.run_id} is missing kmersize parameter"
         log_sys_exit(logger, msg)
     minmatch = run.configuration.minmatch
     if not minmatch:
-        msg = f"ERROR: fastANI run-id {run.run_id} is missing minmatch parameter"
+        msg = f"fastANI run-id {run.run_id} is missing minmatch parameter"
         log_sys_exit(logger, msg)
 
     from pyani_plus.methods import fastani  # lazy import
@@ -826,7 +828,7 @@ def compute_anim(  # noqa: PLR0913, PLR0915
     config_id = run.configuration.configuration_id
     mode = run.configuration.mode
     if not mode:
-        msg = f"ERROR: ANIm run-id {run.run_id} is missing mode parameter"
+        msg = f"ANIm run-id {run.run_id} is missing mode parameter"
         log_sys_exit(logger, msg)
 
     subject_length = (
@@ -881,7 +883,7 @@ def compute_anim(  # noqa: PLR0913, PLR0915
                 ],
             )
             if not delta.is_file():
-                msg = f"ERROR: nucmer didn't make {delta}"  # pragma: no cover
+                msg = f"nucmer didn't make {delta}"  # pragma: no cover
                 log_sys_exit(logger, msg)  # pragma: no cover
 
             msg = (
@@ -978,7 +980,7 @@ def compute_anib(  # noqa: PLR0913
     config_id = run.configuration_id
     fragsize = run.configuration.fragsize
     if not fragsize:
-        msg = f"ERROR: ANIb run-id {run.run_id} is missing fragsize parameter"
+        msg = f"ANIb run-id {run.run_id} is missing fragsize parameter"
         log_sys_exit(logger, msg)
     subject_length = (
         session.query(db_orm.Genome)
@@ -1181,7 +1183,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
                 ],
             )
             if not delta.is_file():
-                msg = f"ERROR: nucmer didn't make {delta}"  # pragma: no cover
+                msg = f"nucmer didn't make {delta}"  # pragma: no cover
                 log_sys_exit(logger, msg)  # pragma: no cover
 
             msg = (
@@ -1316,12 +1318,12 @@ def compute_sourmash(  # noqa: PLR0913
 ) -> int:
     """Run many-vs-subject for sourmash and log column to database."""
     if not cache:
-        msg = "ERROR: Not given a cache directory"
+        msg = "Not given a cache directory"
         log_sys_exit(logger, msg)
         # not called but mypy doesn't understand (yet)
         return 1  # pragma: nocover
     if not cache.is_dir():
-        msg = f"ERROR: Cache directory {cache} does not exist - check cache setting."
+        msg = f"Cache directory {cache} does not exist - check cache setting."
         log_sys_exit(logger, msg)
         # not called but mypy doesn't understand (yet)
         return 1  # pragma: nocover
@@ -1363,7 +1365,9 @@ def compute_sourmash(  # noqa: PLR0913
         cache / f"sourmash_k={run.configuration.kmersize}_{run.configuration.extra}"
     )
     if not sig_cache.is_dir():
-        msg = f"ERROR: Missing sourmash signatures directory {sig_cache} - check cache setting."
+        msg = (
+            f"Missing sourmash signatures directory {sig_cache} - check cache setting."
+        )
         log_sys_exit(logger, msg)
 
     try:
@@ -1430,20 +1434,20 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
 
     config_id = run.configuration.configuration_id
     if run.configuration.method != "external-alignment":
-        msg = f"ERROR: Run-id {run.run_id} expected {run.configuration.method} results"
+        msg = f"Run-id {run.run_id} expected {run.configuration.method} results"
         log_sys_exit(logger, msg)
     if run.configuration.program:
-        msg = f"ERROR: configuration.program={run.configuration.program!r} unexpected"
+        msg = f"configuration.program={run.configuration.program!r} unexpected"
         log_sys_exit(logger, msg)
     if run.configuration.version:
-        msg = f"ERROR: configuration.version={run.configuration.version!r} unexpected"
+        msg = f"configuration.version={run.configuration.version!r} unexpected"
         log_sys_exit(logger, msg)
     if not run.configuration.extra:
-        msg = "ERROR: Missing configuration.extra setting"
+        msg = "Missing configuration.extra setting"
         log_sys_exit(logger, msg)
     args = dict(_.split("=", 1) for _ in run.configuration.extra.split(";", 2))
     if list(args) != ["md5", "label", "alignment"]:
-        msg = f"ERROR: configuration.extra={run.configuration.extra!r} unexpected"
+        msg = f"configuration.extra={run.configuration.extra!r} unexpected"
         log_sys_exit(logger, msg)
 
     alignment = Path(args["alignment"])
@@ -1470,10 +1474,10 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     msg = f"Parsing {alignment} (MD5={md5}, label={label})"
     logger.info(msg)
     if not alignment.is_file():
-        msg = f"ERROR: Missing alignment file {alignment}"
+        msg = f"Missing alignment file {alignment}"
         log_sys_exit(logger, msg)
     if md5 != file_md5sum(alignment):
-        msg = f"ERROR: MD5 checksum of {alignment} didn't match."
+        msg = f"MD5 checksum of {alignment} didn't match."
         log_sys_exit(logger, msg)
 
     if label == "md5":

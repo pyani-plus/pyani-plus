@@ -79,7 +79,7 @@ def test_stage_file(tmp_path: str) -> None:
     logger = setup_logger(Path("-"))
     with pytest.raises(
         SystemExit,
-        match=r"ERROR: Missing input file /does/not/exist.in",
+        match=r"Missing input file /does/not/exist.in",
     ):
         utils.stage_file(
             logger, Path("/does/not/exist.in"), Path("/does/not/exist.out")
@@ -92,6 +92,6 @@ def test_stage_file(tmp_path: str) -> None:
 
     with pytest.raises(
         SystemExit,
-        match=r"ERROR: Intermediate file .*/example.fasta already exists!",
+        match=r"Intermediate file .*/example.fasta already exists!",
     ):
         utils.stage_file(logger, tmp_inp, tmp_out)

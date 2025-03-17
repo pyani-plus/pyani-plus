@@ -127,7 +127,7 @@ def test_log_run(caplog: pytest.LogCaptureFixture, tmp_path: str) -> None:
             create_db=False,
         )
 
-    with pytest.raises(SystemExit, match="ERROR: No FASTA input genomes under"):
+    with pytest.raises(SystemExit, match="No FASTA input genomes under"):
         private_cli.log_run(
             database=tmp_db,
             # Run
@@ -461,7 +461,7 @@ def test_validate_cache(tmp_path: str, monkeypatch: pytest.MonkeyPatch) -> None:
     logger = setup_logger(Path("-"))
     with pytest.raises(
         SystemExit,
-        match="ERROR: Specified cache directory /does/not/exist does not exist",
+        match="Specified cache directory /does/not/exist does not exist",
     ):
         private_cli.validate_cache(logger, Path("/does/not/exist"))
 
@@ -517,7 +517,7 @@ def test_prepare_genomes_bad_args(tmp_path: str, input_genomes_tiny: Path) -> No
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: Unknown method guessing, check tool version?",
+        match="Unknown method guessing, check tool version?",
     ):
         private_cli.prepare_genomes(database=tmp_db, run_id=1, cache=tmp_dir)
 
@@ -560,7 +560,7 @@ def test_compute_column_bad_args(
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: Unknown method guessing for run-id 1 in .*/new.sqlite",
+        match="Unknown method guessing for run-id 1 in .*/new.sqlite",
     ):
         private_cli.compute_column(
             database=tmp_db,
@@ -570,7 +570,7 @@ def test_compute_column_bad_args(
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: Did not recognise 'XXXX' as an MD5 hash, filename, or column number in run-id 1",
+        match="Did not recognise 'XXXX' as an MD5 hash, filename, or column number in run-id 1",
     ):
         private_cli.compute_column(
             database=tmp_db,
@@ -581,7 +581,7 @@ def test_compute_column_bad_args(
     with pytest.raises(
         SystemExit,
         match=(
-            "ERROR: Single column should be in range 1 to 3,"
+            "Single column should be in range 1 to 3,"
             " or for some methods 0 meaning all columns, but not -1"
         ),
     ):
@@ -593,7 +593,7 @@ def test_compute_column_bad_args(
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: All columns currently only implemented for sourmash",
+        match="All columns currently only implemented for sourmash",
     ):
         private_cli.compute_column(
             database=tmp_db,
@@ -629,7 +629,7 @@ def test_compute_column_bad_anib(
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: ANIb run-id 1 is missing fragsize parameter",
+        match="ANIb run-id 1 is missing fragsize parameter",
     ):
         private_cli.compute_column(
             database=tmp_db,
@@ -662,7 +662,7 @@ def test_compute_column_bad_anim(
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: ANIm run-id 1 is missing mode parameter",
+        match="ANIm run-id 1 is missing mode parameter",
     ):
         private_cli.compute_column(
             database=tmp_db,
@@ -698,7 +698,7 @@ def test_compute_column_bad_fastani(
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: fastANI run-id 1 is missing fragsize parameter",
+        match="fastANI run-id 1 is missing fragsize parameter",
     ):
         private_cli.compute_column(
             database=tmp_db,
@@ -725,7 +725,7 @@ def test_compute_column_bad_fastani(
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: fastANI run-id 2 is missing kmersize parameter",
+        match="fastANI run-id 2 is missing kmersize parameter",
     ):
         private_cli.compute_column(
             database=tmp_db,
@@ -752,7 +752,7 @@ def test_compute_column_bad_fastani(
     assert "Run identifier 3" in output
     with pytest.raises(
         SystemExit,
-        match="ERROR: fastANI run-id 3 is missing minmatch parameter",
+        match="fastANI run-id 3 is missing minmatch parameter",
     ):
         private_cli.compute_column(
             database=tmp_db,

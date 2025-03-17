@@ -352,7 +352,7 @@ def test_bad_resume(
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: We expect no tool information, but run-id 1 used should-be-blank version 1.0 instead.",
+        match="We expect no tool information, but run-id 1 used should-be-blank version 1.0 instead.",
     ):
         public_cli.resume(tmp_db)
 
@@ -415,7 +415,7 @@ def test_wrong_method(
     logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
-        match="ERROR: Run-id 1 expected guessing results",
+        match="Run-id 1 expected guessing results",
     ):
         private_cli.compute_external_alignment(
             logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
@@ -449,7 +449,7 @@ def test_bad_program(
     logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
-        match="ERROR: configuration.program='should-be-blank' unexpected",
+        match="configuration.program='should-be-blank' unexpected",
     ):
         private_cli.compute_external_alignment(
             logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
@@ -483,7 +483,7 @@ def test_bad_version(
     logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
-        match="ERROR: configuration.version='should-be-blank' unexpected",
+        match="configuration.version='should-be-blank' unexpected",
     ):
         private_cli.compute_external_alignment(
             logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
@@ -517,7 +517,7 @@ def test_no_config(
     logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
-        match="ERROR: Missing configuration.extra setting",
+        match="Missing configuration.extra setting",
     ):
         private_cli.compute_external_alignment(
             logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
@@ -550,7 +550,7 @@ def test_bad_config(
     logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
-        match="ERROR: configuration.extra='file=example.fasta;md5=XXX;label=stem' unexpected",
+        match="configuration.extra='file=example.fasta;md5=XXX;label=stem' unexpected",
     ):
         private_cli.compute_external_alignment(
             logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
@@ -584,7 +584,7 @@ def test_missing_alignment(
     logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
-        match="ERROR: Missing alignment file .*/does-not-exist.fasta",
+        match="Missing alignment file .*/does-not-exist.fasta",
     ):
         private_cli.compute_external_alignment(
             logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
@@ -622,7 +622,7 @@ def test_bad_checksum(
     logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
-        match="ERROR: MD5 checksum of .*/example.fasta didn't match.",
+        match="MD5 checksum of .*/example.fasta didn't match.",
     ):
         private_cli.compute_external_alignment(
             logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
@@ -670,7 +670,7 @@ AA
     with pytest.raises(
         SystemExit,
         match=(
-            "ERROR: Bad external-alignment, different lengths 3 and 2"
+            "Bad external-alignment, different lengths 3 and 2"
             " from MGV-GENOME-0266457 and MGV-GENOME-0264574"
         ),
     ):

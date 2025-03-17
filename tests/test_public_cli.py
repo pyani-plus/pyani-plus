@@ -94,7 +94,7 @@ def test_check_db() -> None:
     logger = setup_logger(Path("-"))
     with pytest.raises(
         SystemExit,
-        match="ERROR: Database /does/not/exist does not exist, but not using --create-db",
+        match="Database /does/not/exist does not exist, but not using --create-db",
     ):
         public_cli.check_db(logger, Path("/does/not/exist"), create_db=False)
 
@@ -106,37 +106,33 @@ def test_check_fasta(tmp_path: str) -> None:
     """Check error conditions."""
     logger = setup_logger(Path("-"))
     with pytest.raises(
-        SystemExit, match="ERROR: FASTA input /does/not/exist is not a directory"
+        SystemExit, match="FASTA input /does/not/exist is not a directory"
     ):
         public_cli.check_fasta(logger, Path("/does/not/exist"))
 
-    with pytest.raises(SystemExit, match="ERROR: No FASTA input genomes under "):
+    with pytest.raises(SystemExit, match="No FASTA input genomes under "):
         public_cli.check_fasta(logger, Path(tmp_path))
 
 
 def test_delete_empty(tmp_path: str) -> None:
     """Check delete-run with no data."""
-    with pytest.raises(
-        SystemExit, match="ERROR: Database /does/not/exist does not exist"
-    ):
+    with pytest.raises(SystemExit, match="Database /does/not/exist does not exist"):
         public_cli.delete_run(database=Path("/does/not/exist"), log=Path("-"))
 
     tmp_db = Path(tmp_path) / "list-runs-empty.sqlite"
     session = db_orm.connect_to_db(tmp_db)
     session.close()
 
-    with pytest.raises(SystemExit, match="ERROR: Database contains no runs."):
+    with pytest.raises(SystemExit, match="Database contains no runs."):
         public_cli.delete_run(database=tmp_db)
 
-    with pytest.raises(SystemExit, match="ERROR: Database has no run-id 1."):
+    with pytest.raises(SystemExit, match="Database has no run-id 1."):
         public_cli.resume(database=tmp_db, run_id=1)
 
 
 def test_list_runs_empty(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
     """Check list-runs with no data."""
-    with pytest.raises(
-        SystemExit, match="ERROR: Database /does/not/exist does not exist"
-    ):
+    with pytest.raises(SystemExit, match="Database /does/not/exist does not exist"):
         public_cli.list_runs(database=Path("/does/not/exist"))
 
     tmp_db = Path(tmp_path) / "list runs empty.sqlite"
@@ -150,19 +146,17 @@ def test_list_runs_empty(capsys: pytest.CaptureFixture[str], tmp_path: str) -> N
 
 def test_resume_empty(tmp_path: str) -> None:
     """Check list-runs with no data."""
-    with pytest.raises(
-        SystemExit, match="ERROR: Database /does/not/exist does not exist"
-    ):
+    with pytest.raises(SystemExit, match="Database /does/not/exist does not exist"):
         public_cli.resume(database=Path("/does/not/exist"))
 
     tmp_db = Path(tmp_path) / "resume-empty.sqlite"
     session = db_orm.connect_to_db(tmp_db)
     session.close()
 
-    with pytest.raises(SystemExit, match="ERROR: Database contains no runs."):
+    with pytest.raises(SystemExit, match="Database contains no runs."):
         public_cli.resume(database=tmp_db)
 
-    with pytest.raises(SystemExit, match="ERROR: Database has no run-id 1."):
+    with pytest.raises(SystemExit, match="Database has no run-id 1."):
         public_cli.resume(database=tmp_db, run_id=1)
 
 
@@ -268,7 +262,7 @@ def test_partial_run(  # noqa: PLR0915
     # defined - this should fail
     with pytest.raises(
         SystemExit,
-        match=("ERROR: run-id 2 has only 4 of 3²=9 comparisons, 5 needed"),
+        match=("run-id 2 has only 4 of 3²=9 comparisons, 5 needed"),
     ):
         public_cli.export_run(database=tmp_db, run_id=2, outdir=tmp_path)
     long_file = tmp_dir / "fastANI_run_2.tsv"
@@ -291,14 +285,14 @@ def test_partial_run(  # noqa: PLR0915
     # Resuming the partial job should fail as the fastANI version won't match:
     with pytest.raises(
         SystemExit,
-        match="ERROR: We have fastANI version .*, but run-id 2 used fastani version 1.2.3 instead.",
+        match="We have fastANI version .*, but run-id 2 used fastani version 1.2.3 instead.",
     ):
         public_cli.resume(database=tmp_db, run_id=2)
 
     # Resuming run 1 should fail as no genomes:
     with pytest.raises(
         SystemExit,
-        match="ERROR: No genomes recorded for run-id 1, cannot resume.",
+        match="No genomes recorded for run-id 1, cannot resume.",
     ):
         public_cli.resume(database=tmp_db, run_id=1)
 
@@ -342,14 +336,12 @@ def test_export_run_failures(tmp_path: str) -> None:
     """Check export run failures."""
     tmp_dir = Path(tmp_path)
 
-    with pytest.raises(
-        SystemExit, match="ERROR: Database /does/not/exist does not exist"
-    ):
+    with pytest.raises(SystemExit, match="Database /does/not/exist does not exist"):
         public_cli.export_run(database=Path("/does/not/exist"), outdir=tmp_dir)
 
     tmp_db = tmp_dir / "empty.sqlite"
     tmp_db.touch()
-    with pytest.raises(SystemExit, match="ERROR: Database contains no runs."):
+    with pytest.raises(SystemExit, match="Database contains no runs."):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir)
 
     tmp_db = tmp_dir / "export.sqlite"
@@ -373,17 +365,17 @@ def test_export_run_failures(tmp_path: str) -> None:
         status="Empty",
         name="Trial B",
     )
-    with pytest.raises(SystemExit, match="ERROR: Database has no run-id 3."):
+    with pytest.raises(SystemExit, match="Database has no run-id 3."):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=3)
     with pytest.raises(
         SystemExit,
-        match="ERROR: run-id 1 has no comparisons",
+        match="run-id 1 has no comparisons",
     ):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=1)
     # Should default to latest run, run-id 2
     with pytest.raises(
         SystemExit,
-        match="ERROR: run-id 2 has no comparisons",
+        match="run-id 2 has no comparisons",
     ):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     tmp_db.unlink()
@@ -441,18 +433,18 @@ def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: Duplicate filename stems, consider using MD5 labelling.",
+        match="Duplicate filename stems, consider using MD5 labelling.",
     ):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir / "out1")
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: Duplicate filename stems, consider using MD5 labelling.",
+        match="Duplicate filename stems, consider using MD5 labelling.",
     ):
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir / "out2")
     with pytest.raises(
         SystemExit,
-        match="ERROR: Duplicate filename stems, consider using MD5 labelling.",
+        match="Duplicate filename stems, consider using MD5 labelling.",
     ):
         public_cli.cli_classify(database=tmp_db, outdir=tmp_dir / "out3")
 
@@ -461,14 +453,12 @@ def test_plot_run_failures(tmp_path: str) -> None:
     """Check plot run failures."""
     tmp_dir = Path(tmp_path)
 
-    with pytest.raises(
-        SystemExit, match="ERROR: Database /does/not/exist does not exist"
-    ):
+    with pytest.raises(SystemExit, match="Database /does/not/exist does not exist"):
         public_cli.plot_run(database=Path("/does/not/exist"), outdir=tmp_dir)
 
     tmp_db = tmp_dir / "export.sqlite"
     session = db_orm.connect_to_db(tmp_db)
-    with pytest.raises(SystemExit, match="ERROR: Database contains no runs."):
+    with pytest.raises(SystemExit, match="Database contains no runs."):
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir)
 
     config = db_orm.db_configuration(
@@ -490,17 +480,17 @@ def test_plot_run_failures(tmp_path: str) -> None:
         status="Empty",
         name="Trial B",
     )
-    with pytest.raises(SystemExit, match="ERROR: Database has no run-id 3."):
+    with pytest.raises(SystemExit, match="Database has no run-id 3."):
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir, run_id=3)
     with pytest.raises(
         SystemExit,
-        match="ERROR: run-id 1 has no comparisons",
+        match="run-id 1 has no comparisons",
     ):
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir, run_id=1)
     # Should default to latest run, run-id 2
     with pytest.raises(
         SystemExit,
-        match="ERROR: run-id 2 has no comparisons",
+        match="run-id 2 has no comparisons",
     ):
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir)
 
@@ -509,9 +499,7 @@ def test_plot_run_comp_failures(tmp_path: str, input_genomes_tiny: Path) -> None
     """Check plot-run-comp failures."""
     tmp_dir = Path(tmp_path)
 
-    with pytest.raises(
-        SystemExit, match="ERROR: Database /does/not/exist does not exist"
-    ):
+    with pytest.raises(SystemExit, match="Database /does/not/exist does not exist"):
         public_cli.plot_run_comp(
             database=Path("/does/not/exist"), outdir=tmp_dir, run_ids="1,2"
         )
@@ -520,7 +508,7 @@ def test_plot_run_comp_failures(tmp_path: str, input_genomes_tiny: Path) -> None
     session = db_orm.connect_to_db(tmp_db)
     with pytest.raises(
         SystemExit,
-        match="ERROR: Database has no run-id 1. Use the list-runs command for more information.",
+        match="Database has no run-id 1. Use the list-runs command for more information.",
     ):
         public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="1,2")
 
@@ -562,22 +550,18 @@ def test_plot_run_comp_failures(tmp_path: str, input_genomes_tiny: Path) -> None
         fasta_to_hash=fasta_to_hash,
     )
 
-    with pytest.raises(SystemExit, match="ERROR: Run 1 has no comparisons"):
+    with pytest.raises(SystemExit, match="Run 1 has no comparisons"):
         public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="1,2")
 
-    with pytest.raises(
-        SystemExit, match="ERROR: Need at least two runs for a comparison"
-    ):
+    with pytest.raises(SystemExit, match="Need at least two runs for a comparison"):
         public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="2")
 
     with pytest.raises(
-        SystemExit, match="ERROR: Expected comma separated list of runs, not: 2-1"
+        SystemExit, match="Expected comma separated list of runs, not: 2-1"
     ):
         public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="2-1")
 
-    with pytest.raises(
-        SystemExit, match="ERROR: Runs 2 and 1 have no comparisons in common"
-    ):
+    with pytest.raises(SystemExit, match="Runs 2 and 1 have no comparisons in common"):
         public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="2,1")
 
 
@@ -1280,7 +1264,7 @@ def test_resume_dir_gone(tmp_path: str, input_genomes_tiny: Path) -> None:
 
     with pytest.raises(
         SystemExit,
-        match=r"ERROR: run-id 1 used input folder /mnt/shared/old, but that is not a directory \(now\).",
+        match=r"run-id 1 used input folder /mnt/shared/old, but that is not a directory \(now\).",
     ):
         public_cli.resume(database=tmp_db)
 
@@ -1320,7 +1304,7 @@ def test_resume_unknown(tmp_path: str, input_genomes_tiny: Path) -> None:
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: Unknown method guessing for run-id 1 in .*/resume.sqlite",
+        match="Unknown method guessing for run-id 1 in .*/resume.sqlite",
     ):
         public_cli.resume(database=tmp_db)
 
@@ -1452,7 +1436,7 @@ def test_resume_fasta_gone(
     with pytest.raises(
         SystemExit,
         match=(
-            f"ERROR: run-id 1 used .*/{Path(missing).name} with MD5 {fasta_to_hash[missing]}"
+            f"run-id 1 used .*/{Path(missing).name} with MD5 {fasta_to_hash[missing]}"
             " but this FASTA file no longer exists"
         ),
     ):
@@ -1621,9 +1605,7 @@ def test_classify_failures(tmp_path: str) -> None:
     """Check classify failures."""
     tmp_dir = Path(tmp_path)
 
-    with pytest.raises(
-        SystemExit, match="ERROR: Database /does/not/exist does not exist"
-    ):
+    with pytest.raises(SystemExit, match="Database /does/not/exist does not exist"):
         public_cli.cli_classify(database=Path("/does/not/exist"), outdir=tmp_dir)
 
 

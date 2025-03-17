@@ -100,6 +100,7 @@ logging.basicConfig(
             level=logging.INFO,
             markup=True,
             omit_repeated_times=False,
+            show_path=False,
             rich_tracebacks=True,
             tracebacks_suppress=["click", "sqlalchemy"],
         )

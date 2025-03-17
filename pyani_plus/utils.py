@@ -295,11 +295,13 @@ def stage_file(
     it is not needed for ``fastANI`` or ``sourmash``.
     """
     if not input_filename.is_file():
-        sys.exit(f"ERROR: Missing input file {input_filename}")
+        msg = f"ERROR: Missing input file {input_filename}"
+        sys.exit(msg)
     if staged_filename.is_file():
         # This could be a race condition?
         # Perhaps if resume with explicit temp directory given?
-        sys.exit(f"ERROR: Intermediate file {staged_filename} already exists!")
+        msg = f"ERROR: Intermediate file {staged_filename} already exists!"
+        sys.exit(msg)
 
     if input_filename.suffix == ".gz" and decompress:
         # Decompress to the given temporary filename

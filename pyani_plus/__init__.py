@@ -62,7 +62,7 @@ def setup_logger(
 ) -> logging.Logger:
     """Return a file-based logger alongside a Rich console logger.
 
-    Default filename is ``pyani-plus.log``. Use ``Path("-")`` for no log file.
+    Default filename is ``pyani-plus.log``. Use ``Path("-")`` or `None` for no log file.
 
     The file logger defaults to DEBUG level, but the less verbose INFO for the terminal.
     If quiet=True, then the terminal logging level is reduced to ERROR.
@@ -72,11 +72,9 @@ def setup_logger(
     if logger.hasHandlers():  # remove all previous handlers to avoid duplicate entries
         logger.handlers.clear()
 
-    if log_file == Path("-"):
-        logger.debug("Not logging to file.")
+    if not log_file or log_file == Path("-"):
+        logger.debug("Currently not logging to file.")
         return logger
-    if not log_file:
-        log_file = Path(LOG_FILE)
     file_handler = logging.FileHandler(log_file, mode="a")
     file_handler.setLevel(logging.DEBUG)
 

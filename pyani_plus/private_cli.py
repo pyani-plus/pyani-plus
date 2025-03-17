@@ -558,7 +558,9 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     (which for sourmash builds signature files from each FASTA file). You must
     use the same cache location for that and when you run compute-column.
     """
-    logger = setup_logger(log, terminal_level=logging.ERROR if quiet else logging.INFO)
+    # Do NOT write to the main thread's log (risk of race conditions appending
+    # to the same file, locking, etc) - will use a column-specific log soon!
+    logger = setup_logger(None, terminal_level=logging.ERROR if quiet else logging.INFO)
     if database != ":memory:" and not Path(database).is_file():
         msg = f"Database {database} does not exist"
         log_sys_exit(logger, msg)

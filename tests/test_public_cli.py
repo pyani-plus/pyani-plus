@@ -36,6 +36,7 @@ import pandas as pd
 import pytest
 
 from pyani_plus import GRAPHICS_FORMATS, db_orm, public_cli, setup_logger, tools
+from pyani_plus.public_cli_args import ToolExecutor
 from pyani_plus.utils import file_md5sum
 
 
@@ -104,6 +105,7 @@ def test_check_db() -> None:
 
 def test_check_fasta(tmp_path: str) -> None:
     """Check error conditions."""
+    tmp_dir = Path(tmp_path)
     logger = setup_logger(Path("-"))
     with pytest.raises(
         SystemExit, match="FASTA input /does/not/exist is not a directory"
@@ -111,7 +113,29 @@ def test_check_fasta(tmp_path: str) -> None:
         public_cli.check_fasta(logger, Path("/does/not/exist"))
 
     with pytest.raises(SystemExit, match="No FASTA input genomes under "):
-        public_cli.check_fasta(logger, Path(tmp_path))
+        public_cli.check_fasta(logger, tmp_dir)
+
+
+def test_check_start_and_run(tmp_path: str) -> None:
+    """Check error conditions."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "x.db"
+    (tmp_dir / "broken.fasta").symlink_to("/does/not/exist/example.fna")
+    logger = setup_logger(Path("-"))
+    with pytest.raises(SystemExit, match="Input /.*/broken.fasta is a broken symlink"):
+        public_cli.start_and_run_method(
+            logger,
+            ToolExecutor.local,
+            None,
+            tmp_dir,
+            None,
+            tmp_db,
+            tmp_dir / "x.log",
+            "test",
+            "guessing",
+            tmp_dir,
+            None,
+        )
 
 
 def test_delete_empty(tmp_path: str) -> None:

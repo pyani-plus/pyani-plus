@@ -44,7 +44,7 @@ MIN_IDENTITY = 0.3
 # std = qaccver saccver pident length mismatch gapopen qstart qend sstart send evalue bitscore
 # We do NOT use the standard 12 columns, nor a custom 15 cols as per old pyANI,
 # but a minimal set of only 7 (the 6 used fields plus subject id for debugging).
-BLAST_COLUMNS = ("qseqid sseqid pident length mismatch qlen gaps").split()
+BLAST_COLUMNS = ["qseqid", "sseqid", "pident", "length", "mismatch", "qlen", "gaps"]
 
 # Precompute the column indexes once
 BLAST_COL_QUERY = BLAST_COLUMNS.index("qseqid")  # alternative to qaccver in std

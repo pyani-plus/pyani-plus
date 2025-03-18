@@ -96,7 +96,17 @@ REQ_ARG_TYPE_FASTA_DIR = Annotated[
 # Reused optional command line arguments (defined with a default)
 # ---------------------------------------------------------------
 # These are named OPT_ARG_TYPE_* short for optional-argument type
-
+OPT_ARG_TYPE_LOG = Annotated[
+    Path,
+    typer.Option(
+        help=(
+            "Where to record log(s). Use '-' for no logging."  # Path("") gives PWD
+        ),
+        rich_help_panel="Debugging",
+        dir_okay=False,
+        file_okay=True,
+    ),
+]
 OPT_ARG_TYPE_RUN_ID = Annotated[
     int | None,
     typer.Option(
@@ -138,7 +148,6 @@ OPT_ARG_TYPE_TEMP = Annotated[
         " remove this afterwards.",
         rich_help_panel="Debugging",
         show_default=False,
-        exists=True,
         dir_okay=True,
         file_okay=False,
     ),

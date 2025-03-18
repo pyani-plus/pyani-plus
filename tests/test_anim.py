@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus import db_orm, private_cli, tools, utils
+from pyani_plus import db_orm, private_cli, setup_logger, tools, utils
 from pyani_plus.methods import anim
 
 from . import get_matrix_entry
@@ -84,7 +84,6 @@ def test_aligned_bases_count(aligned_regions: dict) -> None:
 
 
 def test_running_anim(
-    capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -107,8 +106,6 @@ def test_running_anim(
         mode=anim.MODE,
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
 
     session = db_orm.connect_to_db(tmp_db)
     run = session.query(db_orm.Run).one()
@@ -116,8 +113,11 @@ def test_running_anim(
     hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
     hash_to_length = {_.genome_hash: _.length for _ in run.genomes}
 
+    logger = setup_logger(None)
+
     subject_hash = list(hash_to_filename)[1]
     private_cli.compute_anim(
+        logger,
         tmp_dir,
         session,
         run,

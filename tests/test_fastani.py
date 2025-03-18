@@ -30,7 +30,7 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus import db_orm, private_cli, tools
+from pyani_plus import db_orm, private_cli, setup_logger, tools
 from pyani_plus.methods.fastani import parse_fastani_file
 
 
@@ -41,7 +41,6 @@ def test_bad_path() -> None:
 
 
 def test_running_fastani(
-    capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -66,17 +65,17 @@ def test_running_fastani(
         minmatch=0.9,
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
 
     session = db_orm.connect_to_db(tmp_db)
     run = session.query(db_orm.Run).one()
     assert run.run_id == 1
+    logger = setup_logger(None)
     filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
     hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
     hash_to_lengths = {_.genome_hash: _.length for _ in run.genomes}
 
     private_cli.compute_fastani(
+        logger,
         tmp_dir,
         session,
         run,

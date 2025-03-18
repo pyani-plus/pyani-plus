@@ -28,6 +28,10 @@ methods. It is a reimplemented version of ``pyani`` with support for
 additional schedulers and methods.
 """
 
+import logging
+import sys
+from pathlib import Path
+
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
@@ -39,6 +43,7 @@ from rich.progress import (
 __version__ = "0.0.1"
 
 # The following are assorted centrally defined constants:
+LOG_FILE = Path("pyani-plus.log")
 FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}  # we'll consider .fasta.gz etc too
 GRAPHICS_FORMATS = ("tsv", "png", "jpg", "svgz", "pdf")  # note no dots!
 PROGRESS_BAR_COLUMNS = [
@@ -50,3 +55,45 @@ PROGRESS_BAR_COLUMNS = [
     # Add this last as have some out of N and some out of N^2:
     MofNCompleteColumn(),
 ]
+
+
+def setup_logger(
+    log_file: Path | None, *, terminal_level: int = logging.DEBUG
+) -> logging.Logger:
+    """Return a file-based logger alongside a Rich console logger.
+
+    Default filename is ``pyani-plus.log``. Use ``Path("-")`` or `None` for no log file.
+
+    The file logger defaults to DEBUG level, but the less verbose INFO for the terminal.
+    If quiet=True, then the terminal logging level is reduced to ERROR.
+    """
+    logger = logging.getLogger(f"{__package__}")
+    logger.setLevel(terminal_level)
+    if logger.hasHandlers():  # remove all previous handlers to avoid duplicate entries
+        logger.handlers.clear()
+
+    if not log_file or log_file == Path("-"):
+        logger.debug("Currently not logging to file.")
+        return logger
+    file_handler = logging.FileHandler(log_file, mode="a")
+    file_handler.setLevel(logging.DEBUG)
+
+    fmt = "%(asctime)s %(levelname)9s %(filename)21s:%(lineno)-3s | %(message)s"
+    formatter = logging.Formatter(fmt=fmt, datefmt="%Y-%m-%d %H:%M:%S")
+    file_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
+
+    msg = f"Logging to {log_file}"
+    logger.info(msg)  # Want this to appear on the terminal
+
+    return logger
+
+
+def log_sys_exit(logger: logging.Logger, msg: str) -> None:
+    """Log CRITICAL level message, then exit with that message.
+
+    Yes, this is a bit repetitive but, means using `pytest.raises` remains simple.
+    """
+    logger.critical(msg)
+    sys.exit(msg)

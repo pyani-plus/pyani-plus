@@ -85,7 +85,6 @@ def compare_fastani_files(file1: Path, file2: Path) -> bool:
 
 
 def test_rule_fastani(
-    capsys: pytest.CaptureFixture[str],
     input_genomes_tiny: Path,
     fastani_targets_outdir: Path,
     config_fastani_args: dict,
@@ -119,8 +118,6 @@ def test_rule_fastani(
         create_db=True,
     )
     assert db.is_file()
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
 
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(

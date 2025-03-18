@@ -26,12 +26,12 @@ These tests are intended to be run from the repository root using:
 make test
 """
 
-# Required to support pytest automated testing
+import logging
 from pathlib import Path
 
 import pytest
 
-from pyani_plus import db_orm, private_cli, public_cli
+from pyani_plus import db_orm, private_cli, public_cli, setup_logger
 from pyani_plus.utils import file_md5sum
 
 # Listing the fragments in MD5 order to match the matrix in DB:
@@ -113,7 +113,7 @@ MOCK_3_BY_11_DF_COV_QUERY = (
 
 
 def test_simple_mock_alignment_stem(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -133,11 +133,12 @@ def test_simple_mock_alignment_stem(
     with tmp_alignment.open("w") as handle:
         handle.write(MOCK_3_BY_11_ALIGNMENT)
 
+    caplog.set_level(logging.INFO)
     public_cli.external_alignment(
         input_genomes_tiny, tmp_db, create_db=True, alignment=tmp_alignment
     )
-    output = capsys.readouterr().out
-    assert "\nexternal-alignment run setup with 3 genomes" in output, output
+    output = caplog.text
+    assert "external-alignment run setup with 3 genomes" in output, output
 
     session = db_orm.connect_to_db(tmp_db)
     assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
@@ -148,7 +149,7 @@ def test_simple_mock_alignment_stem(
 
 
 def test_simple_mock_alignment_md5(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -170,11 +171,12 @@ CGG-T
 CGGAT
     """)
 
+    caplog.set_level(logging.INFO)
     public_cli.external_alignment(
         input_genomes_tiny, tmp_db, create_db=True, alignment=tmp_alignment, label="md5"
     )
-    output = capsys.readouterr().out
-    assert "\nexternal-alignment run setup with 3 genomes" in output, output
+    output = caplog.text
+    assert "external-alignment run setup with 3 genomes" in output, output
 
     session = db_orm.connect_to_db(tmp_db)
     assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
@@ -187,7 +189,7 @@ CGGAT
 
 
 def test_simple_mock_alignment_filename(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -209,6 +211,7 @@ def test_simple_mock_alignment_filename(
 -C-GG-T
     """)
 
+    caplog.set_level(logging.INFO)
     public_cli.external_alignment(
         input_genomes_tiny,
         tmp_db,
@@ -216,8 +219,8 @@ def test_simple_mock_alignment_filename(
         alignment=tmp_alignment,
         label="filename",
     )
-    output = capsys.readouterr().out
-    assert "\nexternal-alignment run setup with 3 genomes" in output, output
+    output = caplog.text
+    assert "external-alignment run setup with 3 genomes" in output, output
 
     session = db_orm.connect_to_db(tmp_db)
     assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
@@ -230,7 +233,7 @@ def test_simple_mock_alignment_filename(
 
 
 def test_resume(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -257,8 +260,9 @@ def test_resume(
         create_db=True,
     )
 
+    caplog.set_level(logging.INFO)
     public_cli.resume(tmp_db)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert (
         "Database already has 0 of 3²=9 external-alignment comparisons, 9 needed"
         in output
@@ -272,7 +276,7 @@ def test_resume(
 
 
 def test_resume_partial(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -310,8 +314,9 @@ def test_resume_partial(
         cov_subject=1.0,
     )  # values as per test_simple_mock_alignment_stem
 
+    caplog.set_level(logging.INFO)
     public_cli.resume(tmp_db)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert (
         "Database already has 1 of 3²=9 external-alignment comparisons, 8 needed"
         in output
@@ -347,7 +352,7 @@ def test_bad_resume(
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: We expect no tool information, but run-id 1 used should-be-blank version 1.0 instead.",
+        match="We expect no tool information, but run-id 1 used should-be-blank version 1.0 instead.",
     ):
         public_cli.resume(tmp_db)
 
@@ -407,12 +412,13 @@ def test_wrong_method(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, 1)
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
-        match="ERROR: Run-id 1 expected guessing results",
+        match="Run-id 1 expected guessing results",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -440,12 +446,13 @@ def test_bad_program(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, 1)
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
-        match="ERROR: configuration.program='should-be-blank' unexpected",
+        match="configuration.program='should-be-blank' unexpected",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -473,12 +480,13 @@ def test_bad_version(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, 1)
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
-        match="ERROR: configuration.version='should-be-blank' unexpected",
+        match="configuration.version='should-be-blank' unexpected",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -506,12 +514,13 @@ def test_no_config(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, 1)
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
-        match="ERROR: Missing configuration.extra setting",
+        match="Missing configuration.extra setting",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -538,12 +547,13 @@ def test_bad_config(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session)
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
-        match="ERROR: configuration.extra='file=example.fasta;md5=XXX;label=stem' unexpected",
+        match="configuration.extra='file=example.fasta;md5=XXX;label=stem' unexpected",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -571,12 +581,13 @@ def test_missing_alignment(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session)
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
-        match="ERROR: Missing alignment file .*/does-not-exist.fasta",
+        match="Missing alignment file .*/does-not-exist.fasta",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -608,12 +619,13 @@ def test_bad_checksum(
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session)
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
-        match="ERROR: MD5 checksum of .*/example.fasta didn't match.",
+        match="MD5 checksum of .*/example.fasta didn't match.",
     ):
         private_cli.compute_external_alignment(
-            tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -654,14 +666,16 @@ AA
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session)
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
         match=(
-            "ERROR: Bad external-alignment, different lengths 3 and 2"
+            "Bad external-alignment, different lengths 3 and 2"
             " from MGV-GENOME-0266457 and MGV-GENOME-0264574"
         ),
     ):
         private_cli.compute_external_alignment(
+            logger,
             tmp_dir,
             session,
             run,
@@ -712,8 +726,11 @@ AACT
 
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session)
+    logger = setup_logger(None)
+    logger = setup_logger(None)
     # This one should work...
     private_cli.compute_external_alignment(
+        logger,
         tmp_dir,
         session,
         run,
@@ -732,6 +749,7 @@ AACT
         match="Did not find subject 689d3fd6881db36b5e08329cf23cecdd in broken.fasta",
     ):
         private_cli.compute_external_alignment(
+            logger,
             tmp_dir,
             session,
             run,

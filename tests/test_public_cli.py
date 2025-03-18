@@ -28,13 +28,14 @@ pytest -v
 
 import filecmp
 import gzip
+import logging
 import shutil
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
-from pyani_plus import GRAPHICS_FORMATS, db_orm, public_cli, tools
+from pyani_plus import GRAPHICS_FORMATS, db_orm, public_cli, setup_logger, tools
 from pyani_plus.utils import file_md5sum
 
 
@@ -90,50 +91,48 @@ def compare_matrix_files(
 
 def test_check_db() -> None:
     """Check check_db error conditions."""
+    logger = setup_logger(Path("-"))
     with pytest.raises(
         SystemExit,
-        match="ERROR: Database /does/not/exist does not exist, but not using --create-db",
+        match="Database /does/not/exist does not exist, but not using --create-db",
     ):
-        public_cli.check_db(Path("/does/not/exist"), create_db=False)
+        public_cli.check_db(logger, Path("/does/not/exist"), create_db=False)
 
     # This is fine:
-    public_cli.check_db(":memory:", create_db=True)
+    public_cli.check_db(logger, ":memory:", create_db=True)
 
 
 def test_check_fasta(tmp_path: str) -> None:
     """Check error conditions."""
+    logger = setup_logger(Path("-"))
     with pytest.raises(
-        SystemExit, match="ERROR: FASTA input /does/not/exist is not a directory"
+        SystemExit, match="FASTA input /does/not/exist is not a directory"
     ):
-        public_cli.check_fasta(Path("/does/not/exist"))
+        public_cli.check_fasta(logger, Path("/does/not/exist"))
 
-    with pytest.raises(SystemExit, match="ERROR: No FASTA input genomes under "):
-        public_cli.check_fasta(Path(tmp_path))
+    with pytest.raises(SystemExit, match="No FASTA input genomes under "):
+        public_cli.check_fasta(logger, Path(tmp_path))
 
 
 def test_delete_empty(tmp_path: str) -> None:
     """Check delete-run with no data."""
-    with pytest.raises(
-        SystemExit, match="ERROR: Database /does/not/exist does not exist"
-    ):
-        public_cli.delete_run(database=Path("/does/not/exist"))
+    with pytest.raises(SystemExit, match="Database /does/not/exist does not exist"):
+        public_cli.delete_run(database=Path("/does/not/exist"), log=Path("-"))
 
     tmp_db = Path(tmp_path) / "list-runs-empty.sqlite"
     session = db_orm.connect_to_db(tmp_db)
     session.close()
 
-    with pytest.raises(SystemExit, match="ERROR: Database contains no runs."):
+    with pytest.raises(SystemExit, match="Database contains no runs."):
         public_cli.delete_run(database=tmp_db)
 
-    with pytest.raises(SystemExit, match="ERROR: Database has no run-id 1."):
+    with pytest.raises(SystemExit, match="Database has no run-id 1."):
         public_cli.resume(database=tmp_db, run_id=1)
 
 
 def test_list_runs_empty(capsys: pytest.CaptureFixture[str], tmp_path: str) -> None:
     """Check list-runs with no data."""
-    with pytest.raises(
-        SystemExit, match="ERROR: Database /does/not/exist does not exist"
-    ):
+    with pytest.raises(SystemExit, match="Database /does/not/exist does not exist"):
         public_cli.list_runs(database=Path("/does/not/exist"))
 
     tmp_db = Path(tmp_path) / "list runs empty.sqlite"
@@ -147,26 +146,28 @@ def test_list_runs_empty(capsys: pytest.CaptureFixture[str], tmp_path: str) -> N
 
 def test_resume_empty(tmp_path: str) -> None:
     """Check list-runs with no data."""
-    with pytest.raises(
-        SystemExit, match="ERROR: Database /does/not/exist does not exist"
-    ):
+    with pytest.raises(SystemExit, match="Database /does/not/exist does not exist"):
         public_cli.resume(database=Path("/does/not/exist"))
 
     tmp_db = Path(tmp_path) / "resume-empty.sqlite"
     session = db_orm.connect_to_db(tmp_db)
     session.close()
 
-    with pytest.raises(SystemExit, match="ERROR: Database contains no runs."):
+    with pytest.raises(SystemExit, match="Database contains no runs."):
         public_cli.resume(database=tmp_db)
 
-    with pytest.raises(SystemExit, match="ERROR: Database has no run-id 1."):
+    with pytest.raises(SystemExit, match="Database has no run-id 1."):
         public_cli.resume(database=tmp_db, run_id=1)
 
 
 def test_partial_run(  # noqa: PLR0915
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check list-runs and export-run with mock data including a partial run."""
+    caplog.set_level(logging.INFO)
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "list runs.sqlite"
     session = db_orm.connect_to_db(tmp_db)
@@ -231,33 +232,37 @@ def test_partial_run(  # noqa: PLR0915
 
     # Unlike a typical method calculation, we have not triggered
     # .cache_comparisons() yet, so that will happen in export_run.
+    caplog.clear()
     public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_path, label="md5")
-    output = capsys.readouterr().out
-    assert f"Wrote matrices to {tmp_path}" in output, output
+    output = caplog.text
+    assert f"Wrote matrices to {tmp_path}" in output, (output, capsys.readouterr().out)
     with (tmp_dir / "fastANI_identity.tsv").open() as handle:
         assert (
             handle.readline()
             == "\t5584c7029328dc48d33f95f0a78f7e57\t78975d5144a1cd12e98898d573cf6536\n"
         )
 
+    caplog.clear()
     public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_path, label="stem")
-    output = capsys.readouterr().out
-    assert f"Wrote matrices to {tmp_path}" in output, output
+    output = caplog.text
+    assert f"Wrote matrices to {tmp_path}" in output, (output, capsys.readouterr().out)
+
     with (tmp_dir / "fastANI_identity.tsv").open() as handle:
         assert handle.readline() == "\tMGV-GENOME-0266457\tOP073605\n"
 
+    caplog.clear()
     public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_path, label="filename")
-    output = capsys.readouterr().out
+    output = caplog.text
     assert f"Wrote matrices to {tmp_path}" in output, output
     with (tmp_dir / "fastANI_identity.tsv").open() as handle:
         assert handle.readline() == "\tMGV-GENOME-0266457.fna\tOP073605.fasta\n"
-    output = capsys.readouterr().out  # clear the above commands
+    caplog.clear()  # clear the above commands
 
     # By construction run 2 is partial, only 4 of 9 matrix entries are
     # defined - this should fail
     with pytest.raises(
         SystemExit,
-        match=("ERROR: run-id 2 has only 4 of 3²=9 comparisons, 5 needed"),
+        match=("run-id 2 has only 4 of 3²=9 comparisons, 5 needed"),
     ):
         public_cli.export_run(database=tmp_db, run_id=2, outdir=tmp_path)
     long_file = tmp_dir / "fastANI_run_2.tsv"
@@ -280,38 +285,43 @@ def test_partial_run(  # noqa: PLR0915
     # Resuming the partial job should fail as the fastANI version won't match:
     with pytest.raises(
         SystemExit,
-        match="ERROR: We have fastANI version .*, but run-id 2 used fastani version 1.2.3 instead.",
+        match="We have fastANI version .*, but run-id 2 used fastani version 1.2.3 instead.",
     ):
         public_cli.resume(database=tmp_db, run_id=2)
 
     # Resuming run 1 should fail as no genomes:
     with pytest.raises(
         SystemExit,
-        match="ERROR: No genomes recorded for run-id 1, cannot resume.",
+        match="No genomes recorded for run-id 1, cannot resume.",
     ):
         public_cli.resume(database=tmp_db, run_id=1)
 
     output = capsys.readouterr().out
 
     # Now delete the runs, and confirm what is left behind...
+    caplog.clear()
     public_cli.delete_run(database=tmp_db, run_id=1)
-    output = capsys.readouterr().out
-    assert "INFO: Run 1 contains 0/0=0² fastANI comparisons, status: Empty\n" in output
+    output = caplog.text
+    assert "Run 1 contains 0/0=0² fastANI comparisons, status: Empty\n" in output
 
     # Forcing as this has data
+    caplog.clear()
     public_cli.delete_run(database=tmp_db, run_id=3, force=True)
-    output = capsys.readouterr().out
-    assert "INFO: Run 3 contains all 4=2² fastANI comparisons, status: Done\n" in output
+    output = caplog.text
+    assert "Run 3 contains all 4=2² fastANI comparisons, status: Done\n" in output
 
     # Finally delete run 2, this will assume last one remaining
+    caplog.clear()
     public_cli.delete_run(database=tmp_db, force=True)
-    output = capsys.readouterr().out
-    assert (
-        "INFO: Deleting most recent run\n"
-        "INFO: Run 2 contains 4/9=3² fastANI comparisons, status: Running\n"
-        "INFO: Run name: Trial B\n"
-        "WARNING: Deleting a run still being computed will cause it to fail!\n"
-    ) in output
+    output = caplog.text
+    assert "Deleting most recent run" in output, output
+    assert "Run 2 contains 4/9=3² fastANI comparisons, status: Running" in output, (
+        output
+    )
+    assert "Run name: Trial B" in output, output
+    assert "Deleting a run still being computed will cause it to fail!" in output, (
+        output
+    )
 
     assert session.query(db_orm.Run).count() == 0
     assert session.query(db_orm.RunGenomeAssociation).count() == 0
@@ -326,14 +336,12 @@ def test_export_run_failures(tmp_path: str) -> None:
     """Check export run failures."""
     tmp_dir = Path(tmp_path)
 
-    with pytest.raises(
-        SystemExit, match="ERROR: Database /does/not/exist does not exist"
-    ):
+    with pytest.raises(SystemExit, match="Database /does/not/exist does not exist"):
         public_cli.export_run(database=Path("/does/not/exist"), outdir=tmp_dir)
 
     tmp_db = tmp_dir / "empty.sqlite"
     tmp_db.touch()
-    with pytest.raises(SystemExit, match="ERROR: Database contains no runs."):
+    with pytest.raises(SystemExit, match="Database contains no runs."):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir)
 
     tmp_db = tmp_dir / "export.sqlite"
@@ -357,17 +365,17 @@ def test_export_run_failures(tmp_path: str) -> None:
         status="Empty",
         name="Trial B",
     )
-    with pytest.raises(SystemExit, match="ERROR: Database has no run-id 3."):
+    with pytest.raises(SystemExit, match="Database has no run-id 3."):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=3)
     with pytest.raises(
         SystemExit,
-        match="ERROR: run-id 1 has no comparisons",
+        match="run-id 1 has no comparisons",
     ):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=1)
     # Should default to latest run, run-id 2
     with pytest.raises(
         SystemExit,
-        match="ERROR: run-id 2 has no comparisons",
+        match="run-id 2 has no comparisons",
     ):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     tmp_db.unlink()
@@ -425,18 +433,18 @@ def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: Duplicate filename stems, consider using MD5 labelling.",
+        match="Duplicate filename stems, consider using MD5 labelling.",
     ):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir / "out1")
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: Duplicate filename stems, consider using MD5 labelling.",
+        match="Duplicate filename stems, consider using MD5 labelling.",
     ):
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir / "out2")
     with pytest.raises(
         SystemExit,
-        match="ERROR: Duplicate filename stems, consider using MD5 labelling.",
+        match="Duplicate filename stems, consider using MD5 labelling.",
     ):
         public_cli.cli_classify(database=tmp_db, outdir=tmp_dir / "out3")
 
@@ -445,14 +453,12 @@ def test_plot_run_failures(tmp_path: str) -> None:
     """Check plot run failures."""
     tmp_dir = Path(tmp_path)
 
-    with pytest.raises(
-        SystemExit, match="ERROR: Database /does/not/exist does not exist"
-    ):
+    with pytest.raises(SystemExit, match="Database /does/not/exist does not exist"):
         public_cli.plot_run(database=Path("/does/not/exist"), outdir=tmp_dir)
 
     tmp_db = tmp_dir / "export.sqlite"
     session = db_orm.connect_to_db(tmp_db)
-    with pytest.raises(SystemExit, match="ERROR: Database contains no runs."):
+    with pytest.raises(SystemExit, match="Database contains no runs."):
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir)
 
     config = db_orm.db_configuration(
@@ -474,17 +480,17 @@ def test_plot_run_failures(tmp_path: str) -> None:
         status="Empty",
         name="Trial B",
     )
-    with pytest.raises(SystemExit, match="ERROR: Database has no run-id 3."):
+    with pytest.raises(SystemExit, match="Database has no run-id 3."):
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir, run_id=3)
     with pytest.raises(
         SystemExit,
-        match="ERROR: run-id 1 has no comparisons",
+        match="run-id 1 has no comparisons",
     ):
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir, run_id=1)
     # Should default to latest run, run-id 2
     with pytest.raises(
         SystemExit,
-        match="ERROR: run-id 2 has no comparisons",
+        match="run-id 2 has no comparisons",
     ):
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir)
 
@@ -493,9 +499,7 @@ def test_plot_run_comp_failures(tmp_path: str, input_genomes_tiny: Path) -> None
     """Check plot-run-comp failures."""
     tmp_dir = Path(tmp_path)
 
-    with pytest.raises(
-        SystemExit, match="ERROR: Database /does/not/exist does not exist"
-    ):
+    with pytest.raises(SystemExit, match="Database /does/not/exist does not exist"):
         public_cli.plot_run_comp(
             database=Path("/does/not/exist"), outdir=tmp_dir, run_ids="1,2"
         )
@@ -504,7 +508,7 @@ def test_plot_run_comp_failures(tmp_path: str, input_genomes_tiny: Path) -> None
     session = db_orm.connect_to_db(tmp_db)
     with pytest.raises(
         SystemExit,
-        match="ERROR: Database has no run-id 1. Use the list-runs command for more information.",
+        match="Database has no run-id 1. Use the list-runs command for more information.",
     ):
         public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="1,2")
 
@@ -546,32 +550,29 @@ def test_plot_run_comp_failures(tmp_path: str, input_genomes_tiny: Path) -> None
         fasta_to_hash=fasta_to_hash,
     )
 
-    with pytest.raises(SystemExit, match="ERROR: Run 1 has no comparisons"):
+    with pytest.raises(SystemExit, match="Run 1 has no comparisons"):
         public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="1,2")
 
-    with pytest.raises(
-        SystemExit, match="ERROR: Need at least two runs for a comparison"
-    ):
+    with pytest.raises(SystemExit, match="Need at least two runs for a comparison"):
         public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="2")
 
     with pytest.raises(
-        SystemExit, match="ERROR: Expected comma separated list of runs, not: 2-1"
+        SystemExit, match="Expected comma separated list of runs, not: 2-1"
     ):
         public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="2-1")
 
-    with pytest.raises(
-        SystemExit, match="ERROR: Runs 2 and 1 have no comparisons in common"
-    ):
+    with pytest.raises(SystemExit, match="Runs 2 and 1 have no comparisons in common"):
         public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="2,1")
 
 
 def test_anim(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
     evil_example: Path,
 ) -> None:
     """Check ANIm run."""
+    caplog.set_level(logging.INFO)
     tmp_dir = Path(tmp_path)
     # DB name with spaces, single quotes, emoji, in path & filename
     (tmp_dir / "user's 🔎 output").mkdir()
@@ -582,7 +583,7 @@ def test_anim(
         name="Spaces etc",
         create_db=True,
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has 0 of 3²=9 ANIm comparisons, 9 needed\n" in output
 
     session = db_orm.connect_to_db(tmp_db)
@@ -590,13 +591,14 @@ def test_anim(
     session.close()
 
     # Now do it again - it should reuse the calculations:
+    caplog.clear()
     public_cli.cli_anim(
         database=tmp_db,
         fasta=input_genomes_tiny,
         name="Simple names",
         create_db=False,
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has all 3²=9 ANIm comparisons\n" in output
 
     session = db_orm.connect_to_db(tmp_db)
@@ -640,18 +642,19 @@ def test_anim_gzip(
 
 
 def test_dnadiff(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
     evil_example: Path,
 ) -> None:
     """Check dnadiff run (default settings)."""
+    caplog.set_level(logging.INFO)
     tmp_dir = Path(tmp_path) / "dnadiff's test 📋"
     tmp_dir.mkdir()
     tmp_db = tmp_dir / "dnadiff test.sqlite"
     # Leaving out name, so can check the default worked
     public_cli.cli_dnadiff(database=tmp_db, fasta=evil_example, create_db=True)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has 0 of 3²=9 dnadiff comparisons, 9 needed\n" in output
     session = db_orm.connect_to_db(tmp_db)
     run = session.query(db_orm.Run).one()
@@ -659,13 +662,14 @@ def test_dnadiff(
     session.close()
 
     # Now do it again - it should reuse the calculations:
+    caplog.clear()
     public_cli.cli_dnadiff(
         database=tmp_db,
         fasta=input_genomes_tiny,
         name="Simple names",
         create_db=False,
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has all 3²=9 dnadiff comparisons\n" in output
 
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
@@ -699,12 +703,13 @@ def test_dnadiff_gzip(
 
 
 def test_anib(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
     evil_example: Path,
 ) -> None:
     """Check ANIb run (spaces, emoji, etc in filenames)."""
+    caplog.set_level(logging.INFO)
     tmp_dir = Path(tmp_path) / "ANIb-test-🎱"  # no spaces! makeblastdb -out breaks
     tmp_dir.mkdir()
     tmp_db = tmp_dir / "anib test.sqlite"
@@ -715,10 +720,11 @@ def test_anib(
         create_db=True,
         temp=tmp_dir,
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has 0 of 3²=9 ANIb comparisons, 9 needed\n" in output
 
     # Run it again, nothing to recompute but easier to check output
+    caplog.clear()
     public_cli.cli_anib(
         database=tmp_db,
         fasta=input_genomes_tiny,
@@ -726,7 +732,7 @@ def test_anib(
         create_db=True,
         temp=tmp_dir,
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has all 3²=9 ANIb comparisons\n" in output
 
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
@@ -768,12 +774,13 @@ def test_anib_gzip(
 
 
 def test_fastani(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
     evil_example: Path,
 ) -> None:
     """Check fastANI run (spaces, emoji, etc in filenames)."""
+    caplog.set_level(logging.INFO)
     tmp_dir = Path(tmp_path) / "fastANI's test 🏎️"
     tmp_dir.mkdir()
     tmp_db = tmp_dir / "fastani's test.sqlite"
@@ -784,10 +791,11 @@ def test_fastani(
         create_db=True,
         temp=tmp_dir,
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has 0 of 3²=9 fastANI comparisons, 9 needed\n" in output
 
     # Run it again, nothing to recompute but easier to check output
+    caplog.clear()
     public_cli.cli_fastani(
         database=tmp_db,
         fasta=input_genomes_tiny,
@@ -795,7 +803,7 @@ def test_fastani(
         create_db=False,
         temp=tmp_dir,
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has all 3²=9 fastANI comparisons\n" in output
 
     # Confirm output matches
@@ -845,12 +853,13 @@ def test_sourmash_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
 
 
 def test_sourmash(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
     evil_example: Path,
 ) -> None:
     """Check sourmash run (default settings except scaled=300)."""
+    caplog.set_level(logging.INFO)
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "sourmash test.sqlite"
 
@@ -862,10 +871,11 @@ def test_sourmash(
         create_db=True,
         cache=tmp_dir,
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has 0 of 3²=9 sourmash comparisons, 9 needed\n" in output
 
     # Run it again, nothing to recompute but easier to check output
+    caplog.clear()
     public_cli.cli_sourmash(
         database=tmp_db,
         fasta=input_genomes_tiny,
@@ -874,7 +884,7 @@ def test_sourmash(
         create_db=False,
         cache=tmp_dir,
     )
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has all 3²=9 sourmash comparisons\n" in output
 
     # Confirm output matches
@@ -925,18 +935,20 @@ def test_fastani_dups(tmp_path: str) -> None:
     for name in ("alpha", "beta", "gamma"):
         with (tmp_dir / (name + ".fasta")).open("w") as handle:
             handle.write(">genome\nACGTACGT\n")
-    with pytest.raises(
-        SystemExit, match="ERROR - Multiple genomes with same MD5 checksum"
-    ):
+    with pytest.raises(SystemExit, match="Multiple genomes with same MD5 checksum"):
         public_cli.cli_fastani(
             database=tmp_db, fasta=tmp_dir, name="Test duplicates fail", create_db=True
         )
 
 
 def test_resume_partial_fastani(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check list-runs and export-run with mock data including a partial fastANI run."""
+    caplog.set_level(logging.INFO)
     tmp_db = Path(tmp_path) / "partial resume.sqlite"
     tool = tools.get_fastani()
     session = db_orm.connect_to_db(tmp_db)
@@ -989,8 +1001,9 @@ def test_resume_partial_fastani(
     assert " Method  ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
     assert " fastANI │    8 │    0 │    1 │  9=3² │ Partial " in output, output
 
+    caplog.clear()
     public_cli.resume(database=tmp_db)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Resuming run-id 1\n" in output, output
     assert "Database already has 8 of 3²=9 fastANI comparisons, 1 needed" in output, (
         output
@@ -1003,9 +1016,13 @@ def test_resume_partial_fastani(
 
 
 def test_resume_partial_anib(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check list-runs and export-run with mock data including a partial ANIb run."""
+    caplog.set_level(logging.INFO)
     tmp_db = Path(tmp_path) / "resume.sqlite"
     tool = tools.get_blastn()
     session = db_orm.connect_to_db(tmp_db)
@@ -1056,8 +1073,9 @@ def test_resume_partial_anib(
     assert " Method ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
     assert " ANIb   │    8 │    0 │    1 │  9=3² │ Partial " in output, output
 
+    caplog.clear()
     public_cli.resume(database=tmp_db)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Resuming run-id 1\n" in output, output
     assert "Database already has 8 of 3²=9 ANIb comparisons, 1 needed" in output, output
 
@@ -1068,9 +1086,13 @@ def test_resume_partial_anib(
 
 
 def test_resume_partial_anim(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check list-runs and export-run with mock data including a partial ANIm run."""
+    caplog.set_level(logging.INFO)
     tmp_db = Path(tmp_path) / "resume.sqlite"
     tool = tools.get_nucmer()
     session = db_orm.connect_to_db(tmp_db)
@@ -1121,8 +1143,9 @@ def test_resume_partial_anim(
     assert " Method ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
     assert " ANIm   │    8 │    0 │    1 │  9=3² │ Partial " in output, output
 
+    caplog.clear()
     public_cli.resume(database=tmp_db)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Resuming run-id 1\n" in output, output
     assert "Database already has 8 of 3²=9 ANIm comparisons, 1 needed" in output, output
 
@@ -1133,9 +1156,13 @@ def test_resume_partial_anim(
 
 
 def test_resume_partial_sourmash(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check list-runs and export-run with mock data including a partial sourmash run."""
+    caplog.set_level(logging.INFO)
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "resume sourmash.sqlite"
     tool = tools.get_sourmash()
@@ -1185,8 +1212,9 @@ def test_resume_partial_sourmash(
     assert " Method   ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
     assert " sourmash │    4 │    0 │    5 │  9=3² │ Partial " in output, output
 
+    caplog.clear()
     public_cli.resume(database=tmp_db, cache=tmp_dir)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Resuming run-id 1\n" in output, output
     assert "Database already has 4 of 3²=9 sourmash comparisons, 5 needed" in output, (
         output
@@ -1234,7 +1262,7 @@ def test_resume_dir_gone(tmp_path: str, input_genomes_tiny: Path) -> None:
 
     with pytest.raises(
         SystemExit,
-        match=r"ERROR: run-id 1 used input folder /mnt/shared/old, but that is not a directory \(now\).",
+        match=r"run-id 1 used input folder /mnt/shared/old, but that is not a directory \(now\).",
     ):
         public_cli.resume(database=tmp_db)
 
@@ -1274,15 +1302,18 @@ def test_resume_unknown(tmp_path: str, input_genomes_tiny: Path) -> None:
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: Unknown method guessing for run-id 1 in .*/resume.sqlite",
+        match="Unknown method guessing for run-id 1 in .*/resume.sqlite",
     ):
         public_cli.resume(database=tmp_db)
 
 
 def test_resume_complete(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check resume works for all the methods (using completed runs for speed)."""
+    caplog.set_level(logging.INFO)
     tmp_db = Path(tmp_path) / "resume.sqlite"
     session = db_orm.connect_to_db(tmp_db)
 
@@ -1331,16 +1362,20 @@ def test_resume_complete(
             name=f"Test resuming a complete {method} run",
             fasta_to_hash=fasta_to_hash,
         )
+        caplog.clear()
         public_cli.resume(database=tmp_db)
-        output = capsys.readouterr().out
+        output = caplog.text
         assert f"Resuming run-id {index + 1}\n" in output, output
         assert f"Database already has all 3²=9 {method} comparisons" in output, output
 
 
 def test_resume_fasta_gone(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check resume error handling when a FASTA file is missing."""
+    caplog.set_level(logging.INFO)
     tmp_dir = Path(tmp_path)
     tmp_indir = tmp_dir / "input"
     tmp_indir.mkdir()
@@ -1399,7 +1434,7 @@ def test_resume_fasta_gone(
     with pytest.raises(
         SystemExit,
         match=(
-            f"ERROR: run-id 1 used .*/{Path(missing).name} with MD5 {fasta_to_hash[missing]}"
+            f"run-id 1 used .*/{Path(missing).name} with MD5 {fasta_to_hash[missing]}"
             " but this FASTA file no longer exists"
         ),
     ):
@@ -1408,8 +1443,9 @@ def test_resume_fasta_gone(
     # Should work with all the FASTA files, even though now in a different directory
     # to that logged in the genome table (as could happen via an older run):
     (tmp_indir / Path(missing).name).symlink_to(Path(missing))
+    caplog.clear()
     public_cli.resume(database=tmp_db)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has all 3²=9 ANIb comparisons" in output, output
 
     # Should work even with extra FASTA files, real world use case:
@@ -1419,13 +1455,16 @@ def test_resume_fasta_gone(
     # Resume the run - it should only operate on the first 100 genomes!
     with (tmp_indir / "extra.fasta").open("w") as handle:
         handle.write(">recently-added-genome\nACGTACGTAGT\n")
+    caplog.clear()
     public_cli.resume(database=tmp_db)
-    output = capsys.readouterr().out
+    output = caplog.text
     assert "Database already has all 3²=9 ANIb comparisons" in output, output
 
 
 def test_plot_skip_nulls(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check export-run behaviour when have null values."""
     tmp_dir = Path(tmp_path)
@@ -1474,23 +1513,25 @@ def test_plot_skip_nulls(
     session.close()
 
     plot_out = tmp_dir / "plots"
+    caplog.clear()
+    caplog.set_level(logging.INFO)
     public_cli.plot_run(database=tmp_db, outdir=plot_out)
+    output = caplog.text
 
-    stdout, stderr = capsys.readouterr()
-    assert (
-        f"WARNING: Output directory {plot_out} does not exist, making it.\n" in stderr
-    ), stderr
-    assert "WARNING: Cannot plot query_cov as all NA\n" in stderr, stderr
-    assert "Cannot plot hadamard as all NA\n" in stderr, stderr
-    assert "Cannot plot tANI as all NA\n" in stderr, stderr
-    assert f"Wrote {2 * len(GRAPHICS_FORMATS)} images to {plot_out}" in stdout
+    assert f"Output directory {plot_out} does not exist, making it." in output, output
+    assert "Cannot plot query_cov as all NA\n" in output, output
+    assert "Cannot plot hadamard as all NA\n" in output, output
+    assert "Cannot plot tANI as all NA\n" in output, output
+    assert f"Wrote {2 * len(GRAPHICS_FORMATS)} images to {plot_out}" in output, output
     assert sorted(_.name for _ in plot_out.glob("*_heatmap.*")) == sorted(
         f"guessing_identity_heatmap.{ext}" for ext in GRAPHICS_FORMATS
     )
 
 
 def test_plot_bad_nulls(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check export-run behaviour when have null values except on diagonal."""
     tmp_dir = Path(tmp_path)
@@ -1541,38 +1582,35 @@ def test_plot_bad_nulls(
 
     plot_out = tmp_dir / "plots"
     plot_out.mkdir()
+    caplog.clear()
     public_cli.plot_run(database=tmp_db, outdir=plot_out)
-    stderr = capsys.readouterr().err
+    output = caplog.text
     assert (
-        "WARNING: identity matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
-        in stderr
-    ), stderr
+        "identity matrix contains 2 nulls (out of 2²=4 guessing comparisons)" in output
+    ), output
     assert (
-        "WARNING: query_cov matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
-        in stderr
-    ), stderr
+        "query_cov matrix contains 2 nulls (out of 2²=4 guessing comparisons)" in output
+    ), output
     assert (
-        "WARNING: hadamard matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
-        in stderr
-    ), stderr
+        "hadamard matrix contains 2 nulls (out of 2²=4 guessing comparisons)" in output
+    ), output
     assert (
-        "WARNING: tANI matrix contains 2 nulls (out of 2²=4 guessing comparisons)\n"
-        in stderr
-    ), stderr
+        "tANI matrix contains 2 nulls (out of 2²=4 guessing comparisons)" in output
+    ), output
 
 
 def test_classify_failures(tmp_path: str) -> None:
     """Check classify failures."""
     tmp_dir = Path(tmp_path)
 
-    with pytest.raises(
-        SystemExit, match="ERROR: Database /does/not/exist does not exist"
-    ):
+    with pytest.raises(SystemExit, match="Database /does/not/exist does not exist"):
         public_cli.cli_classify(database=Path("/does/not/exist"), outdir=tmp_dir)
 
 
 def test_classify_warnings(
-    tmp_path: str, input_genomes_tiny: Path, capsys: pytest.CaptureFixture[str]
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check classify warnings."""
     tmp_dir = Path(tmp_path)
@@ -1624,24 +1662,23 @@ def test_classify_warnings(
         fasta_to_hash=fasta_to_hash,
     )
 
+    caplog.clear()
     public_cli.cli_classify(database=tmp_db, outdir=tmp_dir, run_id=1)
-
-    output = capsys.readouterr().err
+    output = caplog.text
     assert (
-        "WARNING: Run 1 has 1 comparison across 1 genome. Reporting single clique...\n"
-        in output
+        "Run 1 has 1 comparison across 1 genome. Reporting single clique...\n" in output
     ), output
+
     with (tmp_dir / "fastANI_classify.tsv").open() as handle:
         assert (
             handle.readline()
             == "n_nodes\tmax_cov\tmin_identity\tmax_identity\tmembers\n"
         )
+    caplog.clear()
+    caplog.set_level(logging.INFO)
     public_cli.cli_classify(database=tmp_db, outdir=tmp_dir, run_id=2, cov_min=1.0)
-
-    output = capsys.readouterr().err
-    assert "WARNING: All genomes are singletons. No plot can be generated." in output, (
-        output
-    )
+    output = caplog.text
+    assert "All genomes are singletons. No plot can be generated." in output, output
     with (tmp_dir / "fastANI_classify.tsv").open() as handle:
         assert (
             handle.readline()
@@ -1649,8 +1686,10 @@ def test_classify_warnings(
         )
 
 
-def test_classify(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+def test_classify_normal(
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: str,
+    input_genomes_tiny: Path,
 ) -> None:
     """Check working example of classify."""
     tmp_dir = Path(tmp_path)
@@ -1695,16 +1734,17 @@ def test_classify(
         fasta_to_hash=fasta_to_hash,
     )
 
+    caplog.clear()
+    caplog.set_level(logging.INFO)
     public_cli.cli_classify(database=tmp_db, outdir=tmp_dir, cov_min=0.9, mode="tANI")
-
-    output = capsys.readouterr().out
+    output = caplog.text
     assert f"Wrote classify output to {tmp_path}" in output, output
     with (tmp_dir / "fastANI_classify.tsv").open() as handle:
         assert handle.readline() == "n_nodes\tmax_cov\tmin_-tANI\tmax_-tANI\tmembers\n"
 
 
 def test_plot_run_comp(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -1752,10 +1792,15 @@ def test_plot_run_comp(
 
     for cols in (0, 1):
         plot_out = tmp_dir / f"📊{cols}col"
+        caplog.clear()
+        caplog.set_level(logging.INFO)
         public_cli.plot_run_comp(
-            database=tmp_db, outdir=plot_out, run_ids="1,2,3", columns=cols
+            database=tmp_db,
+            outdir=plot_out,
+            run_ids="1,2,3",
+            columns=cols,
         )
-        output = capsys.readouterr().out
+        output = caplog.text
         images = len(GRAPHICS_FORMATS)
         if "tsv" in GRAPHICS_FORMATS:
             images -= 1

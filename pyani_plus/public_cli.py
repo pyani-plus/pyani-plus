@@ -27,10 +27,11 @@ new analysis (which can build on existing comparisons if the same DB is
 used), and reporting on a finished analysis (exporting tables and plots).
 """
 
+import logging
 import sys
 import tempfile
 from contextlib import nullcontext
-from math import log
+from math import log as math_log
 from pathlib import Path
 from typing import Annotated
 
@@ -38,12 +39,22 @@ import click
 import networkx as nx
 import typer
 from rich.console import Console
+from rich.logging import RichHandler
 from rich.progress import Progress
 from rich.table import Table
 from rich.text import Text
 from sqlalchemy.orm import Session
 
-from pyani_plus import PROGRESS_BAR_COLUMNS, classify, db_orm, private_cli, tools
+from pyani_plus import (
+    LOG_FILE,
+    PROGRESS_BAR_COLUMNS,
+    classify,
+    db_orm,
+    log_sys_exit,
+    private_cli,
+    setup_logger,
+    tools,
+)
 from pyani_plus.methods import anib, anim, fastani, sourmash
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_ANIM_MODE,
@@ -55,6 +66,7 @@ from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_FRAGSIZE,
     OPT_ARG_TYPE_KMERSIZE,
     OPT_ARG_TYPE_LABEL,
+    OPT_ARG_TYPE_LOG,
     OPT_ARG_TYPE_MINMATCH,
     OPT_ARG_TYPE_RUN_ID,
     OPT_ARG_TYPE_RUN_NAME,
@@ -79,17 +91,35 @@ from pyani_plus.workflows import (
     run_snakemake_with_progress_bar,
 )
 
+logging.basicConfig(
+    level="INFO",
+    format="%(message)s",
+    datefmt="[%X]",
+    handlers=[
+        RichHandler(
+            level=logging.INFO,
+            markup=True,
+            omit_repeated_times=False,
+            show_path=False,
+            rich_tracebacks=True,
+            tracebacks_suppress=["click", "sqlalchemy"],
+        )
+    ],
+)
+
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 
 
 def start_and_run_method(  # noqa: PLR0913
+    logger: logging.Logger,
     executor: ToolExecutor,
     cache: Path | None,
     temp: Path | None,
     workflow_temp: Path | None,
     database: Path,
+    log: Path,
     name: str | None,
     method: str,
     fasta: Path,
@@ -102,7 +132,7 @@ def start_and_run_method(  # noqa: PLR0913
     extra: str | None = None,
 ) -> int:
     """Run the snakemake workflow for given method and log run to database."""
-    fasta_names = check_fasta(fasta)
+    fasta_names = check_fasta(logger, fasta)
 
     # We should have caught all the obvious failures earlier,
     # including missing inputs or missing external tools.
@@ -128,15 +158,18 @@ def start_and_run_method(  # noqa: PLR0913
     hashes = set()
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         for filename in progress.track(fasta_names, description="Indexing FASTAs"):
-            md5 = file_md5sum(filename)
+            try:
+                md5 = file_md5sum(filename)
+            except ValueError as err:
+                log_sys_exit(logger, str(err))
             filename_to_md5[filename] = md5
             if md5 in hashes:
                 # This avoids hitting IntegrityError UNIQUE constraint failed
                 dups = "\n" + "\n".join(
                     sorted({str(k) for k, v in filename_to_md5.items() if v == md5})
                 )
-                msg = f"ERROR - Multiple genomes with same MD5 checksum {md5}:{dups}"
-                sys.exit(msg)
+                msg = f"Multiple genomes with same MD5 checksum {md5}:{dups}"
+                log_sys_exit(logger, msg)
             hashes.add(md5)
             db_orm.db_genome(session, filename, md5, create=True)
 
@@ -152,27 +185,32 @@ def start_and_run_method(  # noqa: PLR0913
         fasta_to_hash=filename_to_md5,
     )
     session.commit()  # Redundant?
-    print(f"{method} run setup with {n} genomes in database")
+    msg = f"{method} run setup with {n} genomes in database"
+    logger.info(msg)
 
     return run_method(
+        logger,
         executor,
         cache,
         temp,
         workflow_temp,
         filename_to_md5,
         database,
+        log,
         session,
         run,
     )
 
 
 def run_method(  # noqa: PLR0913
+    logger: logging.Logger,
     executor: ToolExecutor,
     cache: Path | None,
     temp: Path | None,
     workflow_temp: Path | None,
     filename_to_md5: dict[Path, str],
     database: Path,
+    log: Path,
     session: Session,
     run: db_orm.Run,
 ) -> int:
@@ -191,11 +229,11 @@ def run_method(  # noqa: PLR0913
     done = run.comparisons().count()
     n = len(filename_to_md5)
     if done == n**2:
-        print(f"Database already has all {n}²={n**2} {method} comparisons")
+        msg = f"Database already has all {n}²={n**2} {method} comparisons"
+        logger.info(msg)
     else:
-        print(
-            f"Database already has {done} of {n}²={n**2} {method} comparisons, {n**2 - done} needed"
-        )
+        msg = f"Database already has {done} of {n}²={n**2} {method} comparisons, {n**2 - done} needed"
+        logger.info(msg)
         run.status = "Running"
         session.commit()
         session.close()  # Reduce chance of DB locking
@@ -234,6 +272,7 @@ def run_method(  # noqa: PLR0913
                 database=Path(database),
                 run_id=run_id,
                 temp=temp,
+                log=log,
             )
 
         # Reconnect to the DB
@@ -244,12 +283,13 @@ def run_method(  # noqa: PLR0913
     if done != n**2:
         # There is no obvious way to test this hypothetical failure:
         msg = f"ERROR: Only have {done} of {n}²={n**2} {method} comparisons needed"  # pragma: no cover
-        sys.exit(msg)  # pragma: no cover
+        log_sys_exit(logger, msg)  # pragma: no cover
 
     run.cache_comparisons()  # will this needs a progress bar too with large n?
     run.status = "Done"
     session.commit()
-    print(f"Completed {method} run-id {run_id} with {n} genomes in database {database}")
+    msg = f"Completed {method} run-id {run_id} with {n} genomes in database {database}"
+    logger.info(msg)
     session.close()
     return 0
 
@@ -268,15 +308,19 @@ def cli_anim(  # noqa: PLR0913
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
+    log: OPT_ARG_TYPE_LOG = LOG_FILE,
 ) -> int:
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
-    check_db(database, create_db)
+    logger = setup_logger(log)
+    check_db(logger, database, create_db)
     return start_and_run_method(
+        logger,
         executor,
         None,
         temp,
         wtemp,
         database,
+        log,
         name,
         "ANIm",
         fasta,
@@ -297,15 +341,19 @@ def cli_dnadiff(  # noqa: PLR0913
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
+    log: OPT_ARG_TYPE_LOG = LOG_FILE,
 ) -> int:
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
-    check_db(database, create_db)
+    logger = setup_logger(log)
+    check_db(logger, database, create_db)
     return start_and_run_method(
+        logger,
         executor,
         None,
         temp,
         wtemp,
         database,
+        log,
         name,
         "dnadiff",
         fasta,
@@ -327,21 +375,24 @@ def cli_anib(  # noqa: PLR0913
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
+    log: OPT_ARG_TYPE_LOG = LOG_FILE,
 ) -> int:
     """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
-    check_db(database, create_db)
-
+    logger = setup_logger(log)
+    check_db(logger, database, create_db)
     tool = tools.get_blastn()
     alt = tools.get_makeblastdb()
     if tool.version != alt.version:  # pragma: nocover
         msg = f"ERROR: blastn {tool.version} vs makeblastdb {alt.version}"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
     return start_and_run_method(
+        logger,
         executor,
         None,
         temp,
         wtemp,
         database,
+        log,
         name,
         "ANIb",
         fasta,
@@ -375,15 +426,19 @@ def cli_fastani(  # noqa: PLR0913
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
+    log: OPT_ARG_TYPE_LOG = LOG_FILE,
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
-    check_db(database, create_db)
+    logger = setup_logger(log)
+    check_db(logger, database, create_db)
     return start_and_run_method(
+        logger,
         executor,
         None,
         temp,
         wtemp,
         database,
+        log,
         name,
         "fastANI",
         fasta,
@@ -406,18 +461,22 @@ def cli_sourmash(  # noqa: PLR0913
     cache: OPT_ARG_TYPE_CACHE = None,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
+    log: OPT_ARG_TYPE_LOG = LOG_FILE,
     # These are for the configuration table:
     scaled: OPT_ARG_TYPE_SOURMASH_SCALED = sourmash.SCALED,  # 1000
     kmersize: OPT_ARG_TYPE_KMERSIZE = sourmash.KMER_SIZE,
 ) -> int:
     """Execute sourmash-plugin-branchwater ANI calculations, logged to a pyANI-plus SQLite3 database."""
-    check_db(database, create_db)
+    logger = setup_logger(log)
+    check_db(logger, database, create_db)
     return start_and_run_method(
+        logger,
         executor,
         cache,
         temp,
         wtemp,
         database,
+        log,
         name,
         "sourmash",
         fasta,
@@ -438,6 +497,7 @@ def external_alignment(  # noqa: PLR0913
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
+    log: OPT_ARG_TYPE_LOG = LOG_FILE,
     # These are for the configuration table:
     alignment: Annotated[
         Path,
@@ -459,17 +519,19 @@ def external_alignment(  # noqa: PLR0913
     ] = "stem",
 ) -> int:
     """Compute pairwise ANI from given multiple-sequence-alignment (MSA) file."""
-    check_db(database, create_db)
-
+    logger = setup_logger(log)
+    check_db(logger, database, create_db)
     aln_checksum = file_md5sum(alignment)
     # Doing this order to put the filename LAST, in case of separators in the filename
     extra = f"md5={aln_checksum};label={label};alignment={alignment.name}"
     return start_and_run_method(
+        logger,
         executor,
         None,
         temp,  # not needed?
         wtemp,  # not needed?
         database,
+        log,
         f"Import of {alignment.name}" if name is None else name,
         "external-alignment",
         fasta,
@@ -479,7 +541,7 @@ def external_alignment(  # noqa: PLR0913
 
 
 @app.command()
-def resume(  # noqa: C901, PLR0912, PLR0913
+def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
     database: REQ_ARG_TYPE_DATABASE,
     *,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
@@ -487,6 +549,7 @@ def resume(  # noqa: C901, PLR0912, PLR0913
     cache: OPT_ARG_TYPE_CACHE = None,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
+    log: OPT_ARG_TYPE_LOG = LOG_FILE,
 ) -> int:
     """Resume any (partial) run already logged in the database.
 
@@ -498,23 +561,26 @@ def resume(  # noqa: C901, PLR0912, PLR0913
     If the version of the underlying tool has changed, this will abort
     as the original run cannot be completed.
     """
+    logger = setup_logger(log)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     session = db_orm.connect_to_db(database)
     run = db_orm.load_run(session, run_id)
     if run_id is None:
         run_id = run.run_id  # relevant if was None
-        print(f"INFO: Resuming run-id {run_id}")
+        msg = f"Resuming run-id {run_id}"
+        logger.info(msg)
     config = run.configuration
-    print(
-        f"INFO: This is a {config.method} run on {run.genomes.count()} genomes, "
+    msg = (
+        f"This is a {config.method} run on {run.genomes.count()} genomes, "
         f"using {config.program} version {config.version}"
     )
+    logger.info(msg)
     if not run.genomes.count():
         msg = f"ERROR: No genomes recorded for run-id {run_id}, cannot resume."
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     # The params dict has two kinds of entries,
     # - tool paths, which ought to be handled more neatly
@@ -535,20 +601,20 @@ def resume(  # noqa: C901, PLR0912, PLR0913
             tool = None
         case _:
             msg = f"ERROR: Unknown method {config.method} for run-id {run_id} in {database}"
-            sys.exit(msg)
+            log_sys_exit(logger, msg)
     if not tool:
         if config.program != "" or config.version != "":
             msg = (
                 "ERROR: We expect no tool information, but"
                 f" run-id {run_id} used {config.program} version {config.version} instead."
             )
-            sys.exit(msg)
+            log_sys_exit(logger, msg)
     elif tool.exe_path.stem != config.program or tool.version != config.version:
         msg = (
             f"ERROR: We have {tool.exe_path.stem} version {tool.version}, but"
             f" run-id {run_id} used {config.program} version {config.version} instead."
         )
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     del tool
 
@@ -557,7 +623,7 @@ def resume(  # noqa: C901, PLR0912, PLR0913
     fasta = Path(run.fasta_directory)
     if not fasta.is_dir():
         msg = f"ERROR: run-id {run_id} used input folder {fasta}, but that is not a directory (now)."
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     # Recombine the fasta directory name from the runs table with the plain filename from
     # the run-genome linking table
@@ -570,19 +636,21 @@ def resume(  # noqa: C901, PLR0912, PLR0913
                 f"ERROR: run-id {run_id} used {filename} with MD5 {md5}"
                 f" but this FASTA file no longer exists"
             )
-            sys.exit(msg)
+            log_sys_exit(logger, msg)
 
     # Resuming
     run.status = "Resuming"
     session.commit()
 
     return run_method(
+        logger,
         executor,
         cache,
         temp,
         wtemp,
         filename_to_md5,
         database,
+        log,
         session,
         run,
     )
@@ -591,11 +659,13 @@ def resume(  # noqa: C901, PLR0912, PLR0913
 @app.command()
 def list_runs(
     database: REQ_ARG_TYPE_DATABASE,
+    log: OPT_ARG_TYPE_LOG = LOG_FILE,
 ) -> int:
     """List the runs defined in a given pyANI-plus SQLite3 database."""
+    logger = setup_logger(log)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     session = db_orm.connect_to_db(database)
     runs = session.query(db_orm.Run)
@@ -639,6 +709,8 @@ def list_runs(
     session.close()
     console = Console()
     console.print(table)
+    msg = f"Reporting on {len(table.rows)} runs."
+    logger.debug(msg)
     return 0
 
 
@@ -651,6 +723,7 @@ def delete_run(
         # Listing name(s) explicitly to avoid automatic matching --no-create-db
         bool, typer.Option("-f", "--force", help="Delete without confirmation")
     ] = False,
+    log: OPT_ARG_TYPE_LOG = LOG_FILE,
 ) -> int:
     """Delete any single run from the given pyANI-plus SQLite3 database.
 
@@ -661,9 +734,10 @@ def delete_run(
     not currently linked to another run. They will be reused should you start
     a new run using an overlapping set of input FASTA files.
     """
+    logger = setup_logger(log)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     confirm = False
 
@@ -671,30 +745,34 @@ def delete_run(
     run = db_orm.load_run(session, run_id, check_complete=False)
     if run_id is None:
         run_id = run.run_id
-        print("INFO: Deleting most recent run")
+        logger.info("Deleting most recent run")
         confirm = True
 
     # Could use rish colours, match how list-runs colours the counts?
     done = run.comparisons().count()
     n = run.genomes.count()
     if n and done == n**2:
-        print(
-            f"INFO: Run {run_id} contains all {n**2}={n}²"
+        msg = (
+            f"Run {run_id} contains all {n**2}={n}²"
             f" {run.configuration.method} comparisons, status: {run.status}"
         )
+        logger.info(msg)
         confirm = True
     else:
-        print(
-            f"INFO: Run {run_id} contains {done}/{n**2}={n}²"
+        msg = (
+            f"Run {run_id} contains {done}/{n**2}={n}²"
             f" {run.configuration.method} comparisons, status: {run.status}"
         )
+        logger.info(msg)
         if done:
             confirm = True
-    print(f"INFO: Run name: {run.name}")
+    msg = f"Run name: {run.name}"
+    logger.info(msg)
 
     if run.status == "Running":  # should be a constant or enum?
         # Should we also look at the date of the run? If old probably it failed.
-        print("WARNING: Deleting a run still being computed will cause it to fail!")
+        msg = "Deleting a run still being computed will cause it to fail!\n"
+        logger.warning(msg)
         confirm = True
 
     if confirm and not force:
@@ -723,6 +801,7 @@ def export_run(  # noqa: C901
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
     label: OPT_ARG_TYPE_LABEL = "stem",
+    log: OPT_ARG_TYPE_LOG = LOG_FILE,
 ) -> int:
     """Export any single run from the given pyANI-plus SQLite3 database.
 
@@ -737,20 +816,22 @@ def export_run(  # noqa: C901
     run. For partial runs the long form table will be exported, but not the
     matrices.
     """
+    logger = setup_logger(log)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     if not outdir.is_dir():
-        msg = f"WARNING: Output directory {outdir} does not exist, making it.\n"
-        sys.stderr.write(msg)
+        msg = f"Output directory {outdir} does not exist, making it.\n"
+        logger.warning(msg)
         outdir.mkdir()
 
     session = db_orm.connect_to_db(database)
     run = db_orm.load_run(session, run_id, check_empty=True)
     if run_id is None:
         run_id = run.run_id
-        print(f"INFO: Exporting run-id {run_id}")
+        msg = f"Exporting run-id {run_id}"
+        logger.info(msg)
 
     # Question: Should we export a plain text of JSON summary of the configuration etc?
     # Question: Should we include the run-id in the matrix filenames?
@@ -785,7 +866,7 @@ def export_run(  # noqa: C901
                 if _.identity is None or _.cov_query is None
                 else _.identity * _.cov_query
             )
-            tani = None if hadamard is None else -log(hadamard)
+            tani = None if hadamard is None else -math_log(hadamard)
             handle.write(
                 f"{mapping(_.query_hash)}\t{mapping(_.subject_hash)}"
                 f"\t{float_or_na(_.identity)}"
@@ -796,7 +877,8 @@ def export_run(  # noqa: C901
                 f"\t{float_or_na(_.aln_length)}"
                 f"\t{float_or_na(_.sim_errors)}\n"
             )
-    print(f"Wrote long-form to {outdir}/{long_filename}")
+    msg = f"Wrote long-form to {outdir}/{long_filename}"
+    logger.info(msg)
 
     # Reload the run checking it is complete (quick) (might abort here!),
     # and caching the matrices if needed (slower):
@@ -810,20 +892,22 @@ def export_run(  # noqa: C901
         (run.hadamard, f"{method}_hadamard.tsv"),
         (run.tani, f"{method}_tANI.tsv"),
     ):
-        if matrix is None:
+        if matrix is None:  # pragma: no cover
             # This is mainly for mypy to assert the matrix is not None
-            msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
-            sys.exit(msg)  # pragma: no cover
+            msg = f"ERROR: Could not load run {method} matrix"
+            log_sys_exit(logger, msg)
+            return 1  # not called but mbpy doesn't understand that (yet)
 
         try:
             matrix = run.relabelled_matrix(matrix, label)  # noqa: PLW2901
         except ValueError as err:
             msg = f"ERROR: {err}"
-            sys.exit(msg)
+            log_sys_exit(logger, msg)
 
         matrix.to_csv(outdir / filename, sep="\t")
 
-    print(f"Wrote matrices to {outdir}/{method}_*.tsv")
+    msg = f"Wrote matrices to {outdir}/{method}_*.tsv"
+    logger.info(msg)
 
     session.close()
     return 0
@@ -835,31 +919,35 @@ def plot_run(
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
     label: OPT_ARG_TYPE_LABEL = "stem",
+    log: OPT_ARG_TYPE_LOG = LOG_FILE,
 ) -> int:
     """Plot heatmaps and distributions for any single run.
 
     The output directory must already exist. The heatmap files will be named
     <method>_<property>.<extension> and any pre-existing files will be overwritten.
     """
+    logger = setup_logger(log)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     if not outdir.is_dir():
-        msg = f"WARNING: Output directory {outdir} does not exist, making it.\n"
-        sys.stderr.write(msg)
+        msg = f"Output directory {outdir} does not exist, making it.\n"
+        logger.warning(msg)
         outdir.mkdir()
 
     session = db_orm.connect_to_db(database)
     run = db_orm.load_run(session, run_id, check_complete=True)
     if run_id is None:
         run_id = run.run_id
-        print(f"INFO: Plotting {run.configuration.method} run-id {run_id}")
+        msg = f"Plotting {run.configuration.method} run-id {run_id}"
+        logger.info(msg)
 
     from pyani_plus import plot_run  # lazy import
 
-    count = plot_run.plot_single_run(run, outdir, label)
-    print(f"Wrote {count} images to {outdir}/{run.configuration.method}_*.*")
+    count = plot_run.plot_single_run(logger, run, outdir, label)
+    msg = f"Wrote {count} images to {outdir}/{run.configuration.method}_*.*"
+    logger.info(msg)
     session.close()
     return 0 if count else 1
 
@@ -880,6 +968,7 @@ def plot_run_comp(
             min=0,
         ),
     ] = 0,
+    log: OPT_ARG_TYPE_LOG = LOG_FILE,
 ) -> int:
     """Plot comparisons between multiple runs.
 
@@ -887,9 +976,10 @@ def plot_run_comp(
     <method>_<property>_<run-id>_vs_*.<extension> and any
     pre-existing files will be overwritten.
     """
+    logger = setup_logger(log)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     if not outdir.is_dir():
         msg = f"WARNING: Output directory {outdir} does not exist, making it.\n"
@@ -900,28 +990,29 @@ def plot_run_comp(
         runs = [int(_) for _ in run_ids.split(",")]
     except ValueError:
         msg = f"ERROR: Expected comma separated list of runs, not: {run_ids}"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     run_id = runs[0]  # the reference
     other_runs = runs[1:]
 
     if not other_runs:
         msg = "ERROR: Need at least two runs for a comparison"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     session = db_orm.connect_to_db(database)
     ref_run = db_orm.load_run(session, run_id, check_complete=False)
 
     if not ref_run.comparisons().count():
         msg = f"ERROR: Run {run_id} has no comparisons"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     from pyani_plus import plot_run  # lazy import
 
-    done = plot_run.plot_run_comparison(session, ref_run, other_runs, outdir, columns)
-    print(
-        f"Wrote {done} images to {outdir}/{ref_run.configuration.method}_identity_{run_id}_vs_*.*"
+    done = plot_run.plot_run_comparison(
+        logger, session, ref_run, other_runs, outdir, columns
     )
+    msg = f"Wrote {done} images to {outdir}/{ref_run.configuration.method}_identity_{run_id}_vs_*.*"
+    logger.info(msg)
     session.close()
     return 0
 
@@ -956,22 +1047,25 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     label: OPT_ARG_TYPE_LABEL = "stem",
     cov_min: OPT_ARG_TYPE_COV_MIN = classify.MIN_COVERAGE,
     mode: OPT_ARG_TYPE_CLASSIFY_MODE = classify.MODE,
+    log: OPT_ARG_TYPE_LOG = LOG_FILE,
 ) -> int:
     """Classify genomes into clusters based on ANI results."""
+    logger = setup_logger(log)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"ERROR: Database {database} does not exist"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     if not outdir.is_dir():
-        msg = f"WARNING: Output directory {outdir} does not exist, making it.\n"
-        sys.stderr.write(msg)
+        msg = f"Output directory {outdir} does not exist, making it.\n"
+        logger.warning(msg)
         outdir.mkdir()
 
     session = db_orm.connect_to_db(database)
     run = db_orm.load_run(session, run_id, check_complete=True)
     if run_id is None:
         run_id = run.run_id
-        print(f"INFO: Exporting run-id {run_id}")
+        msg = f"Exporting run-id {run_id}"
+        logger.info(msg)
 
     method = run.configuration.method
 
@@ -983,32 +1077,31 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
 
     if matrix is None:
         msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
-        sys.exit(msg)  # pragma: no cover
+        log_sys_exit(logger, msg)  # pragma: no cover
 
     done = run.comparisons().count()
     run_genomes = run.genomes.count()
 
     single_genome_run = False
     if done == 1 and run_genomes == 1:
-        msg = f"WARNING: Run {run_id} has {done} comparison across {run_genomes} genome. Reporting single clique...\n"
         single_genome_run = True
-        sys.stderr.write(msg)
+        msg = f"WARNING: Run {run_id} has {done} comparison across {run_genomes} genome. Reporting single clique...\n"
+        logger.warning(msg)
     else:
-        print(
-            f"Run {run_id} has {done} comparisons across {run_genomes} genomes. Running classify..."
-        )
+        msg = f"Run {run_id} has {done} comparisons across {run_genomes} genomes. Running classify..."
+        logger.info(msg)
 
     cov = run.cov_query
-    if cov is None:
-        msg = f"ERROR: Could not load run {method} matrix"  # pragma: no cover
-        sys.exit(msg)  # pragma: no cover
+    if cov is None:  # pragma: no cover
+        msg = f"ERROR: Could not load run {method} matrix"
+        log_sys_exit(logger, msg)
 
     try:
         score_matrix = run.relabelled_matrix(matrix, label)
         cov = run.relabelled_matrix(cov, label)
     except ValueError as err:
         msg = f"ERROR: {err}"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
 
     # Map the string inputs to callable functions
     coverage_agg_func = classify.AGG_FUNCS[coverage_edges]
@@ -1039,15 +1132,16 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     clique_data, clique_df = classify.compute_classify_output(
         unique_cliques, method, outdir, column_map
     )
-    print(f"Wrote classify output to {outdir}")
+    msg = f"Wrote classify output to {outdir}"
+    logger.info(msg)
 
     # Only plot classify if more than one genome in comparisons and the initial graph consist of at least one clique
     if not single_genome_run:
         if set(clique_df["n_nodes"]) == {1}:
-            msg = "WARNING: All genomes are singletons. No plot can be generated."
-            sys.stderr.write(msg)
+            msg = "All genomes are singletons. No plot can be generated."
+            logger.warning(msg)
         else:
-            print("Plotting classify output...")
+            logger.info("Plotting classify output...")
             genome_groups = classify.get_genome_cligue_ids(clique_df, suffix)
             genome_positions = classify.get_genome_order(genome_groups)
             classify.plot_classify(

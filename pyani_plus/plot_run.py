@@ -21,7 +21,7 @@
 # THE SOFTWARE.
 """Code for plotting a single run (heatmaps etc)."""
 
-import sys
+import logging
 import warnings
 from math import ceil, log, nan, sqrt
 from pathlib import Path
@@ -35,7 +35,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from rich.progress import Progress
 from sqlalchemy.orm import Session
 
-from pyani_plus import GRAPHICS_FORMATS, PROGRESS_BAR_COLUMNS, db_orm
+from pyani_plus import GRAPHICS_FORMATS, PROGRESS_BAR_COLUMNS, db_orm, log_sys_exit
 
 mpl.use("agg")  # non-interactive backend
 
@@ -198,6 +198,7 @@ def plot_distribution(
 
 
 def plot_scatter(
+    logger: logging.Logger,
     run: db_orm.Run,
     outdir: Path,
     formats: tuple[str, ...] = GRAPHICS_FORMATS,
@@ -229,21 +230,20 @@ def plot_scatter(
         count = len(pairs)  # including missing values
         values = [(x, y, c) for (x, y, c) in pairs if x is not None and y is not None]
         if not values:
-            msg = f"WARNING: No valid identity, {y_caption} values from {method} run\n"
-            sys.stderr.write(msg)
+            msg = f"No valid identity, {y_caption} values from {method} run"
+            logger.warning(msg)
             return 0
-        sys.stderr.write(
-            f"INFO: Plotting {len(values)}/{count} {y_caption} vs identity comparisons\n"
-        )
+        msg = f"Plotting {len(values)}/{count} {y_caption} vs identity comparisons"
+        logger.info(msg)
 
         x_values = [x for (x, y, c) in values]
         y_values = [y for (x, y, c) in values]
         c_values = [c for (x, y, c) in values]
 
-        sys.stderr.write(f"DEBUG: Identity range {min(x_values)} to {max(x_values)}\n")
-        sys.stderr.write(
-            f"DEBUG: {y_caption} range {min(y_values)} to {max(y_values)}\n"
-        )
+        msg = f"Identity range {min(x_values)} to {max(x_values)}"
+        logger.debug(msg)
+        msg = f"{y_caption} range {min(y_values)} to {max(y_values)}"
+        logger.debug(msg)
 
         # Create the plot
         joint_grid = sns.jointplot(
@@ -282,6 +282,7 @@ def plot_scatter(
 
 
 def plot_single_run(
+    logger: logging.Logger,
     run: db_orm.Run,
     outdir: Path,
     label: str,
@@ -309,7 +310,7 @@ def plot_single_run(
             "Plotting", total=len(scores_and_color_schemes) * 2 + 2
         )
         # This will print any warnings itself:
-        done = plot_scatter(run, outdir)
+        done = plot_scatter(logger, run, outdir)
         # Need finer grained progress logging:
         progress.advance(task)
         progress.advance(task)
@@ -323,10 +324,11 @@ def plot_single_run(
             elif name == "hadamard":
                 matrix = run.hadamard
 
-            if matrix is None:
+            if matrix is None:  # pragma: no cover
                 # This is mainly for mypy to assert the matrix is not None
-                msg = f"ERROR: Could not load run {method} {name} matrix"  # pragma: no cover
-                sys.exit(msg)  # pragma: no cover
+                msg = f"ERROR: Could not load run {method} {name} matrix"
+                log_sys_exit(logger, msg)
+                return 0  # won't be called but mypy doesn't understand (yet)
 
             if name == "tANI":
                 # Using run.tani would reload Hadamard and then log transform it.
@@ -337,13 +339,13 @@ def plot_single_run(
                     matrix = run.relabelled_matrix(matrix, label)
                 except ValueError as err:
                     msg = f"ERROR: {err}"
-                    sys.exit(msg)
+                    log_sys_exit(logger, msg)
 
             nulls = int(matrix.isnull().sum().sum())  # noqa: PD003
             n = len(matrix)
             if nulls == n**2:
                 msg = f"WARNING: Cannot plot {name} as all NA\n"
-                sys.stderr.write(msg)
+                logger.warning(msg)
                 progress.advance(task)  # skipping distribution plots
                 progress.advance(task)  # skipping heatmap
                 continue
@@ -353,10 +355,10 @@ def plot_single_run(
 
             if nulls:
                 msg = (
-                    f"WARNING: {name} matrix contains {nulls} nulls"
-                    f" (out of {n}²={n**2} {method} comparisons)\n"
+                    f"{name} matrix contains {nulls} nulls"
+                    f" (out of {n}²={n**2} {method} comparisons)"
                 )
-                sys.stderr.write(msg)
+                logger.warning(msg)
 
             done += plot_heatmap(
                 matrix, outdir, name, method, color_scheme, formats, na_fill
@@ -366,6 +368,7 @@ def plot_single_run(
 
 
 def plot_run_comparison(  # noqa: C901, PLR0912, PLR0913, PLR0915
+    logger: logging.Logger,
     session: Session,
     run: db_orm.Run,
     other_runs: list[int],
@@ -385,10 +388,11 @@ def plot_run_comparison(  # noqa: C901, PLR0912, PLR0913, PLR0915
     }
     queries = {_[0] for _ in reference_values_by_hash}
     subjects = {_[1] for _ in reference_values_by_hash}
-    sys.stderr.write(
-        f"INFO: Plotting {len(other_runs)} runs against {run.configuration.method}"
-        f" run {run.run_id} which has {len(reference_values_by_hash)} comparisons\n"
+    msg = (
+        f"Plotting {len(other_runs)} runs against {run.configuration.method}"
+        f" run {run.run_id} which has {len(reference_values_by_hash)} comparisons"
     )
+    logger.info(msg)
 
     vs_count = len(other_runs)
 
@@ -488,14 +492,15 @@ def plot_run_comparison(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 }
                 if not other_values_by_hash:
                     msg = f"ERROR: Runs {run.run_id} and {other_run_id} have no comparisons in common"
-                    sys.exit(msg)
+                    log_sys_exit(logger, msg)
                 if mode == "scatter":
                     # Don't repeat this for the diff plot
-                    sys.stderr.write(
-                        f"INFO: Plotting {other_run.configuration.method} run {other_run_id}"
+                    msg = (
+                        f"Plotting {other_run.configuration.method} run {other_run_id}"
                         f" vs {run.configuration.method} run {run.run_id},"
-                        f" with {len(other_values_by_hash)} comparisons in common\n"
+                        f" with {len(other_values_by_hash)} comparisons in common"
                     )
+                    logger.info(msg)
 
                 # other_data dict can be smaller than ref_data!
                 x_values = [

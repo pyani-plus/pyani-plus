@@ -31,13 +31,11 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus import db_orm, private_cli, tools
+from pyani_plus import db_orm, private_cli, setup_logger, tools
 from pyani_plus.methods import sourmash
 
 
-def test_prepare_genomes_bad_method(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
-) -> None:
+def test_prepare_genomes_bad_method(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check error handling of sourmash.prepare_genomes with wrong method."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "bad-args.db"
@@ -53,22 +51,18 @@ def test_prepare_genomes_bad_method(
         version="0.0a1",
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, run_id=1)
 
     with pytest.raises(
         SystemExit,
-        match="ERROR: Expected run to be for sourmash, not method guessing",
+        match="Expected run to be for sourmash, not method guessing",
     ):
         next(sourmash.prepare_genomes(run, tmp_dir))  # should error before checks cache
     session.close()
 
 
-def test_prepare_genomes_bad_kmer(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
-) -> None:
+def test_prepare_genomes_bad_kmer(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check error handling of sourmash.prepare_genomes without k-mer size."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "bad-args.db"
@@ -85,14 +79,12 @@ def test_prepare_genomes_bad_kmer(
         extra="scaled=" + str(sourmash.SCALED),
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, run_id=1)
 
     with pytest.raises(
         SystemExit,
-        match=f"ERROR: sourmash requires a k-mer size, default is {sourmash.KMER_SIZE}",
+        match=f"sourmash requires a k-mer size, default is {sourmash.KMER_SIZE}",
     ):
         next(
             sourmash.prepare_genomes(run, cache=tmp_dir)
@@ -100,9 +92,7 @@ def test_prepare_genomes_bad_kmer(
     session.close()
 
 
-def test_prepare_genomes_bad_cache(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
-) -> None:
+def test_prepare_genomes_bad_cache(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check error handling of sourmash.prepare_genomes without k-mer size."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "bad-args.db"
@@ -120,14 +110,12 @@ def test_prepare_genomes_bad_cache(
         extra="scaled=" + str(sourmash.SCALED),
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, run_id=1)
 
     with pytest.raises(
         ValueError,
-        match="ERROR: Cache directory /does/not/exist does not exist",
+        match="Cache directory /does/not/exist does not exist",
     ):
         next(
             sourmash.prepare_genomes(run, cache=Path("/does/not/exist"))
@@ -136,7 +124,6 @@ def test_prepare_genomes_bad_cache(
 
 
 def test_prepare_genomes_bad_extra(
-    capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -156,14 +143,12 @@ def test_prepare_genomes_bad_extra(
         kmersize=sourmash.KMER_SIZE,
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, run_id=1)
 
     with pytest.raises(
         SystemExit,
-        match=f"ERROR: sourmash requires extra setting, default is scaled={sourmash.SCALED}",
+        match=f"sourmash requires extra setting, default is scaled={sourmash.SCALED}",
     ):
         next(
             sourmash.prepare_genomes(run, cache=tmp_dir)
@@ -218,7 +203,7 @@ def test_parser_with_bad_header(tmp_path: str) -> None:
     parser = sourmash.parse_sourmash_manysearch_csv(mock_csv, set())
     with pytest.raises(
         SystemExit,
-        match="ERROR - Missing expected fields in sourmash manysearch header, found: "
+        match="Missing expected fields in sourmash manysearch header, found: "
         "'max_containment_ani,query_name,match_name,subject_containment_ani'",
     ):
         next(parser)
@@ -231,15 +216,17 @@ def test_compute_bad_args(tmp_path: str) -> None:
     tool = tools.ExternalToolData(exe_path=Path("sourmash"), version="0.0a1")
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.Run()  # empty
-    with pytest.raises(SystemExit, match="ERROR: Not given a cache directory"):
+    logger = setup_logger(None)
+    with pytest.raises(SystemExit, match="Not given a cache directory"):
         private_cli.compute_sourmash(
-            tmp_dir, session, run, tmp_dir, {}, {}, {"ABCDE": 12345}, "HIJKL"
+            logger, tmp_dir, session, run, tmp_dir, {}, {}, {"ABCDE": 12345}, "HIJKL"
         )
     with pytest.raises(
         SystemExit,
-        match="ERROR: Cache directory /does/not/exist does not exist - check cache setting.",
+        match="Cache directory /does/not/exist does not exist - check cache setting.",
     ):
         private_cli.compute_sourmash(
+            logger,
             tmp_dir,
             session,
             run,
@@ -263,11 +250,12 @@ def test_compute_bad_args(tmp_path: str) -> None:
     with pytest.raises(
         SystemExit,
         match=(
-            "ERROR: Missing sourmash signatures directory"
+            "Missing sourmash signatures directory"
             f" {tmp_dir}/sourmash_k=31_scaled=1234 - check cache setting."
         ),
     ):
         private_cli.compute_sourmash(
+            logger,
             tmp_dir,
             session,
             run,
@@ -300,9 +288,7 @@ def test_compute_tile_bad_args(tmp_path: str) -> None:
                 tmp_dir,
             )
         )
-    with pytest.raises(
-        SystemExit, match="ERROR: Return code 1 from: sourmash sig collect "
-    ):
+    with pytest.raises(SystemExit, match="Return code 1 from: sourmash sig collect "):
         next(
             sourmash.compute_sourmash_tile(
                 tool,

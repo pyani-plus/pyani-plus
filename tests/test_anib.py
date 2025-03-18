@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus import db_orm, private_cli, tools
+from pyani_plus import db_orm, private_cli, setup_logger, tools
 from pyani_plus.methods import anib
 
 from . import get_matrix_entry
@@ -104,7 +104,6 @@ def test_parse_blastn(input_genomes_tiny: Path) -> None:
 
 
 def test_running_anib(
-    capsys: pytest.CaptureFixture[str],
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:
@@ -127,8 +126,6 @@ def test_running_anib(
         fragsize=anib.FRAGSIZE,  # will be used by default in log_anib
         create_db=True,
     )
-    output = capsys.readouterr().out
-    assert output.endswith("Run identifier 1\n")
 
     session = db_orm.connect_to_db(tmp_db)
     run = session.query(db_orm.Run).one()
@@ -137,7 +134,9 @@ def test_running_anib(
     hash_to_length = {_.genome_hash: _.length for _ in run.genomes}
 
     subject_hash = list(hash_to_filename)[1]
+    logger = setup_logger(None)
     private_cli.compute_anib(
+        logger,
         tmp_dir,
         session,
         run,

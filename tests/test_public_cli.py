@@ -935,9 +935,7 @@ def test_fastani_dups(tmp_path: str) -> None:
     for name in ("alpha", "beta", "gamma"):
         with (tmp_dir / (name + ".fasta")).open("w") as handle:
             handle.write(">genome\nACGTACGT\n")
-    with pytest.raises(
-        SystemExit, match="ERROR - Multiple genomes with same MD5 checksum"
-    ):
+    with pytest.raises(SystemExit, match="Multiple genomes with same MD5 checksum"):
         public_cli.cli_fastani(
             database=tmp_db, fasta=tmp_dir, name="Test duplicates fail", create_db=True
         )

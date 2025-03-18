@@ -158,14 +158,17 @@ def start_and_run_method(  # noqa: PLR0913
     hashes = set()
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         for filename in progress.track(fasta_names, description="Indexing FASTAs"):
-            md5 = file_md5sum(filename)
+            try:
+                md5 = file_md5sum(filename)
+            except ValueError as err:
+                log_sys_exit(logger, str(err))
             filename_to_md5[filename] = md5
             if md5 in hashes:
                 # This avoids hitting IntegrityError UNIQUE constraint failed
                 dups = "\n" + "\n".join(
                     sorted({str(k) for k, v in filename_to_md5.items() if v == md5})
                 )
-                msg = f"ERROR - Multiple genomes with same MD5 checksum {md5}:{dups}"
+                msg = f"Multiple genomes with same MD5 checksum {md5}:{dups}"
                 log_sys_exit(logger, msg)
             hashes.add(md5)
             db_orm.db_genome(session, filename, md5, create=True)

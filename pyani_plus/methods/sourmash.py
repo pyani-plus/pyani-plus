@@ -21,7 +21,7 @@
 # THE SOFTWARE.
 """Code to implement the sourmash Average Nucleotide Identity (ANI) method."""
 
-# Set Up
+import logging
 import sys
 from collections.abc import Iterator
 from pathlib import Path
@@ -32,7 +32,9 @@ SCALED = 1000
 KMER_SIZE = 31  # default
 
 
-def prepare_genomes(run: db_orm.Run, cache: Path) -> Iterator[str]:
+def prepare_genomes(
+    logger: logging.Logger, run: db_orm.Run, cache: Path
+) -> Iterator[str]:
     """Build the sourmatch sketch signatures in the given directory.
 
     Will use a sub-directory ``sourmash_k={kmersize}_scaled={number}``.
@@ -62,6 +64,7 @@ def prepare_genomes(run: db_orm.Run, cache: Path) -> Iterator[str]:
         sig_filename = cache / f"{entry.genome_hash}.sig"
         if not sig_filename.is_file():
             utils.check_output(
+                logger,
                 [
                     str(tool.exe_path),
                     "scripts",
@@ -139,7 +142,8 @@ def parse_sourmash_manysearch_csv(
         yield query_hash, subject_hash, None, None
 
 
-def compute_sourmash_tile(
+def compute_sourmash_tile(  # noqa: PLR0913
+    logger: logging.Logger,
     tool: tools.ExternalToolData,
     subject_hashes: set[str],
     query_hashes: set[str],
@@ -163,6 +167,7 @@ def compute_sourmash_tile(
             )
             csv.unlink()
         utils.check_output(
+            logger,
             [
                 str(tool.exe_path),
                 "sig",
@@ -173,9 +178,10 @@ def compute_sourmash_tile(
                 "-o",
                 str(csv),
                 *[str(cache / f"{_}.sig") for _ in sigs],
-            ]
+            ],
         )
     utils.check_output(
+        logger,
         [
             str(tool.exe_path),
             "scripts",
@@ -189,7 +195,7 @@ def compute_sourmash_tile(
             str(manysearch),
             str(query_sig_list),
             str(subject_sig_list),
-        ]
+        ],
     )
     yield from parse_sourmash_manysearch_csv(
         manysearch,

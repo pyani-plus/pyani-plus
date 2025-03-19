@@ -1085,7 +1085,7 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     single_genome_run = False
     if done == 1 and run_genomes == 1:
         single_genome_run = True
-        msg = f"WARNING: Run {run_id} has {done} comparison across {run_genomes} genome. Reporting single clique...\n"
+        msg = f"Run {run_id} has {done} comparison across {run_genomes} genome. Reporting single clique...\n"
         logger.warning(msg)
     else:
         msg = f"Run {run_id} has {done} comparisons across {run_genomes} genomes. Running classify..."

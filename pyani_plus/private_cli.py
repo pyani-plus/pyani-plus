@@ -1523,7 +1523,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
             cov_query,
             cov_subject,
         ) in compute_external_alignment_column(
-            subject_hash, set(query_hashes), alignment, mapping, label
+            logger, subject_hash, set(query_hashes), alignment, mapping, label
         ):
             db_entries.append(
                 {

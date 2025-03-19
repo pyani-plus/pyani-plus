@@ -175,7 +175,8 @@ def test_parser_with_bad_branchwater(tmp_path: str) -> None:
         ("BBBBBB", "AAAAAA"),
         ("BBBBBB", "BBBBBB"),
     }
-    parser = sourmash.parse_sourmash_manysearch_csv(mock_csv, expected)
+    logger = setup_logger(None)
+    parser = sourmash.parse_sourmash_manysearch_csv(logger, mock_csv, expected)
     assert next(parser) == ("AAAAAA", "AAAAAA", 1.0, 1.0)
     assert next(parser) == ("AAAAAA", "BBBBBB", 0.85, 0.9)
     with pytest.raises(
@@ -185,10 +186,12 @@ def test_parser_with_bad_branchwater(tmp_path: str) -> None:
         next(parser)
 
     # Now tell it just expect one entry...
-    parser = sourmash.parse_sourmash_manysearch_csv(mock_csv, {("AAAAAA", "AAAAAA")})
+    parser = sourmash.parse_sourmash_manysearch_csv(
+        logger, mock_csv, {("AAAAAA", "AAAAAA")}
+    )
     assert next(parser) == ("AAAAAA", "AAAAAA", 1.0, 1.0)
     with pytest.raises(
-        ValueError, match="Did not expect AAAAAA vs BBBBBB in faked.csv"
+        SystemExit, match="Did not expect AAAAAA vs BBBBBB in faked.csv"
     ):
         next(parser)
 
@@ -202,7 +205,8 @@ def test_parser_with_bad_header(tmp_path: str) -> None:
         handle.write(
             "max_containment_ani,query_name,match_name,subject_containment_ani\n"
         )
-    parser = sourmash.parse_sourmash_manysearch_csv(mock_csv, set())
+    logger = setup_logger(None)
+    parser = sourmash.parse_sourmash_manysearch_csv(logger, mock_csv, set())
     with pytest.raises(
         SystemExit,
         match="Missing expected fields in sourmash manysearch header, found: "

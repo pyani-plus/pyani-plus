@@ -22,11 +22,10 @@
 """Code to implement the sourmash Average Nucleotide Identity (ANI) method."""
 
 import logging
-import sys
 from collections.abc import Iterator
 from pathlib import Path
 
-from pyani_plus import db_orm, tools, utils
+from pyani_plus import db_orm, log_sys_exit, tools, utils
 
 SCALED = 1000
 KMER_SIZE = 31  # default
@@ -44,13 +43,13 @@ def prepare_genomes(
     config = run.configuration
     if config.method != "sourmash":
         msg = f"Expected run to be for sourmash, not method {config.method}"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
     if not config.kmersize:
         msg = f"sourmash requires a k-mer size, default is {KMER_SIZE}"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
     if not config.extra:
         msg = f"sourmash requires extra setting, default is scaled={SCALED}"
-        sys.exit(msg)
+        log_sys_exit(logger, msg)
     tool = tools.get_sourmash()
     if not cache.is_dir():
         msg = f"Cache directory {cache} does not exist"
@@ -84,6 +83,7 @@ def prepare_genomes(
 
 
 def parse_sourmash_manysearch_csv(
+    logger: logging.Logger,
     manysearch_file: Path,
     expected_pairs: set[tuple[str, str]],
 ) -> Iterator[tuple[str, str, float | None, float | None]]:
@@ -107,8 +107,8 @@ def parse_sourmash_manysearch_csv(
             column_query_cont = headers.index("query_containment_ani")
             column_max_cont = headers.index("max_containment_ani")
         except ValueError:
-            msg = f"ERROR - Missing expected fields in sourmash manysearch header, found: {line!r}"
-            sys.exit(msg)
+            msg = f"Missing expected fields in sourmash manysearch header, found: {line!r}"
+            log_sys_exit(logger, msg)
         for line in handle:
             line = line.rstrip("\n")  # noqa: PLW2901
             if not line:
@@ -129,7 +129,7 @@ def parse_sourmash_manysearch_csv(
                 expected_pairs.remove((query_hash, subject_hash))
             else:
                 msg = f"Did not expect {query_hash} vs {subject_hash} in {manysearch_file.name}"
-                raise ValueError(msg) from None
+                log_sys_exit(logger, msg)
             yield (
                 query_hash,
                 subject_hash,
@@ -197,6 +197,7 @@ def compute_sourmash_tile(  # noqa: PLR0913
         ],
     )
     yield from parse_sourmash_manysearch_csv(
+        logger,
         manysearch,
         # This is used to infer failed alignments:
         expected_pairs={(q, s) for q in query_hashes for s in subject_hashes},

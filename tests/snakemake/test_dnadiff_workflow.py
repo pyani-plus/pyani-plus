@@ -30,6 +30,7 @@ from pathlib import Path
 
 import pytest
 
+from pyani_plus import setup_logger
 from pyani_plus.private_cli import log_run
 from pyani_plus.tools import (
     get_nucmer,
@@ -137,9 +138,10 @@ def test_dnadiff(
         create_db=True,
     )
     assert db.is_file()
-
+    logger = setup_logger(None)
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
+        logger,
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
         targets=[dnadiff_targets_outdir / f"column_{_ + 1}.dnadiff" for _ in range(3)],
@@ -215,9 +217,10 @@ def test_dnadiff_bad_align(
         create_db=True,
     )
     assert db.is_file()
-
+    logger = setup_logger(None)
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
+        logger,
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
         targets=[dnadiff_targets_outdir / f"column_{_ + 1}.dnadiff" for _ in range(2)],

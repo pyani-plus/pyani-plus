@@ -27,7 +27,6 @@ import logging
 import os
 import shutil
 import subprocess
-import sys
 from collections.abc import Iterator
 from pathlib import Path
 from typing import IO
@@ -244,8 +243,8 @@ def _fmt_cmd(args: list[str]) -> str:
     return " ".join(f"'{_}'" if " " in str(_) else str(_) for _ in args)
 
 
-def check_output(args: list[str]) -> str:
-    """Wrap for subprocess.run and report any error to stderr.
+def check_output(logger: logging.Logger, args: list[str]) -> str:
+    """Wrap for subprocess.run and log any error.
 
     Note that if the output is not of interest on success, subprocess.check_call
     would be natural instead. However, the documentation for that recommends not
@@ -261,18 +260,13 @@ def check_output(args: list[str]) -> str:
         code = err.returncode
         output = err.output
 
-    msg = f"ERROR: Return code {code} from: {_fmt_cmd(args)}\n"
-    sys.stderr.write(msg)
+    msg = f"Return code {code} from: {_fmt_cmd(args)}"
+    logger.error(msg)  # Is this worth repeating here & on exit?
+    logger.error(output)
     if output:
-        sys.stderr.write("~" * 60 + "\n")
-        sys.stderr.write(output)
-        sys.stderr.write("~" * 60 + "\n")
-        sys.stderr.write(msg)  # repeat as this is important
         for line in output.split("\n"):
             if line.upper().startswith("ERROR:"):
-                msg += line + "\n"
-    sys.stderr.flush()
-
+                msg += "\n" + line
     # Calling log_sys_exit(X) is equivalent to raising SystemExit(X),
     # where if X is an integer this is the return code, otherwise
     # X is printed to stderr and the return code is 1.
@@ -280,7 +274,9 @@ def check_output(args: list[str]) -> str:
     # i.e. We cannot raise SystemExit with a custom message and code
     # This makes testing with pytest a little harder! Therefore opting
     # to raise a message which we can test, and settle for return code 1.
-    raise SystemExit(msg) from None
+    log_sys_exit(logger, msg)
+    # mypy wants to see a return:
+    return ""  # pragma: nocover
 
 
 def stage_file(

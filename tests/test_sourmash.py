@@ -53,12 +53,14 @@ def test_prepare_genomes_bad_method(tmp_path: str, input_genomes_tiny: Path) -> 
     )
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, run_id=1)
-
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
         match="Expected run to be for sourmash, not method guessing",
     ):
-        next(sourmash.prepare_genomes(run, tmp_dir))  # should error before checks cache
+        next(
+            sourmash.prepare_genomes(logger, run, tmp_dir)
+        )  # should error before checks cache
     session.close()
 
 
@@ -81,13 +83,13 @@ def test_prepare_genomes_bad_kmer(tmp_path: str, input_genomes_tiny: Path) -> No
     )
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, run_id=1)
-
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
         match=f"sourmash requires a k-mer size, default is {sourmash.KMER_SIZE}",
     ):
         next(
-            sourmash.prepare_genomes(run, cache=tmp_dir)
+            sourmash.prepare_genomes(logger, run, cache=tmp_dir)
         )  # should error before checks cache
     session.close()
 
@@ -112,13 +114,13 @@ def test_prepare_genomes_bad_cache(tmp_path: str, input_genomes_tiny: Path) -> N
     )
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, run_id=1)
-
+    logger = setup_logger(None)
     with pytest.raises(
         ValueError,
         match="Cache directory /does/not/exist does not exist",
     ):
         next(
-            sourmash.prepare_genomes(run, cache=Path("/does/not/exist"))
+            sourmash.prepare_genomes(logger, run, cache=Path("/does/not/exist"))
         )  # should error before checks cache
     session.close()
 
@@ -145,13 +147,13 @@ def test_prepare_genomes_bad_extra(
     )
     session = db_orm.connect_to_db(tmp_db)
     run = db_orm.load_run(session, run_id=1)
-
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
         match=f"sourmash requires extra setting, default is scaled={sourmash.SCALED}",
     ):
         next(
-            sourmash.prepare_genomes(run, cache=tmp_dir)
+            sourmash.prepare_genomes(logger, run, cache=tmp_dir)
         )  # should error before checks cache
     session.close()
 
@@ -272,11 +274,13 @@ def test_compute_tile_bad_args(tmp_path: str) -> None:
     """Check compute_sourmash_tile error handling."""
     tmp_dir = Path(tmp_path)
     tool = tools.ExternalToolData(exe_path=Path("sourmash"), version="0.0a1")
+    logger = setup_logger(None)
     with pytest.raises(
         ValueError, match="Given cache directory /does/not/exist does not exist"
     ):
         next(
             sourmash.compute_sourmash_tile(
+                logger,
                 tool,
                 {
                     "",
@@ -291,6 +295,7 @@ def test_compute_tile_bad_args(tmp_path: str) -> None:
     with pytest.raises(SystemExit, match="Return code 1 from: sourmash sig collect "):
         next(
             sourmash.compute_sourmash_tile(
+                logger,
                 tool,
                 {
                     "ACBDE",
@@ -316,8 +321,10 @@ def test_compute_tile_stale_cvs(
     subject_csv.touch()
 
     tool = tools.get_sourmash()
+    logger = setup_logger(None)
     next(
         sourmash.compute_sourmash_tile(
+            logger,
             tool,
             {"689d3fd6881db36b5e08329cf23cecdd", "5584c7029328dc48d33f95f0a78f7e57"},
             {"689d3fd6881db36b5e08329cf23cecdd", "78975d5144a1cd12e98898d573cf6536"},

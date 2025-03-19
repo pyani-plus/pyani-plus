@@ -515,7 +515,7 @@ def prepare_genomes(
 
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         for _ in progress.track(
-            module.prepare_genomes(run, cache),
+            module.prepare_genomes(logger, run, cache),
             description="Processing...  ",  # spaces to match "Indexing FASTAs" etc
             total=n,
         ):
@@ -746,6 +746,7 @@ def compute_fastani(  # noqa: PLR0913
             handle.write(f"{fasta_dir / hash_to_filename[query_hash]}\n")
 
     check_output(
+        logger,
         [
             str(tool.exe_path),
             "--ql",
@@ -874,6 +875,7 @@ def compute_anim(  # noqa: PLR0913, PLR0915
 
             # Here mode will be "mum" (default) or "maxmatch", meaning nucmer --mum etc.
             check_output(
+                logger,
                 [
                     str(nucmer.exe_path),
                     "-p",
@@ -896,6 +898,7 @@ def compute_anim(  # noqa: PLR0913, PLR0915
             # The constant -1 option is used for 1-to-1 alignments in the delta-filter,
             # with no other options available for the end user.
             output = check_output(
+                logger,
                 [
                     str(delta_filter.exe_path),
                     "-1",
@@ -1006,6 +1009,7 @@ def compute_anib(  # noqa: PLR0913
     msg = f"Calling makeblastdb for {hash_to_filename[subject_hash]}"
     logger.info(msg)
     check_output(
+        logger,
         [
             str(tools.get_makeblastdb().exe_path),
             "-in",
@@ -1047,6 +1051,7 @@ def compute_anib(  # noqa: PLR0913
             )
             logger.info(msg)
             check_output(
+                logger,
                 [
                     str(tool.exe_path),
                     "-query",
@@ -1174,6 +1179,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
             logger.info(msg)
             # This should not be run in the same tmp_dir as ANIm, as the nucmer output will clash
             check_output(
+                logger,
                 [
                     str(nucmer.exe_path),
                     "-p",
@@ -1194,6 +1200,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
             )
             logger.info(msg)
             output = check_output(
+                logger,
                 [
                     str(delta_filter.exe_path),
                     "-m",
@@ -1210,6 +1217,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
             )
             logger.info(msg)
             output = check_output(
+                logger,
                 [
                     str(show_diff.exe_path),
                     "-qH",
@@ -1226,6 +1234,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
             )
             logger.info(msg)
             output = check_output(
+                logger,
                 [
                     str(show_coords.exe_path),
                     "-rclTH",
@@ -1376,6 +1385,7 @@ def compute_sourmash(  # noqa: PLR0913
         db_entries: list[dict[str, str | float | None]] = []
         for batch in batched(
             sourmash.compute_sourmash_tile(
+                logger,
                 tool,
                 {subject_hash} if subject_hash else set(query_hashes),
                 set(query_hashes),

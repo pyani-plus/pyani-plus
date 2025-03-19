@@ -171,7 +171,7 @@ def start_and_run_method(  # noqa: PLR0913
                 msg = f"Multiple genomes with same MD5 checksum {md5}:{dups}"
                 log_sys_exit(logger, msg)
             hashes.add(md5)
-            db_orm.db_genome(session, filename, md5, create=True)
+            db_orm.db_genome(logger, session, filename, md5, create=True)
 
     # New run
     run = db_orm.add_run(

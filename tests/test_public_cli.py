@@ -202,8 +202,9 @@ def test_partial_run(  # noqa: PLR0915
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
+    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
-        db_orm.db_genome(session, filename, md5, create=True)
+        db_orm.db_genome(logger, session, filename, md5, create=True)
 
     # Record 4 of the possible 9 comparisons:
     for query_hash in list(fasta_to_hash.values())[1:]:
@@ -429,8 +430,9 @@ def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
         session, "fastANI", "fastani", "1.2.3", create=True
     )
     fasta_to_hash = {fasta: file_md5sum(fasta) for fasta in tmp_fasta.glob("*.fa*")}
+    logger = setup_logger(None)
     for fasta, md5 in fasta_to_hash.items():
-        db_orm.db_genome(session, fasta, md5, create=True)
+        db_orm.db_genome(logger, session, fasta, md5, create=True)
     db_orm.add_run(
         session,
         config,
@@ -551,8 +553,9 @@ def test_plot_run_comp_failures(tmp_path: str, input_genomes_tiny: Path) -> None
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
+    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
-        db_orm.db_genome(session, filename, md5, create=True)
+        db_orm.db_genome(logger, session, filename, md5, create=True)
     genomes = list(fasta_to_hash.values())
     for query_hash in genomes:
         for subject_hash in genomes:
@@ -991,8 +994,9 @@ def test_resume_partial_fastani(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
+    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
-        db_orm.db_genome(session, filename, md5, create=True)
+        db_orm.db_genome(logger, session, filename, md5, create=True)
 
     # Record 8 of the possible 9 comparisons:
     genomes = list(fasta_to_hash.values())
@@ -1063,8 +1067,9 @@ def test_resume_partial_anib(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
+    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
-        db_orm.db_genome(session, filename, md5, create=True)
+        db_orm.db_genome(logger, session, filename, md5, create=True)
 
     # Record 8 of the possible 9 comparisons:
     genomes = list(fasta_to_hash.values())
@@ -1133,8 +1138,9 @@ def test_resume_partial_anim(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
+    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
-        db_orm.db_genome(session, filename, md5, create=True)
+        db_orm.db_genome(logger, session, filename, md5, create=True)
 
     # Record 8 of the possible 9 comparisons:
     genomes = list(fasta_to_hash.values())
@@ -1205,8 +1211,9 @@ def test_resume_partial_sourmash(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
+    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
-        db_orm.db_genome(session, filename, md5, create=True)
+        db_orm.db_genome(logger, session, filename, md5, create=True)
 
     # Record 4 of the possible 9 comparisons,
     # mimicking what might happen when a 2x2 run is expanded to 3x3
@@ -1270,8 +1277,9 @@ def test_resume_dir_gone(tmp_path: str, input_genomes_tiny: Path) -> None:
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
+    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
-        db_orm.db_genome(session, filename, md5, create=True)
+        db_orm.db_genome(logger, session, filename, md5, create=True)
 
     db_orm.add_run(
         session,
@@ -1310,8 +1318,9 @@ def test_resume_unknown(tmp_path: str, input_genomes_tiny: Path) -> None:
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
+    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
-        db_orm.db_genome(session, filename, md5, create=True)
+        db_orm.db_genome(logger, session, filename, md5, create=True)
 
     db_orm.add_run(
         session,
@@ -1340,6 +1349,7 @@ def test_resume_complete(
     caplog.set_level(logging.INFO)
     tmp_db = Path(tmp_path) / "resume.sqlite"
     session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
 
     for index, (method, tool) in enumerate(
         [
@@ -1363,7 +1373,7 @@ def test_resume_complete(
             for filename in sorted(input_genomes_tiny.glob("*.f*"))
         }
         for filename, md5 in fasta_to_hash.items():
-            db_orm.db_genome(session, filename, md5, create=True)
+            db_orm.db_genome(logger, session, filename, md5, create=True)
 
         # Record dummy values for all of the possible 9 comparisons:
         for query_hash in fasta_to_hash.values():
@@ -1420,8 +1430,9 @@ def test_resume_fasta_gone(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
+    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
-        db_orm.db_genome(session, filename, md5, create=True)
+        db_orm.db_genome(logger, session, filename, md5, create=True)
 
     # Setup a subset under tmp_dir
     for filename in list(fasta_to_hash)[:-1]:
@@ -1509,8 +1520,9 @@ def test_plot_skip_nulls(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
+    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
-        db_orm.db_genome(session, filename, md5, create=True)
+        db_orm.db_genome(logger, session, filename, md5, create=True)
 
     # Record all of the possible comparisons, leaving coverage null
     genomes = list(fasta_to_hash.values())
@@ -1576,8 +1588,9 @@ def test_plot_bad_nulls(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.fa*"))
     }
+    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
-        db_orm.db_genome(session, filename, md5, create=True)
+        db_orm.db_genome(logger, session, filename, md5, create=True)
 
     # Record all of the possible comparisons, leaving coverage null
     genomes = list(fasta_to_hash.values())
@@ -1650,8 +1663,9 @@ def test_classify_warnings(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
+    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
-        db_orm.db_genome(session, filename, md5, create=True)
+        db_orm.db_genome(logger, session, filename, md5, create=True)
 
     genomes = list(fasta_to_hash.values())
     for query_hash in genomes:
@@ -1727,8 +1741,9 @@ def test_classify_normal(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
+    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
-        db_orm.db_genome(session, filename, md5, create=True)
+        db_orm.db_genome(logger, session, filename, md5, create=True)
 
     # Record all of the possible comparisons
     genomes = list(fasta_to_hash.values())
@@ -1781,8 +1796,9 @@ def test_plot_run_comp(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
+    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
-        db_orm.db_genome(session, filename, md5, create=True)
+        db_orm.db_genome(logger, session, filename, md5, create=True)
     genomes = list(fasta_to_hash.values())
 
     config_a = db_orm.db_configuration(session, "ANIb", "blastn", "0.0", create=True)

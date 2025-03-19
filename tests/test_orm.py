@@ -531,16 +531,16 @@ def test_add_genome(tmp_path: str, input_genomes_tiny: Path) -> None:
 
     session = db_orm.connect_to_db(tmp_db)
     md5 = file_md5sum(fasta)
-
+    logger = setup_logger(None)
     with pytest.raises(
         NoResultFound,
         match="Requested genome not already in DB",
     ):
-        db_orm.db_genome(session, fasta, md5, create=False)
+        db_orm.db_genome(logger, session, fasta, md5, create=False)
 
-    genome = db_orm.db_genome(session, fasta, md5, create=True)
+    genome = db_orm.db_genome(logger, session, fasta, md5, create=True)
     # Adding again should return the original row again
-    assert genome is db_orm.db_genome(session, fasta, md5, create=True)
+    assert genome is db_orm.db_genome(logger, session, fasta, md5, create=True)
 
 
 def test_add_genome_not_gzipped(tmp_path: str, input_genomes_tiny: Path) -> None:
@@ -556,12 +556,12 @@ def test_add_genome_not_gzipped(tmp_path: str, input_genomes_tiny: Path) -> None
 
     session = db_orm.connect_to_db(tmp_db)
     md5 = file_md5sum(fasta)
-
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
         match="Has .gz ending, but .*\\.gz is NOT gzip compressed",
     ):
-        db_orm.db_genome(session, fasta, md5, create=True)
+        db_orm.db_genome(logger, session, fasta, md5, create=True)
 
 
 def test_add_genome_no_gz_ext(tmp_path: str, input_gzip_bacteria: Path) -> None:
@@ -577,12 +577,12 @@ def test_add_genome_no_gz_ext(tmp_path: str, input_gzip_bacteria: Path) -> None:
 
     session = db_orm.connect_to_db(tmp_db)
     md5 = file_md5sum(fasta)
-
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
         match="No .gz ending, but .*\\.f.* is gzip compressed",
     ):
-        db_orm.db_genome(session, fasta, md5, create=True)
+        db_orm.db_genome(logger, session, fasta, md5, create=True)
 
 
 def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
@@ -606,11 +606,11 @@ def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
         " program='guestimate', version='v0.1.2beta3',"
         " fragsize=1000, mode=None, kmersize=31, minmatch=None, extra=None)"
     )
-
+    logger = setup_logger(None)
     fasta_to_hash = {}
     for fasta_filename in input_genomes_tiny.glob("*.f*"):
         md5 = file_md5sum(fasta_filename)
-        db_orm.db_genome(session, fasta_filename, md5, create=True)
+        db_orm.db_genome(logger, session, fasta_filename, md5, create=True)
         fasta_to_hash[fasta_filename] = md5
 
     run = db_orm.add_run(

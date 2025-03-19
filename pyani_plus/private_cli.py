@@ -271,7 +271,7 @@ def log_genome(
             for filename in progress.track(fasta, description="Processing..."):
                 file_total += 1
                 md5 = file_md5sum(filename)
-                db_orm.db_genome(session, filename, md5, create=True)
+                db_orm.db_genome(logger, session, filename, md5, create=True)
     session.commit()
     session.close()
     msg = f"Processed {file_total} FASTA files"
@@ -341,7 +341,7 @@ def log_run(  # noqa: PLR0913
             for filename in progress.track(fasta_names, description="Processing..."):
                 md5 = file_md5sum(filename)
                 fasta_to_hash[filename] = md5
-                db_orm.db_genome(session, filename, md5, create=True)
+                db_orm.db_genome(logger, session, filename, md5, create=True)
 
     run = db_orm.add_run(
         session,
@@ -401,10 +401,10 @@ def log_comparison(  # noqa: PLR0913
     from pyani_plus.utils import file_md5sum
 
     query_md5 = file_md5sum(query_fasta)
-    db_orm.db_genome(session, query_fasta, query_md5)
+    db_orm.db_genome(logger, session, query_fasta, query_md5)
 
     subject_md5 = file_md5sum(subject_fasta)
-    db_orm.db_genome(session, subject_fasta, subject_md5)
+    db_orm.db_genome(logger, session, subject_fasta, subject_md5)
 
     db_orm.db_comparison(
         session,

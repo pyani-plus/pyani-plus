@@ -30,7 +30,6 @@ import datetime
 import gzip
 import logging
 import platform
-import sys
 from io import StringIO
 from math import log, nan
 from pathlib import Path
@@ -61,6 +60,7 @@ from sqlalchemy.orm import (
     sessionmaker,
 )
 
+from pyani_plus import log_sys_exit
 from pyani_plus.utils import fasta_bytes_iterator, filename_stem
 
 
@@ -734,7 +734,12 @@ def db_configuration(  # noqa: PLR0913
 
 
 def db_genome(  # noqa: C901
-    session: Session, fasta_filename: Path | str, md5: str, *, create: bool = False
+    logger: logging.Logger,
+    session: Session,
+    fasta_filename: Path | str,
+    md5: str,
+    *,
+    create: bool = False,
 ) -> Genome:
     """Return a genome table entry, or add and return it if not already there.
 
@@ -743,9 +748,11 @@ def db_genome(  # noqa: C901
     Returns the matching genome object, or the new one added if create=True:
 
     >>> session = connect_to_db(":memory:")
+    >>> from pyani_plus import setup_logger
+    >>> logger = setup_logger(None)
     >>> from pyani_plus.utils import file_md5sum
     >>> fasta = "tests/fixtures/viral_example/OP073605.fasta"
-    >>> genome = db_genome(session, fasta, file_md5sum(fasta), create=True)
+    >>> genome = db_genome(logger, session, fasta, file_md5sum(fasta), create=True)
     >>> genome.genome_hash
     '5584c7029328dc48d33f95f0a78f7e57'
 
@@ -756,7 +763,7 @@ def db_genome(  # noqa: C901
     If the genome is not already there, then by default this raises an exception:
 
     >>> session = connect_to_db(":memory:")
-    >>> genome = db_genome(session, fasta, file_md5sum(fasta))
+    >>> genome = db_genome(logger, session, fasta, file_md5sum(fasta))
     Traceback (most recent call last):
     ...
     sqlalchemy.exc.NoResultFound: Requested genome not already in DB
@@ -784,11 +791,11 @@ def db_genome(  # noqa: C901
                 msg = (
                     f"No .gz ending, but {Path(fasta_filename).name} is gzip compressed"
                 )
-                sys.exit(msg)
+                log_sys_exit(logger, msg)
     except gzip.BadGzipFile:
         if str(fasta_filename).endswith(".gz"):
             msg = f"Has .gz ending, but {Path(fasta_filename).name} is NOT gzip compressed"
-            sys.exit(msg)
+            log_sys_exit(logger, msg)
         with Path(fasta_filename).open("rb") as handle:
             for title, seq in fasta_bytes_iterator(handle):
                 length += len(seq)

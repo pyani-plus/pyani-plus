@@ -781,11 +781,13 @@ def db_genome(  # noqa: C901
                 if description is None:
                     description = title.decode()  # Just use first entry
             if not str(fasta_filename).endswith(".gz"):
-                msg = f"ERROR: No .gz ending, but {Path(fasta_filename).name} is gzip compressed"
+                msg = (
+                    f"No .gz ending, but {Path(fasta_filename).name} is gzip compressed"
+                )
                 sys.exit(msg)
     except gzip.BadGzipFile:
         if str(fasta_filename).endswith(".gz"):
-            msg = f"ERROR: Has .gz ending, but {Path(fasta_filename).name} is NOT gzip compressed"
+            msg = f"Has .gz ending, but {Path(fasta_filename).name} is NOT gzip compressed"
             sys.exit(msg)
         with Path(fasta_filename).open("rb") as handle:
             for title, seq in fasta_bytes_iterator(handle):
@@ -877,7 +879,7 @@ def load_run(
     if run_id is None:
         run = session.query(Run).order_by(Run.run_id.desc()).first()
         if run is None:
-            msg = "ERROR: Database contains no runs."
+            msg = "Database contains no runs."
             raise SystemExit(msg)  # should we use sys.exit, or a different exception?
         run_id = run.run_id
     else:
@@ -885,7 +887,7 @@ def load_run(
             run = session.query(Run).where(Run.run_id == run_id).one()
         except NoResultFound:
             msg = (
-                f"ERROR: Database has no run-id {run_id}."
+                f"Database has no run-id {run_id}."
                 " Use the list-runs command for more information."
             )
             raise SystemExit(msg) from None
@@ -894,12 +896,12 @@ def load_run(
         done = run.comparisons().count()
         n = run.genomes.count()
         if not done:
-            msg = f"ERROR: run-id {run_id} has no comparisons"
+            msg = f"run-id {run_id} has no comparisons"
             raise SystemExit(msg)
         if check_complete:
             if done < n**2:
                 msg = (
-                    f"ERROR: run-id {run_id} has only {done} of {n}²={n**2}"
+                    f"run-id {run_id} has only {done} of {n}²={n**2}"
                     f" comparisons, {n**2 - done} needed"
                 )
                 raise SystemExit(msg)

@@ -43,17 +43,17 @@ def prepare_genomes(
     """
     config = run.configuration
     if config.method != "sourmash":
-        msg = f"ERROR: Expected run to be for sourmash, not method {config.method}"
+        msg = f"Expected run to be for sourmash, not method {config.method}"
         sys.exit(msg)
     if not config.kmersize:
-        msg = f"ERROR: sourmash requires a k-mer size, default is {KMER_SIZE}"
+        msg = f"sourmash requires a k-mer size, default is {KMER_SIZE}"
         sys.exit(msg)
     if not config.extra:
-        msg = f"ERROR: sourmash requires extra setting, default is scaled={SCALED}"
+        msg = f"sourmash requires extra setting, default is scaled={SCALED}"
         sys.exit(msg)
     tool = tools.get_sourmash()
     if not cache.is_dir():
-        msg = f"ERROR: Cache directory {cache} does not exist"
+        msg = f"Cache directory {cache} does not exist"
         raise ValueError(msg)
     cache = cache / f"sourmash_k={config.kmersize}_{config.extra}"
     cache.mkdir(exist_ok=True)

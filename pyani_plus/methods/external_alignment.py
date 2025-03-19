@@ -64,7 +64,9 @@ def compute_external_alignment_column(
         for query_title, query_seq in fasta_bytes_iterator(handle):
             query_hash = mapping(query_title.decode().split(None, 1)[0])
             if not query_hash:
-                msg = f"ERROR: Could not map {query_title.decode().split(None, 1)[0]} as {label}"
+                msg = (
+                    f"Could not map {query_title.decode().split(None, 1)[0]} as {label}"
+                )
                 sys.exit(msg)
             if query_hash == subject_hash:
                 # for use in rest of the loop - an array of bytes!
@@ -100,7 +102,7 @@ def compute_external_alignment_column(
                 # Full calculation required
                 if len(query_seq) != len(subject_seq):
                     msg = (
-                        "ERROR: Bad external-alignment, different lengths"
+                        "Bad external-alignment, different lengths"
                         f" {len(query_seq)} and {len(subject_seq)}"
                         f" from {query_title.decode().split(None, 1)[0]}"
                         f" and {subject_title.decode().split(None, 1)[0]}\n"

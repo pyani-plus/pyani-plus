@@ -310,7 +310,7 @@ def test_compute_tile_bad_args(tmp_path: str) -> None:
 
 
 def test_compute_tile_stale_cvs(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture, tmp_path: str, input_genomes_tiny: Path
 ) -> None:
     """Check compute_sourmash_tile with stale sig-lists."""
     tmp_dir = Path(tmp_path)
@@ -332,10 +332,8 @@ def test_compute_tile_stale_cvs(
             tmp_dir,
         )
     )
-    output = capsys.readouterr().err
-    assert (
-        f"WARNING: Race condition? Replacing intermediate file {query_csv}" in output
-    ), output
-    assert (
-        f"WARNING: Race condition? Replacing intermediate file {subject_csv}" in output
-    ), output
+    output = caplog.text
+    assert f"Race condition? Replacing intermediate file {query_csv}" in output, output
+    assert f"Race condition? Replacing intermediate file {subject_csv}" in output, (
+        output
+    )

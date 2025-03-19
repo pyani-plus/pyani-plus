@@ -745,7 +745,7 @@ AACT
         "5584c7029328dc48d33f95f0a78f7e57",
     )
     with pytest.raises(
-        ValueError,
+        SystemExit,
         match="Did not find subject 689d3fd6881db36b5e08329cf23cecdd in broken.fasta",
     ):
         private_cli.compute_external_alignment(

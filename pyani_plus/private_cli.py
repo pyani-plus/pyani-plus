@@ -800,7 +800,7 @@ def compute_fastani(  # noqa: PLR0913
     ]
     return (
         0
-        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
         else RECORDING_FAILED
     )
 
@@ -955,7 +955,7 @@ def compute_anim(  # noqa: PLR0913, PLR0915
 
     return (
         0
-        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
         else RECORDING_FAILED
     )
 
@@ -1112,7 +1112,7 @@ def compute_anib(  # noqa: PLR0913
 
     return (
         0
-        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
         else RECORDING_FAILED
     )
 
@@ -1309,7 +1309,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
 
     return (
         0
-        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
         else RECORDING_FAILED
     )
 
@@ -1416,7 +1416,7 @@ def compute_sourmash(  # noqa: PLR0913
         run.status = "Worker interrupted"  # pragma: no cover
     return (
         0
-        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
         else RECORDING_FAILED
     )
 
@@ -1548,7 +1548,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
 
     return (
         0
-        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
         else RECORDING_FAILED
     )
 

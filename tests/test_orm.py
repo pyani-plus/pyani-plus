@@ -35,7 +35,7 @@ import pandas as pd
 import pytest
 from sqlalchemy.exc import NoResultFound
 
-from pyani_plus import db_orm
+from pyani_plus import db_orm, setup_logger
 from pyani_plus.utils import file_md5sum, str_md5sum
 
 
@@ -658,10 +658,11 @@ def test_helper_functions(tmp_path: str, input_genomes_tiny: Path) -> None:
     tmp_db.unlink()
 
 
-def test_insert__no_comps(tmp_path: str) -> None:
+def test_insert_no_comps(tmp_path: str) -> None:
     """Checking a corner case with recording no comparisons."""
     tmp_db = Path(tmp_path) / "empty.db"
     session = db_orm.connect_to_db(tmp_db)
-    assert db_orm.insert_comparisons_with_retries(session, [], "test only")
+    logger = setup_logger(None)
+    assert db_orm.insert_comparisons_with_retries(logger, session, [], "test only")
     session.close()
     # Is there an easy way to test if this called commit or not?

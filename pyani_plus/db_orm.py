@@ -28,6 +28,7 @@ Python objects.
 
 import datetime
 import gzip
+import logging
 import platform
 import sys
 from io import StringIO
@@ -998,6 +999,7 @@ def attempt_insert(
 
 
 def insert_comparisons_with_retries(
+    logger: logging.Logger,
     session: Session,
     db_entries: list[dict[str, str | float | int | None]],
     source: str = "comparisons",
@@ -1031,9 +1033,8 @@ def insert_comparisons_with_retries(
         pass
     else:
         return True
-    msg = f"WARNING: Attempt 1/3 failed to record {source}\n"  # pragma: no cover
-
-    sys.stdout.write(msg)  # pragma: no cover
+    msg = f"Attempt 1/3 failed to record {source}"  # pragma: no cover
+    logger.warning(msg)  # pragma: no cover
 
     sleep(10)  # pragma: no cover
 
@@ -1044,9 +1045,8 @@ def insert_comparisons_with_retries(
         pass
     else:  # pragma: no cover
         return True
-    msg = f"WARNING: Attempt 2/3 failed to record {source}\n"  # pragma: no cover
-
-    sys.stdout.write(msg)  # pragma: no cover
+    msg = f"Attempt 2/3 failed to record {source}"  # pragma: no cover
+    logger.warning(msg)  # pragma: no cover
 
     sleep(30)  # pragma: no cover
 
@@ -1057,8 +1057,7 @@ def insert_comparisons_with_retries(
         pass
     else:  # pragma: no cover
         return True
-    msg = f"ERROR: Attempt 3/3 failed to record {source}\n"  # pragma: no cover
-
-    sys.stdout.write(msg)  # pragma: no cover
+    msg = f"Attempt 3/3 failed to record {source}"  # pragma: no cover
+    logger.error(msg)  # pragma: no cover
 
     return False  # pragma: no cover

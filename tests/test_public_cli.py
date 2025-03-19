@@ -259,7 +259,7 @@ def test_partial_run(  # noqa: PLR0915
     caplog.clear()
     public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_path, label="md5")
     output = caplog.text
-    assert f"Wrote matrices to {tmp_path}" in output, (output, capsys.readouterr().out)
+    assert f"Wrote matrices to {tmp_path}" in output, output
     with (tmp_dir / "fastANI_identity.tsv").open() as handle:
         assert (
             handle.readline()
@@ -269,7 +269,7 @@ def test_partial_run(  # noqa: PLR0915
     caplog.clear()
     public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_path, label="stem")
     output = caplog.text
-    assert f"Wrote matrices to {tmp_path}" in output, (output, capsys.readouterr().out)
+    assert f"Wrote matrices to {tmp_path}" in output, output
 
     with (tmp_dir / "fastANI_identity.tsv").open() as handle:
         assert handle.readline() == "\tMGV-GENOME-0266457\tOP073605\n"

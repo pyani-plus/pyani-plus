@@ -258,6 +258,7 @@ def run_method(  # noqa: PLR0913
             out_path = Path(tmp) / "output"
             target_paths = [out_path / _ for _ in targets]
             run_snakemake_with_progress_bar(
+                logger,
                 executor,
                 workflow_name,
                 target_paths,

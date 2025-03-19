@@ -31,6 +31,7 @@ from pathlib import Path
 # Required to support pytest automated testing
 import pytest
 
+from pyani_plus import setup_logger
 from pyani_plus.private_cli import log_run
 from pyani_plus.tools import get_delta_filter, get_nucmer
 from pyani_plus.workflows import (
@@ -125,9 +126,10 @@ def test_rule_ANIm(  # noqa: N802
         create_db=True,
     )
     assert db.is_file()
-
+    logger = setup_logger(None)
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
+        logger,
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
         database=db,
@@ -195,9 +197,10 @@ def test_rule_ANIm_bad_align(  # noqa: N802
         create_db=True,
     )
     assert db.is_file()
-
+    logger = setup_logger(None)
     # Run snakemake wrapper
     run_snakemake_with_progress_bar(
+        logger,
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
         database=db,

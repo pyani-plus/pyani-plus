@@ -21,6 +21,7 @@
 # THE SOFTWARE.
 """Snakemake workflows for ANI pairwise comparisons."""
 
+import logging
 import multiprocessing
 import signal
 import sys
@@ -33,7 +34,7 @@ from snakemake.cli import args_to_api, parse_args
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
-from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm
+from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, log_sys_exit
 from pyani_plus.public_cli_args import ToolExecutor
 
 
@@ -86,6 +87,7 @@ def progress_bar_via_db_comparisons(
 
 
 def run_snakemake_with_progress_bar(  # noqa: PLR0913
+    logger: logging.Logger,
     executor: ToolExecutor,
     workflow_name: str,
     targets: list[Path] | list[str],
@@ -116,7 +118,7 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     show_progress_bar = display == ShowProgress.bar
     if show_progress_bar and (database is None or run_id is None):
         msg = "Both database and run_id are required with display as progress bar"
-        raise ValueError(msg)
+        log_sys_exit(logger, msg)
 
     # Path to anim snakemake file
     snakefile = Path(__file__).with_name(workflow_name)
@@ -173,4 +175,4 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
 
         # Ensure exit message starts on a new line after interrupted progress bar
         print()  # pragma: no cover  # noqa: T201
-        sys.exit("Snakemake workflow failed")  # pragma: no cover
+        log_sys_exit(logger, "Snakemake workflow failed")  # pragma: no cover

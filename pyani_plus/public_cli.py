@@ -39,7 +39,6 @@ import click
 import networkx as nx
 import typer
 from rich.console import Console
-from rich.logging import RichHandler
 from rich.progress import Progress
 from rich.table import Table
 from rich.text import Text
@@ -90,22 +89,6 @@ from pyani_plus.workflows import (
     ShowProgress,
     ToolExecutor,
     run_snakemake_with_progress_bar,
-)
-
-logging.basicConfig(
-    level="INFO",
-    format="%(message)s",
-    datefmt="[%X]",
-    handlers=[
-        RichHandler(
-            level=logging.INFO,
-            markup=True,
-            omit_repeated_times=False,
-            show_path=False,
-            rich_tracebacks=True,
-            tracebacks_suppress=["click", "sqlalchemy"],
-        )
-    ],
 )
 
 app = typer.Typer(
@@ -1171,5 +1154,5 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     return 0
 
 
-if __name__ == "__main__":
-    sys.exit(app())  # pragma: no cover
+if __name__ == "__main__":  # pragma: no cover
+    sys.exit(app())

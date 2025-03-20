@@ -50,14 +50,6 @@ from pyani_plus.public_cli_args import (
 
 ASCII_GAP = ord("-")  # 45
 
-# This is deliberately NOT using rich logging (slow import and we
-# default to quiet mode for compute-column):
-logging.basicConfig(
-    level="INFO",
-    format="%(message)s",
-    datefmt="[%X]",
-)
-
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
@@ -482,7 +474,9 @@ def prepare_genomes(
     """
     # Should this be splittable for running on the cluster? I assume most
     # cases this is IO bound rather than CPU bound so is this helpful?
-    logger = setup_logger(log, terminal_level=logging.ERROR if quiet else logging.INFO)
+    logger = setup_logger(
+        log, terminal_level=logging.ERROR if quiet else logging.INFO, plain=True
+    )
     if database != ":memory:" and not Path(database).is_file():
         msg = f"Database {database} does not exist"
         log_sys_exit(logger, msg)
@@ -568,7 +562,9 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     """
     # Do NOT write to the main thread's log (risk of race conditions appending
     # to the same file, locking, etc) - will use a column-specific log soon!
-    logger = setup_logger(None, terminal_level=logging.ERROR if quiet else logging.INFO)
+    logger = setup_logger(
+        None, terminal_level=logging.ERROR if quiet else logging.INFO, plain=True
+    )
     if database != ":memory:" and not Path(database).is_file():
         msg = f"Database {database} does not exist"
         log_sys_exit(logger, msg)

@@ -123,6 +123,17 @@ OPT_ARG_TYPE_RUN_NAME = Annotated[
         help="Run name. Default is 'N genomes using METHOD'.", show_default=False
     ),
 ]
+OPT_ARG_TYPE_DEBUG = Annotated[
+    bool,
+    typer.Option(
+        # List name explicitly to avoid automatic matching --no-debug
+        "--debug",
+        help="Show debugging level logging at the terminal (in addition to the"
+        " log file).",
+        rich_help_panel="Debugging",
+        show_default=False,
+    ),
+]
 OPT_ARG_TYPE_TEMP_WORKFLOW = Annotated[
     Path | None,
     typer.Option(

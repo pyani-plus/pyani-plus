@@ -62,6 +62,7 @@ from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_CLASSIFY_MODE,
     OPT_ARG_TYPE_COV_MIN,
     OPT_ARG_TYPE_CREATE_DB,
+    OPT_ARG_TYPE_DEBUG,
     OPT_ARG_TYPE_EXECUTOR,
     OPT_ARG_TYPE_FRAGSIZE,
     OPT_ARG_TYPE_KMERSIZE,
@@ -310,9 +311,10 @@ def cli_anim(  # noqa: PLR0913
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
-    logger = setup_logger(log)
+    logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     check_db(logger, database, create_db)
     return start_and_run_method(
         logger,
@@ -343,9 +345,10 @@ def cli_dnadiff(  # noqa: PLR0913
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
-    logger = setup_logger(log)
+    logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     check_db(logger, database, create_db)
     return start_and_run_method(
         logger,
@@ -377,9 +380,10 @@ def cli_anib(  # noqa: PLR0913
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
-    logger = setup_logger(log)
+    logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     check_db(logger, database, create_db)
     tool = tools.get_blastn()
     alt = tools.get_makeblastdb()
@@ -428,9 +432,10 @@ def cli_fastani(  # noqa: PLR0913
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
-    logger = setup_logger(log)
+    logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     check_db(logger, database, create_db)
     return start_and_run_method(
         logger,
@@ -466,9 +471,10 @@ def cli_sourmash(  # noqa: PLR0913
     # These are for the configuration table:
     scaled: OPT_ARG_TYPE_SOURMASH_SCALED = sourmash.SCALED,  # 1000
     kmersize: OPT_ARG_TYPE_KMERSIZE = sourmash.KMER_SIZE,
+    debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """Execute sourmash-plugin-branchwater ANI calculations, logged to a pyANI-plus SQLite3 database."""
-    logger = setup_logger(log)
+    logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     check_db(logger, database, create_db)
     return start_and_run_method(
         logger,
@@ -499,6 +505,7 @@ def external_alignment(  # noqa: PLR0913
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    debug: OPT_ARG_TYPE_DEBUG = False,
     # These are for the configuration table:
     alignment: Annotated[
         Path,
@@ -520,7 +527,7 @@ def external_alignment(  # noqa: PLR0913
     ] = "stem",
 ) -> int:
     """Compute pairwise ANI from given multiple-sequence-alignment (MSA) file."""
-    logger = setup_logger(log)
+    logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     check_db(logger, database, create_db)
     aln_checksum = file_md5sum(alignment)
     # Doing this order to put the filename LAST, in case of separators in the filename
@@ -551,6 +558,7 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """Resume any (partial) run already logged in the database.
 
@@ -562,7 +570,7 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
     If the version of the underlying tool has changed, this will abort
     as the original run cannot be completed.
     """
-    logger = setup_logger(log)
+    logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"Database {database} does not exist"
         log_sys_exit(logger, msg)
@@ -661,9 +669,11 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
 def list_runs(
     database: REQ_ARG_TYPE_DATABASE,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    *,
+    debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """List the runs defined in a given pyANI-plus SQLite3 database."""
-    logger = setup_logger(log)
+    logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"Database {database} does not exist"
         log_sys_exit(logger, msg)
@@ -725,6 +735,7 @@ def delete_run(
         bool, typer.Option("-f", "--force", help="Delete without confirmation")
     ] = False,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """Delete any single run from the given pyANI-plus SQLite3 database.
 
@@ -735,7 +746,7 @@ def delete_run(
     not currently linked to another run. They will be reused should you start
     a new run using an overlapping set of input FASTA files.
     """
-    logger = setup_logger(log)
+    logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"Database {database} does not exist"
         log_sys_exit(logger, msg)
@@ -797,12 +808,14 @@ def delete_run(
 
 
 @app.command()
-def export_run(  # noqa: C901
+def export_run(  # noqa: C901, PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
     label: OPT_ARG_TYPE_LABEL = "stem",
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    *,
+    debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """Export any single run from the given pyANI-plus SQLite3 database.
 
@@ -817,7 +830,7 @@ def export_run(  # noqa: C901
     run. For partial runs the long form table will be exported, but not the
     matrices.
     """
-    logger = setup_logger(log)
+    logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"Database {database} does not exist"
         log_sys_exit(logger, msg)
@@ -915,19 +928,21 @@ def export_run(  # noqa: C901
 
 
 @app.command()
-def plot_run(
+def plot_run(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
     label: OPT_ARG_TYPE_LABEL = "stem",
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    *,
+    debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """Plot heatmaps and distributions for any single run.
 
     The output directory must already exist. The heatmap files will be named
     <method>_<property>.<extension> and any pre-existing files will be overwritten.
     """
-    logger = setup_logger(log)
+    logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"Database {database} does not exist"
         log_sys_exit(logger, msg)
@@ -954,7 +969,7 @@ def plot_run(
 
 
 @app.command()
-def plot_run_comp(
+def plot_run_comp(  # noqa: PLR0913
     database: REQ_ARG_TYPE_DATABASE,
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_ids: Annotated[
@@ -970,6 +985,8 @@ def plot_run_comp(
         ),
     ] = 0,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    *,
+    debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """Plot comparisons between multiple runs.
 
@@ -977,7 +994,7 @@ def plot_run_comp(
     <method>_<property>_<run-id>_vs_*.<extension> and any
     pre-existing files will be overwritten.
     """
-    logger = setup_logger(log)
+    logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"Database {database} does not exist"
         log_sys_exit(logger, msg)
@@ -1049,9 +1066,11 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     cov_min: OPT_ARG_TYPE_COV_MIN = classify.MIN_COVERAGE,
     mode: OPT_ARG_TYPE_CLASSIFY_MODE = classify.MODE,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    *,
+    debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """Classify genomes into clusters based on ANI results."""
-    logger = setup_logger(log)
+    logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"Database {database} does not exist"
         log_sys_exit(logger, msg)

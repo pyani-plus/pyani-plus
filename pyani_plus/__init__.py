@@ -65,7 +65,7 @@ def setup_logger(
     Default filename is ``pyani-plus.log``. Use ``Path("-")`` or `None` for no log file.
 
     The file logger defaults to DEBUG level, but the less verbose INFO for the terminal.
-    If quiet=True, then the terminal logging level is reduced to ERROR.
+    For quiet mode, reduce the terminal logging level to ERROR.
     """
     logger = logging.getLogger(f"{__package__}")
     logger.setLevel(terminal_level)

@@ -262,8 +262,8 @@ def run_method(  # noqa: PLR0913
                 workflow_name,
                 target_paths,
                 {
-                    "cache": cache,
-                    "db": str(Path(database).resolve()),  # must be absolute
+                    "cache": cache.resolve() if cache else None,
+                    "db": Path(database).resolve(),  # must be absolute
                     "run_id": run_id,
                     "cores": available_cores(),  # should make configurable
                 },

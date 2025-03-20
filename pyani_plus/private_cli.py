@@ -50,6 +50,14 @@ from pyani_plus.public_cli_args import (
 
 ASCII_GAP = ord("-")  # 45
 
+# This is deliberately NOT using rich logging (slow import and we
+# default to quiet mode for compute-column):
+logging.basicConfig(
+    level="INFO",
+    format="%(message)s",
+    datefmt="[%X]",
+)
+
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
@@ -616,7 +624,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
         log,
         terminal_level=logging.ERROR if quiet else logging.INFO,
     )
-    msg = f"Logging {method} compute-column to {log}"
+    msg = f"Logging {method} compute-column {column} to {log}"
     logger.info(msg)
 
     if column == 0:
@@ -946,8 +954,10 @@ def compute_anim(  # noqa: PLR0913, PLR0915
 
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
-        sys.stderr.write(msg)
+        msg = (
+            f"Interrupted, will attempt to log {len(db_entries)} completed comparisons"
+        )
+        logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
 
     if hash_to_filename[subject_hash].endswith(".gz"):
@@ -1106,8 +1116,10 @@ def compute_anib(  # noqa: PLR0913
 
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
-        sys.stderr.write(msg)
+        msg = (
+            f"Interrupted, will attempt to log {len(db_entries)} completed comparisons"
+        )
+        logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
 
     return (
@@ -1300,8 +1312,10 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
                 query_fasta.unlink()  # remove our decompressed copy
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
-        sys.stderr.write(msg)
+        msg = (
+            f"Interrupted, will attempt to log {len(db_entries)} completed comparisons"
+        )
+        logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
 
     if hash_to_filename[subject_hash].endswith(".gz"):
@@ -1411,9 +1425,11 @@ def compute_sourmash(  # noqa: PLR0913
             db_entries = db_orm.attempt_insert(session, db_entries, db_orm.Comparison)
     except KeyboardInterrupt:  # pragma: no cover
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"  # pragma: no cover
-        sys.stderr.write(msg)  # pragma: no cover
-        run.status = "Worker interrupted"  # pragma: no cover
+        msg = (
+            f"Interrupted, will attempt to log {len(db_entries)} completed comparisons"
+        )
+        logger.error(msg)  # noqa: TRY400
+        run.status = "Worker interrupted"
     return (
         0
         if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
@@ -1542,8 +1558,10 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
             )
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
-        sys.stderr.write(msg)
+        msg = (
+            f"Interrupted, will attempt to log {len(db_entries)} completed comparisons"
+        )
+        logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
 
     return (

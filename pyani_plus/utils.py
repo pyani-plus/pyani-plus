@@ -216,6 +216,8 @@ def available_cores() -> int:
 
 def check_db(logger: logging.Logger, database: Path | str, create_db: bool) -> None:  # noqa: FBT001
     """Check DB exists, or using create_db=True."""
+    msg = f"Checking DB argument '{database}'"
+    logger.debug(msg)
     if database != ":memory:" and not create_db and not Path(database).is_file():
         msg = f"Database {database} does not exist, but not using --create-db"
         log_sys_exit(logger, msg)
@@ -223,6 +225,8 @@ def check_db(logger: logging.Logger, database: Path | str, create_db: bool) -> N
 
 def check_fasta(logger: logging.Logger, fasta: Path) -> list[Path]:
     """Check fasta is a directory and return list of FASTA files in it."""
+    msg = f"Checking FASTA argument '{fasta}'"
+    logger.debug(msg)
     if not fasta.is_dir():
         msg = f"FASTA input {fasta} is not a directory"
         log_sys_exit(logger, msg)

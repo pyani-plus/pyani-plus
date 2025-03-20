@@ -214,10 +214,10 @@ def log_configuration(  # noqa: PLR0913
     """
     logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not create_db and not Path(database).is_file():
-        msg = f"Database {database} does not exist, but not using --create-db"
+        msg = f"Database '{database}' does not exist, but not using --create-db"
         sys.exit(msg)
 
-    msg = f"Logging configuration to {database}"
+    msg = f"Logging configuration to '{database}'"
     logger.info(msg)
     session = db_orm.connect_to_db(database)
     config = db_orm.db_configuration(
@@ -253,10 +253,10 @@ def log_genome(
     """
     logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not create_db and not Path(database).is_file():
-        msg = f"Database {database} does not exist, but not using --create-db"
+        msg = f"Database '{database}' does not exist, but not using --create-db"
         sys.exit(msg)
 
-    msg = f"Logging genome to {database}"
+    msg = f"Logging genome to '{database}'"
     logger.info(msg)
     session = db_orm.connect_to_db(database)
 
@@ -271,7 +271,7 @@ def log_genome(
             for filename in progress.track(fasta, description="Processing..."):
                 file_total += 1
                 md5 = file_md5sum(filename)
-                db_orm.db_genome(session, filename, md5, create=True)
+                db_orm.db_genome(logger, session, filename, md5, create=True)
     session.commit()
     session.close()
     msg = f"Processed {file_total} FASTA files"
@@ -307,10 +307,10 @@ def log_run(  # noqa: PLR0913
     """
     logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not create_db and not Path(database).is_file():
-        msg = f"Database {database} does not exist, but not using --create-db"
+        msg = f"Database '{database}' does not exist, but not using --create-db"
         sys.exit(msg)
 
-    msg = f"Logging run to {database}"
+    msg = f"Logging run to '{database}'"
     logger.info(msg)
     session = db_orm.connect_to_db(database)
 
@@ -341,7 +341,7 @@ def log_run(  # noqa: PLR0913
             for filename in progress.track(fasta_names, description="Processing..."):
                 md5 = file_md5sum(filename)
                 fasta_to_hash[filename] = md5
-                db_orm.db_genome(session, filename, md5, create=True)
+                db_orm.db_genome(logger, session, filename, md5, create=True)
 
     run = db_orm.add_run(
         session,
@@ -383,10 +383,10 @@ def log_comparison(  # noqa: PLR0913
     """Log single pairwise comparison to database."""
     logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not Path(database).is_file():
-        msg = f"Database {database} does not exist"
+        msg = f"Database '{database}' does not exist"
         sys.exit(msg)
 
-    msg = f"Logging comparison to {database}"
+    msg = f"Logging comparison to '{database}'"
     logger.info(msg)
     session = db_orm.connect_to_db(database)
     # Give a better error message that if adding comparison fails:
@@ -401,10 +401,10 @@ def log_comparison(  # noqa: PLR0913
     from pyani_plus.utils import file_md5sum
 
     query_md5 = file_md5sum(query_fasta)
-    db_orm.db_genome(session, query_fasta, query_md5)
+    db_orm.db_genome(logger, session, query_fasta, query_md5)
 
     subject_md5 = file_md5sum(subject_fasta)
-    db_orm.db_genome(session, subject_fasta, subject_md5)
+    db_orm.db_genome(logger, session, subject_fasta, subject_md5)
 
     db_orm.db_comparison(
         session,
@@ -443,13 +443,13 @@ def validate_cache(
             if create_default:
                 cache.mkdir(parents=True)
             elif require:
-                msg = f"Default cache directory {cache} does not exist."
+                msg = f"Default cache directory '{cache}' does not exist."
                 log_sys_exit(logger, msg)
-        msg = f"INFO: Defaulting to cache at {cache}"
+        msg = f"INFO: Defaulting to cache at '{cache}'"
         logger.info(msg)
     elif not cache.is_dir():
         # This is an error even if require=False
-        msg = f"Specified cache directory {cache} does not exist"
+        msg = f"Specified cache directory '{cache}' does not exist"
         log_sys_exit(logger, msg)
     return cache
 
@@ -474,20 +474,24 @@ def prepare_genomes(
     """
     # Should this be splittable for running on the cluster? I assume most
     # cases this is IO bound rather than CPU bound so is this helpful?
-    logger = setup_logger(log, terminal_level=logging.ERROR if quiet else logging.INFO)
+    logger = setup_logger(
+        log, terminal_level=logging.ERROR if quiet else logging.INFO, plain=True
+    )
     if database != ":memory:" and not Path(database).is_file():
-        msg = f"Database {database} does not exist"
+        msg = f"Database '{database}' does not exist"
         log_sys_exit(logger, msg)
     session = db_orm.connect_to_db(database)
     run = db_orm.load_run(session, run_id)
+    return prepare(logger, run, cache)
+
+
+def prepare(logger: logging.Logger, run: db_orm.Run, cache: Path | None) -> int:
+    """Call prepare-genomes with a progress bar."""
     n = run.genomes.count()
     done = run.comparisons().count()
     if done == n**2:
-        if not quiet:
-            msg = (
-                f"Skipping preparation, run already has all {n**2}={n}² pairwise values"
-            )
-            logger.info(msg)
+        msg = f"Skipping preparation, run already has all {n**2}={n}² pairwise values"
+        logger.info(msg)
         return 0
     config = run.configuration
     method = config.method
@@ -503,8 +507,11 @@ def prepare_genomes(
         log_sys_exit(logger, msg)
     if not hasattr(module, "prepare_genomes"):
         msg = f"No per-genome preparation required for {method}"
-        logger.info(msg)
+        logger.info(msg)  # debug level?
         return 0
+
+    msg = f"Preparing {n} genomes under cache '{cache}'"
+    logger.info(msg)
 
     # This could fail and call sys.exit.
     cache = validate_cache(logger, cache, require=True, create_default=True)
@@ -515,7 +522,7 @@ def prepare_genomes(
 
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         for _ in progress.track(
-            module.prepare_genomes(run, cache),
+            module.prepare_genomes(logger, run, cache),
             description="Processing...  ",  # spaces to match "Indexing FASTAs" etc
             total=n,
         ):
@@ -560,9 +567,11 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     """
     # Do NOT write to the main thread's log (risk of race conditions appending
     # to the same file, locking, etc) - will use a column-specific log soon!
-    logger = setup_logger(None, terminal_level=logging.ERROR if quiet else logging.INFO)
+    logger = setup_logger(
+        None, terminal_level=logging.ERROR if quiet else logging.INFO, plain=True
+    )
     if database != ":memory:" and not Path(database).is_file():
-        msg = f"Database {database} does not exist"
+        msg = f"Database '{database}' does not exist"
         log_sys_exit(logger, msg)
 
     # We want to receive any SIGINT as a KeyboardInterrupt even if we
@@ -616,7 +625,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
         log,
         terminal_level=logging.ERROR if quiet else logging.INFO,
     )
-    msg = f"Logging {method} compute-column to {log}"
+    msg = f"Logging {method} compute-column {column} to {log}"
     logger.info(msg)
 
     if column == 0:
@@ -746,6 +755,7 @@ def compute_fastani(  # noqa: PLR0913
             handle.write(f"{fasta_dir / hash_to_filename[query_hash]}\n")
 
     check_output(
+        logger,
         [
             str(tool.exe_path),
             "--ql",
@@ -799,7 +809,7 @@ def compute_fastani(  # noqa: PLR0913
     ]
     return (
         0
-        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
         else RECORDING_FAILED
     )
 
@@ -874,6 +884,7 @@ def compute_anim(  # noqa: PLR0913, PLR0915
 
             # Here mode will be "mum" (default) or "maxmatch", meaning nucmer --mum etc.
             check_output(
+                logger,
                 [
                     str(nucmer.exe_path),
                     "-p",
@@ -896,6 +907,7 @@ def compute_anim(  # noqa: PLR0913, PLR0915
             # The constant -1 option is used for 1-to-1 alignments in the delta-filter,
             # with no other options available for the end user.
             output = check_output(
+                logger,
                 [
                     str(delta_filter.exe_path),
                     "-1",
@@ -943,8 +955,10 @@ def compute_anim(  # noqa: PLR0913, PLR0915
 
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
-        sys.stderr.write(msg)
+        msg = (
+            f"Interrupted, will attempt to log {len(db_entries)} completed comparisons"
+        )
+        logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
 
     if hash_to_filename[subject_hash].endswith(".gz"):
@@ -952,7 +966,7 @@ def compute_anim(  # noqa: PLR0913, PLR0915
 
     return (
         0
-        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
         else RECORDING_FAILED
     )
 
@@ -1006,6 +1020,7 @@ def compute_anib(  # noqa: PLR0913
     msg = f"Calling makeblastdb for {hash_to_filename[subject_hash]}"
     logger.info(msg)
     check_output(
+        logger,
         [
             str(tools.get_makeblastdb().exe_path),
             "-in",
@@ -1047,6 +1062,7 @@ def compute_anib(  # noqa: PLR0913
             )
             logger.info(msg)
             check_output(
+                logger,
                 [
                     str(tool.exe_path),
                     "-query",
@@ -1101,13 +1117,15 @@ def compute_anib(  # noqa: PLR0913
 
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
-        sys.stderr.write(msg)
+        msg = (
+            f"Interrupted, will attempt to log {len(db_entries)} completed comparisons"
+        )
+        logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
 
     return (
         0
-        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
         else RECORDING_FAILED
     )
 
@@ -1174,6 +1192,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
             logger.info(msg)
             # This should not be run in the same tmp_dir as ANIm, as the nucmer output will clash
             check_output(
+                logger,
                 [
                     str(nucmer.exe_path),
                     "-p",
@@ -1194,6 +1213,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
             )
             logger.info(msg)
             output = check_output(
+                logger,
                 [
                     str(delta_filter.exe_path),
                     "-m",
@@ -1210,6 +1230,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
             )
             logger.info(msg)
             output = check_output(
+                logger,
                 [
                     str(show_diff.exe_path),
                     "-qH",
@@ -1226,6 +1247,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
             )
             logger.info(msg)
             output = check_output(
+                logger,
                 [
                     str(show_coords.exe_path),
                     "-rclTH",
@@ -1291,8 +1313,10 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
                 query_fasta.unlink()  # remove our decompressed copy
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
-        sys.stderr.write(msg)
+        msg = (
+            f"Interrupted, will attempt to log {len(db_entries)} completed comparisons"
+        )
+        logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
 
     if hash_to_filename[subject_hash].endswith(".gz"):
@@ -1300,7 +1324,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
 
     return (
         0
-        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
         else RECORDING_FAILED
     )
 
@@ -1325,7 +1349,7 @@ def compute_sourmash(  # noqa: PLR0913
         # not called but mypy doesn't understand (yet)
         return 1  # pragma: nocover
     if not cache.is_dir():
-        msg = f"Cache directory {cache} does not exist - check cache setting."
+        msg = f"Cache directory '{cache}' does not exist - check cache setting."
         log_sys_exit(logger, msg)
         # not called but mypy doesn't understand (yet)
         return 1  # pragma: nocover
@@ -1368,7 +1392,8 @@ def compute_sourmash(  # noqa: PLR0913
     )
     if not sig_cache.is_dir():
         msg = (
-            f"Missing sourmash signatures directory {sig_cache} - check cache setting."
+            f"Missing sourmash signatures directory '{sig_cache}'"
+            f" - check cache setting '{cache}'."
         )
         log_sys_exit(logger, msg)
 
@@ -1376,6 +1401,7 @@ def compute_sourmash(  # noqa: PLR0913
         db_entries: list[dict[str, str | float | None]] = []
         for batch in batched(
             sourmash.compute_sourmash_tile(
+                logger,
                 tool,
                 {subject_hash} if subject_hash else set(query_hashes),
                 set(query_hashes),
@@ -1401,12 +1427,14 @@ def compute_sourmash(  # noqa: PLR0913
             db_entries = db_orm.attempt_insert(session, db_entries, db_orm.Comparison)
     except KeyboardInterrupt:  # pragma: no cover
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"  # pragma: no cover
-        sys.stderr.write(msg)  # pragma: no cover
-        run.status = "Worker interrupted"  # pragma: no cover
+        msg = (
+            f"Interrupted, will attempt to log {len(db_entries)} completed comparisons"
+        )
+        logger.error(msg)  # noqa: TRY400
+        run.status = "Worker interrupted"
     return (
         0
-        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
         else RECORDING_FAILED
     )
 
@@ -1513,7 +1541,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
             cov_query,
             cov_subject,
         ) in compute_external_alignment_column(
-            subject_hash, set(query_hashes), alignment, mapping, label
+            logger, subject_hash, set(query_hashes), alignment, mapping, label
         ):
             db_entries.append(
                 {
@@ -1532,13 +1560,15 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
             )
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
-        sys.stderr.write(msg)
+        msg = (
+            f"Interrupted, will attempt to log {len(db_entries)} completed comparisons"
+        )
+        logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
 
     return (
         0
-        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
         else RECORDING_FAILED
     )
 

@@ -58,7 +58,7 @@ PROGRESS_BAR_COLUMNS = [
 
 
 def setup_logger(
-    log_file: Path | None, *, terminal_level: int = logging.DEBUG
+    log_file: Path | None, *, terminal_level: int = logging.DEBUG, plain: bool = False
 ) -> logging.Logger:
     """Return a file-based logger alongside a Rich console logger.
 
@@ -71,7 +71,30 @@ def setup_logger(
     logger.setLevel(terminal_level)
     if logger.hasHandlers():  # remove all previous handlers to avoid duplicate entries
         logger.handlers.clear()
+    if plain:
+        logging.basicConfig(
+            level=terminal_level,
+            format="%(message)s",
+            datefmt="[%X]",
+        )
+    else:
+        from rich.logging import RichHandler
 
+        logging.basicConfig(
+            level="INFO",
+            format="%(message)s",
+            datefmt="[%X]",
+            handlers=[
+                RichHandler(
+                    level=terminal_level,
+                    markup=True,
+                    omit_repeated_times=False,
+                    show_path=False,
+                    rich_tracebacks=True,
+                    tracebacks_suppress=["click", "sqlalchemy"],
+                )
+            ],
+        )
     if not log_file or log_file == Path("-"):
         logger.debug("Currently not logging to file.")
         return logger
@@ -84,7 +107,7 @@ def setup_logger(
 
     logger.addHandler(file_handler)
 
-    msg = f"Logging to {log_file}"
+    msg = f"Logging to '{log_file}'"
     logger.info(msg)  # Want this to appear on the terminal
 
     return logger

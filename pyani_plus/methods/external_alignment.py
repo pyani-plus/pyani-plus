@@ -21,14 +21,17 @@
 # THE SOFTWARE.
 """Code to extract average nucleotide identity from an external alignment."""
 
-import sys
+import logging
 from collections.abc import Callable, Iterator
 from pathlib import Path
+
+from pyani_plus import log_sys_exit
 
 ASCII_GAP = ord("-")  # 45
 
 
-def compute_external_alignment_column(
+def compute_external_alignment_column(  # noqa: PLR0913
+    logger: logging.Logger,
     subject_hash: str,
     query_hashes: set[str],
     alignment: Path,
@@ -59,13 +62,15 @@ def compute_external_alignment_column(
     # Easiest way to solve this is two linear scans of the file, with a seek(0)
     with alignment.open("rb") as handle:
         subject_seq = subject_title = b""  # placeholder values
-        s_non_gaps = subject_seq_gaps = None  # placeholder values
+        s_non_gaps = subject_seq_gaps = -1  # placeholder values
         # Note loading the file in binary mode, will be working in bytes
         for query_title, query_seq in fasta_bytes_iterator(handle):
             query_hash = mapping(query_title.decode().split(None, 1)[0])
             if not query_hash:
-                msg = f"ERROR: Could not map {query_title.decode().split(None, 1)[0]} as {label}"
-                sys.exit(msg)
+                msg = (
+                    f"Could not map {query_title.decode().split(None, 1)[0]} as {label}"
+                )
+                log_sys_exit(logger, msg)
             if query_hash == subject_hash:
                 # for use in rest of the loop - an array of bytes!
                 subject_seq = query_seq
@@ -76,7 +81,7 @@ def compute_external_alignment_column(
                 break
         else:
             msg = f"Did not find subject {subject_hash} in {alignment.name}"
-            raise ValueError(msg)
+            log_sys_exit(logger, msg)
 
         handle.seek(0)
         for query_title, query_seq in fasta_bytes_iterator(handle):
@@ -100,12 +105,12 @@ def compute_external_alignment_column(
                 # Full calculation required
                 if len(query_seq) != len(subject_seq):
                     msg = (
-                        "ERROR: Bad external-alignment, different lengths"
+                        "Bad external-alignment, different lengths"
                         f" {len(query_seq)} and {len(subject_seq)}"
                         f" from {query_title.decode().split(None, 1)[0]}"
-                        f" and {subject_title.decode().split(None, 1)[0]}\n"
+                        f" and {subject_title.decode().split(None, 1)[0]}``"
                     )
-                    sys.exit(msg)
+                    log_sys_exit(logger, msg)
 
                 q_array = np.array(list(query_seq), np.ubyte)
                 q_non_gaps = q_array != ASCII_GAP

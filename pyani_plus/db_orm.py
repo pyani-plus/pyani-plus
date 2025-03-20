@@ -28,8 +28,8 @@ Python objects.
 
 import datetime
 import gzip
+import logging
 import platform
-import sys
 from io import StringIO
 from math import log, nan
 from pathlib import Path
@@ -60,6 +60,7 @@ from sqlalchemy.orm import (
     sessionmaker,
 )
 
+from pyani_plus import log_sys_exit
 from pyani_plus.utils import fasta_bytes_iterator, filename_stem
 
 
@@ -733,7 +734,12 @@ def db_configuration(  # noqa: PLR0913
 
 
 def db_genome(  # noqa: C901
-    session: Session, fasta_filename: Path | str, md5: str, *, create: bool = False
+    logger: logging.Logger,
+    session: Session,
+    fasta_filename: Path | str,
+    md5: str,
+    *,
+    create: bool = False,
 ) -> Genome:
     """Return a genome table entry, or add and return it if not already there.
 
@@ -742,9 +748,11 @@ def db_genome(  # noqa: C901
     Returns the matching genome object, or the new one added if create=True:
 
     >>> session = connect_to_db(":memory:")
+    >>> from pyani_plus import setup_logger
+    >>> logger = setup_logger(None)
     >>> from pyani_plus.utils import file_md5sum
     >>> fasta = "tests/fixtures/viral_example/OP073605.fasta"
-    >>> genome = db_genome(session, fasta, file_md5sum(fasta), create=True)
+    >>> genome = db_genome(logger, session, fasta, file_md5sum(fasta), create=True)
     >>> genome.genome_hash
     '5584c7029328dc48d33f95f0a78f7e57'
 
@@ -755,7 +763,7 @@ def db_genome(  # noqa: C901
     If the genome is not already there, then by default this raises an exception:
 
     >>> session = connect_to_db(":memory:")
-    >>> genome = db_genome(session, fasta, file_md5sum(fasta))
+    >>> genome = db_genome(logger, session, fasta, file_md5sum(fasta))
     Traceback (most recent call last):
     ...
     sqlalchemy.exc.NoResultFound: Requested genome not already in DB
@@ -780,12 +788,14 @@ def db_genome(  # noqa: C901
                 if description is None:
                     description = title.decode()  # Just use first entry
             if not str(fasta_filename).endswith(".gz"):
-                msg = f"ERROR: No .gz ending, but {Path(fasta_filename).name} is gzip compressed"
-                sys.exit(msg)
+                msg = (
+                    f"No .gz ending, but {Path(fasta_filename).name} is gzip compressed"
+                )
+                log_sys_exit(logger, msg)
     except gzip.BadGzipFile:
         if str(fasta_filename).endswith(".gz"):
-            msg = f"ERROR: Has .gz ending, but {Path(fasta_filename).name} is NOT gzip compressed"
-            sys.exit(msg)
+            msg = f"Has .gz ending, but {Path(fasta_filename).name} is NOT gzip compressed"
+            log_sys_exit(logger, msg)
         with Path(fasta_filename).open("rb") as handle:
             for title, seq in fasta_bytes_iterator(handle):
                 length += len(seq)
@@ -876,7 +886,7 @@ def load_run(
     if run_id is None:
         run = session.query(Run).order_by(Run.run_id.desc()).first()
         if run is None:
-            msg = "ERROR: Database contains no runs."
+            msg = "Database contains no runs."
             raise SystemExit(msg)  # should we use sys.exit, or a different exception?
         run_id = run.run_id
     else:
@@ -884,7 +894,7 @@ def load_run(
             run = session.query(Run).where(Run.run_id == run_id).one()
         except NoResultFound:
             msg = (
-                f"ERROR: Database has no run-id {run_id}."
+                f"Database has no run-id {run_id}."
                 " Use the list-runs command for more information."
             )
             raise SystemExit(msg) from None
@@ -893,12 +903,12 @@ def load_run(
         done = run.comparisons().count()
         n = run.genomes.count()
         if not done:
-            msg = f"ERROR: run-id {run_id} has no comparisons"
+            msg = f"run-id {run_id} has no comparisons"
             raise SystemExit(msg)
         if check_complete:
             if done < n**2:
                 msg = (
-                    f"ERROR: run-id {run_id} has only {done} of {n}²={n**2}"
+                    f"run-id {run_id} has only {done} of {n}²={n**2}"
                     f" comparisons, {n**2 - done} needed"
                 )
                 raise SystemExit(msg)
@@ -998,6 +1008,7 @@ def attempt_insert(
 
 
 def insert_comparisons_with_retries(
+    logger: logging.Logger,
     session: Session,
     db_entries: list[dict[str, str | float | int | None]],
     source: str = "comparisons",
@@ -1031,9 +1042,8 @@ def insert_comparisons_with_retries(
         pass
     else:
         return True
-    msg = f"WARNING: Attempt 1/3 failed to record {source}\n"  # pragma: no cover
-
-    sys.stdout.write(msg)  # pragma: no cover
+    msg = f"Attempt 1/3 failed to record {source}"  # pragma: no cover
+    logger.warning(msg)  # pragma: no cover
 
     sleep(10)  # pragma: no cover
 
@@ -1044,9 +1054,8 @@ def insert_comparisons_with_retries(
         pass
     else:  # pragma: no cover
         return True
-    msg = f"WARNING: Attempt 2/3 failed to record {source}\n"  # pragma: no cover
-
-    sys.stdout.write(msg)  # pragma: no cover
+    msg = f"Attempt 2/3 failed to record {source}"  # pragma: no cover
+    logger.warning(msg)  # pragma: no cover
 
     sleep(30)  # pragma: no cover
 
@@ -1057,8 +1066,7 @@ def insert_comparisons_with_retries(
         pass
     else:  # pragma: no cover
         return True
-    msg = f"ERROR: Attempt 3/3 failed to record {source}\n"  # pragma: no cover
-
-    sys.stdout.write(msg)  # pragma: no cover
+    msg = f"Attempt 3/3 failed to record {source}"  # pragma: no cover
+    logger.error(msg)  # pragma: no cover
 
     return False  # pragma: no cover

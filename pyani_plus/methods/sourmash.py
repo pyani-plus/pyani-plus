@@ -21,18 +21,19 @@
 # THE SOFTWARE.
 """Code to implement the sourmash Average Nucleotide Identity (ANI) method."""
 
-# Set Up
-import sys
+import logging
 from collections.abc import Iterator
 from pathlib import Path
 
-from pyani_plus import db_orm, tools, utils
+from pyani_plus import db_orm, log_sys_exit, tools, utils
 
 SCALED = 1000
 KMER_SIZE = 31  # default
 
 
-def prepare_genomes(run: db_orm.Run, cache: Path) -> Iterator[str]:
+def prepare_genomes(
+    logger: logging.Logger, run: db_orm.Run, cache: Path
+) -> Iterator[str]:
     """Build the sourmatch sketch signatures in the given directory.
 
     Will use a sub-directory ``sourmash_k={kmersize}_scaled={number}``.
@@ -41,19 +42,21 @@ def prepare_genomes(run: db_orm.Run, cache: Path) -> Iterator[str]:
     """
     config = run.configuration
     if config.method != "sourmash":
-        msg = f"ERROR: Expected run to be for sourmash, not method {config.method}"
-        sys.exit(msg)
+        msg = f"Expected run to be for sourmash, not method {config.method}"
+        log_sys_exit(logger, msg)
     if not config.kmersize:
-        msg = f"ERROR: sourmash requires a k-mer size, default is {KMER_SIZE}"
-        sys.exit(msg)
+        msg = f"sourmash requires a k-mer size, default is {KMER_SIZE}"
+        log_sys_exit(logger, msg)
     if not config.extra:
-        msg = f"ERROR: sourmash requires extra setting, default is scaled={SCALED}"
-        sys.exit(msg)
+        msg = f"sourmash requires extra setting, default is scaled={SCALED}"
+        log_sys_exit(logger, msg)
     tool = tools.get_sourmash()
     if not cache.is_dir():
-        msg = f"ERROR: Cache directory {cache} does not exist"
+        msg = f"Cache directory '{cache}' does not exist"
         raise ValueError(msg)
     cache = cache / f"sourmash_k={config.kmersize}_{config.extra}"
+    msg = f"Preparing sourmash signatures in '{cache}'"
+    logger.debug(msg)
     cache.mkdir(exist_ok=True)
     fasta_dir = Path(run.fasta_directory)
     for entry in run.fasta_hashes:
@@ -62,6 +65,7 @@ def prepare_genomes(run: db_orm.Run, cache: Path) -> Iterator[str]:
         sig_filename = cache / f"{entry.genome_hash}.sig"
         if not sig_filename.is_file():
             utils.check_output(
+                logger,
                 [
                     str(tool.exe_path),
                     "scripts",
@@ -81,6 +85,7 @@ def prepare_genomes(run: db_orm.Run, cache: Path) -> Iterator[str]:
 
 
 def parse_sourmash_manysearch_csv(
+    logger: logging.Logger,
     manysearch_file: Path,
     expected_pairs: set[tuple[str, str]],
 ) -> Iterator[tuple[str, str, float | None, float | None]]:
@@ -104,8 +109,8 @@ def parse_sourmash_manysearch_csv(
             column_query_cont = headers.index("query_containment_ani")
             column_max_cont = headers.index("max_containment_ani")
         except ValueError:
-            msg = f"ERROR - Missing expected fields in sourmash manysearch header, found: {line!r}"
-            sys.exit(msg)
+            msg = f"Missing expected fields in sourmash manysearch header, found: {line!r}"
+            log_sys_exit(logger, msg)
         for line in handle:
             line = line.rstrip("\n")  # noqa: PLW2901
             if not line:
@@ -126,7 +131,7 @@ def parse_sourmash_manysearch_csv(
                 expected_pairs.remove((query_hash, subject_hash))
             else:
                 msg = f"Did not expect {query_hash} vs {subject_hash} in {manysearch_file.name}"
-                raise ValueError(msg) from None
+                log_sys_exit(logger, msg)
             yield (
                 query_hash,
                 subject_hash,
@@ -139,7 +144,8 @@ def parse_sourmash_manysearch_csv(
         yield query_hash, subject_hash, None, None
 
 
-def compute_sourmash_tile(
+def compute_sourmash_tile(  # noqa: PLR0913
+    logger: logging.Logger,
     tool: tools.ExternalToolData,
     subject_hashes: set[str],
     query_hashes: set[str],
@@ -148,7 +154,7 @@ def compute_sourmash_tile(
 ) -> Iterator[tuple[str, str, float | None, float | None]]:
     """Call sourmash branchwater manysearch, parse and return pairwise ANI values."""
     if not cache.is_dir():
-        msg = f"Given cache directory {cache} does not exist"
+        msg = f"Given cache directory '{cache}' does not exist"
         raise ValueError(msg)
     query_sig_list = tmp_dir / "query_sigs.csv"
     subject_sig_list = tmp_dir / "subject_sigs.csv"
@@ -158,11 +164,11 @@ def compute_sourmash_tile(
         (subject_sig_list, subject_hashes),
     ):
         if csv.is_file():
-            sys.stderr.write(
-                f"WARNING: Race condition? Replacing intermediate file {csv}\n"
-            )
+            msg = f"Race condition? Replacing intermediate file '{csv}'"
+            logger.warning(msg)
             csv.unlink()
         utils.check_output(
+            logger,
             [
                 str(tool.exe_path),
                 "sig",
@@ -173,9 +179,10 @@ def compute_sourmash_tile(
                 "-o",
                 str(csv),
                 *[str(cache / f"{_}.sig") for _ in sigs],
-            ]
+            ],
         )
     utils.check_output(
+        logger,
         [
             str(tool.exe_path),
             "scripts",
@@ -189,9 +196,10 @@ def compute_sourmash_tile(
             str(manysearch),
             str(query_sig_list),
             str(subject_sig_list),
-        ]
+        ],
     )
     yield from parse_sourmash_manysearch_csv(
+        logger,
         manysearch,
         # This is used to infer failed alignments:
         expected_pairs={(q, s) for q in query_hashes for s in subject_hashes},

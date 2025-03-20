@@ -482,14 +482,16 @@ def prepare_genomes(
         log_sys_exit(logger, msg)
     session = db_orm.connect_to_db(database)
     run = db_orm.load_run(session, run_id)
+    return prepare(logger, run, cache)
+
+
+def prepare(logger: logging.Logger, run: db_orm.Run, cache: Path | None) -> int:
+    """Call prepare-genomes with a progress bar."""
     n = run.genomes.count()
     done = run.comparisons().count()
     if done == n**2:
-        if not quiet:
-            msg = (
-                f"Skipping preparation, run already has all {n**2}={n}² pairwise values"
-            )
-            logger.info(msg)
+        msg = f"Skipping preparation, run already has all {n**2}={n}² pairwise values"
+        logger.info(msg)
         return 0
     config = run.configuration
     method = config.method
@@ -505,8 +507,11 @@ def prepare_genomes(
         log_sys_exit(logger, msg)
     if not hasattr(module, "prepare_genomes"):
         msg = f"No per-genome preparation required for {method}"
-        logger.info(msg)
+        logger.info(msg)  # debug level?
         return 0
+
+    msg = f"Preparing {n} genomes under cache {cache}"
+    logger.info(msg)
 
     # This could fail and call sys.exit.
     cache = validate_cache(logger, cache, require=True, create_default=True)

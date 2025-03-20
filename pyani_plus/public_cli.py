@@ -220,11 +220,12 @@ def run_method(  # noqa: PLR0913
         logger.info(msg)
         run.status = "Running"
         session.commit()
-        session.close()  # Reduce chance of DB locking
-        del run
 
         # Not needed for most methods, will be a no-op:
-        private_cli.prepare_genomes(database, run_id, cache=cache)
+        private_cli.prepare(logger, run, cache)
+
+        session.close()  # Reduce chance of DB locking
+        del run
 
         # Run snakemake wrapper
         # With a cluster-based running like SLURM, the location of the working and

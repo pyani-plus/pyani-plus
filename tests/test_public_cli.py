@@ -1704,7 +1704,7 @@ def test_classify_warnings(
     public_cli.cli_classify(database=tmp_db, outdir=tmp_dir, run_id=1)
     output = caplog.text
     assert (
-        "Run 1 has 1 comparison across 1 genome. Reporting single clique...\n" in output
+        "Run 1 has 1 comparison across 1 genome. Reporting single clique." in output
     ), output
 
     with (tmp_dir / "fastANI_classify.tsv").open() as handle:

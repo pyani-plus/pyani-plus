@@ -162,7 +162,7 @@ def compute_sourmash_tile(  # noqa: PLR0913
         (subject_sig_list, subject_hashes),
     ):
         if csv.is_file():
-            msg = f"Race condition? Replacing intermediate file {csv}\n"
+            msg = f"Race condition? Replacing intermediate file {csv}"
             logger.warning(msg)
             csv.unlink()
         utils.check_output(

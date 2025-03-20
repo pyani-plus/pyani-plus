@@ -344,7 +344,7 @@ def plot_single_run(
             nulls = int(matrix.isnull().sum().sum())  # noqa: PD003
             n = len(matrix)
             if nulls == n**2:
-                msg = f"Cannot plot {name} as all NA\n"
+                msg = f"Cannot plot {name} as all NA"
                 logger.warning(msg)
                 progress.advance(task)  # skipping distribution plots
                 progress.advance(task)  # skipping heatmap

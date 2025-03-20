@@ -73,7 +73,7 @@ def setup_logger(
         logger.handlers.clear()
     if plain:
         logging.basicConfig(
-            level="INFO",
+            level=terminal_level,
             format="%(message)s",
             datefmt="[%X]",
         )
@@ -86,7 +86,7 @@ def setup_logger(
             datefmt="[%X]",
             handlers=[
                 RichHandler(
-                    level=logging.INFO,
+                    level=terminal_level,
                     markup=True,
                     omit_repeated_times=False,
                     show_path=False,

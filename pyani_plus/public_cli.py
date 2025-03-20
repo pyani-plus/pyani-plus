@@ -772,7 +772,7 @@ def delete_run(
 
     if run.status == "Running":  # should be a constant or enum?
         # Should we also look at the date of the run? If old probably it failed.
-        msg = "Deleting a run still being computed will cause it to fail!\n"
+        msg = "Deleting a run still being computed will cause it to fail!"
         logger.warning(msg)
         confirm = True
 
@@ -823,7 +823,7 @@ def export_run(  # noqa: C901
         log_sys_exit(logger, msg)
 
     if not outdir.is_dir():
-        msg = f"Output directory {outdir} does not exist, making it.\n"
+        msg = f"Output directory {outdir} does not exist, making it."
         logger.warning(msg)
         outdir.mkdir()
 
@@ -933,7 +933,7 @@ def plot_run(
         log_sys_exit(logger, msg)
 
     if not outdir.is_dir():
-        msg = f"Output directory {outdir} does not exist, making it.\n"
+        msg = f"Output directory {outdir} does not exist, making it."
         logger.warning(msg)
         outdir.mkdir()
 
@@ -983,7 +983,7 @@ def plot_run_comp(
         log_sys_exit(logger, msg)
 
     if not outdir.is_dir():
-        msg = f"Output directory {outdir} does not exist, making it.\n"
+        msg = f"Output directory {outdir} does not exist, making it."
         logger.warning(msg)
         outdir.mkdir()
 
@@ -1057,7 +1057,7 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
         log_sys_exit(logger, msg)
 
     if not outdir.is_dir():
-        msg = f"Output directory {outdir} does not exist, making it.\n"
+        msg = f"Output directory {outdir} does not exist, making it."
         logger.warning(msg)
         outdir.mkdir()
 
@@ -1086,10 +1086,10 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     single_genome_run = False
     if done == 1 and run_genomes == 1:
         single_genome_run = True
-        msg = f"Run {run_id} has {done} comparison across {run_genomes} genome. Reporting single clique...\n"
+        msg = f"Run {run_id} has {done} comparison across {run_genomes} genome. Reporting single clique."
         logger.warning(msg)
     else:
-        msg = f"Run {run_id} has {done} comparisons across {run_genomes} genomes. Running classify..."
+        msg = f"Run {run_id} has {done} comparisons across {run_genomes} genomes."
         logger.info(msg)
 
     cov = run.cov_query

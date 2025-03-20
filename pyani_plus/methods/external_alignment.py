@@ -108,7 +108,7 @@ def compute_external_alignment_column(  # noqa: PLR0913
                         "Bad external-alignment, different lengths"
                         f" {len(query_seq)} and {len(subject_seq)}"
                         f" from {query_title.decode().split(None, 1)[0]}"
-                        f" and {subject_title.decode().split(None, 1)[0]}\n"
+                        f" and {subject_title.decode().split(None, 1)[0]}``"
                     )
                     log_sys_exit(logger, msg)
 

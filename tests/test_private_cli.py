@@ -461,7 +461,7 @@ def test_validate_cache(tmp_path: str, monkeypatch: pytest.MonkeyPatch) -> None:
     logger = setup_logger(Path("-"))
     with pytest.raises(
         SystemExit,
-        match="Specified cache directory /does/not/exist does not exist",
+        match="Specified cache directory '/does/not/exist' does not exist",
     ):
         private_cli.validate_cache(logger, Path("/does/not/exist"))
 
@@ -469,7 +469,7 @@ def test_validate_cache(tmp_path: str, monkeypatch: pytest.MonkeyPatch) -> None:
     assert default == Path(".cache")
     assert not default.is_dir()
     with pytest.raises(
-        SystemExit, match="Default cache directory .cache does not exist."
+        SystemExit, match="Default cache directory '.cache' does not exist."
     ):
         private_cli.validate_cache(logger, None, create_default=False, require=True)
 

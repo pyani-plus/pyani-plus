@@ -117,7 +117,7 @@ def test_prepare_genomes_bad_cache(tmp_path: str, input_genomes_tiny: Path) -> N
     logger = setup_logger(None)
     with pytest.raises(
         ValueError,
-        match="Cache directory /does/not/exist does not exist",
+        match="Cache directory '/does/not/exist' does not exist",
     ):
         next(
             sourmash.prepare_genomes(logger, run, cache=Path("/does/not/exist"))
@@ -229,7 +229,7 @@ def test_compute_bad_args(tmp_path: str) -> None:
         )
     with pytest.raises(
         SystemExit,
-        match="Cache directory /does/not/exist does not exist - check cache setting.",
+        match="Cache directory '/does/not/exist' does not exist - check cache setting.",
     ):
         private_cli.compute_sourmash(
             logger,
@@ -257,7 +257,7 @@ def test_compute_bad_args(tmp_path: str) -> None:
         SystemExit,
         match=(
             "Missing sourmash signatures directory"
-            f" {tmp_dir}/sourmash_k=31_scaled=1234 - check cache setting."
+            f" '{tmp_dir}/sourmash_k=31_scaled=1234' - check cache setting."
         ),
     ):
         private_cli.compute_sourmash(
@@ -280,7 +280,7 @@ def test_compute_tile_bad_args(tmp_path: str) -> None:
     tool = tools.ExternalToolData(exe_path=Path("sourmash"), version="0.0a1")
     logger = setup_logger(None)
     with pytest.raises(
-        ValueError, match="Given cache directory /does/not/exist does not exist"
+        ValueError, match="Given cache directory '/does/not/exist' does not exist"
     ):
         next(
             sourmash.compute_sourmash_tile(
@@ -337,7 +337,9 @@ def test_compute_tile_stale_cvs(
         )
     )
     output = caplog.text
-    assert f"Race condition? Replacing intermediate file {query_csv}" in output, output
-    assert f"Race condition? Replacing intermediate file {subject_csv}" in output, (
+    assert f"Race condition? Replacing intermediate file '{query_csv}'" in output, (
+        output
+    )
+    assert f"Race condition? Replacing intermediate file '{subject_csv}'" in output, (
         output
     )

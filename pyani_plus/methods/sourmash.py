@@ -52,9 +52,11 @@ def prepare_genomes(
         log_sys_exit(logger, msg)
     tool = tools.get_sourmash()
     if not cache.is_dir():
-        msg = f"Cache directory {cache} does not exist"
+        msg = f"Cache directory '{cache}' does not exist"
         raise ValueError(msg)
     cache = cache / f"sourmash_k={config.kmersize}_{config.extra}"
+    msg = f"Preparing sourmash signatures in '{cache}'"
+    logger.debug(msg)
     cache.mkdir(exist_ok=True)
     fasta_dir = Path(run.fasta_directory)
     for entry in run.fasta_hashes:
@@ -152,7 +154,7 @@ def compute_sourmash_tile(  # noqa: PLR0913
 ) -> Iterator[tuple[str, str, float | None, float | None]]:
     """Call sourmash branchwater manysearch, parse and return pairwise ANI values."""
     if not cache.is_dir():
-        msg = f"Given cache directory {cache} does not exist"
+        msg = f"Given cache directory '{cache}' does not exist"
         raise ValueError(msg)
     query_sig_list = tmp_dir / "query_sigs.csv"
     subject_sig_list = tmp_dir / "subject_sigs.csv"
@@ -162,7 +164,7 @@ def compute_sourmash_tile(  # noqa: PLR0913
         (subject_sig_list, subject_hashes),
     ):
         if csv.is_file():
-            msg = f"Race condition? Replacing intermediate file {csv}"
+            msg = f"Race condition? Replacing intermediate file '{csv}'"
             logger.warning(msg)
             csv.unlink()
         utils.check_output(

@@ -214,10 +214,10 @@ def log_configuration(  # noqa: PLR0913
     """
     logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not create_db and not Path(database).is_file():
-        msg = f"Database {database} does not exist, but not using --create-db"
+        msg = f"Database '{database}' does not exist, but not using --create-db"
         sys.exit(msg)
 
-    msg = f"Logging configuration to {database}"
+    msg = f"Logging configuration to '{database}'"
     logger.info(msg)
     session = db_orm.connect_to_db(database)
     config = db_orm.db_configuration(
@@ -253,10 +253,10 @@ def log_genome(
     """
     logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not create_db and not Path(database).is_file():
-        msg = f"Database {database} does not exist, but not using --create-db"
+        msg = f"Database '{database}' does not exist, but not using --create-db"
         sys.exit(msg)
 
-    msg = f"Logging genome to {database}"
+    msg = f"Logging genome to '{database}'"
     logger.info(msg)
     session = db_orm.connect_to_db(database)
 
@@ -307,10 +307,10 @@ def log_run(  # noqa: PLR0913
     """
     logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not create_db and not Path(database).is_file():
-        msg = f"Database {database} does not exist, but not using --create-db"
+        msg = f"Database '{database}' does not exist, but not using --create-db"
         sys.exit(msg)
 
-    msg = f"Logging run to {database}"
+    msg = f"Logging run to '{database}'"
     logger.info(msg)
     session = db_orm.connect_to_db(database)
 
@@ -383,10 +383,10 @@ def log_comparison(  # noqa: PLR0913
     """Log single pairwise comparison to database."""
     logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not Path(database).is_file():
-        msg = f"Database {database} does not exist"
+        msg = f"Database '{database}' does not exist"
         sys.exit(msg)
 
-    msg = f"Logging comparison to {database}"
+    msg = f"Logging comparison to '{database}'"
     logger.info(msg)
     session = db_orm.connect_to_db(database)
     # Give a better error message that if adding comparison fails:
@@ -443,13 +443,13 @@ def validate_cache(
             if create_default:
                 cache.mkdir(parents=True)
             elif require:
-                msg = f"Default cache directory {cache} does not exist."
+                msg = f"Default cache directory '{cache}' does not exist."
                 log_sys_exit(logger, msg)
-        msg = f"INFO: Defaulting to cache at {cache}"
+        msg = f"INFO: Defaulting to cache at '{cache}'"
         logger.info(msg)
     elif not cache.is_dir():
         # This is an error even if require=False
-        msg = f"Specified cache directory {cache} does not exist"
+        msg = f"Specified cache directory '{cache}' does not exist"
         log_sys_exit(logger, msg)
     return cache
 
@@ -478,7 +478,7 @@ def prepare_genomes(
         log, terminal_level=logging.ERROR if quiet else logging.INFO, plain=True
     )
     if database != ":memory:" and not Path(database).is_file():
-        msg = f"Database {database} does not exist"
+        msg = f"Database '{database}' does not exist"
         log_sys_exit(logger, msg)
     session = db_orm.connect_to_db(database)
     run = db_orm.load_run(session, run_id)
@@ -510,7 +510,7 @@ def prepare(logger: logging.Logger, run: db_orm.Run, cache: Path | None) -> int:
         logger.info(msg)  # debug level?
         return 0
 
-    msg = f"Preparing {n} genomes under cache {cache}"
+    msg = f"Preparing {n} genomes under cache '{cache}'"
     logger.info(msg)
 
     # This could fail and call sys.exit.
@@ -571,7 +571,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
         None, terminal_level=logging.ERROR if quiet else logging.INFO, plain=True
     )
     if database != ":memory:" and not Path(database).is_file():
-        msg = f"Database {database} does not exist"
+        msg = f"Database '{database}' does not exist"
         log_sys_exit(logger, msg)
 
     # We want to receive any SIGINT as a KeyboardInterrupt even if we
@@ -1349,7 +1349,7 @@ def compute_sourmash(  # noqa: PLR0913
         # not called but mypy doesn't understand (yet)
         return 1  # pragma: nocover
     if not cache.is_dir():
-        msg = f"Cache directory {cache} does not exist - check cache setting."
+        msg = f"Cache directory '{cache}' does not exist - check cache setting."
         log_sys_exit(logger, msg)
         # not called but mypy doesn't understand (yet)
         return 1  # pragma: nocover
@@ -1392,7 +1392,8 @@ def compute_sourmash(  # noqa: PLR0913
     )
     if not sig_cache.is_dir():
         msg = (
-            f"Missing sourmash signatures directory {sig_cache} - check cache setting."
+            f"Missing sourmash signatures directory '{sig_cache}'"
+            f" - check cache setting '{cache}'."
         )
         log_sys_exit(logger, msg)
 

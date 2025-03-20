@@ -107,7 +107,7 @@ def setup_logger(
 
     logger.addHandler(file_handler)
 
-    msg = f"Logging to {log_file}"
+    msg = f"Logging to '{log_file}'"
     logger.info(msg)  # Want this to appear on the terminal
 
     return logger

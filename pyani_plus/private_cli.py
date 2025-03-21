@@ -830,9 +830,7 @@ def compute_fastani(  # noqa: PLR0913
         ]
     except KeyboardInterrupt:  # pragma: no cover
         # Try to abort gracefully without wasting the work done.
-        msg = (
-            f"Interrupted, will attempt to log {len(db_entries)} completed comparisons"
-        )
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed fastANI comparisons"
         logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
 
@@ -984,9 +982,7 @@ def compute_anim(  # noqa: PLR0913, PLR0915
 
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = (
-            f"Interrupted, will attempt to log {len(db_entries)} completed comparisons"
-        )
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed ANIm comparisons"
         logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
 
@@ -1146,9 +1142,7 @@ def compute_anib(  # noqa: PLR0913
 
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = (
-            f"Interrupted, will attempt to log {len(db_entries)} completed comparisons"
-        )
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed ANIb comparisons"
         logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
 
@@ -1342,9 +1336,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
                 query_fasta.unlink()  # remove our decompressed copy
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = (
-            f"Interrupted, will attempt to log {len(db_entries)} completed comparisons"
-        )
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed dnadiff comparisons"
         logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
 
@@ -1456,9 +1448,7 @@ def compute_sourmash(  # noqa: PLR0913
             db_entries = db_orm.attempt_insert(session, db_entries, db_orm.Comparison)
     except KeyboardInterrupt:  # pragma: no cover
         # Try to abort gracefully without wasting the work done.
-        msg = (
-            f"Interrupted, will attempt to log {len(db_entries)} completed comparisons"
-        )
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed sourmash comparisons"
         logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
     return (
@@ -1589,9 +1579,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
             )
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = (
-            f"Interrupted, will attempt to log {len(db_entries)} completed comparisons"
-        )
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed external-alignment comparisons"
         logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
 

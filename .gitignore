@@ -9,6 +9,9 @@
 # Backup files
 *.bak
 
+# Log files
+*.log
+
 # Config files for development tools
 .ipynb_checkpoints
 .Rhistory

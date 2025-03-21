@@ -482,7 +482,11 @@ def prepare_genomes(
         log_sys_exit(logger, msg)
     session = db_orm.connect_to_db(database)
     run = db_orm.load_run(session, run_id)
-    return prepare(logger, run, cache)
+    try:
+        return prepare(logger, run, cache)
+    except Exception:  # pragma: nocover
+        logger.exception("Unhandled exception.")
+        return 1
 
 
 def prepare(logger: logging.Logger, run: db_orm.Run, cache: Path | None) -> int:
@@ -694,19 +698,23 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     )
     logger.info(msg)
 
-    with nullcontext(temp) if temp else tempfile.TemporaryDirectory() as tmp_dir:
-        return compute(
-            logger,
-            Path(tmp_dir),
-            session,
-            run,
-            fasta_dir,
-            hash_to_filename,
-            filename_to_hash,
-            query_hashes,
-            subject_hash,
-            cache=cache,
-        )
+    try:
+        with nullcontext(temp) if temp else tempfile.TemporaryDirectory() as tmp_dir:
+            return compute(
+                logger,
+                Path(tmp_dir),
+                session,
+                run,
+                fasta_dir,
+                hash_to_filename,
+                filename_to_hash,
+                query_hashes,
+                subject_hash,
+                cache=cache,
+            )
+    except Exception:  # pragma: nocover
+        logger.exception("Unhandled exception.")
+        return 1
 
 
 def compute_fastani(  # noqa: PLR0913

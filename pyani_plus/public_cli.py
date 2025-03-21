@@ -300,20 +300,24 @@ def cli_anim(  # noqa: PLR0913
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
     logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     check_db(logger, database, create_db)
-    return start_and_run_method(
-        logger,
-        executor,
-        None,
-        temp,
-        wtemp,
-        database,
-        log,
-        name,
-        "ANIm",
-        fasta,
-        tools.get_nucmer(),
-        mode=mode.value,  # turn the enum into a string
-    )
+    try:
+        return start_and_run_method(
+            logger,
+            executor,
+            None,
+            temp,
+            wtemp,
+            database,
+            log,
+            name,
+            "ANIm",
+            fasta,
+            tools.get_nucmer(),
+            mode=mode.value,  # turn the enum into a string
+        )
+    except Exception:  # pragma: nocover
+        logger.exception("Unhandled exception.")
+        return 1
 
 
 @app.command("dnadiff", rich_help_panel="ANI methods")
@@ -334,19 +338,23 @@ def cli_dnadiff(  # noqa: PLR0913
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
     logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     check_db(logger, database, create_db)
-    return start_and_run_method(
-        logger,
-        executor,
-        None,
-        temp,
-        wtemp,
-        database,
-        log,
-        name,
-        "dnadiff",
-        fasta,
-        tools.get_nucmer(),
-    )
+    try:
+        return start_and_run_method(
+            logger,
+            executor,
+            None,
+            temp,
+            wtemp,
+            database,
+            log,
+            name,
+            "dnadiff",
+            fasta,
+            tools.get_nucmer(),
+        )
+    except Exception:  # pragma: nocover
+        logger.exception("Unhandled exception.")
+        return 1
 
 
 @app.command("anib", rich_help_panel="ANI methods")
@@ -374,20 +382,24 @@ def cli_anib(  # noqa: PLR0913
     if tool.version != alt.version:  # pragma: nocover
         msg = f"blastn {tool.version} vs makeblastdb {alt.version}"
         log_sys_exit(logger, msg)
-    return start_and_run_method(
-        logger,
-        executor,
-        None,
-        temp,
-        wtemp,
-        database,
-        log,
-        name,
-        "ANIb",
-        fasta,
-        tool,
-        fragsize=fragsize,
-    )
+    try:
+        return start_and_run_method(
+            logger,
+            executor,
+            None,
+            temp,
+            wtemp,
+            database,
+            log,
+            name,
+            "ANIb",
+            fasta,
+            tool,
+            fragsize=fragsize,
+        )
+    except Exception:  # pragma: nocover
+        logger.exception("Unhandled exception.")
+        return 1
 
 
 @app.command("fastani", rich_help_panel="ANI methods")
@@ -421,22 +433,26 @@ def cli_fastani(  # noqa: PLR0913
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
     logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     check_db(logger, database, create_db)
-    return start_and_run_method(
-        logger,
-        executor,
-        None,
-        temp,
-        wtemp,
-        database,
-        log,
-        name,
-        "fastANI",
-        fasta,
-        tools.get_fastani(),
-        fragsize=fragsize,
-        kmersize=kmersize,
-        minmatch=minmatch,
-    )
+    try:
+        return start_and_run_method(
+            logger,
+            executor,
+            None,
+            temp,
+            wtemp,
+            database,
+            log,
+            name,
+            "fastANI",
+            fasta,
+            tools.get_fastani(),
+            fragsize=fragsize,
+            kmersize=kmersize,
+            minmatch=minmatch,
+        )
+    except Exception:  # pragma: nocover
+        logger.exception("Unhandled exception.")
+        return 1
 
 
 @app.command("sourmash", rich_help_panel="ANI methods")
@@ -460,21 +476,25 @@ def cli_sourmash(  # noqa: PLR0913
     """Execute sourmash-plugin-branchwater ANI calculations, logged to a pyANI-plus SQLite3 database."""
     logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     check_db(logger, database, create_db)
-    return start_and_run_method(
-        logger,
-        executor,
-        cache,
-        temp,
-        wtemp,
-        database,
-        log,
-        name,
-        "sourmash",
-        fasta,
-        tools.get_sourmash(),
-        kmersize=kmersize,
-        extra=f"scaled={scaled}",
-    )
+    try:
+        return start_and_run_method(
+            logger,
+            executor,
+            cache,
+            temp,
+            wtemp,
+            database,
+            log,
+            name,
+            "sourmash",
+            fasta,
+            tools.get_sourmash(),
+            kmersize=kmersize,
+            extra=f"scaled={scaled}",
+        )
+    except Exception:  # pragma: nocover
+        logger.exception("Unhandled exception.")
+        return 1
 
 
 @app.command(rich_help_panel="ANI methods")
@@ -516,20 +536,24 @@ def external_alignment(  # noqa: PLR0913
     aln_checksum = file_md5sum(alignment)
     # Doing this order to put the filename LAST, in case of separators in the filename
     extra = f"md5={aln_checksum};label={label};alignment={alignment.name}"
-    return start_and_run_method(
-        logger,
-        executor,
-        None,
-        temp,  # not needed?
-        wtemp,  # not needed?
-        database,
-        log,
-        f"Import of {alignment.name}" if name is None else name,
-        "external-alignment",
-        fasta,
-        None,  # no tool
-        extra=extra,
-    )
+    try:
+        return start_and_run_method(
+            logger,
+            executor,
+            None,
+            temp,  # not needed?
+            wtemp,  # not needed?
+            database,
+            log,
+            f"Import of {alignment.name}" if name is None else name,
+            "external-alignment",
+            fasta,
+            None,  # no tool
+            extra=extra,
+        )
+    except Exception:  # pragma: nocover
+        logger.exception("Unhandled exception.")
+        return 1
 
 
 @app.command()
@@ -635,18 +659,22 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
     run.status = "Resuming"
     session.commit()
 
-    return run_method(
-        logger,
-        executor,
-        cache,
-        temp,
-        wtemp,
-        filename_to_md5,
-        database,
-        log,
-        session,
-        run,
-    )
+    try:
+        return run_method(
+            logger,
+            executor,
+            cache,
+            temp,
+            wtemp,
+            filename_to_md5,
+            database,
+            log,
+            session,
+            run,
+        )
+    except Exception:  # pragma: nocover
+        logger.exception("Unhandled exception.")
+        return 1
 
 
 @app.command()
@@ -943,13 +971,17 @@ def plot_run(  # noqa: PLR0913
         msg = f"Plotting {run.configuration.method} run-id {run_id}"
         logger.info(msg)
 
-    from pyani_plus import plot_run  # lazy import
+    try:
+        from pyani_plus import plot_run  # lazy import
 
-    count = plot_run.plot_single_run(logger, run, outdir, label)
-    msg = f"Wrote {count} images to {outdir}/{run.configuration.method}_*.*"
-    logger.info(msg)
-    session.close()
-    return 0 if count else 1
+        count = plot_run.plot_single_run(logger, run, outdir, label)
+        msg = f"Wrote {count} images to {outdir}/{run.configuration.method}_*.*"
+        logger.info(msg)
+        session.close()
+        return 0 if count else 1  # noqa: TRY300
+    except Exception:  # pragma: nocover
+        logger.exception("Unhandled exception.")
+        return 1
 
 
 @app.command()
@@ -1008,15 +1040,20 @@ def plot_run_comp(  # noqa: PLR0913
         msg = f"Run {run_id} has no comparisons"
         log_sys_exit(logger, msg)
 
-    from pyani_plus import plot_run  # lazy import
+    try:
+        from pyani_plus import plot_run  # lazy import
 
-    done = plot_run.plot_run_comparison(
-        logger, session, ref_run, other_runs, outdir, columns
-    )
-    msg = f"Wrote {done} images to {outdir}/{ref_run.configuration.method}_identity_{run_id}_vs_*.*"
-    logger.info(msg)
-    session.close()
-    return 0
+        done = plot_run.plot_run_comparison(
+            logger, session, ref_run, other_runs, outdir, columns
+        )
+        msg = f"Wrote {done} images to {outdir}/{ref_run.configuration.method}_identity_{run_id}_vs_*.*"
+        logger.info(msg)
+        session.close()
+    except Exception:  # pragma: nocover
+        logger.exception("Unhandled exception.")
+        return 1
+    else:
+        return 0
 
 
 @app.command("classify", rich_help_panel="Commands")
@@ -1107,52 +1144,57 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
         msg = f"{err}"
         log_sys_exit(logger, msg)
 
-    # Map the string inputs to callable functions
-    coverage_agg_func = classify.AGG_FUNCS[coverage_edges]
-    identity_agg_func = classify.AGG_FUNCS[score_edges]
+    try:
+        # Map the string inputs to callable functions
+        coverage_agg_func = classify.AGG_FUNCS[coverage_edges]
+        identity_agg_func = classify.AGG_FUNCS[score_edges]
 
-    # Construct the graph with the correct functions
-    complete_graph = classify.construct_graph(
-        cov, score_matrix, coverage_agg_func, identity_agg_func, cov_min
-    )
-    # Finding cliques
-    if len(list(nx.connected_components(complete_graph))) != 1:
-        initial_cliques = classify.find_initial_cliques(complete_graph)
-    else:
-        initial_cliques = []
-    recursive_cliques = classify.find_cliques_recursively(complete_graph)
-
-    # Get a list of unique cliques to avoid duplicates. Prioritise initial_cliques
-    unique_cliques = classify.get_unique_cliques(initial_cliques, recursive_cliques)
-
-    # Determine column name based on mode
-    suffix = "identity" if mode == EnumModeClassify.identity else "-tANI"
-    column_map = {
-        "min_score": f"min_{suffix}",
-        "max_score": f"max_{suffix}",
-    }
-
-    # Writing the results to .tsv
-    clique_data, clique_df = classify.compute_classify_output(
-        unique_cliques, method, outdir, column_map
-    )
-    msg = f"Wrote classify output to {outdir}"
-    logger.info(msg)
-
-    # Only plot classify if more than one genome in comparisons and the initial graph consist of at least one clique
-    if not single_genome_run:
-        if set(clique_df["n_nodes"]) == {1}:
-            msg = "All genomes are singletons. No plot can be generated."
-            logger.warning(msg)
+        # Construct the graph with the correct functions
+        complete_graph = classify.construct_graph(
+            cov, score_matrix, coverage_agg_func, identity_agg_func, cov_min
+        )
+        # Finding cliques
+        if len(list(nx.connected_components(complete_graph))) != 1:
+            initial_cliques = classify.find_initial_cliques(complete_graph)
         else:
-            logger.info("Plotting classify output...")
-            genome_groups = classify.get_genome_cligue_ids(clique_df, suffix)
-            genome_positions = classify.get_genome_order(genome_groups)
-            classify.plot_classify(
-                genome_positions, clique_df, outdir, method, suffix, vertical_line
-            )
-    session.close()
-    return 0
+            initial_cliques = []
+        recursive_cliques = classify.find_cliques_recursively(complete_graph)
+
+        # Get a list of unique cliques to avoid duplicates. Prioritise initial_cliques
+        unique_cliques = classify.get_unique_cliques(initial_cliques, recursive_cliques)
+
+        # Determine column name based on mode
+        suffix = "identity" if mode == EnumModeClassify.identity else "-tANI"
+        column_map = {
+            "min_score": f"min_{suffix}",
+            "max_score": f"max_{suffix}",
+        }
+
+        # Writing the results to .tsv
+        clique_data, clique_df = classify.compute_classify_output(
+            unique_cliques, method, outdir, column_map
+        )
+        msg = f"Wrote classify output to {outdir}"
+        logger.info(msg)
+
+        # Only plot classify if more than one genome in comparisons and the initial graph consist of at least one clique
+        if not single_genome_run:
+            if set(clique_df["n_nodes"]) == {1}:
+                msg = "All genomes are singletons. No plot can be generated."
+                logger.warning(msg)
+            else:
+                logger.info("Plotting classify output...")
+                genome_groups = classify.get_genome_cligue_ids(clique_df, suffix)
+                genome_positions = classify.get_genome_order(genome_groups)
+                classify.plot_classify(
+                    genome_positions, clique_df, outdir, method, suffix, vertical_line
+                )
+        session.close()
+    except Exception:  # pragma: nocover
+        logger.exception("Unhandled exception.")
+        return 1
+    else:
+        return 0
 
 
 if __name__ == "__main__":  # pragma: no cover

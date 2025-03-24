@@ -109,6 +109,8 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     In quiet or spinner mode the DB is only accessed except by the workflow
     itself, and need not be passed to this function.
     """
+    msg = f"Preparing to call snakemake on '{workflow_name}'"
+    logger.debug(msg)
     success = False
     if temp:
         params["temp"] = str(temp.resolve())
@@ -141,8 +143,10 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     )
     args.config = [f"{k}='{v}'" for k, v in params.items()]
     if display == ShowProgress.quiet:
+        logger.debug("Calling snakemake without progress bar")
         success = args_to_api(args, parser)
     else:
+        logger.debug("Calling snakemake with progress bar")
         # As of Python 3.8 onwards, the default on macOS ("Darwin") is "spawn"
         # As of Python 3.12, the default of "fork" on Linux triggers a deprecation warning.
         # This should match the defaults on Python 3.14 onwards.
@@ -176,3 +180,4 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
         # Ensure exit message starts on a new line after interrupted progress bar
         print()  # pragma: no cover  # noqa: T201
         log_sys_exit(logger, "Snakemake workflow failed")  # pragma: no cover
+    logger.debug("Snakemake finished successfully")

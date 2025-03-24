@@ -58,14 +58,14 @@ PROGRESS_BAR_COLUMNS = [
 
 
 def setup_logger(
-    log_file: Path | None, *, terminal_level: int = logging.DEBUG
+    log_file: Path | None, *, terminal_level: int = logging.INFO
 ) -> logging.Logger:
     """Return a file-based logger alongside a Rich console logger.
 
     Default filename is ``pyani-plus.log``. Use ``Path("-")`` or `None` for no log file.
 
-    The file logger defaults to DEBUG level, but the less verbose INFO for the terminal.
-    For quiet mode, reduce the terminal logging level to ERROR.
+    The file logger is always at DEBUG level, while the terminal defaults to INFO level
+    and can be adjusted.
     """
     logger = logging.getLogger(f"{__package__}")
     logger.setLevel(terminal_level)

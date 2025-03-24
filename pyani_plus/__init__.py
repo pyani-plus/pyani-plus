@@ -62,53 +62,54 @@ def setup_logger(
 ) -> logging.Logger:
     """Return a file-based logger alongside a Rich console logger.
 
-    Default filename is ``pyani-plus.log``. Use ``Path("-")`` or `None` for no log file.
+    Use ``Path("-")`` or `None` for no log file.
 
     The file logger is always at DEBUG level, while the terminal defaults to INFO level
     and can be adjusted.
     """
     logger = logging.getLogger(f"{__package__}")
-    logger.setLevel(terminal_level)
+    min_level = min(logging.DEBUG, terminal_level)
+    logger.setLevel(min_level)
     if logger.hasHandlers():  # remove all previous handlers to avoid duplicate entries
         logger.handlers.clear()
+    logging.basicConfig(
+        level=min_level,
+        format="%(message)s",
+        datefmt="[%X]",
+        handlers=[],
+    )
+
     if plain:
-        logging.basicConfig(
-            level=terminal_level,
-            format="%(message)s",
-            datefmt="[%X]",
-        )
+        console_handler = logging.StreamHandler()  # defaults to sys.stderr
+        console_handler.setLevel(terminal_level)
     else:
         from rich.logging import RichHandler
 
-        logging.basicConfig(
-            level="INFO",
-            format="%(message)s",
-            datefmt="[%X]",
-            handlers=[
-                RichHandler(
-                    level=terminal_level,
-                    markup=True,
-                    omit_repeated_times=False,
-                    show_path=False,
-                    rich_tracebacks=True,
-                    tracebacks_suppress=["click", "sqlalchemy"],
-                )
-            ],
+        console_handler = RichHandler(  # defaults to sys.stdout
+            level=terminal_level,
+            markup=True,
+            omit_repeated_times=False,
+            show_path=False,
+            rich_tracebacks=True,
+            tracebacks_suppress=["click", "sqlalchemy"],
         )
-    if not log_file or log_file == Path("-"):
+    logger.addHandler(console_handler)
+
+    if log_file and log_file != Path("-"):
+        file_handler = logging.FileHandler(log_file, mode="a")
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(
+            logging.Formatter(
+                fmt="%(asctime)s %(levelname)9s %(filename)21s:%(lineno)-3s | %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+            )
+        )
+        logger.addHandler(file_handler)
+
+        msg = f"Logging to '{log_file}'"
+        logger.info(msg)  # Want this to appear on the terminal
+    else:
         logger.debug("Currently not logging to file.")
-        return logger
-    file_handler = logging.FileHandler(log_file, mode="a")
-    file_handler.setLevel(logging.DEBUG)
-
-    fmt = "%(asctime)s %(levelname)9s %(filename)21s:%(lineno)-3s | %(message)s"
-    formatter = logging.Formatter(fmt=fmt, datefmt="%Y-%m-%d %H:%M:%S")
-    file_handler.setFormatter(formatter)
-
-    logger.addHandler(file_handler)
-
-    msg = f"Logging to '{log_file}'"
-    logger.info(msg)  # Want this to appear on the terminal
 
     return logger
 

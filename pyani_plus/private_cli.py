@@ -626,8 +626,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     # Column worker specific log files!
     log = Path(str(log)[: -len(log.suffix)] + f".{column}" + log.suffix)
     logger = setup_logger(
-        log,
-        terminal_level=logging.ERROR if quiet else logging.INFO,
+        log, terminal_level=logging.ERROR if quiet else logging.INFO, plain=True
     )
     msg = f"Logging {method} compute-column {column} to {log}"
     logger.info(msg)

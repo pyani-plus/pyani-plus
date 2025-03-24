@@ -762,59 +762,80 @@ def compute_fastani(  # noqa: PLR0913
         for query_hash in query_hashes:
             handle.write(f"{fasta_dir / hash_to_filename[query_hash]}\n")
 
-    check_output(
-        logger,
-        [
-            str(tool.exe_path),
-            "--ql",
-            str(tmp_queries),
-            "-r",
-            str(fasta_dir / hash_to_filename[subject_hash]),
-            # Send to file or just capture stdout?
-            "-o",
-            str(tmp_output),
-            "--fragLen",
-            str(fragsize),
-            "-k",
-            str(kmersize),
-            "--minFraction",
-            str(minmatch),
-        ],
-    )
-    logger.debug("Called fastANI, about to parse output.")
-    db_entries = [
-        {
-            "query_hash": query_hash,
-            "subject_hash": subject_hash,
-            "identity": identity,
-            # Proxy values:
-            "aln_length": None
-            if orthologous_matches is None
-            else round(run.configuration.fragsize * orthologous_matches),
-            "sim_errors": None
-            if fragments is None or orthologous_matches is None
-            else fragments - orthologous_matches,
-            "cov_query": None
-            if fragments is None or orthologous_matches is None
-            else orthologous_matches / fragments,
-            "configuration_id": config_id,
-            "uname_system": uname_system,
-            "uname_release": uname_release,
-            "uname_machine": uname_machine,
-        }
-        for (
-            query_hash,
-            subject_hash,
-            identity,
-            orthologous_matches,
-            fragments,
-        ) in fastani.parse_fastani_file(
-            tmp_output,
-            filename_to_hash,
-            # This is used to infer failed alignments:
-            expected_pairs={(_, subject_hash) for _ in query_hashes},
+    try:
+        check_output(
+            logger,
+            [
+                str(tool.exe_path),
+                "--ql",
+                str(tmp_queries),
+                "-r",
+                str(fasta_dir / hash_to_filename[subject_hash]),
+                # Send to file or just capture stdout?
+                "-o",
+                str(tmp_output),
+                "--fragLen",
+                str(fragsize),
+                "-k",
+                str(kmersize),
+                "--minFraction",
+                str(minmatch),
+            ],
         )
-    ]
+    except KeyboardInterrupt:  # pragma: no cover
+        # Sadly it appears fastANI does not write out partial progress
+        # when doing many queries vs one subject - so there is not a
+        # partial CSV file we can try parsing to record what was done.
+        msg = "Interrupted, fastANI did not finish."
+        logger.error(msg)  # noqa: TRY400
+        run.status = "Worker interrupted"
+        session.commit()
+        return 1
+
+    db_entries = []
+    try:
+        logger.debug("Called fastANI, about to parse output.")
+        db_entries = [
+            {
+                "query_hash": query_hash,
+                "subject_hash": subject_hash,
+                "identity": identity,
+                # Proxy values:
+                "aln_length": None
+                if orthologous_matches is None
+                else round(run.configuration.fragsize * orthologous_matches),
+                "sim_errors": None
+                if fragments is None or orthologous_matches is None
+                else fragments - orthologous_matches,
+                "cov_query": None
+                if fragments is None or orthologous_matches is None
+                else orthologous_matches / fragments,
+                "configuration_id": config_id,
+                "uname_system": uname_system,
+                "uname_release": uname_release,
+                "uname_machine": uname_machine,
+            }
+            for (
+                query_hash,
+                subject_hash,
+                identity,
+                orthologous_matches,
+                fragments,
+            ) in fastani.parse_fastani_file(
+                tmp_output,
+                filename_to_hash,
+                # This is used to infer failed alignments:
+                expected_pairs={(_, subject_hash) for _ in query_hashes},
+            )
+        ]
+    except KeyboardInterrupt:  # pragma: no cover
+        # Try to abort gracefully without wasting the work done.
+        msg = (
+            f"Interrupted, will attempt to log {len(db_entries)} completed comparisons"
+        )
+        logger.error(msg)  # noqa: TRY400
+        run.status = "Worker interrupted"
+
     return (
         0
         if db_orm.insert_comparisons_with_retries(logger, session, db_entries)

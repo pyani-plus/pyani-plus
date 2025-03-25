@@ -729,7 +729,14 @@ def compute_fastani(  # noqa: PLR0913
     *,
     cache: Path | None = None,  # noqa: ARG001
 ) -> int:
-    """Run fastANI many-vs-subject and log column of comparisons to database."""
+    """Run fastANI many-vs-subject and log column of comparisons to database.
+
+    Unfortunately fastANI does not produce any output to file until it finishes
+    all the given comparisons. This is problematic in terms of no user feedback,
+    but also means if the job is interrupted there is nothing we can salvage.
+    It also meant we tried to write all the comparisons in one batch at the end
+    which means an all-or-nothing success/failure mode. Therefore run in batches.
+    """
     uname = platform.uname()
     uname_system = uname.system
     uname_release = uname.release
@@ -755,78 +762,82 @@ def compute_fastani(  # noqa: PLR0913
     from pyani_plus.methods import fastani  # lazy import
     from pyani_plus.utils import check_output
 
-    tmp_output = tmp_dir / f"queries_vs_{subject_hash}.csv"
-    tmp_queries = tmp_dir / f"queries_vs_{subject_hash}.txt"
-    with tmp_queries.open("w") as handle:
-        for query_hash in query_hashes:
-            handle.write(f"{fasta_dir / hash_to_filename[query_hash]}\n")
-
+    # Given query_hashes as a dict (hash to query length), but only need hashes here:
+    pending = sorted(query_hashes)
+    del query_hashes
+    db_entries: list[dict[str, str | float | None]] = []
+    batch_size = 500
     try:
-        check_output(
-            logger,
-            [
-                str(tool.exe_path),
-                "--ql",
-                str(tmp_queries),
-                "-r",
-                str(fasta_dir / hash_to_filename[subject_hash]),
-                # Send to file or just capture stdout?
-                "-o",
-                str(tmp_output),
-                "--fragLen",
-                str(fragsize),
-                "-k",
-                str(kmersize),
-                "--minFraction",
-                str(minmatch),
-            ],
-        )
-    except KeyboardInterrupt:  # pragma: no cover
-        # Sadly it appears fastANI does not write out partial progress
-        # when doing many queries vs one subject - so there is not a
-        # partial CSV file we can try parsing to record what was done.
-        msg = "Interrupted, fastANI did not finish."
-        logger.error(msg)  # noqa: TRY400
-        run.status = "Worker interrupted"
-        session.commit()
-        return 1
+        while pending:
+            batch = pending[:batch_size]
+            pending = pending[batch_size:]
 
-    db_entries = []
-    try:
-        logger.debug("Called fastANI, about to parse output.")
-        db_entries = [
-            {
-                "query_hash": query_hash,
-                "subject_hash": subject_hash,
-                "identity": identity,
-                # Proxy values:
-                "aln_length": None
-                if orthologous_matches is None
-                else round(run.configuration.fragsize * orthologous_matches),
-                "sim_errors": None
-                if fragments is None or orthologous_matches is None
-                else fragments - orthologous_matches,
-                "cov_query": None
-                if fragments is None or orthologous_matches is None
-                else orthologous_matches / fragments,
-                "configuration_id": config_id,
-                "uname_system": uname_system,
-                "uname_release": uname_release,
-                "uname_machine": uname_machine,
-            }
-            for (
-                query_hash,
-                subject_hash,
-                identity,
-                orthologous_matches,
-                fragments,
-            ) in fastani.parse_fastani_file(
-                tmp_output,
-                filename_to_hash,
-                # This is used to infer failed alignments:
-                expected_pairs={(_, subject_hash) for _ in query_hashes},
+            # Could use a new filename for each batch?
+            tmp_output = tmp_dir / f"queries_vs_{subject_hash}.csv"
+            tmp_queries = tmp_dir / f"queries_vs_{subject_hash}.txt"
+            with tmp_queries.open("w") as handle:
+                for query_hash in batch:
+                    handle.write(f"{fasta_dir / hash_to_filename[query_hash]}\n")
+
+            check_output(
+                logger,
+                [
+                    str(tool.exe_path),
+                    "--ql",
+                    str(tmp_queries),
+                    "-r",
+                    str(fasta_dir / hash_to_filename[subject_hash]),
+                    # Send to file or just capture stdout?
+                    # No point using stdout as only written after all computed
+                    "-o",
+                    str(tmp_output),
+                    "--fragLen",
+                    str(fragsize),
+                    "-k",
+                    str(kmersize),
+                    "--minFraction",
+                    str(minmatch),
+                ],
             )
-        ]
+            msg = f"Called fastANI on batch of {len(batch)} vs {subject_hash}, about to parse output."
+            logger.debug(msg)
+            db_entries.extend(
+                {
+                    "query_hash": query_hash,
+                    "subject_hash": subject_hash,
+                    "identity": identity,
+                    # Proxy values:
+                    "aln_length": None
+                    if orthologous_matches is None
+                    else round(run.configuration.fragsize * orthologous_matches),
+                    "sim_errors": None
+                    if fragments is None or orthologous_matches is None
+                    else fragments - orthologous_matches,
+                    "cov_query": None
+                    if fragments is None or orthologous_matches is None
+                    else orthologous_matches / fragments,
+                    "configuration_id": config_id,
+                    "uname_system": uname_system,
+                    "uname_release": uname_release,
+                    "uname_machine": uname_machine,
+                }
+                for (
+                    query_hash,
+                    subject_hash,
+                    identity,
+                    orthologous_matches,
+                    fragments,
+                ) in fastani.parse_fastani_file(
+                    tmp_output,
+                    filename_to_hash,
+                    # This is used to infer failed alignments:
+                    expected_pairs={(_, subject_hash) for _ in batch},
+                )
+            )
+            msg = f"Parsed fastANI batch of {len(batch)} vs {subject_hash}; recording {len(db_entries)} in DB."
+            logger.debug(msg)
+            db_entries = db_orm.attempt_insert(session, db_entries, db_orm.Comparison)
+
     except KeyboardInterrupt:  # pragma: no cover
         # Try to abort gracefully without wasting the work done.
         msg = f"Interrupted, will attempt to log {len(db_entries)} completed fastANI comparisons"

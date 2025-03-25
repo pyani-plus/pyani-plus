@@ -220,7 +220,7 @@ def log_configuration(  # noqa: PLR0913
 
     msg = f"Logging configuration to '{database}'"
     logger.info(msg)
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
     config = db_orm.db_configuration(
         session=session,
         method=method,
@@ -259,7 +259,7 @@ def log_genome(
 
     msg = f"Logging genome to '{database}'"
     logger.info(msg)
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
 
     from rich.progress import Progress
 
@@ -313,7 +313,7 @@ def log_run(  # noqa: PLR0913
 
     msg = f"Logging run to '{database}'"
     logger.info(msg)
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
 
     # Reuse existing config, or log a new one
     config = db_orm.db_configuration(
@@ -389,7 +389,7 @@ def log_comparison(  # noqa: PLR0913
 
     msg = f"Logging comparison to '{database}'"
     logger.info(msg)
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
     # Give a better error message that if adding comparison fails:
     if (
         not session.query(db_orm.Configuration)
@@ -481,7 +481,7 @@ def prepare_genomes(
     if database != ":memory:" and not Path(database).is_file():
         msg = f"Database '{database}' does not exist"
         log_sys_exit(logger, msg)
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
     run = db_orm.load_run(session, run_id)
     try:
         return prepare(logger, run, cache)
@@ -603,7 +603,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     # For simplicity, treat SIGTERM as a KeyboardInterrupt too.
     signal.signal(signal.SIGTERM, signal.default_int_handler)
 
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
     run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
     config = run.configuration
     method = config.method

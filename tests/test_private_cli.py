@@ -195,7 +195,8 @@ def test_log_comparison_no_config(tmp_path: str, input_genomes_tiny: Path) -> No
     """Confirm log-comparison fails if config is missing."""
     tmp_db = Path(tmp_path) / "empty.sqlite"
     assert not tmp_db.is_file()
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     session.commit()
     session.close()
 
@@ -265,7 +266,8 @@ def test_log_comparison_duplicate(
         cov_subject=0.98,
     )
 
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     assert session.query(db_orm.Comparison).count() == 1
     comp = session.query(db_orm.Comparison).one()
     # first value should not be replaced:
@@ -345,7 +347,8 @@ def test_log_comparison_serial_and_skip_process_genomes(
     output = caplog.text
     assert "Run identifier 1" in output
 
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     assert session.query(db_orm.Comparison).count() == len(fasta) ** 2
     assert session.query(db_orm.Configuration).count() == 1
 
@@ -448,7 +451,8 @@ def test_log_comparison_parallel(
     output = caplog.text
     assert "Run identifier 1" in output
 
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     assert session.query(db_orm.Comparison).count() == len(fasta) ** 2
 
 

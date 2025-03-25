@@ -121,7 +121,7 @@ def start_and_run_method(  # noqa: PLR0913
     # We should have caught all the obvious failures earlier,
     # including missing inputs or missing external tools.
     # Can now start talking to the DB.
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
 
     # Reuse existing config, or log a new one
     config = db_orm.db_configuration(
@@ -262,7 +262,7 @@ def run_method(  # noqa: PLR0913
             )
 
         # Reconnect to the DB
-        session = db_orm.connect_to_db(database)
+        session = db_orm.connect_to_db(logger, database)
         run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
         done = run.comparisons().count()
 
@@ -583,7 +583,7 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
         msg = f"Database {database} does not exist"
         log_sys_exit(logger, msg)
 
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
     run = db_orm.load_run(session, run_id)
     if run_id is None:
         run_id = run.run_id  # relevant if was None
@@ -690,7 +690,7 @@ def list_runs(
         msg = f"Database {database} does not exist"
         log_sys_exit(logger, msg)
 
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
     runs = session.query(db_orm.Run)
 
     table = Table(
@@ -765,7 +765,7 @@ def delete_run(
 
     confirm = False
 
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
     run = db_orm.load_run(session, run_id, check_complete=False)
     if run_id is None:
         run_id = run.run_id
@@ -852,7 +852,7 @@ def export_run(  # noqa: C901, PLR0913
         logger.warning(msg)
         outdir.mkdir()
 
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
     run = db_orm.load_run(session, run_id, check_empty=True)
     if run_id is None:
         run_id = run.run_id
@@ -964,7 +964,7 @@ def plot_run(  # noqa: PLR0913
         logger.warning(msg)
         outdir.mkdir()
 
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
     run = db_orm.load_run(session, run_id, check_complete=True)
     if run_id is None:
         run_id = run.run_id
@@ -1033,7 +1033,7 @@ def plot_run_comp(  # noqa: PLR0913
         msg = "Need at least two runs for a comparison"
         log_sys_exit(logger, msg)
 
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
     ref_run = db_orm.load_run(session, run_id, check_complete=False)
 
     if not ref_run.comparisons().count():
@@ -1101,7 +1101,7 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
         logger.warning(msg)
         outdir.mkdir()
 
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
     run = db_orm.load_run(session, run_id, check_complete=True)
     if run_id is None:
         run_id = run.run_id

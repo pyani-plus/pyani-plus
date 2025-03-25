@@ -112,9 +112,9 @@ def test_running_dnadiff(
         create_db=True,
     )
 
-    session = db_orm.connect_to_db(tmp_db)
-    run = session.query(db_orm.Run).one()
     logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    run = session.query(db_orm.Run).one()
     assert run.run_id == 1
     hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
     hash_to_length = {_.genome_hash: _.length for _ in run.genomes}

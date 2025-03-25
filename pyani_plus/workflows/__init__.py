@@ -34,7 +34,7 @@ from snakemake.cli import args_to_api, parse_args
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
-from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, log_sys_exit
+from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, log_sys_exit, setup_logger
 from pyani_plus.public_cli_args import ToolExecutor
 
 
@@ -57,7 +57,8 @@ def progress_bar_via_db_comparisons(
     # Ignore any keyboard interrupte - let main thread handle it
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-    session = db_orm.connect_to_db(database)
+    logger = setup_logger(None)  # this is not on the main thead!
+    session = db_orm.connect_to_db(logger, database)
     run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
 
     already_done = run.comparisons().count()

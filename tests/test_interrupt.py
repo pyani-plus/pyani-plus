@@ -35,7 +35,7 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus import db_orm, private_cli, tools
+from pyani_plus import db_orm, private_cli, setup_logger, tools
 from pyani_plus.utils import fasta_bytes_iterator, file_md5sum
 
 GENOMES = 100
@@ -112,7 +112,8 @@ def test_compute_column_sigint_anib(
         rc = process.returncode
     output = capfd.readouterr().err
 
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     done = session.query(db_orm.Comparison).count()
     genomes = session.query(db_orm.Genome).count()
 
@@ -173,7 +174,8 @@ def test_compute_column_sigint_dnadiff(
         rc = process.returncode
     output = capfd.readouterr().err
 
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     done = session.query(db_orm.Comparison).count()
     genomes = session.query(db_orm.Genome).count()
 
@@ -235,7 +237,8 @@ def test_compute_column_sigint_anim(
         rc = process.returncode
     output = capfd.readouterr().err
 
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     done = session.query(db_orm.Comparison).count()
     genomes = session.query(db_orm.Genome).count()
 
@@ -312,7 +315,8 @@ def test_compute_column_sigint_external_alignment(
         rc = process.returncode
     output = capfd.readouterr().err
 
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     done = session.query(db_orm.Comparison).count()
     genomes = session.query(db_orm.Genome).count()
     full = genomes * 2 - 1  # does first column & row at once (symmetric matrix)

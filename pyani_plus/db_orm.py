@@ -632,16 +632,20 @@ class Run(Base):
         )
 
 
-def connect_to_db(dbpath: Path | str, *, echo: bool = False) -> Session:
+def connect_to_db(
+    logger: logging.Logger, dbpath: Path | str, *, echo: bool = False
+) -> Session:
     """Create/connect to existing DB, and return session bound to it.
 
-    >>> session = connect_to_db("/tmp/pyani-plus-example.sqlite", echo=True)
+    >>> from pyani_plus import setup_logger
+    >>> logger = setup_logger(None)
+    >>> session = connect_to_db(logger, "/tmp/pyani-plus-example.sqlite", echo=True)
     20...
 
     Will accept the special SQLite3 value of ":memory:" for an in-memory
     database:
 
-    >>> session = connect_to_db(":memory:")
+    >>> session = connect_to_db(logger, ":memory:")
 
     This includes a single retry after randomised wait time (between 1 and 10s).
     """
@@ -657,6 +661,7 @@ def connect_to_db(dbpath: Path | str, *, echo: bool = False) -> Session:
         Base.metadata.create_all(engine)
         return sessionmaker(bind=engine)()
     except OperationalError:  # pragma: no cover
+        logger.warning("Connecting to DB failed, retrying soon.")
         import random
         import time
 
@@ -686,7 +691,9 @@ def db_configuration(  # noqa: PLR0913
 
     By default if the entry is not there already, you get a NoResultFound exception:
 
-    >>> session = connect_to_db(":memory:")
+    >>> from pyani_plus import setup_logger
+    >>> logger = setup_logger(None)
+    >>> session = connect_to_db(logger, ":memory:")
     >>> conf = db_configuration(
     ...     session,
     ...     method="guessing",
@@ -701,7 +708,7 @@ def db_configuration(  # noqa: PLR0913
 
     If the entry is not there already, and you want to add it, you must use create=True:
 
-    >>> session = connect_to_db(":memory:")
+    >>> session = connect_to_db(logger, ":memory:")
     >>> conf = db_configuration(
     ...     session,
     ...     method="guessing",
@@ -761,7 +768,9 @@ def db_genome(  # noqa: C901
 
     Returns the matching genome object, or the new one added if create=True:
 
-    >>> session = connect_to_db(":memory:")
+    >>> from pyani_plus import setup_logger
+    >>> logger = setup_logger(None)
+    >>> session = connect_to_db(logger, ":memory:")
     >>> from pyani_plus import setup_logger
     >>> logger = setup_logger(None)
     >>> from pyani_plus.utils import file_md5sum
@@ -776,7 +785,7 @@ def db_genome(  # noqa: C901
 
     If the genome is not already there, then by default this raises an exception:
 
-    >>> session = connect_to_db(":memory:")
+    >>> session = connect_to_db(logger, ":memory:")
     >>> genome = db_genome(logger, session, fasta, file_md5sum(fasta))
     Traceback (most recent call last):
     ...
@@ -950,7 +959,9 @@ def db_comparison(  # noqa: PLR0913
     This assumes the configuration and both the query and subject are already in
     the linked tables. If not, addition will fail with an integrity error:
 
-    >>> session = connect_to_db(":memory:")
+    >>> from pyani_plus import setup_logger
+    >>> logger = setup_logger(None)
+    >>> session = connect_to_db(logger, ":memory:")
     >>> comp = db_comparison(session, 1, "abcd", "cdef", 0.99, 12345)
     >>> comp.identity
     0.99

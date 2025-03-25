@@ -92,7 +92,7 @@ def compare_matrix_files(
 
 def test_check_db() -> None:
     """Check check_db error conditions."""
-    logger = setup_logger(Path("-"))
+    logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
         match="Database /does/not/exist does not exist, but not using --create-db",
@@ -144,7 +144,8 @@ def test_delete_empty(tmp_path: str) -> None:
         public_cli.delete_run(database=Path("/does/not/exist"), log=Path("-"))
 
     tmp_db = Path(tmp_path) / "list-runs-empty.sqlite"
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     session.close()
 
     with pytest.raises(SystemExit, match="Database contains no runs."):
@@ -160,7 +161,8 @@ def test_list_runs_empty(capsys: pytest.CaptureFixture[str], tmp_path: str) -> N
         public_cli.list_runs(database=Path("/does/not/exist"))
 
     tmp_db = Path(tmp_path) / "list runs empty.sqlite"
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     session.close()
 
     public_cli.list_runs(database=tmp_db)
@@ -174,7 +176,8 @@ def test_resume_empty(tmp_path: str) -> None:
         public_cli.resume(database=Path("/does/not/exist"))
 
     tmp_db = Path(tmp_path) / "resume-empty.sqlite"
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     session.close()
 
     with pytest.raises(SystemExit, match="Database contains no runs."):
@@ -194,7 +197,8 @@ def test_partial_run(  # noqa: PLR0915
     caplog.set_level(logging.INFO)
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "list runs.sqlite"
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     config = db_orm.db_configuration(
         session, "fastANI", "fastani", "1.2.3", create=True
     )
@@ -202,7 +206,6 @@ def test_partial_run(  # noqa: PLR0915
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
-    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
         db_orm.db_genome(logger, session, filename, md5, create=True)
 
@@ -370,7 +373,8 @@ def test_export_run_failures(tmp_path: str) -> None:
         public_cli.export_run(database=tmp_db, outdir=tmp_dir)
 
     tmp_db = tmp_dir / "export.sqlite"
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     config = db_orm.db_configuration(
         session, "fastANI", "fastani", "1.2.3", create=True
     )
@@ -425,12 +429,12 @@ def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
     )
 
     tmp_db = tmp_dir / "dup-stems.db"
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     config = db_orm.db_configuration(
         session, "fastANI", "fastani", "1.2.3", create=True
     )
     fasta_to_hash = {fasta: file_md5sum(fasta) for fasta in tmp_fasta.glob("*.fa*")}
-    logger = setup_logger(None)
     for fasta, md5 in fasta_to_hash.items():
         db_orm.db_genome(logger, session, fasta, md5, create=True)
     db_orm.add_run(
@@ -482,8 +486,9 @@ def test_plot_run_failures(tmp_path: str) -> None:
     with pytest.raises(SystemExit, match="Database /does/not/exist does not exist"):
         public_cli.plot_run(database=Path("/does/not/exist"), outdir=tmp_dir)
 
+    logger = setup_logger(None)
     tmp_db = tmp_dir / "export.sqlite"
-    session = db_orm.connect_to_db(tmp_db)
+    session = db_orm.connect_to_db(logger, tmp_db)
     with pytest.raises(SystemExit, match="Database contains no runs."):
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir)
 
@@ -531,7 +536,8 @@ def test_plot_run_comp_failures(tmp_path: str, input_genomes_tiny: Path) -> None
         )
 
     tmp_db = tmp_dir / "export.sqlite"
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     with pytest.raises(
         SystemExit,
         match="Database has no run-id 1. Use the list-runs command for more information.",
@@ -553,7 +559,6 @@ def test_plot_run_comp_failures(tmp_path: str, input_genomes_tiny: Path) -> None
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
-    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
         db_orm.db_genome(logger, session, filename, md5, create=True)
     genomes = list(fasta_to_hash.values())
@@ -612,8 +617,9 @@ def test_anim(
     )
     output = caplog.text
     assert "Database already has 0 of 3²=9 ANIm comparisons, 9 needed\n" in output
+    logger = setup_logger(None)
 
-    session = db_orm.connect_to_db(tmp_db)
+    session = db_orm.connect_to_db(logger, tmp_db)
     count = session.query(db_orm.Comparison).count()
     session.close()
 
@@ -628,7 +634,7 @@ def test_anim(
     output = caplog.text
     assert "Database already has all 3²=9 ANIm comparisons\n" in output
 
-    session = db_orm.connect_to_db(tmp_db)
+    session = db_orm.connect_to_db(logger, tmp_db)
     assert count == session.query(db_orm.Comparison).count()
     session.close()
 
@@ -655,15 +661,17 @@ def test_anim_gzip(
         tmp_dir / "ANIm_identity.tsv",
     )
 
-    # Now do it again but with the decompressed files - it should reuse the calculations:
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    # Now do it again but with the decompressed files - should reuse calculations:
+    session = db_orm.connect_to_db(logger, tmp_db)
     count = session.query(db_orm.Comparison).count()
     session.close()
 
     public_cli.cli_anim(
         database=tmp_db, fasta=input_genomes_tiny, name="Test Run", create_db=False
     )
-    session = db_orm.connect_to_db(tmp_db)
+
+    session = db_orm.connect_to_db(logger, tmp_db)
     assert count == session.query(db_orm.Comparison).count()
     session.close()
 
@@ -683,7 +691,8 @@ def test_dnadiff(
     public_cli.cli_dnadiff(database=tmp_db, fasta=evil_example, create_db=True)
     output = caplog.text
     assert "Database already has 0 of 3²=9 dnadiff comparisons, 9 needed\n" in output
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     run = session.query(db_orm.Run).one()
     assert run.name == "3 genomes using dnadiff"
     session.close()
@@ -723,7 +732,8 @@ def test_dnadiff_gzip(
         tmp_dir / "dnadiff_identity.tsv",
         atol=5e-5,
     )
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     run = session.query(db_orm.Run).one()
     assert run.name == "3 genomes using dnadiff"
     session.close()
@@ -978,7 +988,8 @@ def test_resume_partial_fastani(
     caplog.set_level(logging.INFO)
     tmp_db = Path(tmp_path) / "partial resume.sqlite"
     tool = tools.get_fastani()
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     config = db_orm.db_configuration(
         session,
         "fastANI",
@@ -994,7 +1005,6 @@ def test_resume_partial_fastani(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
-    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
         db_orm.db_genome(logger, session, filename, md5, create=True)
 
@@ -1053,7 +1063,8 @@ def test_resume_partial_anib(
     caplog.set_level(logging.INFO)
     tmp_db = Path(tmp_path) / "resume.sqlite"
     tool = tools.get_blastn()
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     config = db_orm.db_configuration(
         session,
         "ANIb",
@@ -1067,7 +1078,6 @@ def test_resume_partial_anib(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
-    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
         db_orm.db_genome(logger, session, filename, md5, create=True)
 
@@ -1124,7 +1134,8 @@ def test_resume_partial_anim(
     caplog.set_level(logging.INFO)
     tmp_db = Path(tmp_path) / "resume.sqlite"
     tool = tools.get_nucmer()
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     config = db_orm.db_configuration(
         session,
         "ANIm",
@@ -1138,7 +1149,6 @@ def test_resume_partial_anim(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
-    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
         db_orm.db_genome(logger, session, filename, md5, create=True)
 
@@ -1196,7 +1206,8 @@ def test_resume_partial_sourmash(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "resume sourmash.sqlite"
     tool = tools.get_sourmash()
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     config = db_orm.db_configuration(
         session,
         "sourmash",
@@ -1211,7 +1222,6 @@ def test_resume_partial_sourmash(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
-    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
         db_orm.db_genome(logger, session, filename, md5, create=True)
 
@@ -1261,7 +1271,8 @@ def test_resume_dir_gone(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check expected failure trying to resume without the input directory."""
     tmp_db = Path(tmp_path) / "resume.sqlite"
     tool = tools.get_fastani()
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     config = db_orm.db_configuration(
         session,
         "fastANI",
@@ -1277,7 +1288,6 @@ def test_resume_dir_gone(tmp_path: str, input_genomes_tiny: Path) -> None:
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
-    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
         db_orm.db_genome(logger, session, filename, md5, create=True)
 
@@ -1302,7 +1312,8 @@ def test_resume_dir_gone(tmp_path: str, input_genomes_tiny: Path) -> None:
 def test_resume_unknown(tmp_path: str, input_genomes_tiny: Path) -> None:
     """Check expected failure trying to resume an unknown method."""
     tmp_db = Path(tmp_path) / "resume.sqlite"
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     config = db_orm.db_configuration(
         session,
         "guessing",
@@ -1318,7 +1329,6 @@ def test_resume_unknown(tmp_path: str, input_genomes_tiny: Path) -> None:
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
-    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
         db_orm.db_genome(logger, session, filename, md5, create=True)
 
@@ -1348,8 +1358,8 @@ def test_resume_complete(
     """Check resume works for all the methods (using completed runs for speed)."""
     caplog.set_level(logging.INFO)
     tmp_db = Path(tmp_path) / "resume.sqlite"
-    session = db_orm.connect_to_db(tmp_db)
     logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
 
     for index, (method, tool) in enumerate(
         [
@@ -1414,7 +1424,8 @@ def test_resume_fasta_gone(
     tmp_indir = tmp_dir / "input"
     tmp_indir.mkdir()
     tmp_db = tmp_dir / "resume.sqlite"
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     tool = tools.get_blastn()
     config = db_orm.db_configuration(
         session,
@@ -1430,7 +1441,6 @@ def test_resume_fasta_gone(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
-    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
         db_orm.db_genome(logger, session, filename, md5, create=True)
 
@@ -1504,7 +1514,8 @@ def test_plot_skip_nulls(
     """Check export-run behaviour when have null values."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "plot_null.sqlite"
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     config = db_orm.db_configuration(
         session,
         "guessing",
@@ -1520,7 +1531,6 @@ def test_plot_skip_nulls(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
-    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
         db_orm.db_genome(logger, session, filename, md5, create=True)
 
@@ -1572,7 +1582,8 @@ def test_plot_bad_nulls(
     """Check export-run behaviour when have null values except on diagonal."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "plot_null.sqlite"
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     config = db_orm.db_configuration(
         session,
         "guessing",
@@ -1588,7 +1599,6 @@ def test_plot_bad_nulls(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.fa*"))
     }
-    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
         db_orm.db_genome(logger, session, filename, md5, create=True)
 
@@ -1654,7 +1664,8 @@ def test_classify_warnings(
 
     # Record only one comparison (self-to-self)
     tmp_db = tmp_dir / "classify_complete.sqlite"
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     config = db_orm.db_configuration(
         session, "fastANI", "fastani", "1.2.3", create=True
     )
@@ -1663,7 +1674,6 @@ def test_classify_warnings(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
-    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
         db_orm.db_genome(logger, session, filename, md5, create=True)
 
@@ -1732,7 +1742,8 @@ def test_classify_normal(
     """Check working example of classify."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "classify_complete.sqlite"
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     config = db_orm.db_configuration(
         session, "fastANI", "fastani", "1.2.3", create=True
     )
@@ -1741,7 +1752,6 @@ def test_classify_normal(
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
-    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
         db_orm.db_genome(logger, session, filename, md5, create=True)
 
@@ -1791,12 +1801,12 @@ def test_plot_run_comp(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "⚔️.db"
 
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     fasta_to_hash = {
         filename: file_md5sum(filename)
         for filename in sorted(input_genomes_tiny.glob("*.f*"))
     }
-    logger = setup_logger(None)
     for filename, md5 in fasta_to_hash.items():
         db_orm.db_genome(logger, session, filename, md5, create=True)
     genomes = list(fasta_to_hash.values())

@@ -51,9 +51,9 @@ def test_prepare_genomes_bad_method(tmp_path: str, input_genomes_tiny: Path) -> 
         version="0.0a1",
         create_db=True,
     )
-    session = db_orm.connect_to_db(tmp_db)
-    run = db_orm.load_run(session, run_id=1)
     logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    run = db_orm.load_run(session, run_id=1)
     with pytest.raises(
         SystemExit,
         match="Expected run to be for sourmash, not method guessing",
@@ -81,9 +81,9 @@ def test_prepare_genomes_bad_kmer(tmp_path: str, input_genomes_tiny: Path) -> No
         extra="scaled=" + str(sourmash.SCALED),
         create_db=True,
     )
-    session = db_orm.connect_to_db(tmp_db)
-    run = db_orm.load_run(session, run_id=1)
     logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    run = db_orm.load_run(session, run_id=1)
     with pytest.raises(
         SystemExit,
         match=f"sourmash requires a k-mer size, default is {sourmash.KMER_SIZE}",
@@ -112,9 +112,9 @@ def test_prepare_genomes_bad_cache(tmp_path: str, input_genomes_tiny: Path) -> N
         extra="scaled=" + str(sourmash.SCALED),
         create_db=True,
     )
-    session = db_orm.connect_to_db(tmp_db)
-    run = db_orm.load_run(session, run_id=1)
     logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    run = db_orm.load_run(session, run_id=1)
     with pytest.raises(
         ValueError,
         match="Cache directory '/does/not/exist' does not exist",
@@ -145,9 +145,9 @@ def test_prepare_genomes_bad_extra(
         kmersize=sourmash.KMER_SIZE,
         create_db=True,
     )
-    session = db_orm.connect_to_db(tmp_db)
-    run = db_orm.load_run(session, run_id=1)
     logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    run = db_orm.load_run(session, run_id=1)
     with pytest.raises(
         SystemExit,
         match=f"sourmash requires extra setting, default is scaled={sourmash.SCALED}",
@@ -220,7 +220,8 @@ def test_compute_bad_args(tmp_path: str) -> None:
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "bad_args.db"
     tool = tools.ExternalToolData(exe_path=Path("sourmash"), version="0.0a1")
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     run = db_orm.Run()  # empty
     logger = setup_logger(None)
     with pytest.raises(SystemExit, match="Not given a cache directory"):

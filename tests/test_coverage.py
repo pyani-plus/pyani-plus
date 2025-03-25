@@ -30,7 +30,7 @@ import tempfile
 from collections.abc import Callable
 from pathlib import Path
 
-from pyani_plus import db_orm, public_cli
+from pyani_plus import db_orm, public_cli, setup_logger
 
 
 def do_comparison(
@@ -47,7 +47,8 @@ def do_comparison(
             create_db=True,
             **kwargs,
         )
-        session = db_orm.connect_to_db(tmp_db.name)
+        logger = setup_logger(None)
+        session = db_orm.connect_to_db(logger, tmp_db.name)
         run = session.query(db_orm.Run).one()
         session.close()
         return run

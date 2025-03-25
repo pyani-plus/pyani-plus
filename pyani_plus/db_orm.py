@@ -1048,7 +1048,9 @@ def insert_comparisons_with_retries(
     msg = f"Attempt 1/3 failed to record {source}"  # pragma: no cover
     logger.warning(msg)  # pragma: no cover
 
-    sleep(10)  # pragma: no cover
+    import random  # pragma: no cover
+
+    sleep(20 + 10 * random.random())  # noqa: S311 # pragma: no cover
 
     try:  # pragma: no cover
         session.execute(sqlite_insert(Comparison).on_conflict_do_nothing(), db_entries)
@@ -1060,7 +1062,7 @@ def insert_comparisons_with_retries(
     msg = f"Attempt 2/3 failed to record {source}"  # pragma: no cover
     logger.warning(msg)  # pragma: no cover
 
-    sleep(30)  # pragma: no cover
+    sleep(30 + 10 * random.random())  # noqa: S311 # pragma: no cover
 
     try:  # pragma: no cover
         session.execute(sqlite_insert(Comparison).on_conflict_do_nothing(), db_entries)

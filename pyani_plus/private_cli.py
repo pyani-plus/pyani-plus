@@ -572,9 +572,24 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     """
     # Do NOT write to the main thread's log (risk of race conditions appending
     # to the same file, locking, etc) - will use a column-specific log soon!
+    try:
+        column = int(subject)
+    except ValueError:
+        # Will have to wait and setup the file-based log later..
+        column = -1
+    if column < 0:
+        log_ready = False
+    else:
+        log_ready = True
+        log = Path(str(log)[: -len(log.suffix)] + f".{column}" + log.suffix)
     logger = setup_logger(
-        None, terminal_level=logging.DEBUG if debug else logging.ERROR, plain=True
+        log if log_ready else None,
+        terminal_level=logging.DEBUG if debug else logging.ERROR,
+        plain=True,
     )
+    msg = f"Starting compute-column for {subject}"
+    logger.debug(msg)
+
     if database != ":memory:" and not Path(database).is_file():
         msg = f"Database '{database}' does not exist"
         log_sys_exit(logger, msg)
@@ -624,11 +639,12 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
             )
             log_sys_exit(logger, msg)
 
-    # Column worker specific log files!
-    log = Path(str(log)[: -len(log.suffix)] + f".{column}" + log.suffix)
-    logger = setup_logger(
-        log, terminal_level=logging.DEBUG if debug else logging.ERROR, plain=True
-    )
+    if not log_ready:
+        # Column worker specific log files!
+        log = Path(str(log)[: -len(log.suffix)] + f".{column}" + log.suffix)
+        logger = setup_logger(
+            log, terminal_level=logging.DEBUG if debug else logging.ERROR, plain=True
+        )
     msg = f"Logging {method} compute-column {column} to {log}"
     logger.info(msg)
 

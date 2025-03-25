@@ -642,17 +642,31 @@ def connect_to_db(dbpath: Path | str, *, echo: bool = False) -> Session:
     database:
 
     >>> session = connect_to_db(":memory:")
+
+    This includes a single retry after randomised wait time (between 1 and 10s).
     """
     # Note with echo=True, the output starts yyyy-mm-dd and sadly
     # using just ... is interpreted as a continuation of the >>>
     # prompt rather than saying any output is fine with ELLIPSIS mode.
 
-    # Default timeout is 5s
-    engine = create_engine(
-        url=f"sqlite:///{dbpath!s}", echo=echo, connect_args={"timeout": 10}
-    )
-    Base.metadata.create_all(engine)
-    return sessionmaker(bind=engine)()
+    try:
+        # Default timeout is 5s
+        engine = create_engine(
+            url=f"sqlite:///{dbpath!s}", echo=echo, connect_args={"timeout": 10}
+        )
+        Base.metadata.create_all(engine)
+        return sessionmaker(bind=engine)()
+    except OperationalError:  # pragma: no cover
+        import random
+        import time
+
+        time.sleep(1 + 9 * random.random())  # noqa: S311
+
+        engine = create_engine(
+            url=f"sqlite:///{dbpath!s}", echo=echo, connect_args={"timeout": 10}
+        )
+        Base.metadata.create_all(engine)
+        return sessionmaker(bind=engine)()
 
 
 def db_configuration(  # noqa: PLR0913

@@ -1035,6 +1035,9 @@ def insert_comparisons_with_retries(
         session.commit()
         return True
 
+    msg = f"Attempting to record {len(db_entries)} comparisons."
+    logger.debug(msg)
+
     try:
         session.execute(sqlite_insert(Comparison).on_conflict_do_nothing(), db_entries)
         session.commit()

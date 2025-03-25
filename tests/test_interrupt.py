@@ -93,7 +93,6 @@ def test_compute_column_sigint_anib(
         [
             ".pyani-plus-private-cli",
             "compute-column",
-            "--quiet",
             "--database",
             str(tmp_db),
             "--run-id",
@@ -157,7 +156,6 @@ def test_compute_column_sigint_dnadiff(
         [
             ".pyani-plus-private-cli",
             "compute-column",
-            "--quiet",
             "--database",
             str(tmp_db),
             "--run-id",
@@ -220,7 +218,6 @@ def test_compute_column_sigint_anim(
         [
             ".pyani-plus-private-cli",
             "compute-column",
-            "--quiet",
             "--database",
             str(tmp_db),
             "--run-id",
@@ -296,7 +293,6 @@ def test_compute_column_sigint_external_alignment(
         [
             ".pyani-plus-private-cli",
             "compute-column",
-            "--quiet",
             "--database",
             str(tmp_db),
             "--run-id",

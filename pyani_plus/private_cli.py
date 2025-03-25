@@ -42,6 +42,7 @@ from pyani_plus import LOG_FILE, db_orm, log_sys_exit, setup_logger, tools
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_CACHE,
     OPT_ARG_TYPE_CREATE_DB,
+    OPT_ARG_TYPE_DEBUG,
     OPT_ARG_TYPE_LOG,
     OPT_ARG_TYPE_TEMP,
     REQ_ARG_TYPE_DATABASE,
@@ -463,7 +464,7 @@ def prepare_genomes(
     ],
     cache: OPT_ARG_TYPE_CACHE = None,
     *,
-    quiet: OPT_ARG_TYPE_QUIET = False,
+    debug: OPT_ARG_TYPE_DEBUG = False,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
 ) -> int:
     """Prepare any intermediate files needed prior to computing ANI values.
@@ -475,7 +476,7 @@ def prepare_genomes(
     # Should this be splittable for running on the cluster? I assume most
     # cases this is IO bound rather than CPU bound so is this helpful?
     logger = setup_logger(
-        log, terminal_level=logging.ERROR if quiet else logging.INFO, plain=True
+        log, terminal_level=logging.DEBUG if debug else logging.ERROR, plain=True
     )
     if database != ":memory:" and not Path(database).is_file():
         msg = f"Database '{database}' does not exist"
@@ -552,7 +553,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     *,
     cache: OPT_ARG_TYPE_CACHE = None,
     temp: OPT_ARG_TYPE_TEMP = Path("-"),
-    quiet: OPT_ARG_TYPE_QUIET = False,
+    debug: OPT_ARG_TYPE_DEBUG = False,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
 ) -> int:
     """Run the method for one column and log pairwise comparisons to the database.
@@ -572,7 +573,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     # Do NOT write to the main thread's log (risk of race conditions appending
     # to the same file, locking, etc) - will use a column-specific log soon!
     logger = setup_logger(
-        None, terminal_level=logging.ERROR if quiet else logging.INFO, plain=True
+        None, terminal_level=logging.DEBUG if debug else logging.ERROR, plain=True
     )
     if database != ":memory:" and not Path(database).is_file():
         msg = f"Database '{database}' does not exist"
@@ -626,7 +627,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     # Column worker specific log files!
     log = Path(str(log)[: -len(log.suffix)] + f".{column}" + log.suffix)
     logger = setup_logger(
-        log, terminal_level=logging.ERROR if quiet else logging.INFO, plain=True
+        log, terminal_level=logging.DEBUG if debug else logging.ERROR, plain=True
     )
     msg = f"Logging {method} compute-column {column} to {log}"
     logger.info(msg)
@@ -779,6 +780,8 @@ def compute_fastani(  # noqa: PLR0913
                 for query_hash in batch:
                     handle.write(f"{fasta_dir / hash_to_filename[query_hash]}\n")
 
+            msg = f"About to call fastANI on batch of {len(batch)} vs {subject_hash}"
+            logger.debug(msg)
             check_output(
                 logger,
                 [

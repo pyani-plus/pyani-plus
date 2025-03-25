@@ -825,6 +825,6 @@ def test_compute_column_fastani(
 
     # Don't need prepare-genomes with fastANI, but should get this message
     caplog.clear()
-    private_cli.prepare_genomes(database=tmp_db, run_id=1, quiet=False)
+    private_cli.prepare_genomes(database=tmp_db, run_id=1)
     output = caplog.text
     assert "No per-genome preparation required for fastANI" in output

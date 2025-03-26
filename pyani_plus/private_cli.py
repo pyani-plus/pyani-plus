@@ -485,9 +485,11 @@ def prepare_genomes(
     run = db_orm.load_run(session, run_id)
     try:
         return prepare(logger, run, cache)
-    except Exception:  # pragma: nocover
-        logger.exception("Unhandled exception.")
-        return 1
+    except Exception as err:  # pragma: nocover
+        logger.exception("Unhandled exception:")
+        msg = f"Unhandled exception preparing genomes: {err}"
+        log_sys_exit(logger, msg)
+        return 1  # for mypy
 
 
 def prepare(logger: logging.Logger, run: db_orm.Run, cache: Path | None) -> int:
@@ -603,116 +605,124 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     # For simplicity, treat SIGTERM as a KeyboardInterrupt too.
     signal.signal(signal.SIGTERM, signal.default_int_handler)
 
-    session = db_orm.connect_to_db(logger, database)
-    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-    config = run.configuration
-    method = config.method
-
-    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
-    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
-    n = len(hash_to_filename)
-
-    if subject in hash_to_filename:
-        subject_hash = subject
-        column = sorted(hash_to_filename).index(subject_hash) + 1
-    elif Path(subject).name in filename_to_hash:
-        subject_hash = filename_to_hash[Path(subject).name]
-        column = sorted(hash_to_filename).index(subject_hash) + 1
-    else:
-        try:
-            column = int(subject)
-        except ValueError:
-            msg = f"Did not recognise {subject!r} as an MD5 hash, filename, or column number in run-id {run_id}"
-            log_sys_exit(logger, msg)
-        if 0 < column <= n:
-            subject_hash = sorted(hash_to_filename)[column - 1]
-        elif column == 0:
-            if method == "sourmash":
-                subject_hash = ""
-            else:
-                msg = "All columns currently only implemented for sourmash"
-                log_sys_exit(logger, msg)
-        else:
-            msg = (
-                f"Single column should be in range 1 to {n},"
-                f" or for some methods {0} meaning all columns, but not {subject}"
-            )
-            log_sys_exit(logger, msg)
-
-    if not log_ready:
-        # Column worker specific log files!
-        log = Path(str(log)[: -len(log.suffix)] + f".{column}" + log.suffix)
-        logger = setup_logger(
-            log, terminal_level=logging.DEBUG if debug else logging.ERROR, plain=True
-        )
-    msg = f"Logging {method} compute-column {column} to {log}"
-    logger.info(msg)
-
-    if column == 0:
-        # Computing all the matrix, but are there might be some rows/cols already done?
-        query_hashes = {
-            _.genome_hash: _.length for _ in run.genomes
-        }  # assume all needed
-    else:
-        # What comparisons are needed? Record the query genome lengths too
-        # (doing this once at the start to avoid a small lookup for each query)
-        missing_query_hashes = set(hash_to_filename).difference(
-            comp.query_hash
-            for comp in run.comparisons().where(
-                db_orm.Comparison.subject_hash == subject_hash
-            )
-        )
-        query_hashes = {
-            _.genome_hash: _.length
-            for _ in run.genomes
-            if _.genome_hash in missing_query_hashes
-        }
-        del missing_query_hashes
-
-    if not query_hashes:
-        msg = f"No {method} comparisons needed against {subject_hash}"
-        logger.info(msg)
-        return 0
-
-    # Will probably want to move each of these functions to the relevant method module...
     try:
-        compute = {
-            "fastANI": compute_fastani,
-            "ANIb": compute_anib,
-            "ANIm": compute_anim,
-            "dnadiff": compute_dnadiff,
-            "sourmash": compute_sourmash,
-            "external-alignment": compute_external_alignment,
-        }[method]
-    except KeyError:
-        msg = f"Unknown method {method} for run-id {run_id} in {database}"
-        log_sys_exit(logger, msg)
+        session = db_orm.connect_to_db(logger, database)
+        run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+        config = run.configuration
+        method = config.method
 
-    # On a cluster we are likely in a temp working directory, meaning
-    # if it is a relative path, run.fasta_directory is useless without
-    # evaluating it relative to the DB filename.
-    fasta_dir = Path(run.fasta_directory)
-    if not fasta_dir.is_absolute():
-        fasta_dir = (database.parent / fasta_dir).absolute()
-    msg = f"FASTA folder {fasta_dir}"
-    logger.debug(msg)
+        filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
+        hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+        n = len(hash_to_filename)
 
-    # Either use the specified temp-directory (and do not clean up),
-    # or use a system temp-directory (and do clean up)
-    if temp == Path("-"):  # dummy value accepted at command line
-        temp = None
-    if temp:
-        temp = temp / f"c{column}"  # avoid worries about name clashes
-        temp.mkdir(exist_ok=True)
-        msg = f"Using temp folder {temp}"
+        if subject in hash_to_filename:
+            subject_hash = subject
+            column = sorted(hash_to_filename).index(subject_hash) + 1
+        elif Path(subject).name in filename_to_hash:
+            subject_hash = filename_to_hash[Path(subject).name]
+            column = sorted(hash_to_filename).index(subject_hash) + 1
+        else:
+            try:
+                column = int(subject)
+            except ValueError:
+                msg = f"Did not recognise {subject!r} as an MD5 hash, filename, or column number in run-id {run_id}"
+                log_sys_exit(logger, msg)
+            if 0 < column <= n:
+                subject_hash = sorted(hash_to_filename)[column - 1]
+            elif column == 0:
+                if method == "sourmash":
+                    subject_hash = ""
+                else:
+                    msg = "All columns currently only implemented for sourmash"
+                    log_sys_exit(logger, msg)
+            else:
+                msg = (
+                    f"Single column should be in range 1 to {n},"
+                    f" or for some methods {0} meaning all columns, but not {subject}"
+                )
+                log_sys_exit(logger, msg)
+
+        if not log_ready:
+            # Column worker specific log files!
+            log = Path(str(log)[: -len(log.suffix)] + f".{column}" + log.suffix)
+            logger = setup_logger(
+                log,
+                terminal_level=logging.DEBUG if debug else logging.ERROR,
+                plain=True,
+            )
+        msg = f"Logging {method} compute-column {column} to {log}"
+        logger.info(msg)
+
+        if column == 0:
+            # Computing all the matrix, but are there might be some rows/cols already done?
+            query_hashes = {
+                _.genome_hash: _.length for _ in run.genomes
+            }  # assume all needed
+        else:
+            # What comparisons are needed? Record the query genome lengths too
+            # (doing this once at the start to avoid a small lookup for each query)
+            missing_query_hashes = set(hash_to_filename).difference(
+                comp.query_hash
+                for comp in run.comparisons().where(
+                    db_orm.Comparison.subject_hash == subject_hash
+                )
+            )
+            query_hashes = {
+                _.genome_hash: _.length
+                for _ in run.genomes
+                if _.genome_hash in missing_query_hashes
+            }
+            del missing_query_hashes
+
+        if not query_hashes:
+            msg = f"No {method} comparisons needed against {subject_hash}"
+            logger.info(msg)
+            return 0
+
+        # Will probably want to move each of these functions to the relevant method module...
+        try:
+            compute = {
+                "fastANI": compute_fastani,
+                "ANIb": compute_anib,
+                "ANIm": compute_anim,
+                "dnadiff": compute_dnadiff,
+                "sourmash": compute_sourmash,
+                "external-alignment": compute_external_alignment,
+            }[method]
+        except KeyError:
+            msg = f"Unknown method {method} for run-id {run_id} in {database}"
+            log_sys_exit(logger, msg)
+
+        # On a cluster we are likely in a temp working directory, meaning
+        # if it is a relative path, run.fasta_directory is useless without
+        # evaluating it relative to the DB filename.
+        fasta_dir = Path(run.fasta_directory)
+        if not fasta_dir.is_absolute():
+            fasta_dir = (database.parent / fasta_dir).absolute()
+        msg = f"FASTA folder {fasta_dir}"
         logger.debug(msg)
 
-    msg = (
-        f"Calling {method} for {len(query_hashes)} queries"
-        if column == 0
-        else f"Calling {method} for {len(query_hashes)} queries vs {subject_hash}."
-    )
-    logger.info(msg)
+        # Either use the specified temp-directory (and do not clean up),
+        # or use a system temp-directory (and do clean up)
+        if temp == Path("-"):  # dummy value accepted at command line
+            temp = None
+        if temp:
+            temp = temp / f"c{column}"  # avoid worries about name clashes
+            temp.mkdir(exist_ok=True)
+            msg = f"Using temp folder {temp}"
+            logger.debug(msg)
+
+        msg = (
+            f"Calling {method} for {len(query_hashes)} queries"
+            if column == 0
+            else f"Calling {method} for {len(query_hashes)} queries vs {subject_hash}."
+        )
+        logger.info(msg)
+    except Exception as err:  # pragma: nocover
+        logger.exception("Unhandled exception:")
+        msg = f"Unhandled exception before compute: {err}"
+        log_sys_exit(logger, msg)
+        return 1  # for mypy
 
     try:
         with nullcontext(temp) if temp else tempfile.TemporaryDirectory() as tmp_dir:
@@ -728,9 +738,11 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
                 subject_hash,
                 cache=cache,
             )
-    except Exception:  # pragma: nocover
-        logger.exception("Unhandled exception.")
-        return 1
+    except Exception as err:  # pragma: nocover
+        logger.exception("Unhandled exception:")
+        msg = f"Unhandled exception during compute: {err}"
+        log_sys_exit(logger, msg)
+        return 1  # for mypy
 
 
 def compute_fastani(  # noqa: PLR0913

@@ -42,6 +42,7 @@ from rich.console import Console
 from rich.progress import Progress
 from rich.table import Table
 from rich.text import Text
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from pyani_plus import (
@@ -200,22 +201,40 @@ def run_method(  # noqa: PLR0913
 ) -> int:
     """Run the snakemake workflow for given method and log run to database."""
     run_id = run.run_id
-    configuration = run.configuration
-    method = configuration.method
+    method = run.configuration.method
     workflow_name = "compute_column.smk"
-    if method == "sourmash":
-        # Do all the columns at once!
-        targets = [f"column_0.{method}"]
-    else:
-        targets = [f"column_{_ + 1}.{method}" for _ in range(len(filename_to_md5))]
-    del configuration
-
     done = run.comparisons().count()
     n = len(filename_to_md5)
     if done == n**2:
         msg = f"Database already has all {n}²={n**2} {method} comparisons"
         logger.info(msg)
     else:
+        if method == "sourmash":
+            # Do all the columns at once!
+            targets = [f"column_0.{method}"]
+        elif not done:
+            # Must do all the columns
+            targets = [f"column_{_ + 1}.{method}" for _ in range(len(filename_to_md5))]
+        else:
+            # Should avoid already completed columns
+            configuration_id = run.configuration.configuration_id
+            hashes = sorted(filename_to_md5.values())
+            targets = [
+                f"column_{i + 1}.{method}"
+                for (i, md5) in enumerate(hashes)
+                if session.execute(
+                    select(func.count())
+                    .select_from(db_orm.Comparison)
+                    .where(db_orm.Comparison.configuration_id == configuration_id)
+                    .where(db_orm.Comparison.subject_hash == md5)
+                    .where(db_orm.Comparison.query_hash.in_(hashes))
+                ).scalar()
+                < n
+            ]
+            del hashes, configuration_id
+            msg = f"Missing values in {len(targets)} columns"
+            logger.debug(msg)
+
         msg = f"Database already has {done} of {n}²={n**2} {method} comparisons, {n**2 - done} needed"
         logger.info(msg)
         run.status = "Running"

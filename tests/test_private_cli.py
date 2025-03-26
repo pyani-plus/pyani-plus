@@ -31,7 +31,6 @@ import sys
 from pathlib import Path
 
 import pytest
-from sqlalchemy.exc import NoResultFound
 
 from pyani_plus import db_orm, private_cli, setup_logger, tools
 
@@ -553,7 +552,7 @@ def test_compute_column_bad_args(
 
     # If this was the public API, should handle it more gracefully:
     with pytest.raises(
-        NoResultFound,
+        SystemExit,
         match="No row was found when one was required",
     ):
         private_cli.compute_column(

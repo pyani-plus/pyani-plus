@@ -135,7 +135,7 @@ def plot_heatmap(  # noqa: PLR0913
 
 
 def plot_distribution(
-    matrix: pd.DataFrame,
+    values: list[float],
     outdir: Path,
     name: str,
     method: str,
@@ -145,8 +145,6 @@ def plot_distribution(
 
     Returns the number of plots (should equal number of formats, or zero).
     """
-    values = matrix.values.flatten()  # noqa: PD011
-
     fill = "#A6C8E0"
     rug = "#2678B2"
     figure, axes = plt.subplots(1, 2, figsize=(15, 5))
@@ -344,21 +342,22 @@ def plot_single_run(
             nulls = int(matrix.isnull().sum().sum())  # noqa: PD003
             n = len(matrix)
             if nulls == n**2:
-                msg = f"WARNING: Cannot plot {name} as all NA\n"
+                msg = f"Cannot plot {name} as all NA"
                 logger.warning(msg)
                 progress.advance(task)  # skipping distribution plots
                 progress.advance(task)  # skipping heatmap
                 continue
-
-            done += plot_distribution(matrix, outdir, name, method, formats)
-            progress.advance(task)
-
             if nulls:
                 msg = (
                     f"{name} matrix contains {nulls} nulls"
                     f" (out of {n}²={n**2} {method} comparisons)"
                 )
                 logger.warning(msg)
+
+            values = matrix.values.flatten()  # noqa: PD011
+            done += plot_distribution(values, outdir, name, method, formats)
+            del values
+            progress.advance(task)
 
             done += plot_heatmap(
                 matrix, outdir, name, method, color_scheme, formats, na_fill

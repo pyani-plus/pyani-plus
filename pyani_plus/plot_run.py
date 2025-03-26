@@ -141,7 +141,7 @@ def plot_distribution(
     method: str,
     formats: tuple[str, ...] = GRAPHICS_FORMATS,
 ) -> int:
-    """Plot score distribution and headmap for give matrix.
+    """Plot score distribution and heatmap for give matrix.
 
     Returns the number of plots (should equal number of formats, or zero).
     """

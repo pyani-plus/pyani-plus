@@ -635,7 +635,7 @@ class Run(Base):
 def connect_to_db(
     logger: logging.Logger, dbpath: Path | str, *, echo: bool = False
 ) -> Session:
-    """Create/connect to existing DB, and return session bound to it.
+    """Create/connect to existing DB, and return session bound to it, with retries.
 
     >>> from pyani_plus import setup_logger
     >>> logger = setup_logger(None)
@@ -647,11 +647,15 @@ def connect_to_db(
 
     >>> session = connect_to_db(logger, ":memory:")
 
-    This includes a single retry after randomised wait time (between 1 and 10s).
+    This will make three attempts to connect with randomised waits times of
+    1 to 20s, and then 20 to 40s.
     """
     # Note with echo=True, the output starts yyyy-mm-dd and sadly
     # using just ... is interpreted as a continuation of the >>>
     # prompt rather than saying any output is fine with ELLIPSIS mode.
+
+    msg = f"Attempting to connect to {dbpath} now."
+    logger.debug(msg)
 
     try:
         # Default timeout is 5s
@@ -661,17 +665,41 @@ def connect_to_db(
         Base.metadata.create_all(engine)
         return sessionmaker(bind=engine)()
     except OperationalError:  # pragma: no cover
-        logger.warning("Connecting to DB failed, retrying soon.")
-        import random
-        import time
+        pass
 
-        time.sleep(1 + 9 * random.random())  # noqa: S311
+    msg = f"Attempt 1/3 failed to connect to {dbpath}"  # pragma: no cover
+    logger.warning(msg)  # pragma: no cover
 
+    import random  # pragma: no cover
+
+    sleep(1 + 19 * random.random())  # noqa: S311 # pragma: no cover
+
+    try:  # pragma: no cover
         engine = create_engine(
             url=f"sqlite:///{dbpath!s}", echo=echo, connect_args={"timeout": 10}
         )
         Base.metadata.create_all(engine)
         return sessionmaker(bind=engine)()
+    except OperationalError:  # pragma: no cover
+        pass
+
+    msg = f"Attempt 2/3 failed to connect to {dbpath}"  # pragma: no cover
+    logger.warning(msg)  # pragma: no cover
+
+    sleep(20 + 20 * random.random())  # noqa: S311 # pragma: no cover
+
+    try:  # pragma: no cover
+        engine = create_engine(
+            url=f"sqlite:///{dbpath!s}", echo=echo, connect_args={"timeout": 10}
+        )
+        Base.metadata.create_all(engine)
+        return sessionmaker(bind=engine)()
+    except OperationalError:  # pragma: no cover
+        pass
+
+    msg = f"Attempt 3/3 failed to connect to {dbpath}"  # pragma: no cover
+    log_sys_exit(logger, msg)  # pragma: no cover
+    raise NotImplementedError  # for mypy # pragma: no cover
 
 
 def db_configuration(  # noqa: PLR0913
@@ -1097,6 +1125,6 @@ def insert_comparisons_with_retries(
     else:  # pragma: no cover
         return True
     msg = f"Attempt 3/3 failed to record {source}"  # pragma: no cover
-    logger.error(msg)  # pragma: no cover
+    logger.critical(msg)  # pragma: no cover
 
     return False  # pragma: no cover

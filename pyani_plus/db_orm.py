@@ -1097,6 +1097,7 @@ def insert_comparisons_with_retries(
     except (OperationalError, InvalidRequestError):  # pragma: no cover
         pass
     else:
+        logger.debug("Done")
         return True
     msg = f"Attempt 1/3 failed to record {source}"  # pragma: no cover
     logger.warning(msg)  # pragma: no cover
@@ -1111,6 +1112,7 @@ def insert_comparisons_with_retries(
     except (OperationalError, InvalidRequestError):  # pragma: no cover
         pass
     else:  # pragma: no cover
+        logger.debug("Done")
         return True
     msg = f"Attempt 2/3 failed to record {source}"  # pragma: no cover
     logger.warning(msg)  # pragma: no cover
@@ -1123,6 +1125,7 @@ def insert_comparisons_with_retries(
     except (OperationalError, InvalidRequestError):  # pragma: no cover
         pass
     else:  # pragma: no cover
+        logger.debug("Done")
         return True
     msg = f"Attempt 3/3 failed to record {source}"  # pragma: no cover
     logger.critical(msg)  # pragma: no cover

@@ -31,6 +31,7 @@ from pathlib import Path
 
 import pytest
 
+from pyani_plus import setup_logger
 from pyani_plus.workflows import (
     ShowProgress,
     ToolExecutor,
@@ -41,8 +42,10 @@ from pyani_plus.workflows import (
 def test_progress_bar_error() -> None:
     """Verify expected error message without database or run-in."""
     msg = "Both database and run_id are required with display as progress bar"
-    with pytest.raises(ValueError, match=re.escape(msg)):
+    logger = setup_logger(None)
+    with pytest.raises(SystemExit, match=re.escape(msg)):
         run_snakemake_with_progress_bar(
+            logger,
             ToolExecutor.slurm,
             "some_workflow.smk",
             [Path("/mnt/shared/answer.tsv")],

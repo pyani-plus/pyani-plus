@@ -324,7 +324,7 @@ def plot_single_run(
 
             if matrix is None:  # pragma: no cover
                 # This is mainly for mypy to assert the matrix is not None
-                msg = f"ERROR: Could not load run {method} {name} matrix"
+                msg = f"Could not load run {method} {name} matrix"
                 log_sys_exit(logger, msg)
                 return 0  # won't be called but mypy doesn't understand (yet)
 
@@ -336,7 +336,7 @@ def plot_single_run(
                 try:
                     matrix = run.relabelled_matrix(matrix, label)
                 except ValueError as err:
-                    msg = f"ERROR: {err}"
+                    msg = str(err)
                     log_sys_exit(logger, msg)
 
             nulls = int(matrix.isnull().sum().sum())  # noqa: PD003
@@ -490,7 +490,7 @@ def plot_run_comparison(  # noqa: C901, PLR0912, PLR0913, PLR0915
                     if (_.query_hash, _.subject_hash) in reference_values_by_hash
                 }
                 if not other_values_by_hash:
-                    msg = f"ERROR: Runs {run.run_id} and {other_run_id} have no comparisons in common"
+                    msg = f"Runs {run.run_id} and {other_run_id} have no comparisons in common"
                     log_sys_exit(logger, msg)
                 if mode == "scatter":
                     # Don't repeat this for the diff plot

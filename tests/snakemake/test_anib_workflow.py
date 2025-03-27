@@ -32,6 +32,7 @@ from pathlib import Path
 # Required to support pytest automated testing
 import pytest
 
+from pyani_plus import setup_logger
 from pyani_plus.private_cli import log_run
 from pyani_plus.tools import get_blastn, get_makeblastdb
 from pyani_plus.workflows import (
@@ -109,7 +110,9 @@ def test_rule_anib(
     assert db.is_file()
 
     # Run snakemake wrapper
+    logger = setup_logger(None)
     run_snakemake_with_progress_bar(
+        logger,
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
         targets=[anib_targets_outdir / f"column_{_ + 1}.anib" for _ in range(3)],

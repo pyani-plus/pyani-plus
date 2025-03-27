@@ -36,7 +36,7 @@ rule compute_column:
         "{outdir}/column_{column}.{method}",
     shell:
         """
-        .pyani-plus-private-cli compute-column --quiet \
+        .pyani-plus-private-cli compute-column \
             --database "{params.db}" --run-id {params.run_id} \
             --subject "{wildcards.column}" --cache "{params.cache}" \
             --temp "{params.temp}" --log "{params.log}" && touch "{output}"

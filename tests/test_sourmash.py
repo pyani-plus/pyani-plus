@@ -51,14 +51,16 @@ def test_prepare_genomes_bad_method(tmp_path: str, input_genomes_tiny: Path) -> 
         version="0.0a1",
         create_db=True,
     )
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     run = db_orm.load_run(session, run_id=1)
-
     with pytest.raises(
         SystemExit,
         match="Expected run to be for sourmash, not method guessing",
     ):
-        next(sourmash.prepare_genomes(run, tmp_dir))  # should error before checks cache
+        next(
+            sourmash.prepare_genomes(logger, run, tmp_dir)
+        )  # should error before checks cache
     session.close()
 
 
@@ -79,15 +81,15 @@ def test_prepare_genomes_bad_kmer(tmp_path: str, input_genomes_tiny: Path) -> No
         extra="scaled=" + str(sourmash.SCALED),
         create_db=True,
     )
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     run = db_orm.load_run(session, run_id=1)
-
     with pytest.raises(
         SystemExit,
         match=f"sourmash requires a k-mer size, default is {sourmash.KMER_SIZE}",
     ):
         next(
-            sourmash.prepare_genomes(run, cache=tmp_dir)
+            sourmash.prepare_genomes(logger, run, cache=tmp_dir)
         )  # should error before checks cache
     session.close()
 
@@ -110,15 +112,15 @@ def test_prepare_genomes_bad_cache(tmp_path: str, input_genomes_tiny: Path) -> N
         extra="scaled=" + str(sourmash.SCALED),
         create_db=True,
     )
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     run = db_orm.load_run(session, run_id=1)
-
     with pytest.raises(
         ValueError,
-        match="Cache directory /does/not/exist does not exist",
+        match="Cache directory '/does/not/exist' does not exist",
     ):
         next(
-            sourmash.prepare_genomes(run, cache=Path("/does/not/exist"))
+            sourmash.prepare_genomes(logger, run, cache=Path("/does/not/exist"))
         )  # should error before checks cache
     session.close()
 
@@ -143,15 +145,15 @@ def test_prepare_genomes_bad_extra(
         kmersize=sourmash.KMER_SIZE,
         create_db=True,
     )
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     run = db_orm.load_run(session, run_id=1)
-
     with pytest.raises(
         SystemExit,
         match=f"sourmash requires extra setting, default is scaled={sourmash.SCALED}",
     ):
         next(
-            sourmash.prepare_genomes(run, cache=tmp_dir)
+            sourmash.prepare_genomes(logger, run, cache=tmp_dir)
         )  # should error before checks cache
     session.close()
 
@@ -173,7 +175,8 @@ def test_parser_with_bad_branchwater(tmp_path: str) -> None:
         ("BBBBBB", "AAAAAA"),
         ("BBBBBB", "BBBBBB"),
     }
-    parser = sourmash.parse_sourmash_manysearch_csv(mock_csv, expected)
+    logger = setup_logger(None)
+    parser = sourmash.parse_sourmash_manysearch_csv(logger, mock_csv, expected)
     assert next(parser) == ("AAAAAA", "AAAAAA", 1.0, 1.0)
     assert next(parser) == ("AAAAAA", "BBBBBB", 0.85, 0.9)
     with pytest.raises(
@@ -183,10 +186,12 @@ def test_parser_with_bad_branchwater(tmp_path: str) -> None:
         next(parser)
 
     # Now tell it just expect one entry...
-    parser = sourmash.parse_sourmash_manysearch_csv(mock_csv, {("AAAAAA", "AAAAAA")})
+    parser = sourmash.parse_sourmash_manysearch_csv(
+        logger, mock_csv, {("AAAAAA", "AAAAAA")}
+    )
     assert next(parser) == ("AAAAAA", "AAAAAA", 1.0, 1.0)
     with pytest.raises(
-        ValueError, match="Did not expect AAAAAA vs BBBBBB in faked.csv"
+        SystemExit, match="Did not expect AAAAAA vs BBBBBB in faked.csv"
     ):
         next(parser)
 
@@ -200,7 +205,8 @@ def test_parser_with_bad_header(tmp_path: str) -> None:
         handle.write(
             "max_containment_ani,query_name,match_name,subject_containment_ani\n"
         )
-    parser = sourmash.parse_sourmash_manysearch_csv(mock_csv, set())
+    logger = setup_logger(None)
+    parser = sourmash.parse_sourmash_manysearch_csv(logger, mock_csv, set())
     with pytest.raises(
         SystemExit,
         match="Missing expected fields in sourmash manysearch header, found: "
@@ -214,7 +220,8 @@ def test_compute_bad_args(tmp_path: str) -> None:
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "bad_args.db"
     tool = tools.ExternalToolData(exe_path=Path("sourmash"), version="0.0a1")
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     run = db_orm.Run()  # empty
     logger = setup_logger(None)
     with pytest.raises(SystemExit, match="Not given a cache directory"):
@@ -223,7 +230,7 @@ def test_compute_bad_args(tmp_path: str) -> None:
         )
     with pytest.raises(
         SystemExit,
-        match="Cache directory /does/not/exist does not exist - check cache setting.",
+        match="Cache directory '/does/not/exist' does not exist - check cache setting.",
     ):
         private_cli.compute_sourmash(
             logger,
@@ -251,7 +258,7 @@ def test_compute_bad_args(tmp_path: str) -> None:
         SystemExit,
         match=(
             "Missing sourmash signatures directory"
-            f" {tmp_dir}/sourmash_k=31_scaled=1234 - check cache setting."
+            f" '{tmp_dir}/sourmash_k=31_scaled=1234' - check cache setting."
         ),
     ):
         private_cli.compute_sourmash(
@@ -272,11 +279,13 @@ def test_compute_tile_bad_args(tmp_path: str) -> None:
     """Check compute_sourmash_tile error handling."""
     tmp_dir = Path(tmp_path)
     tool = tools.ExternalToolData(exe_path=Path("sourmash"), version="0.0a1")
+    logger = setup_logger(None)
     with pytest.raises(
-        ValueError, match="Given cache directory /does/not/exist does not exist"
+        ValueError, match="Given cache directory '/does/not/exist' does not exist"
     ):
         next(
             sourmash.compute_sourmash_tile(
+                logger,
                 tool,
                 {
                     "",
@@ -291,6 +300,7 @@ def test_compute_tile_bad_args(tmp_path: str) -> None:
     with pytest.raises(SystemExit, match="Return code 1 from: sourmash sig collect "):
         next(
             sourmash.compute_sourmash_tile(
+                logger,
                 tool,
                 {
                     "ACBDE",
@@ -305,7 +315,7 @@ def test_compute_tile_bad_args(tmp_path: str) -> None:
 
 
 def test_compute_tile_stale_cvs(
-    capsys: pytest.CaptureFixture[str], tmp_path: str, input_genomes_tiny: Path
+    caplog: pytest.LogCaptureFixture, tmp_path: str, input_genomes_tiny: Path
 ) -> None:
     """Check compute_sourmash_tile with stale sig-lists."""
     tmp_dir = Path(tmp_path)
@@ -316,8 +326,10 @@ def test_compute_tile_stale_cvs(
     subject_csv.touch()
 
     tool = tools.get_sourmash()
+    logger = setup_logger(None)
     next(
         sourmash.compute_sourmash_tile(
+            logger,
             tool,
             {"689d3fd6881db36b5e08329cf23cecdd", "5584c7029328dc48d33f95f0a78f7e57"},
             {"689d3fd6881db36b5e08329cf23cecdd", "78975d5144a1cd12e98898d573cf6536"},
@@ -325,10 +337,10 @@ def test_compute_tile_stale_cvs(
             tmp_dir,
         )
     )
-    output = capsys.readouterr().err
-    assert (
-        f"WARNING: Race condition? Replacing intermediate file {query_csv}" in output
-    ), output
-    assert (
-        f"WARNING: Race condition? Replacing intermediate file {subject_csv}" in output
-    ), output
+    output = caplog.text
+    assert f"Race condition? Replacing intermediate file '{query_csv}'" in output, (
+        output
+    )
+    assert f"Race condition? Replacing intermediate file '{subject_csv}'" in output, (
+        output
+    )

@@ -31,7 +31,6 @@ import sys
 from pathlib import Path
 
 import pytest
-from sqlalchemy.exc import NoResultFound
 
 from pyani_plus import db_orm, private_cli, setup_logger, tools
 
@@ -195,7 +194,8 @@ def test_log_comparison_no_config(tmp_path: str, input_genomes_tiny: Path) -> No
     """Confirm log-comparison fails if config is missing."""
     tmp_db = Path(tmp_path) / "empty.sqlite"
     assert not tmp_db.is_file()
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     session.commit()
     session.close()
 
@@ -265,7 +265,8 @@ def test_log_comparison_duplicate(
         cov_subject=0.98,
     )
 
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     assert session.query(db_orm.Comparison).count() == 1
     comp = session.query(db_orm.Comparison).one()
     # first value should not be replaced:
@@ -345,7 +346,8 @@ def test_log_comparison_serial_and_skip_process_genomes(
     output = caplog.text
     assert "Run identifier 1" in output
 
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     assert session.query(db_orm.Comparison).count() == len(fasta) ** 2
     assert session.query(db_orm.Configuration).count() == 1
 
@@ -448,7 +450,8 @@ def test_log_comparison_parallel(
     output = caplog.text
     assert "Run identifier 1" in output
 
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     assert session.query(db_orm.Comparison).count() == len(fasta) ** 2
 
 
@@ -461,7 +464,7 @@ def test_validate_cache(tmp_path: str, monkeypatch: pytest.MonkeyPatch) -> None:
     logger = setup_logger(Path("-"))
     with pytest.raises(
         SystemExit,
-        match="Specified cache directory /does/not/exist does not exist",
+        match="Specified cache directory '/does/not/exist' does not exist",
     ):
         private_cli.validate_cache(logger, Path("/does/not/exist"))
 
@@ -469,7 +472,7 @@ def test_validate_cache(tmp_path: str, monkeypatch: pytest.MonkeyPatch) -> None:
     assert default == Path(".cache")
     assert not default.is_dir()
     with pytest.raises(
-        SystemExit, match="Default cache directory .cache does not exist."
+        SystemExit, match="Default cache directory '.cache' does not exist."
     ):
         private_cli.validate_cache(logger, None, create_default=False, require=True)
 
@@ -549,7 +552,7 @@ def test_compute_column_bad_args(
 
     # If this was the public API, should handle it more gracefully:
     with pytest.raises(
-        NoResultFound,
+        SystemExit,
         match="No row was found when one was required",
     ):
         private_cli.compute_column(
@@ -825,6 +828,6 @@ def test_compute_column_fastani(
 
     # Don't need prepare-genomes with fastANI, but should get this message
     caplog.clear()
-    private_cli.prepare_genomes(database=tmp_db, run_id=1, quiet=False)
+    private_cli.prepare_genomes(database=tmp_db, run_id=1)
     output = caplog.text
     assert "No per-genome preparation required for fastANI" in output

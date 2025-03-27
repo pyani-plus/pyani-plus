@@ -140,7 +140,8 @@ def test_simple_mock_alignment_stem(
     output = caplog.text
     assert "external-alignment run setup with 3 genomes" in output, output
 
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
 
     run = db_orm.load_run(session, 1, check_complete=True)
@@ -178,9 +179,11 @@ CGGAT
     output = caplog.text
     assert "external-alignment run setup with 3 genomes" in output, output
 
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
     run = db_orm.load_run(session, 1, check_complete=True)
+
     assert run.df_identity == (
         '{"columns":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
         '"index":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
@@ -222,7 +225,8 @@ def test_simple_mock_alignment_filename(
     output = caplog.text
     assert "external-alignment run setup with 3 genomes" in output, output
 
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
     run = db_orm.load_run(session, 1, check_complete=True)
     assert run.df_identity == (
@@ -268,7 +272,8 @@ def test_resume(
         in output
     ), output
 
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
     run = db_orm.load_run(session, 1, check_complete=True)
     assert run.df_identity == MOCK_3_BY_11_DF_IDENTITY
@@ -322,7 +327,8 @@ def test_resume_partial(
         in output
     ), output
 
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
     run = db_orm.load_run(session, 1, check_complete=True)
     assert run.df_identity == MOCK_3_BY_11_DF_IDENTITY
@@ -410,9 +416,10 @@ def test_wrong_method(
         create_db=True,
     )
 
-    session = db_orm.connect_to_db(tmp_db)
-    run = db_orm.load_run(session, 1)
     logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    run = db_orm.load_run(session, 1)
+
     with pytest.raises(
         SystemExit,
         match="Run-id 1 expected guessing results",
@@ -444,9 +451,10 @@ def test_bad_program(
         create_db=True,
     )
 
-    session = db_orm.connect_to_db(tmp_db)
-    run = db_orm.load_run(session, 1)
     logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    run = db_orm.load_run(session, 1)
+
     with pytest.raises(
         SystemExit,
         match="configuration.program='should-be-blank' unexpected",
@@ -478,9 +486,10 @@ def test_bad_version(
         create_db=True,
     )
 
-    session = db_orm.connect_to_db(tmp_db)
-    run = db_orm.load_run(session, 1)
     logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    run = db_orm.load_run(session, 1)
+
     with pytest.raises(
         SystemExit,
         match="configuration.version='should-be-blank' unexpected",
@@ -512,9 +521,10 @@ def test_no_config(
         create_db=True,
     )
 
-    session = db_orm.connect_to_db(tmp_db)
-    run = db_orm.load_run(session, 1)
     logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    run = db_orm.load_run(session, 1)
+
     with pytest.raises(
         SystemExit,
         match="Missing configuration.extra setting",
@@ -545,9 +555,10 @@ def test_bad_config(
         create_db=True,
     )
 
-    session = db_orm.connect_to_db(tmp_db)
-    run = db_orm.load_run(session)
     logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    run = db_orm.load_run(session)
+
     with pytest.raises(
         SystemExit,
         match="configuration.extra='file=example.fasta;md5=XXX;label=stem' unexpected",
@@ -579,9 +590,10 @@ def test_missing_alignment(
         create_db=True,
     )
 
-    session = db_orm.connect_to_db(tmp_db)
-    run = db_orm.load_run(session)
     logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    run = db_orm.load_run(session)
+
     with pytest.raises(
         SystemExit,
         match="Missing alignment file .*/does-not-exist.fasta",
@@ -617,9 +629,10 @@ def test_bad_checksum(
         create_db=True,
     )
 
-    session = db_orm.connect_to_db(tmp_db)
-    run = db_orm.load_run(session)
     logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    run = db_orm.load_run(session)
+
     with pytest.raises(
         SystemExit,
         match="MD5 checksum of .*/example.fasta didn't match.",
@@ -664,9 +677,10 @@ AA
         create_db=True,
     )
 
-    session = db_orm.connect_to_db(tmp_db)
-    run = db_orm.load_run(session)
     logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    run = db_orm.load_run(session)
+
     with pytest.raises(
         SystemExit,
         match=(
@@ -724,10 +738,10 @@ AACT
         create_db=True,
     )
 
-    session = db_orm.connect_to_db(tmp_db)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
     run = db_orm.load_run(session)
-    logger = setup_logger(None)
-    logger = setup_logger(None)
+
     # This one should work...
     private_cli.compute_external_alignment(
         logger,
@@ -745,7 +759,7 @@ AACT
         "5584c7029328dc48d33f95f0a78f7e57",
     )
     with pytest.raises(
-        ValueError,
+        SystemExit,
         match="Did not find subject 689d3fd6881db36b5e08329cf23cecdd in broken.fasta",
     ):
         private_cli.compute_external_alignment(

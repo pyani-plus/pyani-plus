@@ -42,6 +42,7 @@ from pyani_plus import LOG_FILE, db_orm, log_sys_exit, setup_logger, tools
 from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_CACHE,
     OPT_ARG_TYPE_CREATE_DB,
+    OPT_ARG_TYPE_DEBUG,
     OPT_ARG_TYPE_LOG,
     OPT_ARG_TYPE_TEMP,
     REQ_ARG_TYPE_DATABASE,
@@ -214,12 +215,12 @@ def log_configuration(  # noqa: PLR0913
     """
     logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not create_db and not Path(database).is_file():
-        msg = f"Database {database} does not exist, but not using --create-db"
+        msg = f"Database '{database}' does not exist, but not using --create-db"
         sys.exit(msg)
 
-    msg = f"Logging configuration to {database}"
+    msg = f"Logging configuration to '{database}'"
     logger.info(msg)
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
     config = db_orm.db_configuration(
         session=session,
         method=method,
@@ -253,12 +254,12 @@ def log_genome(
     """
     logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not create_db and not Path(database).is_file():
-        msg = f"Database {database} does not exist, but not using --create-db"
+        msg = f"Database '{database}' does not exist, but not using --create-db"
         sys.exit(msg)
 
-    msg = f"Logging genome to {database}"
+    msg = f"Logging genome to '{database}'"
     logger.info(msg)
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
 
     from rich.progress import Progress
 
@@ -271,7 +272,7 @@ def log_genome(
             for filename in progress.track(fasta, description="Processing..."):
                 file_total += 1
                 md5 = file_md5sum(filename)
-                db_orm.db_genome(session, filename, md5, create=True)
+                db_orm.db_genome(logger, session, filename, md5, create=True)
     session.commit()
     session.close()
     msg = f"Processed {file_total} FASTA files"
@@ -307,12 +308,12 @@ def log_run(  # noqa: PLR0913
     """
     logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not create_db and not Path(database).is_file():
-        msg = f"Database {database} does not exist, but not using --create-db"
+        msg = f"Database '{database}' does not exist, but not using --create-db"
         sys.exit(msg)
 
-    msg = f"Logging run to {database}"
+    msg = f"Logging run to '{database}'"
     logger.info(msg)
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
 
     # Reuse existing config, or log a new one
     config = db_orm.db_configuration(
@@ -341,7 +342,7 @@ def log_run(  # noqa: PLR0913
             for filename in progress.track(fasta_names, description="Processing..."):
                 md5 = file_md5sum(filename)
                 fasta_to_hash[filename] = md5
-                db_orm.db_genome(session, filename, md5, create=True)
+                db_orm.db_genome(logger, session, filename, md5, create=True)
 
     run = db_orm.add_run(
         session,
@@ -383,12 +384,12 @@ def log_comparison(  # noqa: PLR0913
     """Log single pairwise comparison to database."""
     logger = setup_logger(None, terminal_level=logging.INFO)
     if database != ":memory:" and not Path(database).is_file():
-        msg = f"Database {database} does not exist"
+        msg = f"Database '{database}' does not exist"
         sys.exit(msg)
 
-    msg = f"Logging comparison to {database}"
+    msg = f"Logging comparison to '{database}'"
     logger.info(msg)
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
     # Give a better error message that if adding comparison fails:
     if (
         not session.query(db_orm.Configuration)
@@ -401,10 +402,10 @@ def log_comparison(  # noqa: PLR0913
     from pyani_plus.utils import file_md5sum
 
     query_md5 = file_md5sum(query_fasta)
-    db_orm.db_genome(session, query_fasta, query_md5)
+    db_orm.db_genome(logger, session, query_fasta, query_md5)
 
     subject_md5 = file_md5sum(subject_fasta)
-    db_orm.db_genome(session, subject_fasta, subject_md5)
+    db_orm.db_genome(logger, session, subject_fasta, subject_md5)
 
     db_orm.db_comparison(
         session,
@@ -443,13 +444,13 @@ def validate_cache(
             if create_default:
                 cache.mkdir(parents=True)
             elif require:
-                msg = f"Default cache directory {cache} does not exist."
+                msg = f"Default cache directory '{cache}' does not exist."
                 log_sys_exit(logger, msg)
-        msg = f"INFO: Defaulting to cache at {cache}"
+        msg = f"INFO: Defaulting to cache at '{cache}'"
         logger.info(msg)
     elif not cache.is_dir():
         # This is an error even if require=False
-        msg = f"Specified cache directory {cache} does not exist"
+        msg = f"Specified cache directory '{cache}' does not exist"
         log_sys_exit(logger, msg)
     return cache
 
@@ -463,7 +464,7 @@ def prepare_genomes(
     ],
     cache: OPT_ARG_TYPE_CACHE = None,
     *,
-    quiet: OPT_ARG_TYPE_QUIET = False,
+    debug: OPT_ARG_TYPE_DEBUG = False,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
 ) -> int:
     """Prepare any intermediate files needed prior to computing ANI values.
@@ -474,20 +475,30 @@ def prepare_genomes(
     """
     # Should this be splittable for running on the cluster? I assume most
     # cases this is IO bound rather than CPU bound so is this helpful?
-    logger = setup_logger(log, terminal_level=logging.ERROR if quiet else logging.INFO)
+    logger = setup_logger(
+        log, terminal_level=logging.DEBUG if debug else logging.ERROR, plain=True
+    )
     if database != ":memory:" and not Path(database).is_file():
-        msg = f"Database {database} does not exist"
+        msg = f"Database '{database}' does not exist"
         log_sys_exit(logger, msg)
-    session = db_orm.connect_to_db(database)
+    session = db_orm.connect_to_db(logger, database)
     run = db_orm.load_run(session, run_id)
+    try:
+        return prepare(logger, run, cache)
+    except Exception as err:  # pragma: nocover
+        logger.exception("Unhandled exception:")
+        msg = f"Unhandled exception preparing genomes: {err}"
+        log_sys_exit(logger, msg)
+        return 1  # for mypy
+
+
+def prepare(logger: logging.Logger, run: db_orm.Run, cache: Path | None) -> int:
+    """Call prepare-genomes with a progress bar."""
     n = run.genomes.count()
     done = run.comparisons().count()
     if done == n**2:
-        if not quiet:
-            msg = (
-                f"Skipping preparation, run already has all {n**2}={n}² pairwise values"
-            )
-            logger.info(msg)
+        msg = f"Skipping preparation, run already has all {n**2}={n}² pairwise values"
+        logger.info(msg)
         return 0
     config = run.configuration
     method = config.method
@@ -503,8 +514,11 @@ def prepare_genomes(
         log_sys_exit(logger, msg)
     if not hasattr(module, "prepare_genomes"):
         msg = f"No per-genome preparation required for {method}"
-        logger.info(msg)
+        logger.info(msg)  # debug level?
         return 0
+
+    msg = f"Preparing {n} genomes under cache '{cache}'"
+    logger.info(msg)
 
     # This could fail and call sys.exit.
     cache = validate_cache(logger, cache, require=True, create_default=True)
@@ -515,7 +529,7 @@ def prepare_genomes(
 
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         for _ in progress.track(
-            module.prepare_genomes(run, cache),
+            module.prepare_genomes(logger, run, cache),
             description="Processing...  ",  # spaces to match "Indexing FASTAs" etc
             total=n,
         ):
@@ -541,7 +555,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     *,
     cache: OPT_ARG_TYPE_CACHE = None,
     temp: OPT_ARG_TYPE_TEMP = Path("-"),
-    quiet: OPT_ARG_TYPE_QUIET = False,
+    debug: OPT_ARG_TYPE_DEBUG = False,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
 ) -> int:
     """Run the method for one column and log pairwise comparisons to the database.
@@ -560,9 +574,26 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     """
     # Do NOT write to the main thread's log (risk of race conditions appending
     # to the same file, locking, etc) - will use a column-specific log soon!
-    logger = setup_logger(None, terminal_level=logging.ERROR if quiet else logging.INFO)
+    try:
+        column = int(subject)
+    except ValueError:
+        # Will have to wait and setup the file-based log later..
+        column = -1
+    if column < 0:
+        log_ready = False
+    else:
+        log_ready = True
+        log = Path(str(log)[: -len(log.suffix)] + f".{column}" + log.suffix)
+    logger = setup_logger(
+        log if log_ready else None,
+        terminal_level=logging.DEBUG if debug else logging.ERROR,
+        plain=True,
+    )
+    msg = f"Starting compute-column for {subject}"
+    logger.debug(msg)
+
     if database != ":memory:" and not Path(database).is_file():
-        msg = f"Database {database} does not exist"
+        msg = f"Database '{database}' does not exist"
         log_sys_exit(logger, msg)
 
     # We want to receive any SIGINT as a KeyboardInterrupt even if we
@@ -574,130 +605,144 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     # For simplicity, treat SIGTERM as a KeyboardInterrupt too.
     signal.signal(signal.SIGTERM, signal.default_int_handler)
 
-    session = db_orm.connect_to_db(database)
-    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-    config = run.configuration
-    method = config.method
-
-    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
-    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
-    n = len(hash_to_filename)
-
-    if subject in hash_to_filename:
-        subject_hash = subject
-        column = sorted(hash_to_filename).index(subject_hash) + 1
-    elif Path(subject).name in filename_to_hash:
-        subject_hash = filename_to_hash[Path(subject).name]
-        column = sorted(hash_to_filename).index(subject_hash) + 1
-    else:
-        try:
-            column = int(subject)
-        except ValueError:
-            msg = f"Did not recognise {subject!r} as an MD5 hash, filename, or column number in run-id {run_id}"
-            log_sys_exit(logger, msg)
-        if 0 < column <= n:
-            subject_hash = sorted(hash_to_filename)[column - 1]
-        elif column == 0:
-            if method == "sourmash":
-                subject_hash = ""
-            else:
-                msg = "All columns currently only implemented for sourmash"
-                log_sys_exit(logger, msg)
-        else:
-            msg = (
-                f"Single column should be in range 1 to {n},"
-                f" or for some methods {0} meaning all columns, but not {subject}"
-            )
-            log_sys_exit(logger, msg)
-
-    # Column worker specific log files!
-    log = Path(str(log)[: -len(log.suffix)] + f".{column}" + log.suffix)
-    logger = setup_logger(
-        log,
-        terminal_level=logging.ERROR if quiet else logging.INFO,
-    )
-    msg = f"Logging {method} compute-column to {log}"
-    logger.info(msg)
-
-    if column == 0:
-        # Computing all the matrix, but are there might be some rows/cols already done?
-        query_hashes = {
-            _.genome_hash: _.length for _ in run.genomes
-        }  # assume all needed
-    else:
-        # What comparisons are needed? Record the query genome lengths too
-        # (doing this once at the start to avoid a small lookup for each query)
-        missing_query_hashes = set(hash_to_filename).difference(
-            comp.query_hash
-            for comp in run.comparisons().where(
-                db_orm.Comparison.subject_hash == subject_hash
-            )
-        )
-        query_hashes = {
-            _.genome_hash: _.length
-            for _ in run.genomes
-            if _.genome_hash in missing_query_hashes
-        }
-        del missing_query_hashes
-
-    if not query_hashes:
-        msg = f"No {method} comparisons needed against {subject_hash}"
-        logger.info(msg)
-        return 0
-
-    # Will probably want to move each of these functions to the relevant method module...
     try:
-        compute = {
-            "fastANI": compute_fastani,
-            "ANIb": compute_anib,
-            "ANIm": compute_anim,
-            "dnadiff": compute_dnadiff,
-            "sourmash": compute_sourmash,
-            "external-alignment": compute_external_alignment,
-        }[method]
-    except KeyError:
-        msg = f"Unknown method {method} for run-id {run_id} in {database}"
-        log_sys_exit(logger, msg)
+        session = db_orm.connect_to_db(logger, database)
+        run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+        config = run.configuration
+        method = config.method
 
-    # On a cluster we are likely in a temp working directory, meaning
-    # if it is a relative path, run.fasta_directory is useless without
-    # evaluating it relative to the DB filename.
-    fasta_dir = Path(run.fasta_directory)
-    if not fasta_dir.is_absolute():
-        fasta_dir = (database.parent / fasta_dir).absolute()
-    msg = f"FASTA folder {fasta_dir}"
-    logger.debug(msg)
+        filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
+        hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+        n = len(hash_to_filename)
 
-    # Either use the specified temp-directory (and do not clean up),
-    # or use a system temp-directory (and do clean up)
-    if temp == Path("-"):  # dummy value accepted at command line
-        temp = None
-    if temp:
-        temp = temp / f"c{column}"  # avoid worries about name clashes
-        temp.mkdir(exist_ok=True)
-        msg = f"Using temp folder {temp}"
+        if subject in hash_to_filename:
+            subject_hash = subject
+            column = sorted(hash_to_filename).index(subject_hash) + 1
+        elif Path(subject).name in filename_to_hash:
+            subject_hash = filename_to_hash[Path(subject).name]
+            column = sorted(hash_to_filename).index(subject_hash) + 1
+        else:
+            try:
+                column = int(subject)
+            except ValueError:
+                msg = f"Did not recognise {subject!r} as an MD5 hash, filename, or column number in run-id {run_id}"
+                log_sys_exit(logger, msg)
+            if 0 < column <= n:
+                subject_hash = sorted(hash_to_filename)[column - 1]
+            elif column == 0:
+                if method == "sourmash":
+                    subject_hash = ""
+                else:
+                    msg = "All columns currently only implemented for sourmash"
+                    log_sys_exit(logger, msg)
+            else:
+                msg = (
+                    f"Single column should be in range 1 to {n},"
+                    f" or for some methods {0} meaning all columns, but not {subject}"
+                )
+                log_sys_exit(logger, msg)
+
+        if not log_ready:
+            # Column worker specific log files!
+            log = Path(str(log)[: -len(log.suffix)] + f".{column}" + log.suffix)
+            logger = setup_logger(
+                log,
+                terminal_level=logging.DEBUG if debug else logging.ERROR,
+                plain=True,
+            )
+        msg = f"Logging {method} compute-column {column} to {log}"
+        logger.info(msg)
+
+        if column == 0:
+            # Computing all the matrix, but are there might be some rows/cols already done?
+            query_hashes = {
+                _.genome_hash: _.length for _ in run.genomes
+            }  # assume all needed
+        else:
+            # What comparisons are needed? Record the query genome lengths too
+            # (doing this once at the start to avoid a small lookup for each query)
+            missing_query_hashes = set(hash_to_filename).difference(
+                comp.query_hash
+                for comp in run.comparisons().where(
+                    db_orm.Comparison.subject_hash == subject_hash
+                )
+            )
+            query_hashes = {
+                _.genome_hash: _.length
+                for _ in run.genomes
+                if _.genome_hash in missing_query_hashes
+            }
+            del missing_query_hashes
+
+        if not query_hashes:
+            msg = f"No {method} comparisons needed against {subject_hash}"
+            logger.info(msg)
+            return 0
+
+        # Will probably want to move each of these functions to the relevant method module...
+        try:
+            compute = {
+                "fastANI": compute_fastani,
+                "ANIb": compute_anib,
+                "ANIm": compute_anim,
+                "dnadiff": compute_dnadiff,
+                "sourmash": compute_sourmash,
+                "external-alignment": compute_external_alignment,
+            }[method]
+        except KeyError:
+            msg = f"Unknown method {method} for run-id {run_id} in {database}"
+            log_sys_exit(logger, msg)
+
+        # On a cluster we are likely in a temp working directory, meaning
+        # if it is a relative path, run.fasta_directory is useless without
+        # evaluating it relative to the DB filename.
+        fasta_dir = Path(run.fasta_directory)
+        if not fasta_dir.is_absolute():
+            fasta_dir = (database.parent / fasta_dir).absolute()
+        msg = f"FASTA folder {fasta_dir}"
         logger.debug(msg)
 
-    msg = (
-        f"Calling {method} for {len(query_hashes)} queries"
-        if column == 0
-        else f"Calling {method} for {len(query_hashes)} queries vs {subject_hash}."
-    )
-    logger.info(msg)
+        # Either use the specified temp-directory (and do not clean up),
+        # or use a system temp-directory (and do clean up)
+        if temp == Path("-"):  # dummy value accepted at command line
+            temp = None
+        if temp:
+            temp = temp / f"c{column}"  # avoid worries about name clashes
+            temp.mkdir(exist_ok=True)
+            msg = f"Using temp folder {temp}"
+            logger.debug(msg)
 
-    with nullcontext(temp) if temp else tempfile.TemporaryDirectory() as tmp_dir:
-        return compute(
-            logger,
-            Path(tmp_dir),
-            session,
-            run,
-            fasta_dir,
-            hash_to_filename,
-            filename_to_hash,
-            query_hashes,
-            subject_hash,
-            cache=cache,
+        msg = (
+            f"Calling {method} for {len(query_hashes)} queries"
+            if column == 0
+            else f"Calling {method} for {len(query_hashes)} queries vs {subject_hash}."
         )
+        logger.info(msg)
+    except Exception as err:  # pragma: nocover
+        logger.exception("Unhandled exception:")
+        msg = f"Unhandled exception before compute: {err}"
+        log_sys_exit(logger, msg)
+        return 1  # for mypy
+
+    try:
+        with nullcontext(temp) if temp else tempfile.TemporaryDirectory() as tmp_dir:
+            return compute(
+                logger,
+                Path(tmp_dir),
+                session,
+                run,
+                fasta_dir,
+                hash_to_filename,
+                filename_to_hash,
+                query_hashes,
+                subject_hash,
+                cache=cache,
+            )
+    except Exception as err:  # pragma: nocover
+        logger.exception("Unhandled exception:")
+        msg = f"Unhandled exception during compute: {err}"
+        log_sys_exit(logger, msg)
+        return 1  # for mypy
 
 
 def compute_fastani(  # noqa: PLR0913
@@ -713,7 +758,14 @@ def compute_fastani(  # noqa: PLR0913
     *,
     cache: Path | None = None,  # noqa: ARG001
 ) -> int:
-    """Run fastANI many-vs-subject and log column of comparisons to database."""
+    """Run fastANI many-vs-subject and log column of comparisons to database.
+
+    Unfortunately fastANI does not produce any output to file until it finishes
+    all the given comparisons. This is problematic in terms of no user feedback,
+    but also means if the job is interrupted there is nothing we can salvage.
+    It also meant we tried to write all the comparisons in one batch at the end
+    which means an all-or-nothing success/failure mode. Therefore run in batches.
+    """
     uname = platform.uname()
     uname_system = uname.system
     uname_release = uname.release
@@ -739,67 +791,93 @@ def compute_fastani(  # noqa: PLR0913
     from pyani_plus.methods import fastani  # lazy import
     from pyani_plus.utils import check_output
 
-    tmp_output = tmp_dir / f"queries_vs_{subject_hash}.csv"
-    tmp_queries = tmp_dir / f"queries_vs_{subject_hash}.txt"
-    with tmp_queries.open("w") as handle:
-        for query_hash in query_hashes:
-            handle.write(f"{fasta_dir / hash_to_filename[query_hash]}\n")
+    # Given query_hashes as a dict (hash to query length), but only need hashes here:
+    pending = sorted(query_hashes)
+    del query_hashes
+    db_entries: list[dict[str, str | float | None]] = []
+    batch_size = 500
+    try:
+        while pending:
+            batch = pending[:batch_size]
+            pending = pending[batch_size:]
 
-    check_output(
-        [
-            str(tool.exe_path),
-            "--ql",
-            str(tmp_queries),
-            "-r",
-            str(fasta_dir / hash_to_filename[subject_hash]),
-            # Send to file or just capture stdout?
-            "-o",
-            str(tmp_output),
-            "--fragLen",
-            str(fragsize),
-            "-k",
-            str(kmersize),
-            "--minFraction",
-            str(minmatch),
-        ],
-    )
-    logger.debug("Called fastANI, about to parse output.")
-    db_entries = [
-        {
-            "query_hash": query_hash,
-            "subject_hash": subject_hash,
-            "identity": identity,
-            # Proxy values:
-            "aln_length": None
-            if orthologous_matches is None
-            else round(run.configuration.fragsize * orthologous_matches),
-            "sim_errors": None
-            if fragments is None or orthologous_matches is None
-            else fragments - orthologous_matches,
-            "cov_query": None
-            if fragments is None or orthologous_matches is None
-            else orthologous_matches / fragments,
-            "configuration_id": config_id,
-            "uname_system": uname_system,
-            "uname_release": uname_release,
-            "uname_machine": uname_machine,
-        }
-        for (
-            query_hash,
-            subject_hash,
-            identity,
-            orthologous_matches,
-            fragments,
-        ) in fastani.parse_fastani_file(
-            tmp_output,
-            filename_to_hash,
-            # This is used to infer failed alignments:
-            expected_pairs={(_, subject_hash) for _ in query_hashes},
-        )
-    ]
+            # Could use a new filename for each batch?
+            tmp_output = tmp_dir / f"queries_vs_{subject_hash}.csv"
+            tmp_queries = tmp_dir / f"queries_vs_{subject_hash}.txt"
+            with tmp_queries.open("w") as handle:
+                for query_hash in batch:
+                    handle.write(f"{fasta_dir / hash_to_filename[query_hash]}\n")
+
+            msg = f"About to call fastANI on batch of {len(batch)} vs {subject_hash}"
+            logger.debug(msg)
+            check_output(
+                logger,
+                [
+                    str(tool.exe_path),
+                    "--ql",
+                    str(tmp_queries),
+                    "-r",
+                    str(fasta_dir / hash_to_filename[subject_hash]),
+                    # Send to file or just capture stdout?
+                    # No point using stdout as only written after all computed
+                    "-o",
+                    str(tmp_output),
+                    "--fragLen",
+                    str(fragsize),
+                    "-k",
+                    str(kmersize),
+                    "--minFraction",
+                    str(minmatch),
+                ],
+            )
+            msg = f"Called fastANI on batch of {len(batch)} vs {subject_hash}, about to parse output."
+            logger.debug(msg)
+            db_entries.extend(
+                {
+                    "query_hash": query_hash,
+                    "subject_hash": subject_hash,
+                    "identity": identity,
+                    # Proxy values:
+                    "aln_length": None
+                    if orthologous_matches is None
+                    else round(run.configuration.fragsize * orthologous_matches),
+                    "sim_errors": None
+                    if fragments is None or orthologous_matches is None
+                    else fragments - orthologous_matches,
+                    "cov_query": None
+                    if fragments is None or orthologous_matches is None
+                    else orthologous_matches / fragments,
+                    "configuration_id": config_id,
+                    "uname_system": uname_system,
+                    "uname_release": uname_release,
+                    "uname_machine": uname_machine,
+                }
+                for (
+                    query_hash,
+                    subject_hash,
+                    identity,
+                    orthologous_matches,
+                    fragments,
+                ) in fastani.parse_fastani_file(
+                    tmp_output,
+                    filename_to_hash,
+                    # This is used to infer failed alignments:
+                    expected_pairs={(_, subject_hash) for _ in batch},
+                )
+            )
+            msg = f"Parsed fastANI batch of {len(batch)} vs {subject_hash}; recording {len(db_entries)} in DB."
+            logger.debug(msg)
+            db_entries = db_orm.attempt_insert(session, db_entries, db_orm.Comparison)
+
+    except KeyboardInterrupt:  # pragma: no cover
+        # Try to abort gracefully without wasting the work done.
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed fastANI comparisons"
+        logger.error(msg)  # noqa: TRY400
+        run.status = "Worker interrupted"
+
     return (
         0
-        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
         else RECORDING_FAILED
     )
 
@@ -874,6 +952,7 @@ def compute_anim(  # noqa: PLR0913, PLR0915
 
             # Here mode will be "mum" (default) or "maxmatch", meaning nucmer --mum etc.
             check_output(
+                logger,
                 [
                     str(nucmer.exe_path),
                     "-p",
@@ -896,6 +975,7 @@ def compute_anim(  # noqa: PLR0913, PLR0915
             # The constant -1 option is used for 1-to-1 alignments in the delta-filter,
             # with no other options available for the end user.
             output = check_output(
+                logger,
                 [
                     str(delta_filter.exe_path),
                     "-1",
@@ -943,8 +1023,8 @@ def compute_anim(  # noqa: PLR0913, PLR0915
 
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
-        sys.stderr.write(msg)
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed ANIm comparisons"
+        logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
 
     if hash_to_filename[subject_hash].endswith(".gz"):
@@ -952,7 +1032,7 @@ def compute_anim(  # noqa: PLR0913, PLR0915
 
     return (
         0
-        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
         else RECORDING_FAILED
     )
 
@@ -1006,6 +1086,7 @@ def compute_anib(  # noqa: PLR0913
     msg = f"Calling makeblastdb for {hash_to_filename[subject_hash]}"
     logger.info(msg)
     check_output(
+        logger,
         [
             str(tools.get_makeblastdb().exe_path),
             "-in",
@@ -1047,6 +1128,7 @@ def compute_anib(  # noqa: PLR0913
             )
             logger.info(msg)
             check_output(
+                logger,
                 [
                     str(tool.exe_path),
                     "-query",
@@ -1101,13 +1183,13 @@ def compute_anib(  # noqa: PLR0913
 
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
-        sys.stderr.write(msg)
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed ANIb comparisons"
+        logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
 
     return (
         0
-        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
         else RECORDING_FAILED
     )
 
@@ -1174,6 +1256,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
             logger.info(msg)
             # This should not be run in the same tmp_dir as ANIm, as the nucmer output will clash
             check_output(
+                logger,
                 [
                     str(nucmer.exe_path),
                     "-p",
@@ -1194,6 +1277,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
             )
             logger.info(msg)
             output = check_output(
+                logger,
                 [
                     str(delta_filter.exe_path),
                     "-m",
@@ -1210,6 +1294,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
             )
             logger.info(msg)
             output = check_output(
+                logger,
                 [
                     str(show_diff.exe_path),
                     "-qH",
@@ -1226,6 +1311,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
             )
             logger.info(msg)
             output = check_output(
+                logger,
                 [
                     str(show_coords.exe_path),
                     "-rclTH",
@@ -1291,8 +1377,8 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
                 query_fasta.unlink()  # remove our decompressed copy
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
-        sys.stderr.write(msg)
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed dnadiff comparisons"
+        logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
 
     if hash_to_filename[subject_hash].endswith(".gz"):
@@ -1300,7 +1386,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
 
     return (
         0
-        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
         else RECORDING_FAILED
     )
 
@@ -1325,7 +1411,7 @@ def compute_sourmash(  # noqa: PLR0913
         # not called but mypy doesn't understand (yet)
         return 1  # pragma: nocover
     if not cache.is_dir():
-        msg = f"Cache directory {cache} does not exist - check cache setting."
+        msg = f"Cache directory '{cache}' does not exist - check cache setting."
         log_sys_exit(logger, msg)
         # not called but mypy doesn't understand (yet)
         return 1  # pragma: nocover
@@ -1368,7 +1454,8 @@ def compute_sourmash(  # noqa: PLR0913
     )
     if not sig_cache.is_dir():
         msg = (
-            f"Missing sourmash signatures directory {sig_cache} - check cache setting."
+            f"Missing sourmash signatures directory '{sig_cache}'"
+            f" - check cache setting '{cache}'."
         )
         log_sys_exit(logger, msg)
 
@@ -1376,6 +1463,7 @@ def compute_sourmash(  # noqa: PLR0913
         db_entries: list[dict[str, str | float | None]] = []
         for batch in batched(
             sourmash.compute_sourmash_tile(
+                logger,
                 tool,
                 {subject_hash} if subject_hash else set(query_hashes),
                 set(query_hashes),
@@ -1401,12 +1489,12 @@ def compute_sourmash(  # noqa: PLR0913
             db_entries = db_orm.attempt_insert(session, db_entries, db_orm.Comparison)
     except KeyboardInterrupt:  # pragma: no cover
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"  # pragma: no cover
-        sys.stderr.write(msg)  # pragma: no cover
-        run.status = "Worker interrupted"  # pragma: no cover
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed sourmash comparisons"
+        logger.error(msg)  # noqa: TRY400
+        run.status = "Worker interrupted"
     return (
         0
-        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
         else RECORDING_FAILED
     )
 
@@ -1513,7 +1601,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
             cov_query,
             cov_subject,
         ) in compute_external_alignment_column(
-            subject_hash, set(query_hashes), alignment, mapping, label
+            logger, subject_hash, set(query_hashes), alignment, mapping, label
         ):
             db_entries.append(
                 {
@@ -1532,13 +1620,13 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
             )
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed comparisons\n"
-        sys.stderr.write(msg)
+        msg = f"Interrupted, will attempt to log {len(db_entries)} completed external-alignment comparisons"
+        logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
 
     return (
         0
-        if db_orm.insert_comparisons_with_retries(session, db_entries)
+        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
         else RECORDING_FAILED
     )
 

@@ -21,6 +21,7 @@
 # THE SOFTWARE.
 """Snakemake workflows for ANI pairwise comparisons."""
 
+import logging
 import multiprocessing
 import signal
 import sys
@@ -33,7 +34,7 @@ from snakemake.cli import args_to_api, parse_args
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
-from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm
+from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, log_sys_exit, setup_logger
 from pyani_plus.public_cli_args import ToolExecutor
 
 
@@ -56,7 +57,8 @@ def progress_bar_via_db_comparisons(
     # Ignore any keyboard interrupte - let main thread handle it
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-    session = db_orm.connect_to_db(database)
+    logger = setup_logger(None)  # this is not on the main thead!
+    session = db_orm.connect_to_db(logger, database)
     run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
 
     already_done = run.comparisons().count()
@@ -86,6 +88,7 @@ def progress_bar_via_db_comparisons(
 
 
 def run_snakemake_with_progress_bar(  # noqa: PLR0913
+    logger: logging.Logger,
     executor: ToolExecutor,
     workflow_name: str,
     targets: list[Path] | list[str],
@@ -107,6 +110,8 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     In quiet or spinner mode the DB is only accessed except by the workflow
     itself, and need not be passed to this function.
     """
+    msg = f"Preparing to call snakemake on '{workflow_name}'"
+    logger.debug(msg)
     success = False
     if temp:
         params["temp"] = str(temp.resolve())
@@ -116,7 +121,7 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     show_progress_bar = display == ShowProgress.bar
     if show_progress_bar and (database is None or run_id is None):
         msg = "Both database and run_id are required with display as progress bar"
-        raise ValueError(msg)
+        log_sys_exit(logger, msg)
 
     # Path to anim snakemake file
     snakefile = Path(__file__).with_name(workflow_name)
@@ -139,8 +144,10 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     )
     args.config = [f"{k}='{v}'" for k, v in params.items()]
     if display == ShowProgress.quiet:
+        logger.debug("Calling snakemake without progress bar")
         success = args_to_api(args, parser)
     else:
+        logger.debug("Calling snakemake with progress bar")
         # As of Python 3.8 onwards, the default on macOS ("Darwin") is "spawn"
         # As of Python 3.12, the default of "fork" on Linux triggers a deprecation warning.
         # This should match the defaults on Python 3.14 onwards.
@@ -173,4 +180,5 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
 
         # Ensure exit message starts on a new line after interrupted progress bar
         print()  # pragma: no cover  # noqa: T201
-        sys.exit("Snakemake workflow failed")  # pragma: no cover
+        log_sys_exit(logger, "Snakemake workflow failed")  # pragma: no cover
+    logger.debug("Snakemake finished successfully")

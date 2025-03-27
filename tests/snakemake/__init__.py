@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from pyani_plus import db_orm
+from pyani_plus import db_orm, setup_logger
 
 
 def compare_matrix(
@@ -104,7 +104,8 @@ def compare_db_matrices(
 
     The absolute_tolerance is only used for the floating point matrices.
     """
-    session = db_orm.connect_to_db(database_path)
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, database_path)
     run = session.query(db_orm.Run).one()
     assert session.query(db_orm.Configuration).count() == 1, (
         f"Expected one configuration, not {session.query(db_orm.Configuration).count()}"

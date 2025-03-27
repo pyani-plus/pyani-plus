@@ -33,7 +33,7 @@ from pathlib import Path
 
 import pytest
 
-from pyani_plus import db_orm, public_cli
+from pyani_plus import db_orm, public_cli, setup_logger
 
 
 def do_self_compare(
@@ -57,7 +57,8 @@ def do_self_compare(
         output = caplog.text
         assert " run setup with 1 genomes in database\n" in output
 
-        session = db_orm.connect_to_db(tmp_db.name)
+        logger = setup_logger(None)
+        session = db_orm.connect_to_db(logger, tmp_db.name)
         comp = session.query(db_orm.Comparison).one()
         session.close()
         return comp

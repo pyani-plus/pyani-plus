@@ -28,8 +28,8 @@ Python objects.
 
 import datetime
 import gzip
+import logging
 import platform
-import sys
 from io import StringIO
 from math import log, nan
 from pathlib import Path
@@ -60,6 +60,7 @@ from sqlalchemy.orm import (
     sessionmaker,
 )
 
+from pyani_plus import log_sys_exit
 from pyani_plus.utils import fasta_bytes_iterator, filename_stem
 
 
@@ -631,27 +632,74 @@ class Run(Base):
         )
 
 
-def connect_to_db(dbpath: Path | str, *, echo: bool = False) -> Session:
-    """Create/connect to existing DB, and return session bound to it.
+def connect_to_db(
+    logger: logging.Logger, dbpath: Path | str, *, echo: bool = False
+) -> Session:
+    """Create/connect to existing DB, and return session bound to it, with retries.
 
-    >>> session = connect_to_db("/tmp/pyani-plus-example.sqlite", echo=True)
+    >>> from pyani_plus import setup_logger
+    >>> logger = setup_logger(None)
+    >>> session = connect_to_db(logger, "/tmp/pyani-plus-example.sqlite", echo=True)
     20...
 
     Will accept the special SQLite3 value of ":memory:" for an in-memory
     database:
 
-    >>> session = connect_to_db(":memory:")
+    >>> session = connect_to_db(logger, ":memory:")
+
+    This will make three attempts to connect with randomised waits times of
+    1 to 20s, and then 20 to 40s.
     """
     # Note with echo=True, the output starts yyyy-mm-dd and sadly
     # using just ... is interpreted as a continuation of the >>>
     # prompt rather than saying any output is fine with ELLIPSIS mode.
 
-    # Default timeout is 5s
-    engine = create_engine(
-        url=f"sqlite:///{dbpath!s}", echo=echo, connect_args={"timeout": 10}
-    )
-    Base.metadata.create_all(engine)
-    return sessionmaker(bind=engine)()
+    msg = f"Attempting to connect to {dbpath} now."
+    logger.debug(msg)
+
+    try:
+        # Default timeout is 5s
+        engine = create_engine(
+            url=f"sqlite:///{dbpath!s}", echo=echo, connect_args={"timeout": 10}
+        )
+        Base.metadata.create_all(engine)
+        return sessionmaker(bind=engine)()
+    except OperationalError:  # pragma: no cover
+        pass
+
+    msg = f"Attempt 1/3 failed to connect to {dbpath}"  # pragma: no cover
+    logger.warning(msg)  # pragma: no cover
+
+    import random  # pragma: no cover
+
+    sleep(1 + 19 * random.random())  # noqa: S311 # pragma: no cover
+
+    try:  # pragma: no cover
+        engine = create_engine(
+            url=f"sqlite:///{dbpath!s}", echo=echo, connect_args={"timeout": 10}
+        )
+        Base.metadata.create_all(engine)
+        return sessionmaker(bind=engine)()
+    except OperationalError:  # pragma: no cover
+        pass
+
+    msg = f"Attempt 2/3 failed to connect to {dbpath}"  # pragma: no cover
+    logger.warning(msg)  # pragma: no cover
+
+    sleep(20 + 20 * random.random())  # noqa: S311 # pragma: no cover
+
+    try:  # pragma: no cover
+        engine = create_engine(
+            url=f"sqlite:///{dbpath!s}", echo=echo, connect_args={"timeout": 10}
+        )
+        Base.metadata.create_all(engine)
+        return sessionmaker(bind=engine)()
+    except OperationalError:  # pragma: no cover
+        pass
+
+    msg = f"Attempt 3/3 failed to connect to {dbpath}"  # pragma: no cover
+    log_sys_exit(logger, msg)  # pragma: no cover
+    raise NotImplementedError  # for mypy # pragma: no cover
 
 
 def db_configuration(  # noqa: PLR0913
@@ -671,7 +719,9 @@ def db_configuration(  # noqa: PLR0913
 
     By default if the entry is not there already, you get a NoResultFound exception:
 
-    >>> session = connect_to_db(":memory:")
+    >>> from pyani_plus import setup_logger
+    >>> logger = setup_logger(None)
+    >>> session = connect_to_db(logger, ":memory:")
     >>> conf = db_configuration(
     ...     session,
     ...     method="guessing",
@@ -686,7 +736,7 @@ def db_configuration(  # noqa: PLR0913
 
     If the entry is not there already, and you want to add it, you must use create=True:
 
-    >>> session = connect_to_db(":memory:")
+    >>> session = connect_to_db(logger, ":memory:")
     >>> conf = db_configuration(
     ...     session,
     ...     method="guessing",
@@ -733,7 +783,12 @@ def db_configuration(  # noqa: PLR0913
 
 
 def db_genome(  # noqa: C901
-    session: Session, fasta_filename: Path | str, md5: str, *, create: bool = False
+    logger: logging.Logger,
+    session: Session,
+    fasta_filename: Path | str,
+    md5: str,
+    *,
+    create: bool = False,
 ) -> Genome:
     """Return a genome table entry, or add and return it if not already there.
 
@@ -741,10 +796,14 @@ def db_genome(  # noqa: C901
 
     Returns the matching genome object, or the new one added if create=True:
 
-    >>> session = connect_to_db(":memory:")
+    >>> from pyani_plus import setup_logger
+    >>> logger = setup_logger(None)
+    >>> session = connect_to_db(logger, ":memory:")
+    >>> from pyani_plus import setup_logger
+    >>> logger = setup_logger(None)
     >>> from pyani_plus.utils import file_md5sum
     >>> fasta = "tests/fixtures/viral_example/OP073605.fasta"
-    >>> genome = db_genome(session, fasta, file_md5sum(fasta), create=True)
+    >>> genome = db_genome(logger, session, fasta, file_md5sum(fasta), create=True)
     >>> genome.genome_hash
     '5584c7029328dc48d33f95f0a78f7e57'
 
@@ -754,8 +813,8 @@ def db_genome(  # noqa: C901
 
     If the genome is not already there, then by default this raises an exception:
 
-    >>> session = connect_to_db(":memory:")
-    >>> genome = db_genome(session, fasta, file_md5sum(fasta))
+    >>> session = connect_to_db(logger, ":memory:")
+    >>> genome = db_genome(logger, session, fasta, file_md5sum(fasta))
     Traceback (most recent call last):
     ...
     sqlalchemy.exc.NoResultFound: Requested genome not already in DB
@@ -780,12 +839,14 @@ def db_genome(  # noqa: C901
                 if description is None:
                     description = title.decode()  # Just use first entry
             if not str(fasta_filename).endswith(".gz"):
-                msg = f"ERROR: No .gz ending, but {Path(fasta_filename).name} is gzip compressed"
-                sys.exit(msg)
+                msg = (
+                    f"No .gz ending, but {Path(fasta_filename).name} is gzip compressed"
+                )
+                log_sys_exit(logger, msg)
     except gzip.BadGzipFile:
         if str(fasta_filename).endswith(".gz"):
-            msg = f"ERROR: Has .gz ending, but {Path(fasta_filename).name} is NOT gzip compressed"
-            sys.exit(msg)
+            msg = f"Has .gz ending, but {Path(fasta_filename).name} is NOT gzip compressed"
+            log_sys_exit(logger, msg)
         with Path(fasta_filename).open("rb") as handle:
             for title, seq in fasta_bytes_iterator(handle):
                 length += len(seq)
@@ -876,7 +937,7 @@ def load_run(
     if run_id is None:
         run = session.query(Run).order_by(Run.run_id.desc()).first()
         if run is None:
-            msg = "ERROR: Database contains no runs."
+            msg = "Database contains no runs."
             raise SystemExit(msg)  # should we use sys.exit, or a different exception?
         run_id = run.run_id
     else:
@@ -884,7 +945,7 @@ def load_run(
             run = session.query(Run).where(Run.run_id == run_id).one()
         except NoResultFound:
             msg = (
-                f"ERROR: Database has no run-id {run_id}."
+                f"Database has no run-id {run_id}."
                 " Use the list-runs command for more information."
             )
             raise SystemExit(msg) from None
@@ -893,12 +954,12 @@ def load_run(
         done = run.comparisons().count()
         n = run.genomes.count()
         if not done:
-            msg = f"ERROR: run-id {run_id} has no comparisons"
+            msg = f"run-id {run_id} has no comparisons"
             raise SystemExit(msg)
         if check_complete:
             if done < n**2:
                 msg = (
-                    f"ERROR: run-id {run_id} has only {done} of {n}²={n**2}"
+                    f"run-id {run_id} has only {done} of {n}²={n**2}"
                     f" comparisons, {n**2 - done} needed"
                 )
                 raise SystemExit(msg)
@@ -926,7 +987,9 @@ def db_comparison(  # noqa: PLR0913
     This assumes the configuration and both the query and subject are already in
     the linked tables. If not, addition will fail with an integrity error:
 
-    >>> session = connect_to_db(":memory:")
+    >>> from pyani_plus import setup_logger
+    >>> logger = setup_logger(None)
+    >>> session = connect_to_db(logger, ":memory:")
     >>> comp = db_comparison(session, 1, "abcd", "cdef", 0.99, 12345)
     >>> comp.identity
     0.99
@@ -998,6 +1061,7 @@ def attempt_insert(
 
 
 def insert_comparisons_with_retries(
+    logger: logging.Logger,
     session: Session,
     db_entries: list[dict[str, str | float | int | None]],
     source: str = "comparisons",
@@ -1024,18 +1088,23 @@ def insert_comparisons_with_retries(
         session.commit()
         return True
 
+    msg = f"Attempting to record {len(db_entries)} comparisons."
+    logger.debug(msg)
+
     try:
         session.execute(sqlite_insert(Comparison).on_conflict_do_nothing(), db_entries)
         session.commit()
     except (OperationalError, InvalidRequestError):  # pragma: no cover
         pass
     else:
+        logger.debug("Done")
         return True
-    msg = f"WARNING: Attempt 1/3 failed to record {source}\n"  # pragma: no cover
+    msg = f"Attempt 1/3 failed to record {source}"  # pragma: no cover
+    logger.warning(msg)  # pragma: no cover
 
-    sys.stdout.write(msg)  # pragma: no cover
+    import random  # pragma: no cover
 
-    sleep(10)  # pragma: no cover
+    sleep(20 + 10 * random.random())  # noqa: S311 # pragma: no cover
 
     try:  # pragma: no cover
         session.execute(sqlite_insert(Comparison).on_conflict_do_nothing(), db_entries)
@@ -1043,12 +1112,12 @@ def insert_comparisons_with_retries(
     except (OperationalError, InvalidRequestError):  # pragma: no cover
         pass
     else:  # pragma: no cover
+        logger.debug("Done")
         return True
-    msg = f"WARNING: Attempt 2/3 failed to record {source}\n"  # pragma: no cover
+    msg = f"Attempt 2/3 failed to record {source}"  # pragma: no cover
+    logger.warning(msg)  # pragma: no cover
 
-    sys.stdout.write(msg)  # pragma: no cover
-
-    sleep(30)  # pragma: no cover
+    sleep(30 + 10 * random.random())  # noqa: S311 # pragma: no cover
 
     try:  # pragma: no cover
         session.execute(sqlite_insert(Comparison).on_conflict_do_nothing(), db_entries)
@@ -1056,9 +1125,9 @@ def insert_comparisons_with_retries(
     except (OperationalError, InvalidRequestError):  # pragma: no cover
         pass
     else:  # pragma: no cover
+        logger.debug("Done")
         return True
-    msg = f"ERROR: Attempt 3/3 failed to record {source}\n"  # pragma: no cover
-
-    sys.stdout.write(msg)  # pragma: no cover
+    msg = f"Attempt 3/3 failed to record {source}"  # pragma: no cover
+    logger.critical(msg)  # pragma: no cover
 
     return False  # pragma: no cover

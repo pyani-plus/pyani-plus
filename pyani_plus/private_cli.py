@@ -428,6 +428,59 @@ def log_comparison(  # noqa: PLR0913
     return 0
 
 
+def export_json_db_entries(
+    logger: logging.Logger,
+    json_filename: Path,
+    configuration: db_orm.Configuration,
+    db_entries: list[dict[str, str | float | int | None]],
+) -> None:
+    """Serialise DB entries for recording in JSON for later import.
+
+    The list of entries must all have the same configuration identifier as the given
+    configuration, and the same uname values as the current machine. This is assumed.
+    """
+    config_dict = {
+        "method": configuration.method,
+        "program": configuration.program,
+        "version": configuration.version,
+        "fragsize": configuration.fragsize,
+        "mode": configuration.mode,
+        "kmersize": configuration.kmersize,
+        "minmatch": configuration.minmatch,
+        "extra": configuration.extra,
+    }
+
+    uname = platform.uname()  # this should be cached, so fast
+    unwanted_keys = {
+        "configuration_id",
+        "uname_system",
+        "uname_release",
+        "uname_machine",
+    }
+
+    import json  # lazy
+
+    serialised = json.dumps(
+        {
+            "configuration": config_dict,
+            "uname": {
+                "system": uname.system,
+                "release": uname.release,
+                "machine": uname.machine,
+            },
+            "comparisons": [
+                {k: v for (k, v) in _.items() if k not in unwanted_keys}
+                for _ in db_entries
+            ],
+        }
+    )
+
+    with json_filename.open() as handle:
+        handle.write(serialised)
+    msg = f"Saved {len(db_entries)} comparisons to {json_filename}"
+    logger.debug(msg)
+
+
 def import_json_comparisons(  # noqa: PLR0915
     logger: logging.Logger, session: Session, json_filename: Path
 ) -> None:

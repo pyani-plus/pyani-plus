@@ -160,6 +160,20 @@ def plot_distribution(
     axes[0].set_ylim(ymin=0)
     sns.kdeplot(values, ax=axes[1], warn_singular=False)
 
+    # In a possible bug, the rug-plot ignores the x-limits,
+    # so mask the data here
+    for _ in axes:
+        if name in ["hadamard", "coverage"]:
+            _.set_xlim(0, 1.01)
+            values = [v for v in values if v is not None and 0 <= v <= 1.01]  # noqa: PLR2004
+        if name in ["tANI"]:
+            _.set_xlim(0, 5.01)
+            values = [v for v in values if v is not None and 0 <= v <= 5.01]  # noqa: PLR2004
+        elif name == "identity":
+            # 80% default matches the heatmap grey/blue default
+            _.set_xlim(0.80, 1.01)
+            values = [v for v in values if v is not None and 0.80 <= v <= 1.01]  # noqa: PLR2004
+
     # Default rug height=.025 but that can obscure low values.
     # Negative means below the axis instead, needs clip_on=False
     # Adding alpha to try to reveal the density.
@@ -171,16 +185,6 @@ def plot_distribution(
         clip_on=False,
         alpha=0.1,
     )
-
-    # Modify axes after data is plotted
-    for _ in axes:
-        if name in ["hadamard", "coverage"]:
-            _.set_xlim(0, 1.01)
-        if name in ["tANI"]:
-            _.set_xlim(0, 5.01)
-        elif name == "identity":
-            # 80% default matches the heatmap grey/blue default
-            _.set_xlim(0.80, 1.01)
 
     # Tidy figure
     figure.tight_layout(rect=[0, 0.03, 1, 0.95])

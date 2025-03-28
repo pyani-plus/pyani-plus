@@ -36,6 +36,8 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from sqlalchemy import func, select
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
 from pyani_plus import LOG_FILE, db_orm, log_sys_exit, setup_logger, tools
@@ -74,6 +76,7 @@ REQ_ARG_TYPE_FASTA_FILES = Annotated[
     list[Path],
     typer.Argument(
         help="Path(s) to FASTA file(s)",
+        metavar="FILE",
         show_default=False,
         exists=True,
         dir_okay=False,
@@ -84,6 +87,7 @@ REQ_ARG_TYPE_QUERY_FASTA = Annotated[
     Path,
     typer.Option(
         help="Path to query FASTA file",
+        metavar="FILE",
         show_default=False,
         exists=True,
         dir_okay=False,
@@ -94,6 +98,7 @@ REQ_ARG_TYPE_SUBJECT_FASTA = Annotated[
     Path,
     typer.Option(
         help="Path to subject (reference) FASTA file",
+        metavar="FILE",
         show_default=False,
         exists=True,
         dir_okay=False,
@@ -420,6 +425,165 @@ def log_comparison(  # noqa: PLR0913
     )
 
     session.commit()
+    return 0
+
+
+def import_json_comparisons(  # noqa: PLR0915
+    logger: logging.Logger, session: Session, json_filename: Path
+) -> None:
+    """Import a JSON file of comparisons into the database."""
+    import json  # lazy import
+
+    msg = f"Importing {json_filename}"
+    logger.debug(msg)
+
+    # Consider incremental loading in case of large files?
+    with json_filename.open("rb") as handle:
+        raw = handle.read()
+    if not raw:
+        msg = f"JSON file '{json_filename}' is empty"
+        log_sys_exit(logger, msg)
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        logger.exception("Unable to parse JSON:")
+        msg = f"JSON file '{json_filename}' invalid"
+        log_sys_exit(logger, msg)
+    del raw
+
+    if (
+        not isinstance(data, dict)
+        or "configuration" not in data
+        or not isinstance(data["configuration"], dict)
+        or "uname" not in data
+        or not isinstance(data["uname"], dict)
+        or "comparisons" not in data
+        or not isinstance(data["comparisons"], list)
+    ):
+        msg = f"JSON file '{json_filename}' does not use the expected structure"
+        log_sys_exit(logger, msg)
+
+    configuration = data["configuration"]
+    comparisons = data["comparisons"]
+    try:
+        uname_system = data["uname"]["system"]
+        uname_release = data["uname"]["release"]
+        uname_machine = data["uname"]["machine"]
+    except KeyError:
+        msg = f"JSON file '{json_filename}' uname incomplete"
+        session.close()
+        log_sys_exit(logger, msg)
+
+    try:
+        config_id = db_orm.db_configuration(
+            session=session,
+            method=configuration["method"],
+            program=configuration["program"],
+            version=configuration["version"],
+            fragsize=configuration.get("fragsize", None),
+            mode=configuration.get("mode", None),
+            kmersize=configuration.get("kmersize", None),
+            minmatch=configuration.get("minmatch", None),
+            extra=configuration.get("extra", None),
+            create=False,
+        ).configuration_id
+    except KeyError:
+        msg = f"JSON file '{json_filename}' configuration incomplete"
+        session.close()
+        log_sys_exit(logger, msg)
+    except NoResultFound:
+        msg = f"JSON file '{json_filename}' configuration not in database"
+        session.close()
+        log_sys_exit(logger, msg)
+    del configuration
+    msg = f"Configuration identifier {config_id} in database"
+    logger.debug(msg)
+
+    if not comparisons:
+        msg = f"JSON file '{json_filename}' has no comparisons"
+        session.close()
+        logger.warning(msg)
+        return
+
+    try:
+        db_entries = [
+            {
+                "query_hash": row["query_hash"],
+                "subject_hash": row["subject_hash"],
+                "identity": row["identity"],
+                "aln_length": row.get("aln_length", None),
+                "sim_errors": row.get("sim_errors", None),
+                "cov_query": row.get("cov_query", None),
+                "configuration_id": config_id,
+                "uname_system": uname_system,
+                "uname_release": uname_release,
+                "uname_machine": uname_machine,
+            }
+            for row in comparisons
+        ]
+    except KeyError:
+        msg = f"JSON file '{json_filename}' comparison(s) incomplete"
+        session.close()
+        log_sys_exit(logger, msg)
+
+    if not db_orm.insert_comparisons_with_retries(
+        logger, session, db_entries, source=str(json_filename)
+    ):  # pragma: no cover
+        msg = f"Failed to record '{json_filename}' comparisons to database"
+        session.close()
+        log_sys_exit(logger, msg)
+
+
+@app.command(rich_help_panel="Low-level logging")
+def import_comparisons(
+    database: REQ_ARG_TYPE_DATABASE,
+    json: Annotated[
+        list[Path],
+        typer.Argument(
+            help="Path(s) of JSON file(s) containing comparisons.",
+            metavar="FILE",
+            show_default=False,
+            exists=True,
+            dir_okay=False,
+            file_okay=True,
+        ),
+    ],
+    *,
+    debug: OPT_ARG_TYPE_DEBUG = False,
+    log: OPT_ARG_TYPE_LOG = LOG_FILE,
+) -> int:
+    """Parse one or more JSON comparison files and log them to the database.
+
+    The database must already contain a matching configuration table entry
+    (see the log-configuration command to do this at the command line) and
+    matching genome entries (see the log-genome command).
+
+    The JSON files will contain values for a configuration table entry, uname
+    values applied to all the comparisons, and multiple entries to be recorded
+    in the comparisons table.
+    """
+    logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.ERROR)
+    if database != ":memory:" and not Path(database).is_file():
+        msg = f"Database '{database}' does not exist"
+        sys.exit(msg)
+
+    msg = f"Logging comparison to '{database}'"
+    logger.info(msg)
+    session = db_orm.connect_to_db(logger, database)
+
+    if (
+        session.execute(select(func.count()).select_from(db_orm.Configuration)).scalar()
+        == 0
+    ):
+        msg = f"{database} does not contain any configurations"
+        log_sys_exit(logger, msg)
+
+    if session.execute(select(func.count()).select_from(db_orm.Genome)).scalar() == 0:
+        msg = f"{database} does not contain any genomes"
+        log_sys_exit(logger, msg)
+
+    for filename in json:
+        import_json_comparisons(logger, session, filename)
     return 0
 
 

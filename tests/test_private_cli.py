@@ -483,7 +483,9 @@ def test_validate_cache(tmp_path: str, monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_missing_db(tmp_path: str) -> None:
     """Check expected error when DB does not exist."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "new.sqlite"
+    tmp_json = tmp_dir / "out.json"
     assert not tmp_db.is_file()
 
     with pytest.raises(SystemExit, match="does not exist"):
@@ -493,11 +495,7 @@ def test_missing_db(tmp_path: str) -> None:
         )
 
     with pytest.raises(SystemExit, match="does not exist"):
-        private_cli.compute_column(
-            database=tmp_db,
-            run_id=1,
-            subject=1,
-        )
+        private_cli.compute_column(database=tmp_db, run_id=1, subject=1, json=tmp_json)
 
 
 def test_prepare_genomes_bad_args(tmp_path: str, input_genomes_tiny: Path) -> None:
@@ -531,8 +529,10 @@ def test_compute_column_bad_args(
     input_genomes_tiny: Path,
 ) -> None:
     """Check how compute_column handles bad run ID or subject."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "new.sqlite"
     assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "new.json"
 
     private_cli.log_run(
         fasta=input_genomes_tiny,
@@ -559,6 +559,7 @@ def test_compute_column_bad_args(
             database=tmp_db,
             run_id=2,
             subject="XXXX",
+            json=tmp_json,
         )
 
     with pytest.raises(
@@ -569,6 +570,7 @@ def test_compute_column_bad_args(
             database=tmp_db,
             run_id=1,
             subject="1",
+            json=tmp_json,
         )
 
     with pytest.raises(
@@ -579,6 +581,7 @@ def test_compute_column_bad_args(
             database=tmp_db,
             run_id=1,
             subject="XXXX",
+            json=tmp_json,
         )
 
     with pytest.raises(
@@ -592,6 +595,7 @@ def test_compute_column_bad_args(
             database=tmp_db,
             run_id=1,
             subject="-1",
+            json=tmp_json,
         )
 
     with pytest.raises(
@@ -602,6 +606,7 @@ def test_compute_column_bad_args(
             database=tmp_db,
             run_id=1,
             subject="0",
+            json=tmp_json,
         )
 
 
@@ -611,8 +616,10 @@ def test_compute_column_bad_anib(
     input_genomes_tiny: Path,
 ) -> None:
     """Check how compute_column handles bad ANIb settings."""
-    tmp_db = Path(tmp_path) / "anib.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "anib.sqlite"
     assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "anib.json"
 
     tool = tools.get_blastn()
     private_cli.log_run(
@@ -638,6 +645,7 @@ def test_compute_column_bad_anib(
             database=tmp_db,
             run_id=1,
             subject="1",
+            json=tmp_json,
         )
 
 
@@ -646,8 +654,10 @@ def test_compute_column_bad_anim(
     input_genomes_tiny: Path,
 ) -> None:
     """Check how compute_column handles bad ANIm settings."""
-    tmp_db = Path(tmp_path) / "anim.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "anim.sqlite"
     assert not tmp_db.is_file()
+    tmp_json = "anim.json"
 
     tool = tools.get_nucmer()
     private_cli.log_run(
@@ -671,6 +681,7 @@ def test_compute_column_bad_anim(
             database=tmp_db,
             run_id=1,
             subject="1",
+            json=tmp_json,
         )
 
 
@@ -680,8 +691,10 @@ def test_compute_column_bad_fastani(
     input_genomes_tiny: Path,
 ) -> None:
     """Check how compute_column handles bad fastani settings."""
-    tmp_db = Path(tmp_path) / "fastani.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "fastani.sqlite"
     assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "fastani output.json"
 
     tool = tools.get_fastani()
     private_cli.log_run(
@@ -707,6 +720,7 @@ def test_compute_column_bad_fastani(
             database=tmp_db,
             run_id=1,
             subject="1",
+            json=tmp_json,
         )
 
     tool = tools.get_fastani()
@@ -732,6 +746,7 @@ def test_compute_column_bad_fastani(
     ):
         private_cli.compute_column(
             database=tmp_db,
+            json=tmp_json,
             run_id=2,
             subject="1",
         )
@@ -761,6 +776,7 @@ def test_compute_column_bad_fastani(
             database=tmp_db,
             run_id=3,
             subject="1",
+            json=tmp_json,
         )
 
 
@@ -773,6 +789,7 @@ def test_compute_column_fastani(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "new.sqlite"
     assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "new.json"
 
     tool = tools.get_fastani()
 
@@ -795,10 +812,16 @@ def test_compute_column_fastani(
         database=tmp_db,
         run_id=1,
         subject="1",  # here passing column number
+        json=tmp_json,
         temp=tmp_dir,
     )
     output = caplog.text
     assert "Calling fastANI for 3 queries vs 5584c7029328dc48d33f95f0a78f7e57" in output
+
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    private_cli.import_json_comparisons(logger, session, tmp_json)
+    session.close()
 
     # This time should skip any computation:
     caplog.clear()
@@ -806,6 +829,7 @@ def test_compute_column_fastani(
         database=tmp_db,
         run_id=1,
         subject="5584c7029328dc48d33f95f0a78f7e57",  # here passing hash
+        json=tmp_json,
     )
     output = caplog.text
     assert (
@@ -819,6 +843,7 @@ def test_compute_column_fastani(
         database=tmp_db,
         run_id=1,
         subject="OP073605.fasta",  # here passing filename
+        json=tmp_json,
     )
     output = caplog.text
     assert (

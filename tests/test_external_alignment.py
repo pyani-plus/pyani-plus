@@ -403,6 +403,7 @@ def test_wrong_method(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "wrong-method.sqlite"
     assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "x.json"
 
     private_cli.log_run(
         fasta=input_genomes_tiny,
@@ -425,7 +426,7 @@ def test_wrong_method(
         match="Run-id 1 expected guessing results",
     ):
         private_cli.compute_external_alignment(
-            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -438,6 +439,7 @@ def test_bad_program(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "wrong-method.sqlite"
     assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "bad.json"
 
     private_cli.log_run(
         fasta=input_genomes_tiny,
@@ -460,7 +462,7 @@ def test_bad_program(
         match="configuration.program='should-be-blank' unexpected",
     ):
         private_cli.compute_external_alignment(
-            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -473,6 +475,7 @@ def test_bad_version(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "wrong-method.sqlite"
     assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "bad.json"
 
     private_cli.log_run(
         fasta=input_genomes_tiny,
@@ -495,7 +498,7 @@ def test_bad_version(
         match="configuration.version='should-be-blank' unexpected",
     ):
         private_cli.compute_external_alignment(
-            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -508,6 +511,7 @@ def test_no_config(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "bad.sqlite"
     assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "no.json"
 
     private_cli.log_run(
         fasta=input_genomes_tiny,
@@ -530,7 +534,7 @@ def test_no_config(
         match="Missing configuration.extra setting",
     ):
         private_cli.compute_external_alignment(
-            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -542,6 +546,7 @@ def test_bad_config(
     """Check how log-external-alignment handles bad settings."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "bad.sqlite"
+    tmp_json = tmp_dir / "bad.json"
     private_cli.log_run(
         fasta=input_genomes_tiny,
         database=tmp_db,
@@ -564,7 +569,7 @@ def test_bad_config(
         match="configuration.extra='file=example.fasta;md5=XXX;label=stem' unexpected",
     ):
         private_cli.compute_external_alignment(
-            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -576,6 +581,7 @@ def test_missing_alignment(
     """Check how log-external-alignment handles bad settings."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "bad.sqlite"
+    tmp_json = tmp_dir / "bad.json"
 
     private_cli.log_run(
         fasta=input_genomes_tiny,
@@ -599,7 +605,7 @@ def test_missing_alignment(
         match="Missing alignment file .*/does-not-exist.fasta",
     ):
         private_cli.compute_external_alignment(
-            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -612,6 +618,7 @@ def test_bad_checksum(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "bad.sqlite"
     assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "bad.json"
 
     tmp_alignment = tmp_dir / "example.fasta"
     tmp_alignment.touch()
@@ -638,7 +645,7 @@ def test_bad_checksum(
         match="MD5 checksum of .*/example.fasta didn't match.",
     ):
         private_cli.compute_external_alignment(
-            logger, tmp_dir, session, run, tmp_dir, {}, {}, {}, ""
+            logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
         )
     session.close()
 
@@ -651,6 +658,7 @@ def test_bad_alignment(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "broken.db"
     assert not tmp_db.is_file()
+    json_file = tmp_dir / "bad.json"
 
     tmp_alignment = Path(tmp_path) / "broken.fasta"
     with tmp_alignment.open("w") as handle:
@@ -693,6 +701,7 @@ AA
             tmp_dir,
             session,
             run,
+            json_file,
             tmp_dir,
             {},
             {},
@@ -714,6 +723,7 @@ def test_partial_alignment(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "broken.db"
     assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "msa.json"
 
     tmp_alignment = Path(tmp_path) / "broken.fasta"
     with tmp_alignment.open("w") as handle:
@@ -748,6 +758,7 @@ AACT
         tmp_dir,
         session,
         run,
+        tmp_json,
         tmp_dir,
         {},
         {},
@@ -767,6 +778,7 @@ AACT
             tmp_dir,
             session,
             run,
+            tmp_json,
             tmp_dir,
             {},
             {},

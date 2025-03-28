@@ -211,16 +211,19 @@ def run_method(  # noqa: PLR0913
     else:
         if method == "sourmash":
             # Do all the columns at once!
-            targets = [f"column_0.{method}"]
+            targets = [f"{method}.run_{run.run_id}.column_0.json"]
         elif not done:
             # Must do all the columns
-            targets = [f"column_{_ + 1}.{method}" for _ in range(len(filename_to_md5))]
+            targets = [
+                f"{method}.run_{run.run_id}.column_{_ + 1}.json"
+                for _ in range(len(filename_to_md5))
+            ]
         else:
             # Should avoid already completed columns
             configuration_id = run.configuration.configuration_id
             hashes = sorted(filename_to_md5.values())
             targets = [
-                f"column_{i + 1}.{method}"
+                f"{method}.run_{run.run_id}.column_{i + 1}.json"
                 for (i, md5) in enumerate(hashes)
                 if session.execute(
                     select(func.count())
@@ -269,7 +272,6 @@ def run_method(  # noqa: PLR0913
                 {
                     "cache": cache.resolve() if cache else None,
                     "db": Path(database).resolve(),  # must be absolute
-                    "run_id": run_id,
                     "cores": available_cores(),  # should make configurable
                 },
                 work_path,
@@ -280,10 +282,19 @@ def run_method(  # noqa: PLR0913
                 log=log,
             )
 
-        # Reconnect to the DB
-        session = db_orm.connect_to_db(logger, database)
-        run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-        done = run.comparisons().count()
+            # Reconnect to the DB
+            session = db_orm.connect_to_db(logger, database)
+            run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+            done = run.comparisons().count()
+
+            if done < n**2:
+                logger.debug(
+                    "Importing JSON files (again), and not all comparisons in DB (yet)"
+                )
+                # Can happen if progress-bar thread didn't finish in time
+                for json in target_paths:
+                    private_cli.import_json_comparisons(logger, session, json)
+                done = run.comparisons().count()
 
     if done != n**2:
         # There is no obvious way to test this hypothetical failure:

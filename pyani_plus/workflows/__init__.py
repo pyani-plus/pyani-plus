@@ -35,6 +35,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, log_sys_exit, setup_logger
+from pyani_plus.private_cli import import_json_comparisons
 from pyani_plus.public_cli_args import ToolExecutor
 
 
@@ -47,7 +48,7 @@ class ShowProgress(str, Enum):
 
 
 def progress_bar_via_db_comparisons(
-    database: Path, run_id: int, interval: float = 1.0
+    database: Path, run_id: int, json_files: set[Path], interval: float = 1.0
 ) -> None:
     """Show a progress bar based on monitoring the DB entries.
 
@@ -64,13 +65,26 @@ def progress_bar_via_db_comparisons(
     already_done = run.comparisons().count()
     total = run.genomes.count() ** 2 - already_done
 
+    json_time_stamps: dict[Path, float] = {}
+
     done = 0
     old_db_version = -1
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         task = progress.add_task("Comparing pairs", total=total)
         while done < total:
             sleep(interval)
-            # Have there been any DB changes?
+            # Have any JSON files been updated?
+            for json in json_files:
+                if json.is_file():
+                    modified = json.stat().st_mtime
+                    if (
+                        json not in json_time_stamps
+                        or modified > json_time_stamps[json]
+                    ):
+                        # New or updated!
+                        json_time_stamps[json] = modified
+                        import_json_comparisons(logger, session, json)
+            # Have there been any DB changes (here or from another thread)?
             try:
                 db_version = (
                     session.connection().execute(text("PRAGMA data_version;")).one()[0]
@@ -159,6 +173,7 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
             args=(
                 database,
                 run_id,
+                {Path(_) for _ in targets},
                 interval,
             ),
             daemon=True,

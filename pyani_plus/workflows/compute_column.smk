@@ -28,16 +28,15 @@ This assumes there are no job dependencies, or they have been resolved already.
 rule compute_column:
     params:
         db=config["db"],
-        run_id=config["run_id"],
         temp=config.get("temp", "-"),
         cache=config.get("cache", "-"),
         log=config.get("log", "-"),
     output:
-        "{outdir}/column_{column}.{method}",
+        "{outdir}/{method}.run_{run_id}.column_{column}.json",
     shell:
         """
         .pyani-plus-private-cli compute-column \
-            --database "{params.db}" --run-id {params.run_id} \
+            --database "{params.db}" --run-id {wildcards.run_id} \
             --subject "{wildcards.column}" --cache "{params.cache}" \
-            --temp "{params.temp}" --log "{params.log}" && touch "{output}"
+            --temp "{params.temp}" --log "{params.log}" --json "{output}"
         """

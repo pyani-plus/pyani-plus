@@ -48,6 +48,7 @@ def test_running_fastani(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "new.sqlite"
     assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "fastani.json"
 
     tool = tools.get_fastani()
 
@@ -79,12 +80,16 @@ def test_running_fastani(
         tmp_dir,
         session,
         run,
+        tmp_json,
         input_genomes_tiny,
         hash_to_filename,
         filename_to_hash,
         query_hashes=hash_to_lengths,
         subject_hash=list(hash_to_filename)[1],
     )
+
+    private_cli.import_json_comparisons(logger, session, tmp_json)
+
     assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004
 
     session.close()

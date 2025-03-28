@@ -1036,30 +1036,6 @@ def db_comparison(  # noqa: PLR0913
     return comp
 
 
-def attempt_insert(
-    session: Session, values: list[dict], table: type[Comparison | Genome | Run]
-) -> list[dict]:
-    """Attempt to insert given values into the DB, returning any not inserted.
-
-    The insert uses SQLite's mechanism to ignore conflicting (pre-existing)
-    entries.  If this succeeds, the insert is committed, and the function
-    returns an empty list. If not, the input list is returned.
-
-    The argument table should be one of the db_orm classes, and values should be
-    a list of dicts mapping to that.
-    """
-    try:
-        session.execute(
-            sqlite_insert(table).on_conflict_do_nothing(),
-            values,
-        )
-        session.commit()
-    except OperationalError:  # pragma: no cover
-        return values  # pragma: no cover
-    else:
-        return []  # success!
-
-
 def insert_comparisons_with_retries(
     logger: logging.Logger,
     session: Session,

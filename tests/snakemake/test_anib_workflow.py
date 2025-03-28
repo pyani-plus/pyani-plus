@@ -33,7 +33,8 @@ from pathlib import Path
 import pytest
 
 from pyani_plus import setup_logger
-from pyani_plus.private_cli import log_run
+from pyani_plus.db_orm import connect_to_db
+from pyani_plus.private_cli import import_json_comparisons, log_run
 from pyani_plus.tools import get_blastn, get_makeblastdb
 from pyani_plus.workflows import (
     ToolExecutor,
@@ -111,11 +112,14 @@ def test_rule_anib(
 
     # Run snakemake wrapper
     logger = setup_logger(None)
+    json_targets = [
+        anib_targets_outdir / f"anib.run_1.column_{_ + 1}.json" for _ in range(3)
+    ]
     run_snakemake_with_progress_bar(
         logger,
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
-        targets=[anib_targets_outdir / f"column_{_ + 1}.anib" for _ in range(3)],
+        targets=json_targets,
         params=config_anib_args,
         working_directory=tmp_dir,
         temp=tmp_dir,
@@ -131,6 +135,11 @@ def test_rule_anib(
 
     for file in (input_genomes_tiny / "intermediates/ANIb").glob("*_vs_*.tsv"):
         assert filecmp.cmp(file, tmp_dir / file), f"Wrong blastn output in {file.name}"
+
+    session = connect_to_db(logger, db)
+    for json in json_targets:
+        import_json_comparisons(logger, session, json)
+    session.close()
 
     # Check output against target fixtures
     compare_db_matrices(db, input_genomes_tiny / "matrices")

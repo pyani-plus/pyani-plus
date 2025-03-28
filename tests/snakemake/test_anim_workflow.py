@@ -32,7 +32,8 @@ from pathlib import Path
 import pytest
 
 from pyani_plus import setup_logger
-from pyani_plus.private_cli import log_run
+from pyani_plus.db_orm import connect_to_db
+from pyani_plus.private_cli import import_json_comparisons, log_run
 from pyani_plus.tools import get_delta_filter, get_nucmer
 from pyani_plus.workflows import (
     ToolExecutor,
@@ -128,17 +129,24 @@ def test_rule_ANIm(  # noqa: N802
     assert db.is_file()
     logger = setup_logger(None)
     # Run snakemake wrapper
+    targets = [
+        anim_targets_outdir / f"anim.run_1.column_{_ + 1}.json" for _ in range(3)
+    ]
     run_snakemake_with_progress_bar(
         logger,
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
         database=db,
         run_id=1,
-        targets=[anim_targets_outdir / f"column_{_ + 1}.anim" for _ in range(3)],
+        targets=targets,
         params=config,
         working_directory=tmp_dir,
         temp=tmp_dir,
     )
+    session = connect_to_db(logger, db)
+    for json in targets:
+        import_json_comparisons(logger, session, json)
+    session.close()
 
     # Check the intermediate files
 
@@ -199,17 +207,24 @@ def test_rule_ANIm_bad_align(  # noqa: N802
     assert db.is_file()
     logger = setup_logger(None)
     # Run snakemake wrapper
+    targets = [
+        anim_targets_outdir / f"anim.run_1.column_{_ + 1}.json" for _ in range(2)
+    ]
     run_snakemake_with_progress_bar(
         logger,
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
         database=db,
         run_id=1,
-        targets=[anim_targets_outdir / f"column_{_ + 1}.anim" for _ in range(2)],
+        targets=targets,
         params=config,
         working_directory=tmp_dir,
         temp=tmp_dir,
     )
+    session = connect_to_db(logger, db)
+    for json in targets:
+        import_json_comparisons(logger, session, json)
+    session.close()
 
     # Check delta-filter output against target fixtures
     for fname in (input_genomes_bad_alignments / "intermediates/ANIm").glob("*.filter"):

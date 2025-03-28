@@ -111,6 +111,7 @@ def test_running_anib(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "new.sqlite"
     assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "anib.json"
 
     tool = tools.get_blastn()
 
@@ -140,12 +141,16 @@ def test_running_anib(
         tmp_dir,
         session,
         run,
+        tmp_json,
         input_genomes_tiny,
         hash_to_filename,
         {},  # not used for ANIb
         query_hashes=hash_to_length,  # order should not matter!
         subject_hash=subject_hash,
     )
+
+    private_cli.import_json_comparisons(logger, session, tmp_json)
+
     assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004
     assert (
         session.query(db_orm.Comparison)

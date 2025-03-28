@@ -218,7 +218,8 @@ def test_parser_with_bad_header(tmp_path: str) -> None:
 def test_compute_bad_args(tmp_path: str) -> None:
     """Check compute_sourmash error handling."""
     tmp_dir = Path(tmp_path)
-    tmp_db = tmp_dir / "bad_args.db"
+    tmp_db = tmp_dir / "bad args.db"
+    tmp_json = tmp_dir / "bad args.json"
     tool = tools.ExternalToolData(exe_path=Path("sourmash"), version="0.0a1")
     logger = setup_logger(None)
     session = db_orm.connect_to_db(logger, tmp_db)
@@ -226,7 +227,16 @@ def test_compute_bad_args(tmp_path: str) -> None:
     logger = setup_logger(None)
     with pytest.raises(SystemExit, match="Not given a cache directory"):
         private_cli.compute_sourmash(
-            logger, tmp_dir, session, run, tmp_dir, {}, {}, {"ABCDE": 12345}, "HIJKL"
+            logger,
+            tmp_dir,
+            session,
+            run,
+            tmp_json,
+            tmp_dir,
+            {},
+            {},
+            {"ABCDE": 12345},
+            "HIJKL",
         )
     with pytest.raises(
         SystemExit,
@@ -237,6 +247,7 @@ def test_compute_bad_args(tmp_path: str) -> None:
             tmp_dir,
             session,
             run,
+            tmp_json,
             tmp_dir,
             {},
             {},
@@ -266,6 +277,7 @@ def test_compute_bad_args(tmp_path: str) -> None:
             tmp_dir,
             session,
             run,
+            tmp_json,
             tmp_dir,
             {},
             {},

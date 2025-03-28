@@ -31,7 +31,8 @@ from pathlib import Path
 import pytest
 
 from pyani_plus import setup_logger
-from pyani_plus.private_cli import log_run
+from pyani_plus.db_orm import connect_to_db
+from pyani_plus.private_cli import import_json_comparisons, log_run
 from pyani_plus.tools import (
     get_nucmer,
 )
@@ -140,11 +141,14 @@ def test_dnadiff(
     assert db.is_file()
     logger = setup_logger(None)
     # Run snakemake wrapper
+    json_targets = [
+        dnadiff_targets_outdir / f"dnadiff.run_1.column_{_ + 1}.json" for _ in range(3)
+    ]
     run_snakemake_with_progress_bar(
         logger,
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
-        targets=[dnadiff_targets_outdir / f"column_{_ + 1}.dnadiff" for _ in range(3)],
+        targets=json_targets,
         params=config,
         working_directory=tmp_dir,
         temp=tmp_dir,
@@ -169,6 +173,11 @@ def test_dnadiff(
     for fname in (input_genomes_tiny / "intermediates/dnadiff").glob("*.mcoords"):
         generated = next(tmp_dir.glob(f"*/{fname.name}"))
         assert compare_files_with_skip(fname, generated, skip=0)
+
+    session = connect_to_db(logger, db)
+    for json in json_targets:
+        import_json_comparisons(logger, session, json)
+    session.close()
 
     compare_db_matrices(db, input_genomes_tiny / "matrices", absolute_tolerance=5e-5)
 
@@ -219,11 +228,14 @@ def test_dnadiff_bad_align(
     assert db.is_file()
     logger = setup_logger(None)
     # Run snakemake wrapper
+    json_targets = [
+        dnadiff_targets_outdir / f"dnadiff.run_1.column_{_ + 1}.json" for _ in range(2)
+    ]
     run_snakemake_with_progress_bar(
         logger,
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
-        targets=[dnadiff_targets_outdir / f"column_{_ + 1}.dnadiff" for _ in range(2)],
+        targets=json_targets,
         params=config,
         working_directory=tmp_dir,
         temp=tmp_dir,
@@ -256,6 +268,11 @@ def test_dnadiff_bad_align(
     ):
         generated = next(tmp_dir.glob(f"*/{fname.name}"))
         assert compare_files_with_skip(fname, generated, skip=0)
+
+    session = connect_to_db(logger, db)
+    for json in json_targets:
+        import_json_comparisons(logger, session, json)
+    session.close()
 
     compare_db_matrices(
         db, input_genomes_bad_alignments / "matrices", absolute_tolerance=5e-5

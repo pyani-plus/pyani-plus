@@ -67,6 +67,7 @@ def test_compute_column_sigint_anib(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "sigint.sqlite"
     assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "sigint.json"
 
     tmp_tool = tmp_dir / "working"
     tmp_tool.mkdir()
@@ -101,6 +102,8 @@ def test_compute_column_sigint_anib(
             # Compute the final column which would not do its partial logging
             # until the very end (unless interrupted):
             str(GENOMES - 1),
+            "--json",
+            str(tmp_json),
             "--temp",
             "working/",  # Not absolute but relative to test that works
         ],
@@ -118,7 +121,7 @@ def test_compute_column_sigint_anib(
     genomes = session.query(db_orm.Genome).count()
 
     if done < genomes:
-        assert "Interrupted, will attempt to log" in output, output
+        assert "Interrupted with " in output, output
     else:
         assert 0 < done < genomes, (
             f"Expected partial ANIb progress, not {done}/{genomes} and return {rc}"
@@ -139,6 +142,7 @@ def test_compute_column_sigint_dnadiff(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "sigint.sqlite"
     assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "sigint.json"
 
     tool = tools.get_nucmer()
     private_cli.log_run(
@@ -157,6 +161,8 @@ def test_compute_column_sigint_dnadiff(
         [
             ".pyani-plus-private-cli",
             "compute-column",
+            "--json",
+            str(tmp_json),
             "--database",
             str(tmp_db),
             "--run-id",
@@ -180,7 +186,7 @@ def test_compute_column_sigint_dnadiff(
     genomes = session.query(db_orm.Genome).count()
 
     if done < genomes:
-        assert "Interrupted, will attempt to log" in output, output
+        assert "Interrupted with " in output, output
     else:
         assert 0 < done < genomes, (
             f"Expected partial dnadiff progress, not {done}/{genomes} and return {rc}"
@@ -201,6 +207,7 @@ def test_compute_column_sigint_anim(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "sigint.sqlite"
     assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "sigint.json"
 
     tool = tools.get_nucmer()
     private_cli.log_run(
@@ -222,6 +229,8 @@ def test_compute_column_sigint_anim(
             "compute-column",
             "--database",
             str(tmp_db),
+            "--json",
+            str(tmp_json),
             "--run-id",
             "1",
             "--subject",
@@ -243,7 +252,7 @@ def test_compute_column_sigint_anim(
     genomes = session.query(db_orm.Genome).count()
 
     if done < genomes:
-        assert "Interrupted, will attempt to log" in output, output
+        assert "Interrupted with " in output, output
     else:
         assert 0 < done < genomes, (
             f"Expected partial ANIb progress, not {done}/{genomes} and return {rc}"
@@ -265,6 +274,7 @@ def test_compute_column_sigint_external_alignment(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "sigint.sqlite"
     assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "sigint.json"
 
     # Make a mock alignment - does not have to be the same content as the
     # mock genomes, can be any equal-length chunks. Making this large to
@@ -296,6 +306,8 @@ def test_compute_column_sigint_external_alignment(
         [
             ".pyani-plus-private-cli",
             "compute-column",
+            "--json",
+            str(tmp_json),
             "--database",
             str(tmp_db),
             "--run-id",
@@ -322,7 +334,7 @@ def test_compute_column_sigint_external_alignment(
     full = genomes * 2 - 1  # does first column & row at once (symmetric matrix)
 
     if done < full:
-        assert "Interrupted, will attempt to log" in output, output
+        assert "Interrupted with " in output, output
     else:
         assert 0 < done < full, (
             f"Expected partial external-alignment progress, not {done}/{full} and return {rc}"

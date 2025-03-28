@@ -32,7 +32,8 @@ from pathlib import Path
 import pytest
 
 from pyani_plus import setup_logger
-from pyani_plus.private_cli import log_run
+from pyani_plus.db_orm import connect_to_db
+from pyani_plus.private_cli import import_json_comparisons, log_run
 from pyani_plus.tools import get_fastani
 from pyani_plus.workflows import (
     ToolExecutor,
@@ -121,19 +122,26 @@ def test_rule_fastani(
     assert db.is_file()
     logger = setup_logger(None)
     # Run snakemake wrapper
+    json_targets = [
+        fastani_targets_outdir / f"fastani.run_1.column_{_ + 1}.json" for _ in range(3)
+    ]
     run_snakemake_with_progress_bar(
         logger,
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
-        targets=[fastani_targets_outdir / f"column_{_ + 1}.fastani" for _ in range(3)],
+        targets=json_targets,
         params=config_fastani_args,
         working_directory=Path(tmp_path),
         temp=Path(tmp_path),
     )
 
     # Check the intermediate files
-
     for file in (input_genomes_tiny / "intermediates/fastANI").glob("*_vs_*.fastani"):
         assert filecmp.cmp(file, tmp_dir / file), f"Wrong fastANI output in {file.name}"
+
+    session = connect_to_db(logger, db)
+    for json in json_targets:
+        import_json_comparisons(logger, session, json)
+    session.close()
 
     compare_db_matrices(db, input_genomes_tiny / "matrices")

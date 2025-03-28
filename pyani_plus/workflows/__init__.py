@@ -93,7 +93,7 @@ def progress_bar_via_db_comparisons(
                 # Probably another process is updating the DB, try again soon
                 continue  # pragma: no cover
             if old_db_version == db_version:
-                continue
+                continue  # pragma: no cover
             old_db_version = db_version
             new = run.comparisons().count() - already_done - done
             progress.update(task, advance=new)
@@ -185,8 +185,12 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
 
         if p.is_alive():
             # Progress bar should have finished, perhaps final update pending...
-            sleep(interval)
-            p.terminate()
+            # Give it a moment to load the final JSON file(s) and show a nice
+            # 100% progress bar.
+            sleep(interval + 2)
+            if p.is_alive():
+                logger.debug("Progress bar slow to finish, terminating it!")
+                p.terminate()
         p.join()
 
     if not success:

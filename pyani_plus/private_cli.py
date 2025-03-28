@@ -1107,7 +1107,7 @@ def compute_fastani(  # noqa: PLR0913, PLR0915
     try:
         # This is redundant in the good path...
         export_json_db_entries(logger, json_filename, configuration, db_entries)
-    except Exception:
+    except Exception:  # pragma: no cover
         logger.exception("Unexpected exception saving JSON:")
         return RECORDING_FAILED
     else:
@@ -1262,7 +1262,7 @@ def compute_anim(  # noqa: PLR0913, PLR0915
 
     try:
         export_json_db_entries(logger, json_filename, configuration, db_entries)
-    except Exception:
+    except Exception:  # pragma: no cover
         logger.exception("Unexpected exception saving JSON:")
         return RECORDING_FAILED
     else:
@@ -1416,7 +1416,7 @@ def compute_anib(  # noqa: PLR0913
 
     try:
         export_json_db_entries(logger, json_filename, configuration, db_entries)
-    except Exception:
+    except Exception:  # pragma: no cover
         logger.exception("Unexpected exception saving JSON:")
         return RECORDING_FAILED
     else:
@@ -1610,7 +1610,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
 
     try:
         export_json_db_entries(logger, json_filename, configuration, db_entries)
-    except Exception:
+    except Exception:  # pragma: no cover
         logger.exception("Unexpected exception saving JSON:")
         return RECORDING_FAILED
     else:
@@ -1723,7 +1723,7 @@ def compute_sourmash(  # noqa: C901, PLR0913
 
     try:
         export_json_db_entries(logger, json_filename, configuration, db_entries)
-    except Exception:
+    except Exception:  # pragma: no cover
         logger.exception("Unexpected exception saving JSON:")
         return RECORDING_FAILED
     else:
@@ -1851,7 +1851,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
                     "uname_machine": uname_machine,
                 }
             )
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:  # pragma: no cover
         # Try to abort gracefully without wasting the work done.
         msg = f"Interrupted with {len(db_entries)} completed external-alignment comparisons"
         logger.error(msg)  # noqa: TRY400
@@ -1860,7 +1860,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
 
     try:
         export_json_db_entries(logger, json_filename, configuration, db_entries)
-    except Exception:
+    except Exception:  # pragma: no cover
         logger.exception("Unexpected exception saving JSON:")
         return RECORDING_FAILED
     else:

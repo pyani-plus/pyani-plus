@@ -287,9 +287,9 @@ def run_method(  # noqa: PLR0913
             run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
             done = run.comparisons().count()
 
-            if done < n**2:
+            if done < n**2:  # pragma: no cover
                 logger.debug(
-                    "Importing JSON files (again), and not all comparisons in DB (yet)"
+                    "Importing final JSON files, as not all comparisons in DB (yet)"
                 )
                 # Can happen if progress-bar thread didn't finish in time
                 for json in target_paths:

@@ -396,7 +396,7 @@ def log_comparison(  # noqa: PLR0913
         .where(db_orm.Configuration.configuration_id == config_id)
         .count()
     ):
-        msg = f" {database} does not contain configuration_id={config_id}"
+        msg = f"{database} does not contain configuration_id={config_id}"
         log_sys_exit(logger, msg)
 
     from pyani_plus.utils import file_md5sum

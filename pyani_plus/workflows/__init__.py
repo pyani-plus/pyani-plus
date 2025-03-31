@@ -25,9 +25,9 @@ import logging
 import multiprocessing
 import signal
 import sys
+import time
 from enum import Enum
 from pathlib import Path
-from time import sleep
 
 from rich.progress import Progress
 from snakemake.cli import args_to_api, parse_args
@@ -72,7 +72,7 @@ def progress_bar_via_db_comparisons(
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         task = progress.add_task("Comparing pairs", total=total)
         while done < total:
-            sleep(interval)
+            time.sleep(interval)
             # Have any JSON files been updated?
             for json in json_files:
                 if json.is_file():
@@ -187,7 +187,7 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
             # Progress bar should have finished, perhaps final update pending...
             # Give it a moment to load the final JSON file(s) and show a nice
             # 100% progress bar.
-            sleep(interval + 2)
+            time.sleep(interval + 2)
             if p.is_alive():
                 logger.debug("Progress bar slow to finish, terminating it!")
                 p.terminate()

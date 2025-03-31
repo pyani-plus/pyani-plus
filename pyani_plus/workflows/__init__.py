@@ -73,18 +73,36 @@ def progress_bar_via_db_comparisons(
         task = progress.add_task("Comparing pairs", total=total)
         while done < total:
             time.sleep(interval)
-            # Have any JSON files been updated?
+            # Have any JSON files been updated? Minimise disk checking
+            imported = False
             for json in json_files:
-                if json.is_file():
-                    modified = json.stat().st_mtime
-                    if (
-                        json not in json_time_stamps
-                        or modified > json_time_stamps[json]
-                    ):
-                        # New or updated!
-                        json_time_stamps[json] = modified
+                if (
+                    # If new file import it
+                    json not in json_time_stamps and json.is_file()
+                ):
+                    msg = f"Loading '{json.name}'"
+                    logger.debug(msg)
+                    json_time_stamps[json] = time.time()
+                    import_json_comparisons(logger, session, json)
+                    imported = True
+                elif (
+                    json in json_time_stamps  # existing file
+                    and json_time_stamps[json] + 10
+                    < time.time()  # imported over 10s ago
+                ):  # pragma: no cover
+                    last_checked = time.time()
+                    if json_time_stamps[json] < json.stat().st_mtime:
+                        msg = f"Reloading '{json.name}'"
+                        logger.debug(msg)
+                        json_time_stamps[json] = last_checked
                         import_json_comparisons(logger, session, json)
-            # Have there been any DB changes (here or from another thread)?
+                        imported = True
+                    else:
+                        # Update last checked time:
+                        json_time_stamps[json] = last_checked
+            # Have there been any DB changes?
+            if not imported:
+                continue
             try:
                 db_version = (
                     session.connection().execute(text("PRAGMA data_version;")).one()[0]

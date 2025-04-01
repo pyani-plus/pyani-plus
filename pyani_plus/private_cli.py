@@ -1093,7 +1093,7 @@ def compute_fastani(  # noqa: PLR0913, PLR0915
                     expected_pairs={(_, subject_hash) for _ in batch},
                 )
             )
-            msg = f"Parsed fastANI batch of {len(batch)} vs {subject_hash}; recording {len(db_entries)} in DB."
+            msg = f"Parsed fastANI batch of {len(batch)} vs {subject_hash}; recording {len(db_entries)} to JSON."
             logger.debug(msg)
             export_json_db_entries(logger, json_filename, configuration, db_entries)
 

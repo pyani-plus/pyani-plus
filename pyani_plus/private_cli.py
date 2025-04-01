@@ -489,7 +489,7 @@ def export_json_db_entries(
 
 def import_json_comparisons(  # noqa: PLR0915
     logger: logging.Logger, session: Session, json_filename: Path
-) -> None:
+) -> int:
     """Import a JSON file of comparisons into the database."""
     import json  # lazy import
 
@@ -532,6 +532,7 @@ def import_json_comparisons(  # noqa: PLR0915
         msg = f"JSON file '{json_filename}' uname incomplete"
         session.close()
         log_sys_exit(logger, msg)
+    del data
 
     try:
         config_id = db_orm.db_configuration(
@@ -562,7 +563,7 @@ def import_json_comparisons(  # noqa: PLR0915
         msg = f"JSON file '{json_filename}' has no comparisons"
         session.close()
         logger.warning(msg)
-        return
+        return 0
 
     try:
         db_entries = [
@@ -591,6 +592,8 @@ def import_json_comparisons(  # noqa: PLR0915
         msg = f"Failed to record '{json_filename}' comparisons to database"
         session.close()
         log_sys_exit(logger, msg)
+
+    return len(comparisons)
 
 
 @app.command(rich_help_panel="Low-level logging")
@@ -642,7 +645,9 @@ def import_comparisons(
         log_sys_exit(logger, msg)
 
     for filename in json:
-        import_json_comparisons(logger, session, filename)
+        count = import_json_comparisons(logger, session, filename)
+        msg = f"Imported {count} from {filename}"
+        logger.info(msg)
     return 0
 
 

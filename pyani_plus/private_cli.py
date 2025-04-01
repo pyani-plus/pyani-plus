@@ -36,6 +36,8 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from sqlalchemy import func, select
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
 from pyani_plus import LOG_FILE, db_orm, log_sys_exit, setup_logger, tools
@@ -70,10 +72,17 @@ OPT_ARG_TYPE_QUIET = Annotated[
 REQ_ARG_TYPE_RUN_NAME = Annotated[
     str, typer.Option(help="Run name", show_default=False)
 ]
+REQ_ARG_TYPE_JSON_OUT = Annotated[
+    Path,
+    typer.Option(
+        help="Output JSON file", metavar="FILE", dir_okay=False, file_okay=True
+    ),
+]
 REQ_ARG_TYPE_FASTA_FILES = Annotated[
     list[Path],
     typer.Argument(
         help="Path(s) to FASTA file(s)",
+        metavar="FILE",
         show_default=False,
         exists=True,
         dir_okay=False,
@@ -84,6 +93,7 @@ REQ_ARG_TYPE_QUERY_FASTA = Annotated[
     Path,
     typer.Option(
         help="Path to query FASTA file",
+        metavar="FILE",
         show_default=False,
         exists=True,
         dir_okay=False,
@@ -94,6 +104,7 @@ REQ_ARG_TYPE_SUBJECT_FASTA = Annotated[
     Path,
     typer.Option(
         help="Path to subject (reference) FASTA file",
+        metavar="FILE",
         show_default=False,
         exists=True,
         dir_okay=False,
@@ -423,6 +434,218 @@ def log_comparison(  # noqa: PLR0913
     return 0
 
 
+def export_json_db_entries(
+    logger: logging.Logger,
+    json_filename: Path,
+    configuration: db_orm.Configuration,
+    db_entries: list[dict[str, str | float | int | None]],
+) -> None:
+    """Serialise DB entries for recording in JSON for later import.
+
+    The list of entries must all have the same configuration identifier as the given
+    configuration, and the same uname values as the current machine. This is assumed.
+    """
+    config_dict = {
+        "method": configuration.method,
+        "program": configuration.program,
+        "version": configuration.version,
+        "fragsize": configuration.fragsize,
+        "mode": configuration.mode,
+        "kmersize": configuration.kmersize,
+        "minmatch": configuration.minmatch,
+        "extra": configuration.extra,
+    }
+
+    uname = platform.uname()  # this should be cached, so fast
+    unwanted_keys = {
+        "configuration_id",
+        "uname_system",
+        "uname_release",
+        "uname_machine",
+    }
+
+    import json  # lazy
+
+    serialised = json.dumps(
+        {
+            "configuration": config_dict,
+            "uname": {
+                "system": uname.system,
+                "release": uname.release,
+                "machine": uname.machine,
+            },
+            "comparisons": [
+                {k: v for (k, v) in _.items() if k not in unwanted_keys}
+                for _ in db_entries
+            ],
+        }
+    )
+
+    with json_filename.open("w") as handle:
+        handle.write(serialised)
+    msg = f"Saved {len(db_entries)} comparisons to {json_filename}"
+    logger.debug(msg)
+
+
+def import_json_comparisons(  # noqa: PLR0915
+    logger: logging.Logger, session: Session, json_filename: Path
+) -> None:
+    """Import a JSON file of comparisons into the database."""
+    import json  # lazy import
+
+    msg = f"Importing {json_filename}"
+    logger.debug(msg)
+
+    # Consider incremental loading in case of large files?
+    with json_filename.open("rb") as handle:
+        raw = handle.read()
+    if not raw:
+        msg = f"JSON file '{json_filename}' is empty"
+        log_sys_exit(logger, msg)
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        logger.exception("Unable to parse JSON:")
+        msg = f"JSON file '{json_filename}' invalid"
+        log_sys_exit(logger, msg)
+    del raw
+
+    if (
+        not isinstance(data, dict)
+        or "configuration" not in data
+        or not isinstance(data["configuration"], dict)
+        or "uname" not in data
+        or not isinstance(data["uname"], dict)
+        or "comparisons" not in data
+        or not isinstance(data["comparisons"], list)
+    ):
+        msg = f"JSON file '{json_filename}' does not use the expected structure"
+        log_sys_exit(logger, msg)
+
+    configuration = data["configuration"]
+    comparisons = data["comparisons"]
+    try:
+        uname_system = data["uname"]["system"]
+        uname_release = data["uname"]["release"]
+        uname_machine = data["uname"]["machine"]
+    except KeyError:
+        msg = f"JSON file '{json_filename}' uname incomplete"
+        session.close()
+        log_sys_exit(logger, msg)
+
+    try:
+        config_id = db_orm.db_configuration(
+            session=session,
+            method=configuration["method"],
+            program=configuration["program"],
+            version=configuration["version"],
+            fragsize=configuration.get("fragsize", None),
+            mode=configuration.get("mode", None),
+            kmersize=configuration.get("kmersize", None),
+            minmatch=configuration.get("minmatch", None),
+            extra=configuration.get("extra", None),
+            create=False,
+        ).configuration_id
+    except KeyError:
+        msg = f"JSON file '{json_filename}' configuration incomplete"
+        session.close()
+        log_sys_exit(logger, msg)
+    except NoResultFound:
+        msg = f"JSON file '{json_filename}' configuration not in database"
+        session.close()
+        log_sys_exit(logger, msg)
+    del configuration
+    msg = f"Configuration identifier {config_id} in database"
+    logger.debug(msg)
+
+    if not comparisons:
+        msg = f"JSON file '{json_filename}' has no comparisons"
+        session.close()
+        logger.warning(msg)
+        return
+
+    try:
+        db_entries = [
+            {
+                "query_hash": row["query_hash"],
+                "subject_hash": row["subject_hash"],
+                "identity": row["identity"],
+                "aln_length": row.get("aln_length", None),
+                "sim_errors": row.get("sim_errors", None),
+                "cov_query": row.get("cov_query", None),
+                "configuration_id": config_id,
+                "uname_system": uname_system,
+                "uname_release": uname_release,
+                "uname_machine": uname_machine,
+            }
+            for row in comparisons
+        ]
+    except KeyError:
+        msg = f"JSON file '{json_filename}' comparison(s) incomplete"
+        session.close()
+        log_sys_exit(logger, msg)
+
+    if not db_orm.insert_comparisons_with_retries(
+        logger, session, db_entries, source=str(json_filename)
+    ):  # pragma: no cover
+        msg = f"Failed to record '{json_filename}' comparisons to database"
+        session.close()
+        log_sys_exit(logger, msg)
+
+
+@app.command(rich_help_panel="Low-level logging")
+def import_comparisons(
+    database: REQ_ARG_TYPE_DATABASE,
+    json: Annotated[
+        list[Path],
+        typer.Argument(
+            help="Path(s) of JSON file(s) containing comparisons.",
+            metavar="FILE",
+            show_default=False,
+            exists=True,
+            dir_okay=False,
+            file_okay=True,
+        ),
+    ],
+    *,
+    debug: OPT_ARG_TYPE_DEBUG = False,
+    log: OPT_ARG_TYPE_LOG = LOG_FILE,
+) -> int:
+    """Parse one or more JSON comparison files and log them to the database.
+
+    The database must already contain a matching configuration table entry
+    (see the log-configuration command to do this at the command line) and
+    matching genome entries (see the log-genome command).
+
+    The JSON files will contain values for a configuration table entry, uname
+    values applied to all the comparisons, and multiple entries to be recorded
+    in the comparisons table.
+    """
+    logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.ERROR)
+    if database != ":memory:" and not Path(database).is_file():
+        msg = f"Database '{database}' does not exist"
+        sys.exit(msg)
+
+    msg = f"Logging comparison to '{database}'"
+    logger.info(msg)
+    session = db_orm.connect_to_db(logger, database)
+
+    if (
+        session.execute(select(func.count()).select_from(db_orm.Configuration)).scalar()
+        == 0
+    ):
+        msg = f"{database} does not contain any configurations"
+        log_sys_exit(logger, msg)
+
+    if session.execute(select(func.count()).select_from(db_orm.Genome)).scalar() == 0:
+        msg = f"{database} does not contain any genomes"
+        log_sys_exit(logger, msg)
+
+    for filename in json:
+        import_json_comparisons(logger, session, filename)
+    return 0
+
+
 def validate_cache(
     logger: logging.Logger,
     cache: Path | None,
@@ -552,6 +775,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
             file_okay=True,
         ),
     ],
+    json: REQ_ARG_TYPE_JSON_OUT,
     *,
     cache: OPT_ARG_TYPE_CACHE = None,
     temp: OPT_ARG_TYPE_TEMP = Path("-"),
@@ -731,6 +955,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
                 Path(tmp_dir),
                 session,
                 run,
+                json,
                 fasta_dir,
                 hash_to_filename,
                 filename_to_hash,
@@ -745,11 +970,12 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
         return 1  # for mypy
 
 
-def compute_fastani(  # noqa: PLR0913
+def compute_fastani(  # noqa: PLR0913, PLR0915
     logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
+    json_filename: Path,
     fasta_dir: Path,
     hash_to_filename: dict[str, str],
     filename_to_hash: dict[str, str],
@@ -758,7 +984,7 @@ def compute_fastani(  # noqa: PLR0913
     *,
     cache: Path | None = None,  # noqa: ARG001
 ) -> int:
-    """Run fastANI many-vs-subject and log column of comparisons to database.
+    """Run fastANI many-vs-subject and log column of comparisons to JSON.
 
     Unfortunately fastANI does not produce any output to file until it finishes
     all the given comparisons. This is problematic in terms of no user feedback,
@@ -771,19 +997,21 @@ def compute_fastani(  # noqa: PLR0913
     uname_release = uname.release
     uname_machine = uname.machine
 
-    tool = tools.get_fastani()
-    _check_tool_version(logger, tool, run.configuration)
+    configuration = run.configuration
 
-    config_id = run.configuration.configuration_id
-    fragsize = run.configuration.fragsize
+    tool = tools.get_fastani()
+    _check_tool_version(logger, tool, configuration)
+
+    config_id = configuration.configuration_id
+    fragsize = configuration.fragsize
     if not fragsize:
         msg = f"fastANI run-id {run.run_id} is missing fragsize parameter"
         log_sys_exit(logger, msg)
-    kmersize = run.configuration.kmersize
+    kmersize = configuration.kmersize
     if not kmersize:
         msg = f"fastANI run-id {run.run_id} is missing kmersize parameter"
         log_sys_exit(logger, msg)
-    minmatch = run.configuration.minmatch
+    minmatch = configuration.minmatch
     if not minmatch:
         msg = f"fastANI run-id {run.run_id} is missing minmatch parameter"
         log_sys_exit(logger, msg)
@@ -840,7 +1068,7 @@ def compute_fastani(  # noqa: PLR0913
                     # Proxy values:
                     "aln_length": None
                     if orthologous_matches is None
-                    else round(run.configuration.fragsize * orthologous_matches),
+                    else round(configuration.fragsize * orthologous_matches),
                     "sim_errors": None
                     if fragments is None or orthologous_matches is None
                     else fragments - orthologous_matches,
@@ -867,19 +1095,23 @@ def compute_fastani(  # noqa: PLR0913
             )
             msg = f"Parsed fastANI batch of {len(batch)} vs {subject_hash}; recording {len(db_entries)} in DB."
             logger.debug(msg)
-            db_entries = db_orm.attempt_insert(session, db_entries, db_orm.Comparison)
+            export_json_db_entries(logger, json_filename, configuration, db_entries)
 
     except KeyboardInterrupt:  # pragma: no cover
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed fastANI comparisons"
+        msg = f"Interrupted with {len(db_entries)} completed fastANI comparisons"
         logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
+        session.commit()
 
-    return (
-        0
-        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
-        else RECORDING_FAILED
-    )
+    try:
+        # This is redundant in the good path...
+        export_json_db_entries(logger, json_filename, configuration, db_entries)
+    except Exception:  # pragma: no cover
+        logger.exception("Unexpected exception saving JSON:")
+        return RECORDING_FAILED
+    else:
+        return 0
 
 
 def compute_anim(  # noqa: PLR0913, PLR0915
@@ -887,6 +1119,7 @@ def compute_anim(  # noqa: PLR0913, PLR0915
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
+    json_filename: Path,
     fasta_dir: Path,
     hash_to_filename: dict[str, str],
     filename_to_hash: dict[str, str],  # noqa: ARG001
@@ -895,18 +1128,20 @@ def compute_anim(  # noqa: PLR0913, PLR0915
     *,
     cache: Path | None = None,  # noqa: ARG001
 ) -> int:
-    """Run ANIm many-vs-subject and log column of comparisons to database."""
+    """Run ANIm many-vs-subject and log column of comparisons to JSON."""
     uname = platform.uname()
     uname_system = uname.system
     uname_release = uname.release
     uname_machine = uname.machine
 
+    configuration = run.configuration
+
     nucmer = tools.get_nucmer()
     delta_filter = tools.get_delta_filter()
-    _check_tool_version(logger, nucmer, run.configuration)
+    _check_tool_version(logger, nucmer, configuration)
 
-    config_id = run.configuration.configuration_id
-    mode = run.configuration.mode
+    config_id = configuration.configuration_id
+    mode = configuration.mode
     if not mode:
         msg = f"ANIm run-id {run.run_id} is missing mode parameter"
         log_sys_exit(logger, msg)
@@ -1010,31 +1245,28 @@ def compute_anim(  # noqa: PLR0913, PLR0915
                 }
             )
 
-            # Waiting to log the whole column does reduce DB contention and
-            # seems to avoid locking problems, but also means zero feedback.
-            # Logging every 25 entries or any similar fixed size seems likely
-            # to risk locking. The following should result in staggered commits:
-            if query_hash == subject_hash:
-                db_entries = db_orm.attempt_insert(
-                    session, db_entries, db_orm.Comparison
-                )
-            elif hash_to_filename[query_hash].endswith(".gz"):
+            if query_hash != subject_hash and hash_to_filename[query_hash].endswith(
+                ".gz"
+            ):
                 query_fasta.unlink()  # remove our decompressed copy
 
     except KeyboardInterrupt:
-        # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed ANIm comparisons"
+        # Try to abort gracefhave logged JSON file with  the work done.
+        msg = f"Interrupted with {len(db_entries)} completed ANIm comparisons"
         logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
+        session.commit()
 
     if hash_to_filename[subject_hash].endswith(".gz"):
         subject_fasta.unlink()  # remove our decompressed copy
 
-    return (
-        0
-        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
-        else RECORDING_FAILED
-    )
+    try:
+        export_json_db_entries(logger, json_filename, configuration, db_entries)
+    except Exception:  # pragma: no cover
+        logger.exception("Unexpected exception saving JSON:")
+        return RECORDING_FAILED
+    else:
+        return 0
 
 
 def compute_anib(  # noqa: PLR0913
@@ -1042,6 +1274,7 @@ def compute_anib(  # noqa: PLR0913
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
+    json_filename: Path,
     fasta_dir: Path,
     hash_to_filename: dict[str, str],
     filename_to_hash: dict[str, str],  # noqa: ARG001
@@ -1050,17 +1283,19 @@ def compute_anib(  # noqa: PLR0913
     *,
     cache: Path | None = None,  # noqa: ARG001
 ) -> int:
-    """Run ANIb many-vs-subject and log column of comparisons to database."""
+    """Run ANIb many-vs-subject and log column of comparisons to JSON."""
     uname = platform.uname()
     uname_system = uname.system
     uname_release = uname.release
     uname_machine = uname.machine
 
+    configuration = run.configuration
+
     tool = tools.get_blastn()
-    _check_tool_version(logger, tool, run.configuration)
+    _check_tool_version(logger, tool, configuration)
 
     config_id = run.configuration_id
-    fragsize = run.configuration.fragsize
+    fragsize = configuration.fragsize
     if not fragsize:
         msg = f"ANIb run-id {run.run_id} is missing fragsize parameter"
         log_sys_exit(logger, msg)
@@ -1172,26 +1407,20 @@ def compute_anib(  # noqa: PLR0913
                 }
             )
 
-            # Waiting to log the whole column does reduce DB contention and
-            # seems to avoid locking problems, but also means zero feedback.
-            # Logging every 25 entries or any similar fixed size seems likely
-            # to risk locking. The following should result in staggered commits:
-            if query_hash == subject_hash:
-                db_entries = db_orm.attempt_insert(
-                    session, db_entries, db_orm.Comparison
-                )
-
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed ANIb comparisons"
+        msg = f"Interrupted with {len(db_entries)} completed ANIb comparisons"
         logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
+        session.commit()
 
-    return (
-        0
-        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
-        else RECORDING_FAILED
-    )
+    try:
+        export_json_db_entries(logger, json_filename, configuration, db_entries)
+    except Exception:  # pragma: no cover
+        logger.exception("Unexpected exception saving JSON:")
+        return RECORDING_FAILED
+    else:
+        return 0
 
 
 def compute_dnadiff(  # noqa: PLR0913, PLR0915
@@ -1199,6 +1428,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
+    json_filename: Path,
     fasta_dir: Path,
     hash_to_filename: dict[str, str],
     filename_to_hash: dict[str, str],  # noqa: ARG001
@@ -1207,19 +1437,21 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
     *,
     cache: Path | None = None,  # noqa: ARG001
 ) -> int:
-    """Run dnadiff many-vs-subject and log column of comparisons to database."""
+    """Run dnadiff many-vs-subject and log column of comparisons to JSON."""
     uname = platform.uname()
     uname_system = uname.system
     uname_release = uname.release
     uname_machine = uname.machine
 
+    configuration = run.configuration
+
     nucmer = tools.get_nucmer()
     delta_filter = tools.get_delta_filter()
     show_diff = tools.get_show_diff()
     show_coords = tools.get_show_coords()
-    _check_tool_version(logger, nucmer, run.configuration)
+    _check_tool_version(logger, nucmer, configuration)
 
-    config_id = run.configuration.configuration_id
+    config_id = configuration.configuration_id
 
     from pyani_plus.methods import dnadiff  # lazy import
     from pyani_plus.utils import check_output, stage_file
@@ -1365,37 +1597,32 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
                 }
             )
 
-            # Waiting to log the whole column does reduce DB contention and
-            # seems to avoid locking problems, but also means zero feedback.
-            # Logging every 25 entries or any similar fixed size seems likely
-            # to risk locking. The following should result in staggered commits:
-            if query_hash == subject_hash:
-                db_entries = db_orm.attempt_insert(
-                    session, db_entries, db_orm.Comparison
-                )
-            elif hash_to_filename[query_hash].endswith(".gz"):
+            if query_hash != subject_hash and hash_to_filename[query_hash].endswith(
+                ".gz"
+            ):
                 query_fasta.unlink()  # remove our decompressed copy
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed dnadiff comparisons"
+        msg = f"Interrupted with {len(db_entries)} completed dnadiff comparisons"
         logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
+        session.commit()
 
-    if hash_to_filename[subject_hash].endswith(".gz"):
-        subject_fasta.unlink()  # remove our decompressed copy
+    try:
+        export_json_db_entries(logger, json_filename, configuration, db_entries)
+    except Exception:  # pragma: no cover
+        logger.exception("Unexpected exception saving JSON:")
+        return RECORDING_FAILED
+    else:
+        return 0
 
-    return (
-        0
-        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
-        else RECORDING_FAILED
-    )
 
-
-def compute_sourmash(  # noqa: PLR0913
+def compute_sourmash(  # noqa: C901, PLR0913
     logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
     run: db_orm.Run,
+    json_filename: Path,
     fasta_dir: Path,  # noqa: ARG001
     hash_to_filename: dict[str, str],  # noqa: ARG001
     filename_to_hash: dict[str, str],  # noqa: ARG001
@@ -1404,7 +1631,7 @@ def compute_sourmash(  # noqa: PLR0913
     *,
     cache: Path | None = None,
 ) -> int:
-    """Run many-vs-subject for sourmash and log column to database."""
+    """Run many-vs-subject for sourmash and log to JSON."""
     if not cache:
         msg = "Not given a cache directory"
         log_sys_exit(logger, msg)
@@ -1442,16 +1669,16 @@ def compute_sourmash(  # noqa: PLR0913
     uname_release = uname.release
     uname_machine = uname.machine
 
-    tool = tools.get_sourmash()
-    _check_tool_version(logger, tool, run.configuration)
+    configuration = run.configuration
 
-    config_id = run.configuration.configuration_id
+    tool = tools.get_sourmash()
+    _check_tool_version(logger, tool, configuration)
+
+    config_id = configuration.configuration_id
 
     from pyani_plus.methods import sourmash  # lazy import
 
-    sig_cache = (
-        cache / f"sourmash_k={run.configuration.kmersize}_{run.configuration.extra}"
-    )
+    sig_cache = cache / f"sourmash_k={configuration.kmersize}_{configuration.extra}"
     if not sig_cache.is_dir():
         msg = (
             f"Missing sourmash signatures directory '{sig_cache}'"
@@ -1486,17 +1713,21 @@ def compute_sourmash(  # noqa: PLR0913
                 }
                 for q, s, q_containment, max_containment in batch
             )
-            db_entries = db_orm.attempt_insert(session, db_entries, db_orm.Comparison)
+            export_json_db_entries(logger, json_filename, configuration, db_entries)
     except KeyboardInterrupt:  # pragma: no cover
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed sourmash comparisons"
+        msg = f"Interrupted with {len(db_entries)} completed sourmash comparisons"
         logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
-    return (
-        0
-        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
-        else RECORDING_FAILED
-    )
+        session.commit()
+
+    try:
+        export_json_db_entries(logger, json_filename, configuration, db_entries)
+    except Exception:  # pragma: no cover
+        logger.exception("Unexpected exception saving JSON:")
+        return RECORDING_FAILED
+    else:
+        return 0
 
 
 def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
@@ -1504,6 +1735,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     tmp_dir: Path,  # noqa: ARG001
     session: Session,
     run: db_orm.Run,
+    json_filename: Path,
     fasta_dir: Path,  # noqa: ARG001
     hash_to_filename: dict[str, str],  # noqa: ARG001
     filename_to_hash: dict[str, str],  # noqa: ARG001
@@ -1512,7 +1744,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     *,
     cache: Path | None = None,  # noqa: ARG001
 ) -> int:
-    """Compute and log column of comparisons from given MSA to database.
+    """Compute and log column of comparisons from given MSA to JSON.
 
     Will only look at query in query_hashes vs subject_hash, but will also
     record reciprocal comparison as this method is symmetric.
@@ -1522,22 +1754,23 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     uname_release = uname.release
     uname_machine = uname.machine
 
-    config_id = run.configuration.configuration_id
-    if run.configuration.method != "external-alignment":
-        msg = f"Run-id {run.run_id} expected {run.configuration.method} results"
+    configuration = run.configuration
+    config_id = configuration.configuration_id
+    if configuration.method != "external-alignment":
+        msg = f"Run-id {run.run_id} expected {configuration.method} results"
         log_sys_exit(logger, msg)
-    if run.configuration.program:
-        msg = f"configuration.program={run.configuration.program!r} unexpected"
+    if configuration.program:
+        msg = f"configuration.program={configuration.program!r} unexpected"
         log_sys_exit(logger, msg)
-    if run.configuration.version:
-        msg = f"configuration.version={run.configuration.version!r} unexpected"
+    if configuration.version:
+        msg = f"configuration.version={configuration.version!r} unexpected"
         log_sys_exit(logger, msg)
-    if not run.configuration.extra:
+    if not configuration.extra:
         msg = "Missing configuration.extra setting"
         log_sys_exit(logger, msg)
-    args = dict(_.split("=", 1) for _ in run.configuration.extra.split(";", 2))
+    args = dict(_.split("=", 1) for _ in configuration.extra.split(";", 2))
     if list(args) != ["md5", "label", "alignment"]:
-        msg = f"configuration.extra={run.configuration.extra!r} unexpected"
+        msg = f"configuration.extra={configuration.extra!r} unexpected"
         log_sys_exit(logger, msg)
 
     alignment = Path(args["alignment"])
@@ -1618,17 +1851,20 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
                     "uname_machine": uname_machine,
                 }
             )
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:  # pragma: no cover
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted, will attempt to log {len(db_entries)} completed external-alignment comparisons"
+        msg = f"Interrupted with {len(db_entries)} completed external-alignment comparisons"
         logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
+        session.commit()
 
-    return (
-        0
-        if db_orm.insert_comparisons_with_retries(logger, session, db_entries)
-        else RECORDING_FAILED
-    )
+    try:
+        export_json_db_entries(logger, json_filename, configuration, db_entries)
+    except Exception:  # pragma: no cover
+        logger.exception("Unexpected exception saving JSON:")
+        return RECORDING_FAILED
+    else:
+        return 0
 
 
 if __name__ == "__main__":

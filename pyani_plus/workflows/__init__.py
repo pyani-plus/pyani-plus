@@ -25,9 +25,9 @@ import logging
 import multiprocessing
 import signal
 import sys
+import time
 from enum import Enum
 from pathlib import Path
-from time import sleep
 
 from rich.progress import Progress
 from snakemake.cli import args_to_api, parse_args
@@ -35,6 +35,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, log_sys_exit, setup_logger
+from pyani_plus.private_cli import import_json_comparisons
 from pyani_plus.public_cli_args import ToolExecutor
 
 
@@ -47,7 +48,7 @@ class ShowProgress(str, Enum):
 
 
 def progress_bar_via_db_comparisons(
-    database: Path, run_id: int, interval: float = 1.0
+    database: Path, run_id: int, json_files: set[Path], interval: float = 1.0
 ) -> None:
     """Show a progress bar based on monitoring the DB entries.
 
@@ -64,13 +65,44 @@ def progress_bar_via_db_comparisons(
     already_done = run.comparisons().count()
     total = run.genomes.count() ** 2 - already_done
 
+    json_time_stamps: dict[Path, float] = {}
+
     done = 0
     old_db_version = -1
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         task = progress.add_task("Comparing pairs", total=total)
         while done < total:
-            sleep(interval)
+            time.sleep(interval)
+            # Have any JSON files been updated? Minimise disk checking
+            imported = False
+            for json in json_files:
+                if (
+                    # If new file import it
+                    json not in json_time_stamps and json.is_file()
+                ):
+                    msg = f"Loading '{json.name}'"
+                    logger.debug(msg)
+                    json_time_stamps[json] = time.time()
+                    import_json_comparisons(logger, session, json)
+                    imported = True
+                elif (
+                    json in json_time_stamps  # existing file
+                    and json_time_stamps[json] + 10
+                    < time.time()  # imported over 10s ago
+                ):  # pragma: no cover
+                    last_checked = time.time()
+                    if json_time_stamps[json] < json.stat().st_mtime:
+                        msg = f"Reloading '{json.name}'"
+                        logger.debug(msg)
+                        json_time_stamps[json] = last_checked
+                        import_json_comparisons(logger, session, json)
+                        imported = True
+                    else:
+                        # Update last checked time:
+                        json_time_stamps[json] = last_checked
             # Have there been any DB changes?
+            if not imported:
+                continue
             try:
                 db_version = (
                     session.connection().execute(text("PRAGMA data_version;")).one()[0]
@@ -79,7 +111,7 @@ def progress_bar_via_db_comparisons(
                 # Probably another process is updating the DB, try again soon
                 continue  # pragma: no cover
             if old_db_version == db_version:
-                continue
+                continue  # pragma: no cover
             old_db_version = db_version
             new = run.comparisons().count() - already_done - done
             progress.update(task, advance=new)
@@ -159,6 +191,7 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
             args=(
                 database,
                 run_id,
+                {Path(_) for _ in targets},
                 interval,
             ),
             daemon=True,
@@ -170,8 +203,12 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
 
         if p.is_alive():
             # Progress bar should have finished, perhaps final update pending...
-            sleep(interval)
-            p.terminate()
+            # Give it a moment to load the final JSON file(s) and show a nice
+            # 100% progress bar.
+            time.sleep(interval + 2)
+            if p.is_alive():
+                logger.debug("Progress bar slow to finish, terminating it!")
+                p.terminate()
         p.join()
 
     if not success:

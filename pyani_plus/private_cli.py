@@ -1119,7 +1119,7 @@ def compute_fastani(  # noqa: PLR0913, PLR0915
         return 0
 
 
-def compute_anim(  # noqa: PLR0913, PLR0915
+def compute_anim(  # noqa: C901, PLR0913, PLR0915
     logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
@@ -1138,6 +1138,8 @@ def compute_anim(  # noqa: PLR0913, PLR0915
     uname_system = uname.system
     uname_release = uname.release
     uname_machine = uname.machine
+
+    batch_size = 50
 
     configuration = run.configuration
 
@@ -1167,6 +1169,7 @@ def compute_anim(  # noqa: PLR0913, PLR0915
     stage_file(logger, fasta_dir / hash_to_filename[subject_hash], subject_fasta)
 
     db_entries = []
+    new = 0
     try:
         for query_hash, query_length in query_hashes.items():
             if query_hash != subject_hash:
@@ -1255,6 +1258,10 @@ def compute_anim(  # noqa: PLR0913, PLR0915
             ):
                 query_fasta.unlink()  # remove our decompressed copy
 
+            new += 1
+            if new >= batch_size:  # pragma: no cover
+                export_json_db_entries(logger, json_filename, configuration, db_entries)
+                new = 0
     except KeyboardInterrupt:
         # Try to abort gracefhave logged JSON file with  the work done.
         msg = f"Interrupted with {len(db_entries)} completed ANIm comparisons"
@@ -1265,6 +1272,8 @@ def compute_anim(  # noqa: PLR0913, PLR0915
     if hash_to_filename[subject_hash].endswith(".gz"):
         subject_fasta.unlink()  # remove our decompressed copy
 
+    if not new:  # pragma: no cover
+        return 0
     try:
         export_json_db_entries(logger, json_filename, configuration, db_entries)
     except Exception:  # pragma: no cover
@@ -1274,7 +1283,7 @@ def compute_anim(  # noqa: PLR0913, PLR0915
         return 0
 
 
-def compute_anib(  # noqa: PLR0913
+def compute_anib(  # noqa: PLR0913, PLR0915
     logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
@@ -1293,6 +1302,8 @@ def compute_anib(  # noqa: PLR0913
     uname_system = uname.system
     uname_release = uname.release
     uname_machine = uname.machine
+
+    batch_size = 50
 
     configuration = run.configuration
 
@@ -1346,6 +1357,7 @@ def compute_anib(  # noqa: PLR0913
         subject_fasta.unlink()  # remove our decompressed copy
 
     db_entries = []
+    new = 0
     try:
         for query_hash, query_length in query_hashes.items():
             tmp_tsv = tmp_dir / f"{query_hash}_vs_{subject_hash}.tsv"
@@ -1411,6 +1423,10 @@ def compute_anib(  # noqa: PLR0913
                     "uname_machine": uname_machine,
                 }
             )
+            new += 1
+            if new >= batch_size:  # pragma: no cover
+                export_json_db_entries(logger, json_filename, configuration, db_entries)
+                new = 0
 
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
@@ -1419,6 +1435,8 @@ def compute_anib(  # noqa: PLR0913
         run.status = "Worker interrupted"
         session.commit()
 
+    if not new:  # pragma: no cover
+        return 0
     try:
         export_json_db_entries(logger, json_filename, configuration, db_entries)
     except Exception:  # pragma: no cover
@@ -1448,6 +1466,8 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
     uname_release = uname.release
     uname_machine = uname.machine
 
+    batch_size = 50
+
     configuration = run.configuration
 
     nucmer = tools.get_nucmer()
@@ -1467,6 +1487,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
     stage_file(logger, fasta_dir / hash_to_filename[subject_hash], subject_fasta)
 
     db_entries = []
+    new = 0
     try:
         for query_hash, query_length in query_hashes.items():
             if query_hash != subject_hash:
@@ -1606,6 +1627,12 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
                 ".gz"
             ):
                 query_fasta.unlink()  # remove our decompressed copy
+
+            new += 1
+            if new >= batch_size:  # pragma: no cover
+                export_json_db_entries(logger, json_filename, configuration, db_entries)
+                new = 0
+
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
         msg = f"Interrupted with {len(db_entries)} completed dnadiff comparisons"
@@ -1613,6 +1640,8 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
         run.status = "Worker interrupted"
         session.commit()
 
+    if not new:  # pragma: no cover
+        return 0
     try:
         export_json_db_entries(logger, json_filename, configuration, db_entries)
     except Exception:  # pragma: no cover

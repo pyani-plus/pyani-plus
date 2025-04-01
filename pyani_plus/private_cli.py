@@ -818,7 +818,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
         terminal_level=logging.DEBUG if debug else logging.ERROR,
         plain=True,
     )
-    msg = f"Starting compute-column for {subject}"
+    msg = f"Starting compute-column for {subject} to {json}"
     logger.debug(msg)
 
     if database != ":memory:" and not Path(database).is_file():

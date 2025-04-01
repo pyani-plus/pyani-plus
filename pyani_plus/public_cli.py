@@ -203,21 +203,27 @@ def run_method(  # noqa: PLR0913
     run_id = run.run_id
     method = run.configuration.method
     workflow_name = "compute_column.smk"
+    logger.debug("Counting pre-existing comparisons for this run...")
     done = run.comparisons().count()
     n = len(filename_to_md5)
     if done == n**2:
         msg = f"Database already has all {n}²={n**2} {method} comparisons"
         logger.info(msg)
     else:
+        msg = f"Database already has {done} of {n}²={n**2} {method} comparisons, {n**2 - done} needed"
+        logger.info(msg)
+
         if method == "sourmash":
             # Do all the columns at once!
             targets = [f"{method}.run_{run.run_id}.column_0.json"]
+            logger.debug("Using a single worker")
         elif not done:
             # Must do all the columns
             targets = [
                 f"{method}.run_{run.run_id}.column_{_ + 1}.json"
                 for _ in range(len(filename_to_md5))
             ]
+            logger.debug("Using one worker per column")
         else:
             # Should avoid already completed columns
             configuration_id = run.configuration.configuration_id
@@ -238,8 +244,6 @@ def run_method(  # noqa: PLR0913
             msg = f"Missing values in {len(targets)} columns"
             logger.debug(msg)
 
-        msg = f"Database already has {done} of {n}²={n**2} {method} comparisons, {n**2 - done} needed"
-        logger.info(msg)
         run.status = "Running"
         session.commit()
 

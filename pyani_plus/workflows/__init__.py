@@ -65,10 +65,9 @@ def progress_bar_via_db_comparisons(
 
     json_time_stamps: dict[Path, float] = {}
     json_counts: dict[Path, int] = {}
-    done = 0
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         task = progress.add_task("Comparing pairs", total=total)
-        while done < total:
+        while sum(json_counts.values()) < total:
             time.sleep(interval)
 
             # Have there been any JSON changes? Try to minimise disk access
@@ -85,7 +84,8 @@ def progress_bar_via_db_comparisons(
                     msg = f"Loaded '{json.name}', {count} entries"
                     logger.debug(msg)
                     if count:
-                        json_counts[json] = count
+                        progress.update(task, advance=count)
+                    json_counts[json] = count
                 elif (
                     json in json_time_stamps  # existing file
                     and json_time_stamps[json] + 10
@@ -100,13 +100,10 @@ def progress_bar_via_db_comparisons(
                         msg = f"Reloaded '{json.name}', now {count} entries"
                         logger.debug(msg)
                         if count:
+                            progress.update(task, advance=count - json_counts[json])
                             json_counts[json] = count
                     # Update last checked time (even if didn't reload file):
                     json_time_stamps[json] = last_checked
-
-            new = sum(json_counts.values()) - done
-            progress.update(task, advance=new)
-            done += new
     session.close()
 
 

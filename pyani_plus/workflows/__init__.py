@@ -31,8 +31,6 @@ from pathlib import Path
 
 from rich.progress import Progress
 from snakemake.cli import args_to_api, parse_args
-from sqlalchemy import text
-from sqlalchemy.exc import OperationalError
 
 from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, log_sys_exit, setup_logger
 from pyani_plus.private_cli import import_json_comparisons
@@ -66,25 +64,28 @@ def progress_bar_via_db_comparisons(
     total = run.genomes.count() ** 2 - already_done
 
     json_time_stamps: dict[Path, float] = {}
-
+    json_counts: dict[Path, int] = {}
     done = 0
-    old_db_version = -1
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         task = progress.add_task("Comparing pairs", total=total)
         while done < total:
             time.sleep(interval)
-            # Have any JSON files been updated? Minimise disk checking
-            imported = False
+
+            # Have there been any JSON changes? Try to minimise disk access
             for json in json_files:
                 if (
                     # If new file import it
                     json not in json_time_stamps and json.is_file()
                 ):
-                    msg = f"Loading '{json.name}'"
-                    logger.debug(msg)
                     json_time_stamps[json] = time.time()
-                    import_json_comparisons(logger, session, json)
-                    imported = True
+                    try:
+                        count = import_json_comparisons(logger, session, json)
+                    except Exception:  # noqa: BLE001  # pragma: no cover
+                        count = 0
+                    msg = f"Loaded '{json.name}', {count} entries"
+                    logger.debug(msg)
+                    if count:
+                        json_counts[json] = count
                 elif (
                     json in json_time_stamps  # existing file
                     and json_time_stamps[json] + 10
@@ -92,28 +93,18 @@ def progress_bar_via_db_comparisons(
                 ):  # pragma: no cover
                     last_checked = time.time()
                     if json_time_stamps[json] < json.stat().st_mtime:
-                        msg = f"Reloading '{json.name}'"
+                        try:
+                            count = import_json_comparisons(logger, session, json)
+                        except Exception:  # noqa: BLE001
+                            count = 0
+                        msg = f"Reloaded '{json.name}', now {count} entries"
                         logger.debug(msg)
-                        json_time_stamps[json] = last_checked
-                        import_json_comparisons(logger, session, json)
-                        imported = True
-                    else:
-                        # Update last checked time:
-                        json_time_stamps[json] = last_checked
-            # Have there been any DB changes?
-            if not imported:
-                continue
-            try:
-                db_version = (
-                    session.connection().execute(text("PRAGMA data_version;")).one()[0]
-                )
-            except OperationalError:  # pragma: no cover
-                # Probably another process is updating the DB, try again soon
-                continue  # pragma: no cover
-            if old_db_version == db_version:
-                continue  # pragma: no cover
-            old_db_version = db_version
-            new = run.comparisons().count() - already_done - done
+                        if count:
+                            json_counts[json] = count
+                    # Update last checked time (even if didn't reload file):
+                    json_time_stamps[json] = last_checked
+
+            new = sum(json_counts.values()) - done
             progress.update(task, advance=new)
             done += new
     session.close()

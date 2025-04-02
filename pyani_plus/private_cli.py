@@ -501,7 +501,8 @@ def import_json_comparisons(  # noqa: PLR0915
         raw = handle.read()
     if not raw:
         msg = f"JSON file '{json_filename}' is empty"
-        log_sys_exit(logger, msg)
+        logger.debug(msg)
+        return 0
     try:
         data = json.loads(raw)
     except ValueError:
@@ -646,7 +647,7 @@ def import_comparisons(
 
     for filename in json:
         count = import_json_comparisons(logger, session, filename)
-        msg = f"Imported {count} from {filename}"
+        msg = f"Imported {count} from '{filename}'"
         logger.info(msg)
     return 0
 

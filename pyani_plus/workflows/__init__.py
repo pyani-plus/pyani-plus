@@ -88,6 +88,7 @@ def progress_bar_via_db_comparisons(
                         json in json_time_stamps  # existing file
                         and json_time_stamps[json] + 10
                         < time.time()  # imported over 10s ago
+                        and json.is_file()  # and still there
                     ):  # pragma: no cover
                         last_checked = time.time()
                         if json_time_stamps[json] < json.stat().st_mtime:
@@ -101,7 +102,7 @@ def progress_bar_via_db_comparisons(
                         json_time_stamps[json] = last_checked
                 except Exception:  # pragma: no cover
                     # e.g. stat failed
-                    msg = "Unhandled exception with '{json}':"
+                    msg = f"Unhandled exception with '{json}':"
                     logger.exception(msg)
     session.close()
 

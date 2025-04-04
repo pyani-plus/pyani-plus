@@ -79,12 +79,6 @@ def test_json_import_errors_core(input_genomes_tiny: Path, tmp_path: str) -> Non
         ],
     )
 
-    # Empty JSON
-    with pytest.raises(SystemExit, match=f"JSON file '{tmp_json}' is empty"):
-        private_cli.import_comparisons(
-            tmp_db, json=[tmp_json], debug=False, log=Path("-")
-        )
-
     # Bad JSON
     with tmp_json.open("w") as handle:
         handle.write("[")
@@ -132,6 +126,14 @@ def test_json_import_errors(
             input_genomes_tiny / "MGV-GENOME-0266457.fna",
         ],
     )
+
+    # Empty JSON
+    tmp_json.touch()
+    caplog.clear()
+    private_cli.import_comparisons(tmp_db, json=[tmp_json], debug=True, log=Path("-"))
+    output = caplog.text
+    assert f"JSON file '{tmp_json}' is empty" in output
+    assert f"Imported 0 from '{tmp_json}'" in output
 
     # Make a mismatched JSON config:
     with tmp_json.open("w") as handle:

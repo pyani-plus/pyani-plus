@@ -187,7 +187,7 @@ def start_and_run_method(  # noqa: PLR0913
     )
 
 
-def run_method(  # noqa: PLR0913
+def run_method(  # noqa: PLR0913, PLR0915
     logger: logging.Logger,
     executor: ToolExecutor,
     cache: Path | None,

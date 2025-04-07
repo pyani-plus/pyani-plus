@@ -47,6 +47,7 @@ from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_DEBUG,
     OPT_ARG_TYPE_LOG,
     OPT_ARG_TYPE_TEMP,
+    OPT_ARG_TYPE_VERSION,
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
 )
@@ -54,8 +55,19 @@ from pyani_plus.public_cli_args import (
 ASCII_GAP = ord("-")  # 45
 
 app = typer.Typer(
+    no_args_is_help=True,
     context_settings={"help_option_names": ["-h", "--help"]},
 )
+
+
+@app.callback()
+def common(
+    ctx: typer.Context,
+    *,
+    version: OPT_ARG_TYPE_VERSION = False,
+) -> None:
+    """Typer callback adding version to the base command."""
+
 
 REQ_ARG_TYPE_RUN_ID = Annotated[
     int,

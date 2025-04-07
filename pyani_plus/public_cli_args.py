@@ -26,6 +26,7 @@ the private and public API definitions without needed to import from each other
 (which adds to the start-up time unnecessarily).
 """
 
+import sys
 from enum import Enum
 from pathlib import Path
 from typing import Annotated
@@ -33,7 +34,7 @@ from typing import Annotated
 import click
 import typer
 
-from pyani_plus import FASTA_EXTENSIONS
+from pyani_plus import FASTA_EXTENSIONS, __version__
 
 # CLI option Enums
 # ----------------
@@ -96,6 +97,26 @@ REQ_ARG_TYPE_FASTA_DIR = Annotated[
 # Reused optional command line arguments (defined with a default)
 # ---------------------------------------------------------------
 # These are named OPT_ARG_TYPE_* short for optional-argument type
+
+
+def version_callback(*, version: bool = False) -> None:
+    """Typer callback to print the version (and quit) if requested."""
+    if version:  # pragma: no cover
+        print(f"pyANI-plus {__version__}")  # noqa: T201
+        sys.exit(0)  # typer.Exit() does not quit immediately
+
+
+OPT_ARG_TYPE_VERSION = Annotated[
+    bool,
+    typer.Option(
+        "--version",
+        "-v",
+        help="Show tool version (on stdout) and quit.",
+        show_default=False,
+        is_eager=True,
+        callback=version_callback,
+    ),
+]
 OPT_ARG_TYPE_LOG = Annotated[
     Path,
     typer.Option(

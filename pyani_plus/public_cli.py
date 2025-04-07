@@ -74,6 +74,7 @@ from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_SOURMASH_SCALED,
     OPT_ARG_TYPE_TEMP,
     OPT_ARG_TYPE_TEMP_WORKFLOW,
+    OPT_ARG_TYPE_VERSION,
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
     REQ_ARG_TYPE_OUTDIR,
@@ -93,8 +94,18 @@ from pyani_plus.workflows import (
 )
 
 app = typer.Typer(
+    no_args_is_help=True,
     context_settings={"help_option_names": ["-h", "--help"]},
 )
+
+
+@app.callback()
+def common(
+    ctx: typer.Context,
+    *,
+    version: OPT_ARG_TYPE_VERSION = False,
+) -> None:
+    """Typer callback adding version to the base command."""
 
 
 def start_and_run_method(  # noqa: PLR0913

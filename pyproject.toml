@@ -1,6 +1,6 @@
 [project]
 name = "pyani-plus"
-version = "0.0.1"
+dynamic = ["version"]
 authors = [
     { name = "Leighton Pritchard", email = "leighton.pritchard@strath.ac.uk" },
     { name = "Angelika Kiepas", email = "angelika.kiepas@strath.ac.uk" },
@@ -31,6 +31,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["pyani_plus"]
+
+[tool.setuptools.dynamic]
+version = {attr = "pyani_plus.__version__"}
 
 [tool.ruff.lint]
 select = ["ALL"]

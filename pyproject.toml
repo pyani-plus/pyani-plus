@@ -1,18 +1,20 @@
 [project]
 name = "pyani-plus"
-version = "0.0.1"
+dynamic = ["version"]
 authors = [
     { name = "Leighton Pritchard", email = "leighton.pritchard@strath.ac.uk" },
     { name = "Angelika Kiepas", email = "angelika.kiepas@strath.ac.uk" },
     { name = "Peter J. A. Cock", email = "peter.cock@strath.ac.uk" },
 ]
+description = "pyANI-plus is an application and Python module for whole-genome classification of microbes using Average Nucleotide Identity and similar methods."
 readme = "README.md"
 requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "intervaltree",
     "snakemake>=8.24",
@@ -29,6 +31,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["pyani_plus"]
+
+[tool.setuptools.dynamic]
+version = {attr = "pyani_plus.__version__"}
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -58,5 +63,7 @@ doctest_optionflags = ["ELLIPSIS"]
 "pyani-plus" = "pyani_plus.public_cli:app"
 
 [project.urls]
-Homepage = "https://github.com/pyani-plus/pyani-plus"
-Issues = "https://github.com/pyani-plus/pyani-plus/issues"
+homepage = "https://github.com/pyani-plus/pyani-plus"
+source = "https://github.com/pyani-plus/pyani-plus"
+issues = "https://github.com/pyani-plus/pyani-plus/issues"
+documentation = "https://pyani-plus.github.io/pyani-plus-docs/"

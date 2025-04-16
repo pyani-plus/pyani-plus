@@ -155,6 +155,7 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
             *(["rules"] if display == ShowProgress.quiet else []),
             "--executor",
             executor.value,
+            *(["--cores", "all"] if executor.value == "local" else []),
             "--directory",
             str(working_directory),
             "--snakefile",

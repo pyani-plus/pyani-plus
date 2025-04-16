@@ -688,7 +688,7 @@ def validate_cache(
             elif require:
                 msg = f"Default cache directory '{cache}' does not exist."
                 log_sys_exit(logger, msg)
-        msg = f"INFO: Defaulting to cache at '{cache}'"
+        msg = f"Defaulting to cache at '{cache}'"
         logger.info(msg)
     elif not cache.is_dir():
         # This is an error even if require=False

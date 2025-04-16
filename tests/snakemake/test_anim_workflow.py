@@ -139,7 +139,6 @@ def test_rule_ANIm(  # noqa: N802
         database=db,
         run_id=1,
         targets=targets,
-        params=config,
         working_directory=tmp_dir,
         temp=tmp_dir,
     )
@@ -217,7 +216,6 @@ def test_rule_ANIm_bad_align(  # noqa: N802
         database=db,
         run_id=1,
         targets=targets,
-        params=config,
         working_directory=tmp_dir,
         temp=tmp_dir,
     )

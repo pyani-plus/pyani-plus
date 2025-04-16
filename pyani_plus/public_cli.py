@@ -81,7 +81,6 @@ from pyani_plus.public_cli_args import (
     EnumModeClassify,
 )
 from pyani_plus.utils import (
-    available_cores,
     check_db,
     check_fasta,
     file_md5sum,
@@ -285,15 +284,11 @@ def run_method(  # noqa: PLR0913, PLR0915
                 executor,
                 workflow_name,
                 target_paths,
-                {
-                    "cache": cache.resolve(),
-                    "db": Path(database).resolve(),  # must be absolute
-                    "cores": available_cores(),  # should make configurable
-                },
+                Path(database).resolve(),  # must be absolute
                 work_path,
                 display=ShowProgress.bar,
-                database=Path(database),
                 run_id=run_id,
+                cache=cache,
                 temp=temp,
                 log=log,
             )

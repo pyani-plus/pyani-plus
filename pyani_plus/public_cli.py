@@ -261,6 +261,10 @@ def run_method(  # noqa: PLR0913, PLR0915
 
         # Not needed for most methods, will be a no-op:
         private_cli.prepare(logger, run, cache)
+        # above will have made default cache directory if needed
+        cache = private_cli.validate_cache(
+            logger, cache, require=False, create_default=False
+        )
 
         session.close()  # Reduce chance of DB locking
         del run

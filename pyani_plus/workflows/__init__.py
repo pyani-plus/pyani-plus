@@ -119,6 +119,7 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     database: Path | None = None,
     run_id: int | None = None,
     interval: float = 0.5,
+    cache: Path = Path(),
     temp: Path | None = None,
     log: Path | None = None,
 ) -> None:
@@ -137,6 +138,8 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
         params["temp"] = str(temp.resolve())
     if log:
         params["log"] = str(log.resolve())
+    if "cache" not in params:
+        params["cache"] = cache
 
     show_progress_bar = display == ShowProgress.bar
     if show_progress_bar and (database is None or run_id is None):

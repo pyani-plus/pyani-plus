@@ -759,7 +759,11 @@ def prepare(logger: logging.Logger, run: db_orm.Run, cache: Path | None) -> int:
         logger.info(msg)  # debug level?
         return 0
 
-    msg = f"Preparing {n} genomes under cache '{cache}'"
+    msg = (
+        f"Preparing {n} genomes under cache '{cache}'"
+        if cache
+        else f"Preparing {n} genomes under default cache"
+    )
     logger.info(msg)
 
     # This could fail and call sys.exit.

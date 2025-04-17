@@ -99,13 +99,14 @@ app = typer.Typer(
 )
 
 
+# Typer callback adding version to the base command
 @app.callback()
-def common(
+def common(  # noqa: D103
     ctx: typer.Context,
     *,
     version: OPT_ARG_TYPE_VERSION = False,
 ) -> None:
-    """Typer callback adding version to the base command."""
+    pass  # pragma: no cover
 
 
 def start_and_run_method(  # noqa: PLR0913

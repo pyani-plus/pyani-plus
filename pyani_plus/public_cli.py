@@ -81,7 +81,6 @@ from pyani_plus.public_cli_args import (
     EnumModeClassify,
 )
 from pyani_plus.utils import (
-    available_cores,
     check_db,
     check_fasta,
     file_md5sum,
@@ -112,7 +111,7 @@ def common(  # noqa: D103
 def start_and_run_method(  # noqa: PLR0913
     logger: logging.Logger,
     executor: ToolExecutor,
-    cache: Path | None,
+    cache: Path,
     temp: Path | None,
     workflow_temp: Path | None,
     database: Path,
@@ -202,7 +201,7 @@ def start_and_run_method(  # noqa: PLR0913
 def run_method(  # noqa: PLR0913, PLR0915
     logger: logging.Logger,
     executor: ToolExecutor,
-    cache: Path | None,
+    cache: Path,
     temp: Path | None,
     workflow_temp: Path | None,
     filename_to_md5: dict[Path, str],
@@ -285,17 +284,13 @@ def run_method(  # noqa: PLR0913, PLR0915
                 executor,
                 workflow_name,
                 target_paths,
-                {
-                    "cache": cache.resolve() if cache else None,
-                    "db": Path(database).resolve(),  # must be absolute
-                    "cores": available_cores(),  # should make configurable
-                },
+                Path(database).absolute(),
                 work_path,
                 display=ShowProgress.bar,
-                database=Path(database),
                 run_id=run_id,
-                temp=temp,
-                log=log,
+                cache=cache.absolute(),
+                temp=temp.absolute() if temp else None,
+                log=log.absolute(),
             )
 
             # Reconnect to the DB
@@ -350,7 +345,7 @@ def cli_anim(  # noqa: PLR0913
         return start_and_run_method(
             logger,
             executor,
-            None,
+            Path(),
             temp,
             wtemp,
             database,
@@ -388,7 +383,7 @@ def cli_dnadiff(  # noqa: PLR0913
         return start_and_run_method(
             logger,
             executor,
-            None,
+            Path(),
             temp,
             wtemp,
             database,
@@ -432,7 +427,7 @@ def cli_anib(  # noqa: PLR0913
         return start_and_run_method(
             logger,
             executor,
-            None,
+            Path(),
             temp,
             wtemp,
             database,
@@ -483,7 +478,7 @@ def cli_fastani(  # noqa: PLR0913
         return start_and_run_method(
             logger,
             executor,
-            None,
+            Path(),
             temp,
             wtemp,
             database,
@@ -510,7 +505,7 @@ def cli_sourmash(  # noqa: PLR0913
     name: OPT_ARG_TYPE_RUN_NAME = None,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
-    cache: OPT_ARG_TYPE_CACHE = None,
+    cache: OPT_ARG_TYPE_CACHE = Path(),
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
@@ -586,7 +581,7 @@ def external_alignment(  # noqa: PLR0913
         return start_and_run_method(
             logger,
             executor,
-            None,
+            Path(),
             temp,  # not needed?
             wtemp,  # not needed?
             database,
@@ -608,7 +603,7 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
     *,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
-    cache: OPT_ARG_TYPE_CACHE = None,
+    cache: OPT_ARG_TYPE_CACHE = Path(),
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,

@@ -49,7 +49,7 @@ def test_progress_bar_error() -> None:
             ToolExecutor.slurm,
             "some_workflow.smk",
             [Path("/mnt/shared/answer.tsv")],
-            {},
+            Path(),
             Path(),
             display=ShowProgress.bar,
         )

@@ -35,6 +35,7 @@ from snakemake.cli import args_to_api, parse_args
 from pyani_plus import PROGRESS_BAR_COLUMNS, db_orm, log_sys_exit, setup_logger
 from pyani_plus.private_cli import import_json_comparisons
 from pyani_plus.public_cli_args import ToolExecutor
+from pyani_plus.utils import available_cores
 
 
 class ShowProgress(str, Enum):
@@ -112,13 +113,13 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     executor: ToolExecutor,
     workflow_name: str,
     targets: list[Path] | list[str],
-    params: dict,
+    database: Path,
     working_directory: Path,
     *,
     display: ShowProgress = ShowProgress.quiet,
-    database: Path | None = None,
     run_id: int | None = None,
     interval: float = 0.5,
+    cache: Path = Path(),
     temp: Path | None = None,
     log: Path | None = None,
 ) -> None:
@@ -133,6 +134,11 @@ def run_snakemake_with_progress_bar(  # noqa: PLR0913
     msg = f"Preparing to call snakemake on '{workflow_name}'"
     logger.debug(msg)
     success = False
+    params = {
+        "cache": cache,
+        "db": database,
+        "cores": available_cores(),
+    }
     if temp:
         params["temp"] = str(temp.resolve())
     if log:

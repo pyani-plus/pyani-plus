@@ -130,7 +130,7 @@ def test_rule_fastani(
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
         targets=json_targets,
-        params=config_fastani_args,
+        database=db,
         working_directory=Path(tmp_path),
         temp=Path(tmp_path),
     )

@@ -126,7 +126,7 @@ def test_check_start_and_run(tmp_path: str) -> None:
         public_cli.start_and_run_method(
             logger,
             ToolExecutor.local,
-            None,
+            Path(),
             tmp_dir,
             None,
             tmp_db,

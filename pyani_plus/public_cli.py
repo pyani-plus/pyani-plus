@@ -284,13 +284,13 @@ def run_method(  # noqa: PLR0913, PLR0915
                 executor,
                 workflow_name,
                 target_paths,
-                Path(database).resolve(),  # must be absolute
+                Path(database).absolute(),
                 work_path,
                 display=ShowProgress.bar,
                 run_id=run_id,
-                cache=cache,
-                temp=temp,
-                log=log,
+                cache=cache.absolute(),
+                temp=temp.absolute() if temp else None,
+                log=log.absolute(),
             )
 
             # Reconnect to the DB

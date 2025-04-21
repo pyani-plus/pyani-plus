@@ -120,6 +120,23 @@ def plot_heatmap(  # noqa: PLR0913
             linewidths=0.25,
         )
 
+    import sys
+
+    sys.stderr.write(f"{figure.ax_col_dendrogram}\n")
+    sys.stderr.write(f"{figure.ax_row_dendrogram}\n")
+
+    # adjust cbar to avoid overlapping with the dendrogram
+    row_dendrogram_box = figure.ax_row_dendrogram.get_position()
+    col_dendrogram_box = figure.ax_col_dendrogram.get_position()
+    figure.ax_cbar.set_position(
+        (
+            row_dendrogram_box.xmin,
+            col_dendrogram_box.ymin,
+            min(0.05, row_dendrogram_box.width),
+            col_dendrogram_box.height,
+        )
+    )
+
     for ext in formats:
         filename = outdir / f"{method}_{name}_heatmap.{ext}"
         if ext == "tsv":

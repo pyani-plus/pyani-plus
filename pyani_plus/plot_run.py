@@ -205,10 +205,10 @@ def plot_scatter(
     outdir: Path,
     formats: tuple[str, ...] = GRAPHICS_FORMATS,
 ) -> int:
-    """Plot query coverage vs identity for the given run.
+    """Plot query coverage & tANI vs identity for the given run.
 
-    Returns the number of distributions drawn (usually this will be one, zero
-    if either property is all nulls).
+    Returns the number of distributions drawn (usually this will be one per format,
+    but zero if either property is all nulls).
     """
     method = run.configuration.method
     # Do query coverage first - if that fails, would not be able to calculate tANI

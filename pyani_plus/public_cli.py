@@ -57,6 +57,7 @@ from pyani_plus import (
 )
 from pyani_plus.methods import anib, anim, fastani, sourmash
 from pyani_plus.public_cli_args import (
+    NO_PATH,
     OPT_ARG_TYPE_ANIM_MODE,
     OPT_ARG_TYPE_CACHE,
     OPT_ARG_TYPE_CLASSIFY_MODE,
@@ -726,7 +727,7 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
 @app.command()
 def list_runs(
     database: REQ_ARG_TYPE_DATABASE,
-    log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    log: OPT_ARG_TYPE_LOG = NO_PATH,
     *,
     debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
@@ -792,7 +793,7 @@ def delete_run(
         # Listing name(s) explicitly to avoid automatic matching --no-create-db
         bool, typer.Option("-f", "--force", help="Delete without confirmation")
     ] = False,
-    log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    log: OPT_ARG_TYPE_LOG = NO_PATH,
     debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """Delete any single run from the given pyANI-plus SQLite3 database.
@@ -871,7 +872,7 @@ def export_run(  # noqa: C901, PLR0913
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
     label: OPT_ARG_TYPE_LABEL = "stem",
-    log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    log: OPT_ARG_TYPE_LOG = NO_PATH,
     *,
     debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
@@ -991,7 +992,7 @@ def plot_run(  # noqa: PLR0913
     outdir: REQ_ARG_TYPE_OUTDIR,
     run_id: OPT_ARG_TYPE_RUN_ID = None,
     label: OPT_ARG_TYPE_LABEL = "stem",
-    log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    log: OPT_ARG_TYPE_LOG = NO_PATH,
     *,
     debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
@@ -1046,7 +1047,7 @@ def plot_run_comp(  # noqa: PLR0913
             min=0,
         ),
     ] = 0,
-    log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    log: OPT_ARG_TYPE_LOG = NO_PATH,
     *,
     debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
@@ -1132,7 +1133,7 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
     label: OPT_ARG_TYPE_LABEL = "stem",
     cov_min: OPT_ARG_TYPE_COV_MIN = classify.MIN_COVERAGE,
     mode: OPT_ARG_TYPE_CLASSIFY_MODE = classify.MODE,
-    log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    log: OPT_ARG_TYPE_LOG = NO_PATH,
     *,
     debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:

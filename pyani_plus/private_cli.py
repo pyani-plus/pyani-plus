@@ -42,6 +42,7 @@ from sqlalchemy.orm import Session
 
 from pyani_plus import LOG_FILE, db_orm, log_sys_exit, setup_logger, tools
 from pyani_plus.public_cli_args import (
+    NO_PATH,
     OPT_ARG_TYPE_CACHE,
     OPT_ARG_TYPE_CREATE_DB,
     OPT_ARG_TYPE_DEBUG,
@@ -626,7 +627,7 @@ def import_comparisons(
     ],
     *,
     debug: OPT_ARG_TYPE_DEBUG = False,
-    log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    log: OPT_ARG_TYPE_LOG = NO_PATH,
 ) -> int:
     """Parse one or more JSON comparison files and log them to the database.
 
@@ -707,7 +708,7 @@ def prepare_genomes(
     cache: OPT_ARG_TYPE_CACHE = None,
     *,
     debug: OPT_ARG_TYPE_DEBUG = False,
-    log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    log: OPT_ARG_TYPE_LOG = NO_PATH,
 ) -> int:
     """Prepare any intermediate files needed prior to computing ANI values.
 

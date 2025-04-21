@@ -235,7 +235,7 @@ def plot_scatter(
             msg = f"No valid identity, {y_caption} values from {method} run"
             logger.warning(msg)
             return 0
-        msg = f"Plotting {len(values)}/{count} {y_caption} vs identity comparisons"
+        msg = f"Plotting {len(values)}/{count} {y_caption} vs identity {method} comparisons"
         logger.info(msg)
 
         x_values = [x for (x, y, c) in values]

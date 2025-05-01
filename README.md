@@ -25,7 +25,9 @@ There are currently no stable releases of `pyani-plus`. If you would like to use
 
 1. Clone the repository: `git clone git@github.com:pyani-plus/pyani-plus.git`
 2. Change directory to the repository: `cd pyani-plus`
-3. Install using one of the following methods:
+3. Create a new conda environment called `pyani-plus_py313` using the command `make setup_conda_env` (there is a corresponding `remove_conda_env` target)
+4. Activate the conda environment with the command `conda activate pyani-plus_py313`
+5. Install using one of the following methods:
    1.  `pip`, e.g.: `pip install -U -e .`
    2.  `Make`, e.g.: `make install_macos` or `make install_linux`
 

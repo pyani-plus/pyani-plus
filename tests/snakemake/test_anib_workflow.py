@@ -120,7 +120,7 @@ def test_rule_anib(
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
         targets=json_targets,
-        params=config_anib_args,
+        database=db,
         working_directory=tmp_dir,
         temp=tmp_dir,
     )

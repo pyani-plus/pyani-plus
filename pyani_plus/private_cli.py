@@ -665,38 +665,6 @@ def import_comparisons(
     return 0
 
 
-def validate_cache(
-    logger: logging.Logger,
-    cache: Path | None,
-    *,
-    create_default: bool = True,
-    require: bool = False,
-) -> Path:
-    """Validate any cache path from the command line, or determine default.
-
-    This implements the default behaviour documented in OPT_ARG_TYPE_CACHE,
-    with the method specific code expected to use a subfolder based on the
-    method name and optionally key parameters.
-    """
-    if cache is None:
-        # Should this use ~/.cache/pyani-plus/{method} on POSIX?
-        # Note .cache is under $PWD
-        cache = Path(".cache")
-        if not cache.is_dir():
-            if create_default:
-                cache.mkdir(parents=True)
-            elif require:
-                msg = f"Default cache directory '{cache}' does not exist."
-                log_sys_exit(logger, msg)
-        msg = f"INFO: Defaulting to cache at '{cache}'"
-        logger.info(msg)
-    elif not cache.is_dir():
-        # This is an error even if require=False
-        msg = f"Specified cache directory '{cache}' does not exist"
-        log_sys_exit(logger, msg)
-    return cache
-
-
 @app.command()
 def prepare_genomes(
     database: REQ_ARG_TYPE_DATABASE,
@@ -704,7 +672,7 @@ def prepare_genomes(
         int | None,
         typer.Option(help="Which run to prepare", show_default=False),
     ],
-    cache: OPT_ARG_TYPE_CACHE = None,
+    cache: OPT_ARG_TYPE_CACHE = Path(),
     *,
     debug: OPT_ARG_TYPE_DEBUG = False,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
@@ -734,7 +702,7 @@ def prepare_genomes(
         return 1  # for mypy
 
 
-def prepare(logger: logging.Logger, run: db_orm.Run, cache: Path | None) -> int:
+def prepare(logger: logging.Logger, run: db_orm.Run, cache: Path) -> int:
     """Call prepare-genomes with a progress bar."""
     n = run.genomes.count()
     done = run.comparisons().count()
@@ -761,9 +729,6 @@ def prepare(logger: logging.Logger, run: db_orm.Run, cache: Path | None) -> int:
 
     msg = f"Preparing {n} genomes under cache '{cache}'"
     logger.info(msg)
-
-    # This could fail and call sys.exit.
-    cache = validate_cache(logger, cache, require=True, create_default=True)
 
     from rich.progress import Progress
 
@@ -796,7 +761,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
     ],
     json: REQ_ARG_TYPE_JSON_OUT,
     *,
-    cache: OPT_ARG_TYPE_CACHE = None,
+    cache: OPT_ARG_TYPE_CACHE = Path(),
     temp: OPT_ARG_TYPE_TEMP = Path("-"),
     debug: OPT_ARG_TYPE_DEBUG = False,
     log: OPT_ARG_TYPE_LOG = LOG_FILE,
@@ -1001,7 +966,7 @@ def compute_fastani(  # noqa: PLR0913, PLR0915
     query_hashes: dict[str, int],
     subject_hash: str,
     *,
-    cache: Path | None = None,  # noqa: ARG001
+    cache: Path = Path(),  # noqa: ARG001
 ) -> int:
     """Run fastANI many-vs-subject and log column of comparisons to JSON.
 
@@ -1145,7 +1110,7 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
     query_hashes: dict[str, int],
     subject_hash: str,
     *,
-    cache: Path | None = None,  # noqa: ARG001
+    cache: Path = Path(),  # noqa: ARG001
 ) -> int:
     """Run ANIm many-vs-subject and log column of comparisons to JSON."""
     uname = platform.uname()
@@ -1309,7 +1274,7 @@ def compute_anib(  # noqa: PLR0913, PLR0915
     query_hashes: dict[str, int],
     subject_hash: str,
     *,
-    cache: Path | None = None,  # noqa: ARG001
+    cache: Path = Path(),  # noqa: ARG001
 ) -> int:
     """Run ANIb many-vs-subject and log column of comparisons to JSON."""
     uname = platform.uname()
@@ -1472,7 +1437,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
     query_hashes: dict[str, int],
     subject_hash: str,
     *,
-    cache: Path | None = None,  # noqa: ARG001
+    cache: Path = Path(),  # noqa: ARG001
 ) -> int:
     """Run dnadiff many-vs-subject and log column of comparisons to JSON."""
     uname = platform.uname()
@@ -1665,7 +1630,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
         return 0
 
 
-def compute_sourmash(  # noqa: C901, PLR0913
+def compute_sourmash(  # noqa: PLR0913
     logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
@@ -1677,20 +1642,9 @@ def compute_sourmash(  # noqa: C901, PLR0913
     query_hashes: dict[str, int],
     subject_hash: str,
     *,
-    cache: Path | None = None,
+    cache: Path = Path(),
 ) -> int:
     """Run many-vs-subject for sourmash and log to JSON."""
-    if not cache:
-        msg = "Not given a cache directory"
-        log_sys_exit(logger, msg)
-        # not called but mypy doesn't understand (yet)
-        return 1  # pragma: nocover
-    if not cache.is_dir():
-        msg = f"Cache directory '{cache}' does not exist - check cache setting."
-        log_sys_exit(logger, msg)
-        # not called but mypy doesn't understand (yet)
-        return 1  # pragma: nocover
-
     # Not using try/except due to mypy false positive about redefining the function
     if sys.version_info >= (3, 12):
         from itertools import batched  # new in Python 3.12
@@ -1790,7 +1744,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     query_hashes: dict[str, int],
     subject_hash: str,
     *,
-    cache: Path | None = None,  # noqa: ARG001
+    cache: Path = Path(),  # noqa: ARG001
 ) -> int:
     """Compute and log column of comparisons from given MSA to JSON.
 

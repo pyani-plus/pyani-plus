@@ -149,7 +149,7 @@ def test_dnadiff(
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
         targets=json_targets,
-        params=config,
+        database=db,
         working_directory=tmp_dir,
         temp=tmp_dir,
     )
@@ -236,7 +236,7 @@ def test_dnadiff_bad_align(
         executor=ToolExecutor.local,
         workflow_name="compute_column.smk",
         targets=json_targets,
-        params=config,
+        database=db,
         working_directory=tmp_dir,
         temp=tmp_dir,
     )

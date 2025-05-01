@@ -36,6 +36,8 @@ import typer
 
 from pyani_plus import FASTA_EXTENSIONS, __version__
 
+NO_PATH = Path("-")  # used as a sentinel value
+
 # CLI option Enums
 # ----------------
 

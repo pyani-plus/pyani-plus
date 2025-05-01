@@ -39,7 +39,7 @@ conda create --name pyani-plus_py312 python=3.12 -y
 conda activate pyani-plus_py312
 conda config --add channels bioconda
 conda config --add channels conda-forge
-conda config --set channel_priority strict
+conda config --set channel_priority flexible
 conda config --remove channels defaults
 ```
 
@@ -53,7 +53,7 @@ make setup_dev_macos  # macOS
 Those conda and make commands are a one-off setup, after which all you need in a fresh terminal session is:
 
 ```bash
-conda activate pyani-plus_py312
+conda activate pyani-plus_py313
 ```
 
 This will set up the tool pre-commit as a git pre-commit hook, which will run

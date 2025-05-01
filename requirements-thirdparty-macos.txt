@@ -1,5 +1,6 @@
 blast
 fastani
+gsl=2.7,<2.7.1
 matplotlib-base>=3.10.0
 mummer=3.23
 seaborn-base>=0.13.2

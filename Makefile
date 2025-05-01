@@ -16,6 +16,24 @@ install_macos:
 	@conda install --file requirements-thirdparty-macos.txt --yes
 	@pip install -U -e .
 
+# Set up bioconda
+setup_bioconda:
+	@echo "Setting up bioconda"
+	@conda config --add channels bioconda
+	@conda config --add channels conda-forge
+	@conda config --add channels defaults
+	@conda config --set channel_priority flexible
+
+# Set up a conda environment for pyani-plus
+setup_conda_env: setup_bioconda
+	@echo "Creating conda environment pyani-plus_py313"
+	@conda create -n pyani-plus_py313 python=3.13 --yes
+
+# Remove the conda environment
+remove_conda_env:
+	@echo "Removing the conda environment pyani-plus_py313"
+	@conda remove -n pyani-plus_py313 --all --yes
+
 # Set up development environment (OS-dependent)
 setup_dev_linux: setup_conda-dev
 	@conda install --file requirements-thirdparty-linux.txt --yes

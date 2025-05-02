@@ -131,7 +131,7 @@ rm -rf build/
 python -m build
 git tag vX.Y.Z
 git push origin main --tags
-twine dist/pyani_plus-X.Y.Z*
+twine upload dist/pyani_plus-X.Y.Z*
 ```
 
 Then you must also turn the git tag into a "release" on GitHub: https://github.com/pyani-plus/pyani-plus/releases

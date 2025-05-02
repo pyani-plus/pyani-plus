@@ -60,7 +60,7 @@ Unless otherwise indicated, the material in this project is made available under
 
 The MIT License
 
-Copyright (c) 2024-present The James Hutton Institute
+Copyright (c) 2024-present University of Strathclyde
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

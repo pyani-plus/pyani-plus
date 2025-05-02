@@ -114,3 +114,25 @@ A typical workflow might look something like this:
 5. When you're finished, test locally with `pytest -v` or `make test`.
 6. Push the branch to your fork, and submit a pull request (please tick "Allow edits by maintainers")
 7. Continue the discussion in the [Pull Requests](https://github.com/pyani-plus/pyani-plus/pulls) section of this repository on GitHub.
+
+Release process
+---------------
+
+For a release, start from a clean git checkout. You will need some python tools not covered by the above development setup:
+
+```bash
+pip install -U pip twine build
+```
+
+After checking the version defined in `pyani_plus/__init__.py` and `README.md` are up to date (and checked in):
+
+```bash
+rm -rf build/
+python -m build
+git tag vX.Y.Z
+git push origin main --tags
+twine dist/pyani_plus-X.Y.Z*
+```
+
+Then you must also turn the git tag into a "release" on GitHub: https://github.com/pyani-plus/pyani-plus/releases
+This should automatically generate a version specific DOI on Zenodo: https://doi.org/10.5281/zenodo.15005805

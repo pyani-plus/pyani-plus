@@ -12,6 +12,9 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/pyani-plus/pyani-plus/badge)](https://www.codefactor.io/repository/github/pyani-plus/pyani-plus)
 [![codecov](https://codecov.io/gh/pyani-plus/pyani-plus/graph/badge.svg?token=NSSTP6CIW0)](https://codecov.io/gh/pyani-plus/pyani-plus)
 
+[![Zenodo DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15005805.svg)](https://doi.org/10.5281/zenodo.15005805)
+[![Zenodo DOI](https://img.shields.io/badge/Code%20style-black-000000.svg)](https://github.com/python/black)
+
 ## Citing `pyANI-plus`
 
 A complete guide to citing `pyani` is included in the file [`CITATIONS`](CITATIONS). Please cite the following manuscript in your work, if you have found `pyani` useful:

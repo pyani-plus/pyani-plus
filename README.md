@@ -31,7 +31,9 @@ There are currently no stable releases of `pyani-plus`. If you would like to use
    1.  `pip`, e.g.: `pip install -U -e .`
    2.  `Make`, e.g.: `make install_macos` or `make install_linux`
 
-## Walkthrough: A First Analysis
+## Documentation
+
+See [pyANI-plus documentation](https://pyani-plus.github.io/pyani-plus-docs/) including [Walkthrough: A First Analysis](https://pyani-plus.github.io/pyani-plus-docs/walkthrough.html).
 
 ## Contributing
 

@@ -13,8 +13,9 @@
 [![codecov](https://codecov.io/gh/pyani-plus/pyani-plus/graph/badge.svg?token=NSSTP6CIW0)](https://codecov.io/gh/pyani-plus/pyani-plus)
 
 [![PyPI](https://img.shields.io/pypi/v/pyani_plus.svg?label=PyPI)](https://pypi.org/project/pyani-plus/)
+[![BioConda](https://img.shields.io/conda/vn/bioconda/pyani-plus.svg?label=Bioconda)](https://anaconda.org/bioconda/pyani-plus)
 [![Zenodo DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15005805.svg)](https://doi.org/10.5281/zenodo.15005805)
-[![Zenodo DOI](https://img.shields.io/badge/Code%20style-black-000000.svg)](https://github.com/python/black)
+[![Code Style](https://img.shields.io/badge/Code%20style-black-000000.svg)](https://github.com/python/black)
 
 ## Citing `pyANI-plus`
 

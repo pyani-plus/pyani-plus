@@ -44,6 +44,7 @@ __version__ = "0.0.1"
 
 # The following are assorted centrally defined constants:
 LOG_FILE = Path("pyani-plus.log")
+LOG_FILE_DYNAMIC = Path("--")  # internal use only, not exposed in CLI
 FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}  # we'll consider .fasta.gz etc too
 GRAPHICS_FORMATS = ("tsv", "png", "jpg", "svgz", "pdf")  # note no dots!
 PROGRESS_BAR_COLUMNS = [
@@ -67,6 +68,8 @@ def setup_logger(
     The file logger is always at DEBUG level, while the terminal defaults to INFO level
     and can be adjusted.
     """
+    if log_file == LOG_FILE_DYNAMIC:
+        sys.exit("ERROR: Internal flag value for dynamic log setting unresolved")
     logger = logging.getLogger(f"{__package__}")
     min_level = min(logging.DEBUG, terminal_level)
     logger.setLevel(min_level)

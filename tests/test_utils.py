@@ -96,3 +96,12 @@ def test_stage_file(tmp_path: str) -> None:
         match=r"Intermediate file .*/example.fasta already exists!",
     ):
         utils.stage_file(logger, tmp_inp, tmp_out)
+
+
+def test_setup_logger_dynamic() -> None:
+    """Check setup_logger error condition."""
+    with pytest.raises(
+        SystemExit,
+        match="ERROR: Internal flag value for dynamic log setting unresolved",
+    ):
+        setup_logger(Path("--"))

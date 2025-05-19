@@ -34,7 +34,7 @@ from typing import Annotated
 import click
 import typer
 
-from pyani_plus import FASTA_EXTENSIONS, __version__
+from pyani_plus import FASTA_EXTENSIONS, LOG_FILE, __version__
 
 NO_PATH = Path("-")  # used as a sentinel value
 
@@ -125,6 +125,20 @@ OPT_ARG_TYPE_LOG = Annotated[
         help=(
             "Where to record log(s). Use '-' for no logging."  # Path("") gives PWD
         ),
+        rich_help_panel="Debugging",
+        dir_okay=False,
+        file_okay=True,
+    ),
+]
+OPT_ARG_TYPE_COMP_LOG = Annotated[
+    Path,
+    typer.Option(
+        help=(
+            "Where to record log(s). Use '-' for no logging."
+            " Default is no logging for the local executor,"
+            f' but otherwise "{LOG_FILE}".'  # Path("") gives PWD
+        ),
+        show_default=False,
         rich_help_panel="Debugging",
         dir_okay=False,
         file_okay=True,

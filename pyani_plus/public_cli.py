@@ -47,6 +47,7 @@ from sqlalchemy.orm import Session
 
 from pyani_plus import (
     LOG_FILE,
+    LOG_FILE_DYNAMIC,
     PROGRESS_BAR_COLUMNS,
     classify,
     db_orm,
@@ -61,6 +62,7 @@ from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_ANIM_MODE,
     OPT_ARG_TYPE_CACHE,
     OPT_ARG_TYPE_CLASSIFY_MODE,
+    OPT_ARG_TYPE_COMP_LOG,
     OPT_ARG_TYPE_COV_MIN,
     OPT_ARG_TYPE_CREATE_DB,
     OPT_ARG_TYPE_DEBUG,
@@ -336,10 +338,12 @@ def cli_anim(  # noqa: PLR0913
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
-    log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    log: OPT_ARG_TYPE_COMP_LOG = LOG_FILE_DYNAMIC,
     debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """Execute ANIm calculations, logged to a pyANI-plus SQLite3 database."""
+    if log == LOG_FILE_DYNAMIC:
+        log = Path("-") if executor == ToolExecutor.local else LOG_FILE
     logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     check_db(logger, database, create_db)
     try:
@@ -374,10 +378,12 @@ def cli_dnadiff(  # noqa: PLR0913
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
-    log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    log: OPT_ARG_TYPE_COMP_LOG = LOG_FILE_DYNAMIC,
     debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """Execute mumer-based dnadiff calculations, logged to a pyANI-plus SQLite3 database."""
+    if log == LOG_FILE_DYNAMIC:
+        log = Path("-") if executor == ToolExecutor.local else LOG_FILE
     logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     check_db(logger, database, create_db)
     try:
@@ -413,10 +419,12 @@ def cli_anib(  # noqa: PLR0913
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
-    log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    log: OPT_ARG_TYPE_COMP_LOG = LOG_FILE_DYNAMIC,
     debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """Execute ANIb calculations, logged to a pyANI-plus SQLite3 database."""
+    if log == LOG_FILE_DYNAMIC:
+        log = Path("-") if executor == ToolExecutor.local else LOG_FILE
     logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     check_db(logger, database, create_db)
     tool = tools.get_blastn()
@@ -469,10 +477,12 @@ def cli_fastani(  # noqa: PLR0913
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
-    log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    log: OPT_ARG_TYPE_COMP_LOG = LOG_FILE_DYNAMIC,
     debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """Execute fastANI calculations, logged to a pyANI-plus SQLite3 database."""
+    if log == LOG_FILE_DYNAMIC:
+        log = Path("-") if executor == ToolExecutor.local else LOG_FILE
     logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     check_db(logger, database, create_db)
     try:
@@ -509,13 +519,15 @@ def cli_sourmash(  # noqa: PLR0913
     cache: OPT_ARG_TYPE_CACHE = Path(),
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
-    log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    log: OPT_ARG_TYPE_COMP_LOG = LOG_FILE_DYNAMIC,
     # These are for the configuration table:
     scaled: OPT_ARG_TYPE_SOURMASH_SCALED = sourmash.SCALED,  # 1000
     kmersize: OPT_ARG_TYPE_KMERSIZE = sourmash.KMER_SIZE,
     debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """Execute sourmash-plugin-branchwater ANI calculations, logged to a pyANI-plus SQLite3 database."""
+    if log == LOG_FILE_DYNAMIC:
+        log = Path("-") if executor == ToolExecutor.local else LOG_FILE
     logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     check_db(logger, database, create_db)
     try:
@@ -550,7 +562,7 @@ def external_alignment(  # noqa: PLR0913
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
-    log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    log: OPT_ARG_TYPE_COMP_LOG = LOG_FILE_DYNAMIC,
     debug: OPT_ARG_TYPE_DEBUG = False,
     # These are for the configuration table:
     alignment: Annotated[
@@ -573,6 +585,8 @@ def external_alignment(  # noqa: PLR0913
     ] = "stem",
 ) -> int:
     """Compute pairwise ANI from given multiple-sequence-alignment (MSA) file."""
+    if log == LOG_FILE_DYNAMIC:
+        log = Path("-") if executor == ToolExecutor.local else LOG_FILE
     logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     check_db(logger, database, create_db)
     aln_checksum = file_md5sum(alignment)
@@ -607,7 +621,7 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
     cache: OPT_ARG_TYPE_CACHE = Path(),
     temp: OPT_ARG_TYPE_TEMP = None,
     wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
-    log: OPT_ARG_TYPE_LOG = LOG_FILE,
+    log: OPT_ARG_TYPE_COMP_LOG = LOG_FILE_DYNAMIC,
     debug: OPT_ARG_TYPE_DEBUG = False,
 ) -> int:
     """Resume any (partial) run already logged in the database.
@@ -620,6 +634,8 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
     If the version of the underlying tool has changed, this will abort
     as the original run cannot be completed.
     """
+    if log == LOG_FILE_DYNAMIC:
+        log = Path("-") if executor == ToolExecutor.local else LOG_FILE
     logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     if database == ":memory:" or not Path(database).is_file():
         msg = f"Database {database} does not exist"

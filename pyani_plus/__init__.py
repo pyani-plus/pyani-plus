@@ -40,12 +40,12 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 # The following are assorted centrally defined constants:
 LOG_FILE = Path("pyani-plus.log")
 LOG_FILE_DYNAMIC = Path("--")  # internal use only, not exposed in CLI
-FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}  # we'll consider .fasta.gz etc too
+FASTA_EXTENSIONS = {".fasta", ".fas", ".fna", ".fa"}  # we'll consider .fasta.gz etc too
 GRAPHICS_FORMATS = ("tsv", "png", "jpg", "svgz", "pdf")  # note no dots!
 PROGRESS_BAR_COLUMNS = [
     TextColumn("[progress.description]{task.description}"),

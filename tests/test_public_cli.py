@@ -62,7 +62,7 @@ def evil_example(
     """Make a version of the viral directory of FASTA files using spaces, emoji, etc."""
     space_dir = tmp_path_factory.mktemp("with spaces " + input_genomes_tiny.stem)
     for fasta in input_genomes_tiny.glob("*.f*"):
-        space_fasta = space_dir / ("🦠 : " + fasta.name.replace("-", " "))
+        space_fasta = space_dir / ("🦠 : " + fasta.stem.replace("-", " ") + ".fa")
         space_fasta.symlink_to(fasta)
     return space_dir
 
@@ -120,9 +120,9 @@ def test_check_start_and_run(tmp_path: str) -> None:
     """Check error conditions."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "x.db"
-    (tmp_dir / "broken.fasta").symlink_to("/does/not/exist/example.fna")
+    (tmp_dir / "broken.fa").symlink_to("/does/not/exist/example.fna")
     logger = setup_logger(Path("-"))
-    with pytest.raises(SystemExit, match="Input /.*/broken.fasta is a broken symlink"):
+    with pytest.raises(SystemExit, match="Input /.*/broken.fa is a broken symlink"):
         public_cli.start_and_run_method(
             logger,
             ToolExecutor.local,

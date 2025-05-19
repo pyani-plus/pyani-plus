@@ -44,7 +44,7 @@ __version__ = "0.0.2"
 
 # The following are assorted centrally defined constants:
 LOG_FILE = Path("pyani-plus.log")
-FASTA_EXTENSIONS = {".fasta", ".fas", ".fna"}  # we'll consider .fasta.gz etc too
+FASTA_EXTENSIONS = {".fasta", ".fas", ".fna", ".fa"}  # we'll consider .fasta.gz etc too
 GRAPHICS_FORMATS = ("tsv", "png", "jpg", "svgz", "pdf")  # note no dots!
 PROGRESS_BAR_COLUMNS = [
     TextColumn("[progress.description]{task.description}"),

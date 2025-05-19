@@ -40,7 +40,7 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 # The following are assorted centrally defined constants:
 LOG_FILE = Path("pyani-plus.log")

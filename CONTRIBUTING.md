@@ -2,7 +2,11 @@
 
 Contributions, including bugfixes and addition of new features, are welcomed!
 
-This document provides a brief introduction to contributing to `pyani-plus`. More complete documentation will be made available elsewhere.
+This document provides a brief introduction to contributing to the `pyani-plus`
+main tool repository. We have a separate [repository for the user-facing
+documentation](https://github.com/pyani-plus/pyani-plus-docs), and another
+[repository for the design
+documentation](https://github.com/pyani-plus/design-documentation).
 
 ## Licensing
 

@@ -135,5 +135,7 @@ git push origin main --tags
 twine upload dist/pyani_plus-X.Y.Z*
 ```
 
+Publishing the release on PyPI should automatically trigger a pull request to update the [BioConda package](https://github.com/bioconda/bioconda-recipes/blob/master/recipes/pyani-plus/meta.yaml). Unless we have changed our dependencies (e.g. now need at least a given version of NCBI BLAST), this should be straightforward and will just need a review and merge.
+
 Then you must also turn the git tag into a "release" on GitHub: https://github.com/pyani-plus/pyani-plus/releases
 This should automatically generate a version specific DOI on Zenodo: https://doi.org/10.5281/zenodo.15005805

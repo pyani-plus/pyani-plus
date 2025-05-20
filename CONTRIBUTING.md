@@ -14,10 +14,7 @@ documentation](https://github.com/pyani-plus/design-documentation).
 
 ## Repository branches
 
-The `pyani-plus` package is maintained on [GitHub](https://github.com/pyani-plus/pyani-plus). The current development version is always maintained under the `main` branch. In addition, we keep the following "live" branches for convenience:
-
-- `github_administration`: intended for development/modification of GitHub-related files (e.g. GitHub Actions, templates, etc.)
-- `dev_administration`: intended for development/modification of developer-related activities (e.g. configuration of linters, testing, etc.)
+The `pyani-plus` package is maintained on [GitHub](https://github.com/pyani-plus/pyani-plus). The current development version is always maintained under the `main` branch.
 
 We also develop in dynamic branches, which may be created/destroyed over time. For instance, if working on issue #49, we would manage this on a branch named `issue_49` and supporting scratch work should take place in the subdirectory `issue_49`. Note that all subdirectories beginning `issue_*` are ignored by a rule in `.gitignore`.
 

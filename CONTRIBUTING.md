@@ -2,7 +2,11 @@
 
 Contributions, including bugfixes and addition of new features, are welcomed!
 
-This document provides a brief introduction to contributing to `pyani-plus`. More complete documentation will be made available elsewhere.
+This document provides a brief introduction to contributing to the `pyani-plus`
+main tool repository. We have a separate [repository for the user-facing
+documentation](https://github.com/pyani-plus/pyani-plus-docs), and another
+[repository for the design
+documentation](https://github.com/pyani-plus/design-documentation).
 
 ## Licensing
 
@@ -10,10 +14,7 @@ This document provides a brief introduction to contributing to `pyani-plus`. Mor
 
 ## Repository branches
 
-The `pyani-plus` package is maintained on [GitHub](https://github.com/pyani-plus/pyani-plus). The current development version is always maintained under the `main` branch. In addition, we keep the following "live" branches for convenience:
-
-- `github_administration`: intended for development/modification of GitHub-related files (e.g. GitHub Actions, templates, etc.)
-- `dev_administration`: intended for development/modification of developer-related activities (e.g. configuration of linters, testing, etc.)
+The `pyani-plus` package is maintained on [GitHub](https://github.com/pyani-plus/pyani-plus). The current development version is always maintained under the `main` branch.
 
 We also develop in dynamic branches, which may be created/destroyed over time. For instance, if working on issue #49, we would manage this on a branch named `issue_49` and supporting scratch work should take place in the subdirectory `issue_49`. Note that all subdirectories beginning `issue_*` are ignored by a rule in `.gitignore`.
 
@@ -133,6 +134,8 @@ git tag vX.Y.Z
 git push origin main --tags
 twine upload dist/pyani_plus-X.Y.Z*
 ```
+
+Publishing the release on PyPI should automatically trigger a pull request to update the [BioConda package](https://github.com/bioconda/bioconda-recipes/blob/master/recipes/pyani-plus/meta.yaml). Unless we have changed our dependencies (e.g. now need at least a given version of NCBI BLAST), this should be straightforward and will just need a review and merge.
 
 Then you must also turn the git tag into a "release" on GitHub: https://github.com/pyani-plus/pyani-plus/releases
 This should automatically generate a version specific DOI on Zenodo: https://doi.org/10.5281/zenodo.15005805

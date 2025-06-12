@@ -24,9 +24,19 @@ A complete guide to citing `pyani` is included in the file [`CITATIONS`](CITATIO
 > Pritchard *et al.* (2016) "Genomics and taxonomy in diagnostics for food security: soft-rotting enterobacterial plant pathogens" *Anal. Methods* **8**, 12-24
 DOI: [10.1039/C5AY02550H](https://doi.org/10.1039/C5AY02550H)
 
+## Documentation
+
+See [pyANI-plus documentation](https://pyani-plus.github.io/pyani-plus-docs/) including [Walkthrough: A First Analysis](https://pyani-plus.github.io/pyani-plus-docs/walkthrough.html).
+
 ## Installation
 
-There are currently no stable releases of `pyani-plus`. If you would like to use the in-progress development version, please follow the usual installation procedure for GitHub repositories, e.g.
+See our [full installation instructions](https://pyani-plus.github.io/pyani-plus-docs/installation.html) for more details. In brief, if you are using `conda` we recommend
+[`pyani-plus` from the BioConda channel](https://anaconda.org/bioconda/pyani-plus),
+which will include all the dependencies. Otherwise, we recommend installing [`pyani-plus`
+from the Python Package Index (PyPI)](https://pypi.org/project/pyani-plus/),
+and install the non-python tools as needed.
+
+If you would like to use the in-progress development version, please follow the usual installation procedure for GitHub repositories, e.g.
 
 1. Clone the repository: `git clone git@github.com:pyani-plus/pyani-plus.git`
 2. Change directory to the repository: `cd pyani-plus`
@@ -36,15 +46,10 @@ There are currently no stable releases of `pyani-plus`. If you would like to use
    1.  `pip`, e.g.: `pip install -U -e .`
    2.  `Make`, e.g.: `make install_macos` or `make install_linux`
 
-## Documentation
-
-See [pyANI-plus documentation](https://pyani-plus.github.io/pyani-plus-docs/) including [Walkthrough: A First Analysis](https://pyani-plus.github.io/pyani-plus-docs/walkthrough.html).
-
 ## Contributing
 
-Please see the [`CONTRIBUTING.md`](CONTRIBUTING.md) file for more information
-
-## Method and Output Description
+Please see the [`CONTRIBUTING.md`](CONTRIBUTING.md) file for more information,
+including installing additional development-only dependencies like `pytest` and `ruff`.
 
 ## Licensing
 

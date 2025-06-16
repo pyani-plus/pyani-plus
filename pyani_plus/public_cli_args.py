@@ -286,3 +286,11 @@ OPT_ARG_TYPE_CLASSIFY_MODE = Annotated[
         rich_help_panel="Method parameters",
     ),
 ]
+OPT_ARG_TYPE_HEATMAP_ANNOTATED_MODE = Annotated[
+    bool,
+    typer.Option(
+        "--annotate",
+        help="Add annotations to ANI heatmaps.",
+        rich_help_panel="Plot-Run parameters",
+    ),
+]

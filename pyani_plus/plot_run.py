@@ -36,6 +36,7 @@ from rich.progress import Progress
 from sqlalchemy.orm import Session
 
 from pyani_plus import GRAPHICS_FORMATS, PROGRESS_BAR_COLUMNS, db_orm, log_sys_exit
+from pyani_plus.public_cli_args import OPT_ARG_TYPE_HEATMAP_ANNOTATED_MODE
 
 mpl.use("agg")  # non-interactive backend
 
@@ -79,6 +80,7 @@ def plot_heatmap(  # noqa: PLR0913
     color_scheme: str,
     formats: tuple[str, ...] = GRAPHICS_FORMATS,
     na_fill: float = 0,
+    annotated: OPT_ARG_TYPE_HEATMAP_ANNOTATED_MODE = False,  # noqa: FBT002
 ) -> int:
     """Plot heatmaps for the given matrix."""
     # Can't use square=True with seaborn clustermap, and when clustering
@@ -118,6 +120,7 @@ def plot_heatmap(  # noqa: PLR0913
             vmax=5 if name == "tANI" else 1,
             figsize=(figsize, figsize),
             linewidths=0.25,
+            annot=annotated,
         )
 
     import sys
@@ -300,12 +303,13 @@ def plot_scatter(
     return len(formats)
 
 
-def plot_single_run(
+def plot_single_run(  # noqa: PLR0913
     logger: logging.Logger,
     run: db_orm.Run,
     outdir: Path,
     label: str,
     formats: tuple[str, ...] = GRAPHICS_FORMATS,
+    annotated: OPT_ARG_TYPE_HEATMAP_ANNOTATED_MODE = False,  # noqa: FBT002
 ) -> int:
     """Plot distributions and heatmaps for given run.
 
@@ -381,7 +385,14 @@ def plot_single_run(
             progress.advance(task)
 
             done += plot_heatmap(
-                matrix, outdir, name, method, color_scheme, formats, na_fill
+                matrix,
+                outdir,
+                name,
+                method,
+                color_scheme,
+                formats,
+                na_fill,
+                annotated=annotated,
             )
             progress.advance(task)
     return done

@@ -401,8 +401,8 @@ class Run(Base):
 
         The caller must commit the updated Run object to the database explicitly!
         """
-        import numpy as np  # lazy import as slow and not generally required
-        import pandas as pd  # lazy import as slow and not generally required
+        import numpy as np  # noqa: PLC0415
+        import pandas as pd  # noqa: PLC0415
 
         hashes = sorted(association.genome_hash for association in self.fasta_hashes)
         size = len(hashes)
@@ -480,7 +480,7 @@ class Run(Base):
         if not self.df_identity:
             return None
 
-        import pandas as pd  # lazy import as slow and not generally required
+        import pandas as pd  # noqa: PLC0415
 
         return pd.read_json(StringIO(self.df_identity), orient="split", dtype=float)
 
@@ -499,7 +499,7 @@ class Run(Base):
         if not self.df_cov_query:
             return None
 
-        import pandas as pd  # lazy import as slow and not generally required
+        import pandas as pd  # noqa: PLC0415
 
         return pd.read_json(StringIO(self.df_cov_query), orient="split", dtype=float)
 
@@ -518,7 +518,7 @@ class Run(Base):
         if not self.df_aln_length:
             return None
 
-        import pandas as pd  # lazy import as slow and not generally required
+        import pandas as pd  # noqa: PLC0415
 
         return pd.read_json(StringIO(self.df_aln_length), orient="split")
 
@@ -537,7 +537,7 @@ class Run(Base):
         if not self.df_sim_errors:
             return None
 
-        import pandas as pd  # lazy import as slow and not generally required
+        import pandas as pd  # noqa: PLC0415
 
         return pd.read_json(StringIO(self.df_sim_errors), orient="split")
 
@@ -558,7 +558,7 @@ class Run(Base):
         if not self.df_hadamard:
             return None
 
-        import pandas as pd  # lazy import as slow and not generally required
+        import pandas as pd  # noqa: PLC0415
 
         return pd.read_json(StringIO(self.df_hadamard), orient="split", dtype=float)
 
@@ -670,7 +670,7 @@ def connect_to_db(
     msg = f"Attempt 1/3 failed to connect to {dbpath}"  # pragma: no cover
     logger.warning(msg)  # pragma: no cover
 
-    import random  # pragma: no cover
+    import random  # noqa: PLC0415 # pragma: no cover
 
     sleep(1 + 19 * random.random())  # noqa: S311 # pragma: no cover
 
@@ -1078,7 +1078,7 @@ def insert_comparisons_with_retries(
     msg = f"Attempt 1/3 failed to record {source}"  # pragma: no cover
     logger.warning(msg)  # pragma: no cover
 
-    import random  # pragma: no cover
+    import random  # noqa: PLC0415 # pragma: no cover
 
     sleep(20 + 10 * random.random())  # noqa: S311 # pragma: no cover
 

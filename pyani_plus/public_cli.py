@@ -1030,7 +1030,7 @@ def plot_run(  # noqa: PLR0913
         logger.info(msg)
 
     try:
-        from pyani_plus import plot_run  # lazy import
+        from pyani_plus import plot_run  # noqa: PLC0415
 
         count = plot_run.plot_single_run(logger, run, outdir, label)
         msg = f"Wrote {count} images to {outdir}/{run.configuration.method}_*.*"
@@ -1099,7 +1099,7 @@ def plot_run_comp(  # noqa: PLR0913
         log_sys_exit(logger, msg)
 
     try:
-        from pyani_plus import plot_run  # lazy import
+        from pyani_plus import plot_run  # noqa: PLC0415
 
         done = plot_run.plot_run_comparison(
             logger, session, ref_run, other_runs, outdir, columns

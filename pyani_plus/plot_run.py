@@ -22,6 +22,7 @@
 """Code for plotting a single run (heatmaps etc)."""
 
 import logging
+import sys
 import warnings
 from math import ceil, log, nan, sqrt
 from pathlib import Path
@@ -119,8 +120,6 @@ def plot_heatmap(  # noqa: PLR0913
             figsize=(figsize, figsize),
             linewidths=0.25,
         )
-
-    import sys
 
     sys.stderr.write(f"{figure.ax_col_dendrogram}\n")
     sys.stderr.write(f"{figure.ax_row_dendrogram}\n")

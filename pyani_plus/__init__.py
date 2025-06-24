@@ -86,7 +86,7 @@ def setup_logger(
         console_handler = logging.StreamHandler()  # defaults to sys.stderr
         console_handler.setLevel(terminal_level)
     else:
-        from rich.logging import RichHandler
+        from rich.logging import RichHandler  # noqa: PLC0415
 
         console_handler = RichHandler(  # defaults to sys.stdout
             level=terminal_level,

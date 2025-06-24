@@ -53,9 +53,9 @@ def compute_external_alignment_column(  # noqa: PLR0913
     :param mapping: Callable mapping alignment names to genome MD5 hashes
     :param label: str, description of the mapping for use in error messages
     """
-    import numpy as np  # lazy import, although might be implicitly loaded already?
+    import numpy as np  # noqa: PLC0415
 
-    from pyani_plus.utils import fasta_bytes_iterator
+    from pyani_plus.utils import fasta_bytes_iterator  # noqa: PLC0415
 
     # We could interpret the column number as the MSA ordering, but our internal
     # API by subject hash - and we can't assume the MSA is in any particular order.

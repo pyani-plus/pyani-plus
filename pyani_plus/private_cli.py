@@ -286,10 +286,10 @@ def log_genome(
     logger.info(msg)
     session = db_orm.connect_to_db(logger, database)
 
-    from rich.progress import Progress
+    from rich.progress import Progress  # noqa: PLC0415
 
-    from pyani_plus import PROGRESS_BAR_COLUMNS
-    from pyani_plus.utils import file_md5sum
+    from pyani_plus import PROGRESS_BAR_COLUMNS  # noqa: PLC0415
+    from pyani_plus.utils import file_md5sum  # noqa: PLC0415
 
     file_total = 0
     if fasta:
@@ -354,10 +354,10 @@ def log_run(  # noqa: PLR0913
         create=True,
     )
 
-    from rich.progress import Progress
+    from rich.progress import Progress  # noqa: PLC0415
 
-    from pyani_plus import PROGRESS_BAR_COLUMNS
-    from pyani_plus.utils import check_fasta, file_md5sum
+    from pyani_plus import PROGRESS_BAR_COLUMNS  # noqa: PLC0415
+    from pyani_plus.utils import check_fasta, file_md5sum  # noqa: PLC0415
 
     fasta_to_hash = {}
     fasta_names = check_fasta(logger, fasta)
@@ -424,7 +424,7 @@ def log_comparison(  # noqa: PLR0913
         msg = f"{database} does not contain configuration_id={config_id}"
         log_sys_exit(logger, msg)
 
-    from pyani_plus.utils import file_md5sum
+    from pyani_plus.utils import file_md5sum  # noqa: PLC0415
 
     query_md5 = file_md5sum(query_fasta)
     db_orm.db_genome(logger, session, query_fasta, query_md5)
@@ -478,7 +478,7 @@ def export_json_db_entries(
         "uname_machine",
     }
 
-    import json  # lazy
+    import json  # noqa: PLC0415
 
     serialised = json.dumps(
         {
@@ -505,7 +505,7 @@ def import_json_comparisons(  # noqa: PLR0915
     logger: logging.Logger, session: Session, json_filename: Path
 ) -> int:
     """Import a JSON file of comparisons into the database."""
-    import json  # lazy import
+    import json  # noqa: PLC0415
 
     msg = f"Importing {json_filename}"
     logger.debug(msg)
@@ -714,7 +714,7 @@ def prepare(logger: logging.Logger, run: db_orm.Run, cache: Path) -> int:
     config = run.configuration
     method = config.method
 
-    import importlib
+    import importlib  # noqa: PLC0415
 
     try:
         module = importlib.import_module(
@@ -731,9 +731,9 @@ def prepare(logger: logging.Logger, run: db_orm.Run, cache: Path) -> int:
     msg = f"Preparing {n} genomes under cache '{cache}'"
     logger.info(msg)
 
-    from rich.progress import Progress
+    from rich.progress import Progress  # noqa: PLC0415
 
-    from pyani_plus import PROGRESS_BAR_COLUMNS
+    from pyani_plus import PROGRESS_BAR_COLUMNS  # noqa: PLC0415
 
     with Progress(*PROGRESS_BAR_COLUMNS) as progress:
         for _ in progress.track(
@@ -1001,8 +1001,8 @@ def compute_fastani(  # noqa: PLR0913, PLR0915
         msg = f"fastANI run-id {run.run_id} is missing minmatch parameter"
         log_sys_exit(logger, msg)
 
-    from pyani_plus.methods import fastani  # lazy import
-    from pyani_plus.utils import check_output
+    from pyani_plus.methods import fastani  # noqa: PLC0415
+    from pyani_plus.utils import check_output  # noqa: PLC0415
 
     # Given query_hashes as a dict (hash to query length), but only need hashes here:
     pending = sorted(query_hashes)
@@ -1140,8 +1140,8 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
         .length
     )
 
-    from pyani_plus.methods import anim  # lazy import
-    from pyani_plus.utils import check_output, stage_file
+    from pyani_plus.methods import anim  # noqa: PLC0415
+    from pyani_plus.utils import check_output, stage_file  # noqa: PLC0415
 
     # nucmer does not handle spaces in filenames, neither quoted nor
     # escaped as slash-space. Therefore symlink or decompress to <MD5>.fasta:
@@ -1302,8 +1302,8 @@ def compute_anib(  # noqa: PLR0913, PLR0915
         .length
     )
 
-    from pyani_plus.methods import anib  # lazy import
-    from pyani_plus.utils import check_output, stage_file
+    from pyani_plus.methods import anib  # noqa: PLC0415
+    from pyani_plus.utils import check_output, stage_file  # noqa: PLC0415
 
     outfmt = "6 " + " ".join(anib.BLAST_COLUMNS)
 
@@ -1458,8 +1458,8 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
 
     config_id = configuration.configuration_id
 
-    from pyani_plus.methods import dnadiff  # lazy import
-    from pyani_plus.utils import check_output, stage_file
+    from pyani_plus.methods import dnadiff  # noqa: PLC0415
+    from pyani_plus.utils import check_output, stage_file  # noqa: PLC0415
 
     # nucmer does not handle spaces in filenames, neither quoted nor
     # escaped as slash-space. Therefore symlink or decompress to <MD5>.fasta:
@@ -1648,10 +1648,10 @@ def compute_sourmash(  # noqa: PLR0913
     """Run many-vs-subject for sourmash and log to JSON."""
     # Not using try/except due to mypy false positive about redefining the function
     if sys.version_info >= (3, 12):
-        from itertools import batched  # new in Python 3.12
+        from itertools import batched  # noqa: PLC0415
     else:  # pragma: nocover
-        from collections.abc import Iterator
-        from itertools import islice
+        from collections.abc import Iterator  # noqa: PLC0415
+        from itertools import islice  # noqa: PLC0415
 
         def batched(iterable: Iterator[tuple], n: int) -> Iterator[tuple]:
             """Batch data from the iterable into tuples of length n.
@@ -1679,7 +1679,7 @@ def compute_sourmash(  # noqa: PLR0913
 
     config_id = configuration.configuration_id
 
-    from pyani_plus.methods import sourmash  # lazy import
+    from pyani_plus.methods import sourmash  # noqa: PLC0415
 
     sig_cache = cache / f"sourmash_k={configuration.kmersize}_{configuration.extra}"
     if not sig_cache.is_dir():
@@ -1794,8 +1794,10 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     label = args["label"]
     del args
 
-    from pyani_plus.methods.external_alignment import compute_external_alignment_column
-    from pyani_plus.utils import file_md5sum, filename_stem
+    from pyani_plus.methods.external_alignment import (  # noqa: PLC0415
+        compute_external_alignment_column,
+    )
+    from pyani_plus.utils import file_md5sum, filename_stem  # noqa: PLC0415
 
     msg = f"Parsing {alignment} (MD5={md5}, label={label})"
     logger.info(msg)

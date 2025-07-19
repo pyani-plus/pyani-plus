@@ -20,7 +20,7 @@ abstract  ="Soft rot Enterobacteriaceae (SRE) are bacterial plant pathogens that
 
 When citing pyani-plus (or the older pyani) in your text, please quote the precise release version if you are using a specific release, or the specific commit hash (if you are using the 'bleeding-edge' development version), e.g.
 
-"...using pyani-plus (v0.0.1)..."
+"...using pyani-plus (v1.0.0)..."
 
 or 
 

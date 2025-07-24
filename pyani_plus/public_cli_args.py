@@ -290,7 +290,7 @@ OPT_ARG_TYPE_HEATMAP_ANNOTATED_MODE = Annotated[
     bool,
     typer.Option(
         "--annotate",
-        help="Add annotations to ANI heatmaps.",
+        help="Add numerical values inside grid boxes to ANI heatmaps.",
         rich_help_panel="Plot-Run parameters",
     ),
 ]

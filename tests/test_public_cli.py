@@ -26,6 +26,7 @@ These tests are intended to be run from the repository root using:
 pytest -v
 """
 
+import contextlib
 import filecmp
 import gzip
 import logging
@@ -747,16 +748,20 @@ def test_anib(
 ) -> None:
     """Check ANIb run (spaces, emoji, etc in filenames)."""
     caplog.set_level(logging.INFO)
-    tmp_dir = Path(tmp_path) / "ANIb-test-🎱"  # no spaces! makeblastdb -out breaks
-    tmp_dir.mkdir()
-    tmp_db = tmp_dir / "anib test.sqlite"
-    public_cli.cli_anib(
-        database=tmp_db,
-        fasta=evil_example,
-        name="Spaces etc",
-        create_db=True,
-        temp=tmp_dir,
-    )
+    tmp_working = Path(tmp_path) / "working dir"
+    tmp_working.mkdir()
+    tmp_files = Path(tmp_path) / "ANIb-test-🎱"  # no spaces! makeblastdb -out breaks
+    tmp_files.mkdir()
+    tmp_db = Path(tmp_path) / "anib test.sqlite"
+    with contextlib.chdir(tmp_working):
+        public_cli.cli_anib(
+            database=tmp_db,
+            fasta=evil_example,
+            name="Spaces etc",
+            create_db=True,
+            temp=tmp_files,
+            wtemp=Path("workflow files in this sub-folder"),  # relative path
+        )
     output = caplog.text
     assert "Database already has 0 of 3²=9 ANIb comparisons, 9 needed\n" in output
 
@@ -766,16 +771,16 @@ def test_anib(
         database=tmp_db,
         fasta=input_genomes_tiny,
         name="Simple names",
-        create_db=True,
-        temp=tmp_dir,
+        create_db=True,  # should have no effect
+        temp=tmp_files,  # should not get far enough to use this
     )
     output = caplog.text
     assert "Database already has all 3²=9 ANIb comparisons\n" in output
 
-    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
+    public_cli.export_run(database=tmp_db, outdir=tmp_working)
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "ANIb_identity.tsv",
-        tmp_dir / "ANIb_identity.tsv",
+        tmp_working / "ANIb_identity.tsv",
     )
 
 

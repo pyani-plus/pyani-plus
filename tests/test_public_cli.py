@@ -760,7 +760,7 @@ def test_anib(
             name="Spaces etc",
             create_db=True,
             temp=tmp_files,
-            wtemp=Path("workflow files in this sub-folder"),  # relative path
+            wtemp=Path("../workflow files in this sister-folder"),  # relative path
         )
     output = caplog.text
     assert "Database already has 0 of 3²=9 ANIb comparisons, 9 needed\n" in output

@@ -273,7 +273,7 @@ def run_method(  # noqa: PLR0913, PLR0915
         # i.e. Can't use a temp directory on the head node.
         # We might want to make this explicitly configurable, e.g. to /mnt/scratch/
         with (
-            nullcontext(workflow_temp)
+            nullcontext(workflow_temp.absolute())
             if workflow_temp
             else tempfile.TemporaryDirectory(
                 prefix="pyani-plus_", dir=None if executor.value == "local" else "."

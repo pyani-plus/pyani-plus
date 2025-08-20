@@ -25,7 +25,7 @@ Add an `X` to the boxes below as appropriate.
   - [ ] new code is commented, especially in hard-to-understand areas
   - [ ] corresponding changes to documentation have been made
   - [ ] tests for the change have been added that demonstrate the fix or feature works
-- [ ] Test locally with `pytest-plus -v` **non-passing code will not be merged**
+- [ ] Test locally with `pytest -v` **non-passing code will not be merged**
 - [ ] Rebase against `origin/master`
 - [ ] Check changes with linting/formatting tools before submission (please see `CONTRIBUTING.md` for this repository)
 - [ ] Commit branch

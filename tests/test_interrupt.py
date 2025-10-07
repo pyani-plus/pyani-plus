@@ -49,7 +49,7 @@ def large_set_of_bacterial_chunks(
     fasta_dir = tmp_path_factory.mktemp(f"{GENOMES}_faked_bacteria")
     # Make input dataset of fragments of a bacteria
     with gzip.open(input_gzip_bacteria / "NC_010338.fna.gz", "rb") as handle:
-        title, seq = next(fasta_bytes_iterator(handle))
+        _title, seq = next(fasta_bytes_iterator(handle))
     for i in range(GENOMES):
         offset = i * 1000
         with (fasta_dir / f"genome{i}.fasta").open("wb") as handle:
@@ -281,7 +281,7 @@ def test_compute_column_sigint_external_alignment(
     # ensure when this is the only test it does not finish in 2s!
     tmp_alignment = tmp_dir / "alignment.fasta"
     with gzip.open(input_gzip_bacteria / "NC_010338.fna.gz", "rb") as handle:
-        title, seq = next(fasta_bytes_iterator(handle))
+        _title, seq = next(fasta_bytes_iterator(handle))
     with tmp_alignment.open("wb") as handle:
         for i in range(GENOMES):
             offset = i * 100

@@ -1229,7 +1229,7 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
         }
 
         # Writing the results to .tsv
-        clique_data, clique_df = classify.compute_classify_output(
+        _clique_data, clique_df = classify.compute_classify_output(
             unique_cliques, method, outdir, column_map
         )
         msg = f"Wrote classify output to {outdir}"

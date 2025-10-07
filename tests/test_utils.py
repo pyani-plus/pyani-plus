@@ -52,12 +52,14 @@ def test_md5_path() -> None:
 def test_md5_invalid(tmp_path: str) -> None:
     """Confirm our MD5 function failure mode with non-existent filename."""
     tmp_dir = Path(tmp_path)
-    with pytest.raises(ValueError, match="Input /does/not/exist.txt not found"):
+    with pytest.raises(ValueError, match=r"Input /does/not/exist\.txt not found"):
         utils.file_md5sum("/does/not/exist.txt")
 
     bad_link = tmp_dir / "bad-link.fasta"
     bad_link.symlink_to("/does/not/exist.fasta")
-    with pytest.raises(ValueError, match="Input .*/bad-link.fasta is a broken symlink"):
+    with pytest.raises(
+        ValueError, match=r"Input .*/bad-link\.fasta is a broken symlink"
+    ):
         utils.file_md5sum(bad_link)
 
 
@@ -69,7 +71,7 @@ def test_check_output() -> None:
     logger = setup_logger(None)
     with pytest.raises(
         SystemExit,
-        match=r'Return code 1 from: blastn -task blast\nError: Argument "task". Illegal value',
+        match=r'Return code 1 from: blastn -task blast\nError: Argument "task"\. Illegal value',
     ):
         utils.check_output(logger, ["blastn", "-task", "blast"])
 

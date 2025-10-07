@@ -200,7 +200,7 @@ def test_log_comparison_no_config(tmp_path: str, input_genomes_tiny: Path) -> No
     session.close()
 
     with pytest.raises(
-        SystemExit, match="empty.sqlite does not contain configuration_id=1"
+        SystemExit, match=r"empty\.sqlite does not contain configuration_id=1"
     ):
         private_cli.log_comparison(
             database=tmp_db,
@@ -492,7 +492,7 @@ def test_prepare_genomes_bad_args(tmp_path: str, input_genomes_tiny: Path) -> No
 
     with pytest.raises(
         SystemExit,
-        match="Unknown method guessing, check tool version?",
+        match=r"Unknown method guessing, check tool version\?",
     ):
         private_cli.prepare_genomes(database=tmp_db, run_id=1, cache=tmp_dir)
 
@@ -538,7 +538,7 @@ def test_compute_column_bad_args(
 
     with pytest.raises(
         SystemExit,
-        match="Unknown method guessing for run-id 1 in .*/new.sqlite",
+        match=r"Unknown method guessing for run-id 1 in .*/new\.sqlite",
     ):
         private_cli.compute_column(
             database=tmp_db,

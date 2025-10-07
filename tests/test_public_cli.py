@@ -123,7 +123,7 @@ def test_check_start_and_run(tmp_path: str) -> None:
     tmp_db = tmp_dir / "x.db"
     (tmp_dir / "broken.fa").symlink_to("/does/not/exist/example.fna")
     logger = setup_logger(Path("-"))
-    with pytest.raises(SystemExit, match="Input /.*/broken.fa is a broken symlink"):
+    with pytest.raises(SystemExit, match=r"Input /.*/broken\.fa is a broken symlink"):
         public_cli.start_and_run_method(
             logger,
             ToolExecutor.local,
@@ -149,10 +149,10 @@ def test_delete_empty(tmp_path: str) -> None:
     session = db_orm.connect_to_db(logger, tmp_db)
     session.close()
 
-    with pytest.raises(SystemExit, match="Database contains no runs."):
+    with pytest.raises(SystemExit, match=r"Database contains no runs\."):
         public_cli.delete_run(database=tmp_db)
 
-    with pytest.raises(SystemExit, match="Database has no run-id 1."):
+    with pytest.raises(SystemExit, match=r"Database has no run-id 1\."):
         public_cli.resume(database=tmp_db, run_id=1)
 
 
@@ -181,10 +181,10 @@ def test_resume_empty(tmp_path: str) -> None:
     session = db_orm.connect_to_db(logger, tmp_db)
     session.close()
 
-    with pytest.raises(SystemExit, match="Database contains no runs."):
+    with pytest.raises(SystemExit, match=r"Database contains no runs\."):
         public_cli.resume(database=tmp_db)
 
-    with pytest.raises(SystemExit, match="Database has no run-id 1."):
+    with pytest.raises(SystemExit, match=r"Database has no run-id 1\."):
         public_cli.resume(database=tmp_db, run_id=1)
 
 
@@ -314,14 +314,14 @@ def test_partial_run(  # noqa: PLR0915
     # Resuming the partial job should fail as the fastANI version won't match:
     with pytest.raises(
         SystemExit,
-        match="We have fastANI version .*, but run-id 2 used fastani version 1.2.3 instead.",
+        match=r"We have fastANI version .*, but run-id 2 used fastani version 1\.2\.3 instead\.",
     ):
         public_cli.resume(database=tmp_db, run_id=2)
 
     # Resuming run 1 should fail as no genomes:
     with pytest.raises(
         SystemExit,
-        match="No genomes recorded for run-id 1, cannot resume.",
+        match=r"No genomes recorded for run-id 1, cannot resume\.",
     ):
         public_cli.resume(database=tmp_db, run_id=1)
 
@@ -370,7 +370,7 @@ def test_export_run_failures(tmp_path: str) -> None:
 
     tmp_db = tmp_dir / "empty.sqlite"
     tmp_db.touch()
-    with pytest.raises(SystemExit, match="Database contains no runs."):
+    with pytest.raises(SystemExit, match=r"Database contains no runs\."):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir)
 
     tmp_db = tmp_dir / "export.sqlite"
@@ -395,7 +395,7 @@ def test_export_run_failures(tmp_path: str) -> None:
         status="Empty",
         name="Trial B",
     )
-    with pytest.raises(SystemExit, match="Database has no run-id 3."):
+    with pytest.raises(SystemExit, match=r"Database has no run-id 3\."):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir, run_id=3)
     with pytest.raises(
         SystemExit,
@@ -464,18 +464,18 @@ def test_export_duplicate_stem(tmp_path: str, input_genomes_tiny: Path) -> None:
 
     with pytest.raises(
         SystemExit,
-        match="Duplicate filename stems, consider using MD5 labelling.",
+        match=r"Duplicate filename stems, consider using MD5 labelling\.",
     ):
         public_cli.export_run(database=tmp_db, outdir=tmp_dir / "out1")
 
     with pytest.raises(
         SystemExit,
-        match="Duplicate filename stems, consider using MD5 labelling.",
+        match=r"Duplicate filename stems, consider using MD5 labelling\.",
     ):
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir / "out2")
     with pytest.raises(
         SystemExit,
-        match="Duplicate filename stems, consider using MD5 labelling.",
+        match=r"Duplicate filename stems, consider using MD5 labelling\.",
     ):
         public_cli.cli_classify(database=tmp_db, outdir=tmp_dir / "out3")
 
@@ -490,7 +490,7 @@ def test_plot_run_failures(tmp_path: str) -> None:
     logger = setup_logger(None)
     tmp_db = tmp_dir / "export.sqlite"
     session = db_orm.connect_to_db(logger, tmp_db)
-    with pytest.raises(SystemExit, match="Database contains no runs."):
+    with pytest.raises(SystemExit, match=r"Database contains no runs\."):
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir)
 
     config = db_orm.db_configuration(
@@ -512,7 +512,7 @@ def test_plot_run_failures(tmp_path: str) -> None:
         status="Empty",
         name="Trial B",
     )
-    with pytest.raises(SystemExit, match="Database has no run-id 3."):
+    with pytest.raises(SystemExit, match=r"Database has no run-id 3\."):
         public_cli.plot_run(database=tmp_db, outdir=tmp_dir, run_id=3)
     with pytest.raises(
         SystemExit,
@@ -541,7 +541,7 @@ def test_plot_run_comp_failures(tmp_path: str, input_genomes_tiny: Path) -> None
     session = db_orm.connect_to_db(logger, tmp_db)
     with pytest.raises(
         SystemExit,
-        match="Database has no run-id 1. Use the list-runs command for more information.",
+        match=r"Database has no run-id 1\. Use the list-runs command for more information.",
     ):
         public_cli.plot_run_comp(database=tmp_db, outdir=tmp_dir, run_ids="1,2")
 
@@ -1350,7 +1350,7 @@ def test_resume_unknown(tmp_path: str, input_genomes_tiny: Path) -> None:
 
     with pytest.raises(
         SystemExit,
-        match="Unknown method guessing for run-id 1 in .*/resume.sqlite",
+        match=r"Unknown method guessing for run-id 1 in .*/resume\.sqlite",
     ):
         public_cli.resume(database=tmp_db)
 

@@ -358,7 +358,7 @@ def test_bad_resume(
 
     with pytest.raises(
         SystemExit,
-        match="We expect no tool information, but run-id 1 used should-be-blank version 1.0 instead.",
+        match=r"We expect no tool information, but run-id 1 used should-be-blank version 1\.0 instead.",
     ):
         public_cli.resume(tmp_db)
 
@@ -459,7 +459,7 @@ def test_bad_program(
 
     with pytest.raises(
         SystemExit,
-        match="configuration.program='should-be-blank' unexpected",
+        match=r"configuration\.program='should-be-blank' unexpected",
     ):
         private_cli.compute_external_alignment(
             logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
@@ -495,7 +495,7 @@ def test_bad_version(
 
     with pytest.raises(
         SystemExit,
-        match="configuration.version='should-be-blank' unexpected",
+        match=r"configuration\.version='should-be-blank' unexpected",
     ):
         private_cli.compute_external_alignment(
             logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
@@ -531,7 +531,7 @@ def test_no_config(
 
     with pytest.raises(
         SystemExit,
-        match="Missing configuration.extra setting",
+        match=r"Missing configuration\.extra setting",
     ):
         private_cli.compute_external_alignment(
             logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
@@ -566,7 +566,7 @@ def test_bad_config(
 
     with pytest.raises(
         SystemExit,
-        match="configuration.extra='file=example.fasta;md5=XXX;label=stem' unexpected",
+        match=r"configuration\.extra='file=example\.fasta;md5=XXX;label=stem' unexpected",
     ):
         private_cli.compute_external_alignment(
             logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
@@ -602,7 +602,7 @@ def test_missing_alignment(
 
     with pytest.raises(
         SystemExit,
-        match="Missing alignment file .*/does-not-exist.fasta",
+        match=r"Missing alignment file .*/does-not-exist\.fasta",
     ):
         private_cli.compute_external_alignment(
             logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
@@ -642,7 +642,7 @@ def test_bad_checksum(
 
     with pytest.raises(
         SystemExit,
-        match="MD5 checksum of .*/example.fasta didn't match.",
+        match=r"MD5 checksum of .*/example\.fasta didn't match.",
     ):
         private_cli.compute_external_alignment(
             logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
@@ -771,7 +771,7 @@ AACT
     )
     with pytest.raises(
         SystemExit,
-        match="Did not find subject 689d3fd6881db36b5e08329cf23cecdd in broken.fasta",
+        match=r"Did not find subject 689d3fd6881db36b5e08329cf23cecdd in broken\.fasta",
     ):
         private_cli.compute_external_alignment(
             logger,

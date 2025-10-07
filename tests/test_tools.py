@@ -45,7 +45,7 @@ from pyani_plus import tools
 def test_bad_path_missing() -> None:
     """Confirm giving an empty path fails."""
     with pytest.raises(
-        ValueError, match="Function check_cmd requires a command or full path."
+        ValueError, match=r"Function check_cmd requires a command or full path\."
     ):
         tools.get_nucmer("")
 

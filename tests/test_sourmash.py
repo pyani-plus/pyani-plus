@@ -191,7 +191,7 @@ def test_parser_with_bad_branchwater(tmp_path: str) -> None:
     )
     assert next(parser) == ("AAAAAA", "AAAAAA", 1.0, 1.0)
     with pytest.raises(
-        SystemExit, match="Did not expect AAAAAA vs BBBBBB in faked.csv"
+        SystemExit, match=r"Did not expect AAAAAA vs BBBBBB in faked\.csv"
     ):
         next(parser)
 

@@ -564,7 +564,7 @@ def test_add_genome_not_gzipped(tmp_path: str, input_genomes_tiny: Path) -> None
     md5 = file_md5sum(fasta)
     with pytest.raises(
         SystemExit,
-        match="Has .gz ending, but .*\\.gz is NOT gzip compressed",
+        match=r"Has \.gz ending, but .*\.gz is NOT gzip compressed",
     ):
         db_orm.db_genome(logger, session, fasta, md5, create=True)
 
@@ -585,7 +585,7 @@ def test_add_genome_no_gz_ext(tmp_path: str, input_gzip_bacteria: Path) -> None:
     md5 = file_md5sum(fasta)
     with pytest.raises(
         SystemExit,
-        match="No .gz ending, but .*\\.f.* is gzip compressed",
+        match=r"No \.gz ending, but .*\.f.* is gzip compressed",
     ):
         db_orm.db_genome(logger, session, fasta, md5, create=True)
 

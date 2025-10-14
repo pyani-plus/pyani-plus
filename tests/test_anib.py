@@ -66,7 +66,7 @@ def test_parse_blastn_empty() -> None:
 def test_parse_blastn_bad(input_genomes_tiny: Path) -> None:
     """Check parsing something which isn't a BLAST TSV files fails."""
     with pytest.raises(
-        ValueError, match="Found 1 columns in .*/MGV-GENOME-0264574\.fas, not 7"
+        ValueError, match=r"Found 1 columns in .*/MGV-GENOME-0264574\.fas, not 7"
     ):
         anib.parse_blastn_file(input_genomes_tiny / "MGV-GENOME-0264574.fas")
 

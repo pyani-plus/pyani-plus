@@ -23,7 +23,7 @@ dependencies = [
     "rich",
     "seaborn",
     "snakemake>=8.24",
-    "snakemake-executor-plugin-slurm",
+    "snakemake-executor-plugin-slurm !=2.0.1, !=2.0.2",
     "sqlalchemy>=2.0",
     "typer>=0.12",
 ]

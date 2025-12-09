@@ -37,7 +37,6 @@ jobs:
 
       - name: Check Miniconda Installation
         run: |
-          conda config --remove channels defaults
           conda info
           conda list
 

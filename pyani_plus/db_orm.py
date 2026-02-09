@@ -892,7 +892,7 @@ def add_run(  # noqa: PLR0913
         fasta_directory=str(fasta_directory),
         status=status,
         name=name,
-        date=date if date else datetime.datetime.now(tz=datetime.UTC),
+        date=date or datetime.datetime.now(tz=datetime.UTC),
     )
     session.add(run)
     if fasta_to_hash:

@@ -70,7 +70,7 @@ def _get_path_and_version_output(
     # e.g. NCBI legacy blast doesn't have a version option and uses return code 1.
     exe_path = check_cmd(cmd)
     result = subprocess.run(
-        [str(exe_path), *(args if args else [])],
+        [str(exe_path), *(args or [])],
         shell=False,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

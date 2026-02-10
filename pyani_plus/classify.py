@@ -452,7 +452,7 @@ def compute_classify_output(
     ]
 
     clique_df = pd.DataFrame(clique_data)
-    clique_df["members"] = clique_df["members"].apply(lambda x: ",".join(x))
+    clique_df["members"] = clique_df["members"].apply(lambda x: ",".join(x))  # noqa: PLW0108
 
     # Rename columns based on mode
     clique_df = clique_df.rename(columns=column_map)

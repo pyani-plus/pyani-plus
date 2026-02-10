@@ -182,7 +182,7 @@ def plot_distribution(
         if name in ["hadamard", "coverage"]:
             _.set_xlim(0, 1.01)
             values = [v for v in values if v is not None and 0 <= v <= 1.01]  # noqa: PLR2004
-        if name == "tANI":
+        elif name == "tANI":
             _.set_xlim(0, 5.01)
             values = [v for v in values if v is not None and 0 <= v <= 5.01]  # noqa: PLR2004
         elif name == "identity":

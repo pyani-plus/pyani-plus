@@ -41,7 +41,7 @@ version = {attr = "pyani_plus.__version__"}
 [tool.ruff.lint]
 select = ["ALL"]
 pycodestyle.max-line-length = 120
-ignore = ["COM812", "D203", "D213", "S603"]
+ignore = ["COM812", "D203", "D213", "S603", "UP042"]
 
 [tool.ruff.lint.per-file-ignores]
 # Ignore assert statements here:

@@ -203,12 +203,11 @@ def _dynamic_batch_size(subject_length: int) -> int:
     """
     if subject_length >= 50e6:  # noqa: PLR2004
         return 1
-    elif subject_length >= 25e6:  # noqa: PLR2004
+    if subject_length >= 25e6:  # noqa: PLR2004
         return 5
-    elif subject_length >= 10e6:  # noqa: PLR2004
+    if subject_length >= 10e6:  # noqa: PLR2004
         return 10
-    else:
-        return 50
+    return 50
 
 
 def _check_tool_version(

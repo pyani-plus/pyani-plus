@@ -185,6 +185,32 @@ NONE_ARG_TYPE_EXTRA = Annotated[
 RECORDING_FAILED = 2  # return code for successful calculation but failed to save to DB
 
 
+def _dynamic_batch_size(subject_length: int) -> int:
+    """Use genome size to set how often comparisons are logged to the database.
+
+    The original hard-coded value of 50 is still used for small genomes:
+
+    >>> _dynamic_batch_size(5e6)  # eg 5Mbp for a bacteria
+    50
+    >>> _dynamic_batch_size(12e6)  # eg 12Mbp for a yeast
+    10
+    >>> _dynamic_batch_size(40e6)  # eg 40Mbp for a fungi
+    5
+    >>> _dynamic_batch_size(50e6)  # eg 50Mbp for something larger
+    1
+
+    This is a heuristic for ANIm, dnadiff, and ANIb, aiming to log at least once an hour.
+    """
+    if subject_length >= 50e6:  # noqa: PLR2004
+        return 1
+    elif subject_length >= 25e6:  # noqa: PLR2004
+        return 5
+    elif subject_length >= 10e6:  # noqa: PLR2004
+        return 10
+    else:
+        return 50
+
+
 def _check_tool_version(
     logger: logging.Logger,
     tool: tools.ExternalToolData,
@@ -1119,8 +1145,6 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
     uname_release = uname.release
     uname_machine = uname.machine
 
-    batch_size = 50
-
     configuration = run.configuration
 
     nucmer = tools.get_nucmer()
@@ -1139,6 +1163,7 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
         .one()
         .length
     )
+    batch_size = _dynamic_batch_size(subject_length)
 
     from pyani_plus.methods import anim  # noqa: PLC0415
     from pyani_plus.utils import check_output, stage_file  # noqa: PLC0415
@@ -1283,8 +1308,6 @@ def compute_anib(  # noqa: PLR0913, PLR0915
     uname_release = uname.release
     uname_machine = uname.machine
 
-    batch_size = 50
-
     configuration = run.configuration
 
     tool = tools.get_blastn()
@@ -1301,6 +1324,7 @@ def compute_anib(  # noqa: PLR0913, PLR0915
         .one()
         .length
     )
+    batch_size = _dynamic_batch_size(subject_length)
 
     from pyani_plus.methods import anib  # noqa: PLC0415
     from pyani_plus.utils import check_output, stage_file  # noqa: PLC0415
@@ -1446,8 +1470,6 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
     uname_release = uname.release
     uname_machine = uname.machine
 
-    batch_size = 50
-
     configuration = run.configuration
 
     nucmer = tools.get_nucmer()
@@ -1457,6 +1479,13 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
     _check_tool_version(logger, nucmer, configuration)
 
     config_id = configuration.configuration_id
+    subject_length = (
+        session.query(db_orm.Genome)
+        .where(db_orm.Genome.genome_hash == subject_hash)
+        .one()
+        .length
+    )
+    batch_size = _dynamic_batch_size(subject_length)
 
     from pyani_plus.methods import dnadiff  # noqa: PLC0415
     from pyani_plus.utils import check_output, stage_file  # noqa: PLC0415

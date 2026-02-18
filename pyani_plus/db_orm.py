@@ -469,9 +469,9 @@ class Run(Base):
     def identities(self) -> "DataFrame | None":
         """All-vs-all percentage identity matrix for the run from the cached JSON.
 
-        If cached, returns an N by N float matrix of percentage identities for the N genomes
-        in the run as pandas dataframe, where the index (rows) and columns are the N genome
-        hashes (sorted alphabetically). If not cached, returns None.
+        If cached, returns an N by N float matrix of percentage identities for the N
+        genomes in the run as a pandas dataframe, where the index (rows) and columns
+        are the N genome hashes (sorted alphabetically). If not cached, returns None.
 
         This is normally available immediately from the Run entry in the database where
         the dataframe is cached as a JSON string. This would be computed at the end of
@@ -488,7 +488,7 @@ class Run(Base):
     def cov_query(self) -> "DataFrame | None":
         """All-vs-all query-coverage matrix for the run from the cached JSON.
 
-        If cached, returns an N by N float matrix of percentage identities for the N genomes
+        If cached, returns an N by N float matrix of query-coverage for the N genomes
         in the run as a pandas dataframe, where the index (rows) and columns are the N
         genome hashes (sorted alphabetically). If not cached, returns None.
 

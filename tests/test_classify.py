@@ -36,7 +36,7 @@ from pyani_plus import classify
 
 
 @pytest.fixture
-def one_node_no_edges_graph() -> nx.Graph:
+def one_node_no_edges_graph() -> tuple[nx.Graph, None]:
     """Return graph with one node and no edges and the expected identity edge that formed the clique."""
     graph = nx.Graph()
     graph.add_node("genome_1")
@@ -52,7 +52,7 @@ def two_nodes_no_edges_graph() -> nx.Graph:
 
 
 @pytest.fixture
-def two_nodes_no_edges_cliques() -> list[nx.Graph]:
+def two_nodes_no_edges_cliques() -> list[tuple[nx.Graph, None]]:
     """Return list of all possible cliques for initial graph with two nodes and no edges
     and the expected identity edge that formed the clique.
     """  # noqa: D205
@@ -84,7 +84,7 @@ def two_nodes_no_edges_dataframes() -> list[pd.DataFrame]:
 
 
 @pytest.fixture
-def two_nodes_one_edge_graph() -> nx.Graph:
+def two_nodes_one_edge_graph() -> tuple[nx.Graph, float]:
     """Return graph with two nodes and one edge and the expected identity edge that formed the clique."""
     graph = nx.Graph()
     graph.add_edge("genome_1", "genome_2", score=0.999310, coverage=0.6774176803)
@@ -92,7 +92,7 @@ def two_nodes_one_edge_graph() -> nx.Graph:
 
 
 @pytest.fixture
-def two_nodes_one_edge_cliques() -> list[tuple[nx.Graph, float | str]]:
+def two_nodes_one_edge_cliques() -> list[tuple[nx.Graph, float]]:
     """Return list of all possible cliques with initial graph of two nodes and one edge
     and the expected identity edge that formed each clique.
     """  # noqa: D205
@@ -137,7 +137,7 @@ def known_complex_graph() -> nx.Graph:
 
 
 @pytest.fixture
-def known_complex_cliques() -> list[nx.Graph]:
+def known_complex_cliques() -> list[tuple[nx.Graph, float]]:
     """Return a list of nx.Graph objects representing known cliques with coverage and
     identity attributes and the expected identity edge that formed each clique.
     """  # noqa: D205
@@ -214,7 +214,7 @@ def test_is_clique(
     assert classify.is_clique(two_nodes_one_edge_graph[0]) is True
 
 
-def test_find_initial_cliques(two_nodes_one_edge_graph: tuple[nx.Graph, str]) -> None:
+def test_find_initial_cliques(two_nodes_one_edge_graph: tuple[nx.Graph, float]) -> None:
     """Check all possible cliques and their associated values are identified in the initial iteration."""
     graph, edge_value = two_nodes_one_edge_graph
     found_cliques = classify.find_initial_cliques(graph)
@@ -240,7 +240,7 @@ def test_find_initial_cliques(two_nodes_one_edge_graph: tuple[nx.Graph, str]) ->
 
 
 def test_classify_one_node_no_edges(
-    one_node_no_edges_graph: tuple[nx.Graph, str],
+    one_node_no_edges_graph: tuple[nx.Graph, float],
 ) -> None:
     """Check all possible cliques are identified if the initial graph has only one node."""
     graph, break_edge = one_node_no_edges_graph  # Unpack the tuple
@@ -267,7 +267,8 @@ def test_classify_one_node_no_edges(
 
 
 def test_classify_two_nodes_no_edges(
-    two_nodes_no_edges_graph: nx.Graph, two_nodes_no_edges_cliques: list[nx.Graph]
+    two_nodes_no_edges_graph: nx.Graph,
+    two_nodes_no_edges_cliques: list[tuple[nx.Graph, float]],
 ) -> None:
     """Check all possible cliques are identified if the initial graph has twno nodes and no edges."""
     graph = two_nodes_no_edges_graph
@@ -300,7 +301,7 @@ def test_classify_two_nodes_no_edges(
 
 def test_classify_two_nodes_one_edge(
     two_nodes_one_edge_graph: nx.Graph,
-    two_nodes_one_edge_cliques: list[tuple[nx.Graph, float | str]],
+    two_nodes_one_edge_cliques: list[tuple[nx.Graph, float]],
 ) -> None:
     """Check all possible cliques are identified if the initial graph has twno nodes and one edges."""
     graph, _break_edge = two_nodes_one_edge_graph

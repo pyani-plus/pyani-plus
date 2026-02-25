@@ -86,9 +86,9 @@ def compare_matrix_files(
         .sort_index(axis=1)
     )
     if atol is None:
-        pd.testing.assert_frame_equal(expected_df, new_df, obj=new_file)
+        pd.testing.assert_frame_equal(expected_df, new_df, obj=str(new_file))
     else:
-        pd.testing.assert_frame_equal(expected_df, new_df, obj=new_file, atol=atol)
+        pd.testing.assert_frame_equal(expected_df, new_df, obj=str(new_file), atol=atol)
 
 
 def test_check_db() -> None:
@@ -262,7 +262,7 @@ def test_partial_run(  # noqa: PLR0915
     # Unlike a typical method calculation, we have not triggered
     # .cache_comparisons() yet, so that will happen in export_run.
     caplog.clear()
-    public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_path, label="md5")
+    public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_dir, label="md5")
     output = caplog.text
     assert f"Wrote matrices to {tmp_path}" in output, output
     with (tmp_dir / "fastANI_identity.tsv").open() as handle:
@@ -272,7 +272,7 @@ def test_partial_run(  # noqa: PLR0915
         )
 
     caplog.clear()
-    public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_path, label="stem")
+    public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_dir, label="stem")
     output = caplog.text
     assert f"Wrote matrices to {tmp_path}" in output, output
 
@@ -280,7 +280,7 @@ def test_partial_run(  # noqa: PLR0915
         assert handle.readline() == "\tMGV-GENOME-0266457\tOP073605\n"
 
     caplog.clear()
-    public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_path, label="filename")
+    public_cli.export_run(database=tmp_db, run_id=3, outdir=tmp_dir, label="filename")
     output = caplog.text
     assert f"Wrote matrices to {tmp_path}" in output, output
     with (tmp_dir / "fastANI_identity.tsv").open() as handle:
@@ -293,7 +293,7 @@ def test_partial_run(  # noqa: PLR0915
         SystemExit,
         match=("run-id 2 has only 4 of 3²=9 comparisons, 5 needed"),
     ):
-        public_cli.export_run(database=tmp_db, run_id=2, outdir=tmp_path)
+        public_cli.export_run(database=tmp_db, run_id=2, outdir=tmp_dir)
     long_file = tmp_dir / "fastANI_run_2.tsv"
     assert long_file.is_file()
     with long_file.open() as handle:

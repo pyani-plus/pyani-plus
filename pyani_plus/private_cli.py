@@ -33,6 +33,7 @@ import sys
 import tempfile
 from contextlib import nullcontext
 from pathlib import Path
+from time import time
 from typing import Annotated
 
 import typer
@@ -54,6 +55,7 @@ from pyani_plus.public_cli_args import (
 )
 
 ASCII_GAP = ord("-")  # 45
+JSON_WINDOW = 5 * 60  # 5mins
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -1119,8 +1121,6 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
     uname_release = uname.release
     uname_machine = uname.machine
 
-    batch_size = 50
-
     configuration = run.configuration
 
     nucmer = tools.get_nucmer()
@@ -1150,6 +1150,7 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
 
     db_entries = []
     new = 0
+    last_progress = 0.0
     try:
         for query_hash, query_length in query_hashes.items():
             if query_hash != subject_hash:
@@ -1239,9 +1240,10 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
                 query_fasta.unlink()  # remove our decompressed copy
 
             new += 1
-            if new >= batch_size:  # pragma: no cover
+            if new and (not last_progress or time() - last_progress >= JSON_WINDOW):
                 export_json_db_entries(logger, json_filename, configuration, db_entries)
                 new = 0
+                last_progress = time()
     except KeyboardInterrupt:
         # Try to abort gracefhave logged JSON file with  the work done.
         msg = f"Interrupted with {len(db_entries)} completed ANIm comparisons"
@@ -1282,8 +1284,6 @@ def compute_anib(  # noqa: PLR0913, PLR0915
     uname_system = uname.system
     uname_release = uname.release
     uname_machine = uname.machine
-
-    batch_size = 50
 
     configuration = run.configuration
 
@@ -1338,6 +1338,7 @@ def compute_anib(  # noqa: PLR0913, PLR0915
 
     db_entries = []
     new = 0
+    last_progress = 0.0
     try:
         for query_hash, query_length in query_hashes.items():
             tmp_tsv = tmp_dir / f"{query_hash}_vs_{subject_hash}.tsv"
@@ -1404,9 +1405,10 @@ def compute_anib(  # noqa: PLR0913, PLR0915
                 }
             )
             new += 1
-            if new >= batch_size:  # pragma: no cover
+            if new and (not last_progress or time() - last_progress >= JSON_WINDOW):
                 export_json_db_entries(logger, json_filename, configuration, db_entries)
                 new = 0
+                last_progress = time()
 
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
@@ -1446,8 +1448,6 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
     uname_release = uname.release
     uname_machine = uname.machine
 
-    batch_size = 50
-
     configuration = run.configuration
 
     nucmer = tools.get_nucmer()
@@ -1468,6 +1468,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
 
     db_entries = []
     new = 0
+    last_progress = 0.0
     try:
         for query_hash, query_length in query_hashes.items():
             if query_hash != subject_hash:
@@ -1609,9 +1610,10 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
                 query_fasta.unlink()  # remove our decompressed copy
 
             new += 1
-            if new >= batch_size:  # pragma: no cover
+            if new and (not last_progress or time() - last_progress >= JSON_WINDOW):
                 export_json_db_entries(logger, json_filename, configuration, db_entries)
                 new = 0
+                last_progress = time()
 
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.

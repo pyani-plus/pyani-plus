@@ -23,6 +23,7 @@
 
 The commands defined here are intended to be used from within pyANI-plus via
 snakemake, for example from worker nodes, to log results to the database.
+Run `.pyani-plus-private-cli --help` for more details.
 """
 
 import logging

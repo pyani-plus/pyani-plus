@@ -51,6 +51,10 @@ If you would like to use the in-progress development version, please follow the 
 Please see the [`CONTRIBUTING.md`](CONTRIBUTING.md) file for more information,
 including installing additional development-only dependencies like `pytest` and `ruff`.
 
+## Changes
+
+Please see the [`CHANGELOG.md`](CHANGELOG.md) file recording changes of note in each release.
+
 ## Licensing
 
 Unless otherwise indicated, the material in this project is made available under the MIT License,

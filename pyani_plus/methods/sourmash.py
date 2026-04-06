@@ -76,7 +76,7 @@ def prepare_genomes(
                     f"k={config.kmersize},{config.extra}",
                     "-n",
                     entry.genome_hash,
-                    fasta_filename,
+                    str(fasta_filename),
                     "-o",
                     str(sig_filename),
                 ],

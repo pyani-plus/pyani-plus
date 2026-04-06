@@ -203,7 +203,7 @@ def plot_distribution(
     )
 
     # Tidy figure
-    figure.tight_layout(rect=[0, 0.03, 1, 0.95])
+    figure.tight_layout(rect=(0, 0.03, 1, 0.95))
 
     for ext in formats:
         filename = outdir / f"{method}_{name}_dist.{ext}"

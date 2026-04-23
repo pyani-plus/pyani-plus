@@ -838,6 +838,11 @@ def db_genome(  # noqa: C901
                 length += len(seq)
                 if description is None:
                     description = title.decode()  # Just use first entry
+            if description is None:
+                # This covers literally empty (zero bytes), as well as
+                # whitespace only, but also things that are not FASTA at all.
+                msg = f"File {Path(fasta_filename).name} is not recognised as a FASTA record"
+                log_sys_exit(logger, msg)
             if not str(fasta_filename).endswith(".gz"):
                 msg = (
                     f"No .gz ending, but {Path(fasta_filename).name} is gzip compressed"

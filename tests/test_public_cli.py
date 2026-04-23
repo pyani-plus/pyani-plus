@@ -677,6 +677,42 @@ def test_anim_gzip(
     session.close()
 
 
+def test_anim_fasta_empty(
+    tmp_path: str,
+) -> None:
+    """Check ANIm with empty FASTA file."""
+    tmp_dir = Path(tmp_path) / "with_empty"
+    tmp_dir.mkdir()
+    with (tmp_dir / "empty.fasta").open("wb"):
+        pass
+    tmp_db = tmp_dir / "with_empty.sqlite"
+
+    with pytest.raises(
+        SystemExit, match=r"File empty.fasta is not recognised as a FASTA record"
+    ):
+        public_cli.cli_anim(
+            database=tmp_db, fasta=tmp_dir, name="Test spots empty", create_db=True
+        )
+
+
+def test_anim_fasta_gz_empty(
+    tmp_path: str,
+) -> None:
+    """Check ANIm with empty FASTA file."""
+    tmp_dir = Path(tmp_path) / "with_empty"
+    tmp_dir.mkdir()
+    with gzip.open(str(tmp_dir / "empty.fasta.gz"), "wb"):
+        pass
+    tmp_db = tmp_dir / "with_empty.sqlite"
+
+    with pytest.raises(
+        SystemExit, match=r"File empty.fasta.gz is not recognised as a FASTA record"
+    ):
+        public_cli.cli_anim(
+            database=tmp_db, fasta=tmp_dir, name="Test spots empty", create_db=True
+        )
+
+
 def test_dnadiff(
     caplog: pytest.LogCaptureFixture,
     tmp_path: str,

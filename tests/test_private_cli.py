@@ -105,7 +105,8 @@ def test_log_genome(tmp_path: str, input_genomes_tiny: Path) -> None:
 
 def test_log_run(caplog: pytest.LogCaptureFixture, tmp_path: str) -> None:
     """Confirm can create a new empty DB via log-run."""
-    tmp_db = Path(tmp_path) / "new.sqlite"
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "new.sqlite"
     assert not tmp_db.is_file()
 
     with pytest.raises(SystemExit, match="does not exist, but not using --create-db"):
@@ -133,7 +134,7 @@ def test_log_run(caplog: pytest.LogCaptureFixture, tmp_path: str) -> None:
             cmdline="pyani_plus run ...",
             name="Guess Run",
             status="Completed",
-            fasta=tmp_path,
+            fasta=tmp_dir,
             # Config
             method="guessing",
             program="guestimate",
@@ -155,7 +156,7 @@ def test_log_run(caplog: pytest.LogCaptureFixture, tmp_path: str) -> None:
         cmdline="pyani_plus run ...",
         name="Guess Run",
         status="Completed",
-        fasta=tmp_path,
+        fasta=tmp_dir,
         # Config
         method="guessing",
         program="guestimate",
@@ -631,7 +632,7 @@ def test_compute_column_bad_anim(
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "anim.sqlite"
     assert not tmp_db.is_file()
-    tmp_json = "anim.json"
+    tmp_json = Path("anim.json")
 
     tool = tools.get_nucmer()
     private_cli.log_run(

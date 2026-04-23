@@ -1,0 +1,2 @@
+Ref_file	Query_file	ANI	Align_fraction_ref	Align_fraction_query	Ref_name	Query_name
+../fixtures/viral_example/MGV-GENOME-0266457.fna	../fixtures/viral_example/MGV-GENOME-0266457.fna	100.00	99.66	99.66	MGV_MGV-GENOME-0266457	MGV_MGV-GENOME-0266457

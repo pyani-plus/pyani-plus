@@ -1,0 +1,2 @@
+Ref_file	Query_file	ANI	Align_fraction_ref	Align_fraction_query	Ref_name	Query_name
+../fixtures/viral_example/OP073605.fasta	../fixtures/viral_example/OP073605.fasta	100.00	100.00	100.00	OP073605.1 MAG: Bacteriophage sp. isolate 0984_12761, complete genome	OP073605.1 MAG: Bacteriophage sp. isolate 0984_12761, complete genome

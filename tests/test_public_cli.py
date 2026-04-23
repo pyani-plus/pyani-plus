@@ -687,7 +687,9 @@ def test_anim_fasta_empty(
         pass
     tmp_db = tmp_dir / "with_empty.sqlite"
 
-    with pytest.raises(SystemExit, match=r"File empty.fasta has no FASTA records"):
+    with pytest.raises(
+        SystemExit, match=r"File empty.fasta is not recognised as a FASTA record"
+    ):
         public_cli.cli_anim(
             database=tmp_db, fasta=tmp_dir, name="Test spots empty", create_db=True
         )
@@ -703,7 +705,9 @@ def test_anim_fasta_gz_empty(
         pass
     tmp_db = tmp_dir / "with_empty.sqlite"
 
-    with pytest.raises(SystemExit, match=r"File empty.fasta.gz has no FASTA records"):
+    with pytest.raises(
+        SystemExit, match=r"File empty.fasta.gz is not recognised as a FASTA record"
+    ):
         public_cli.cli_anim(
             database=tmp_db, fasta=tmp_dir, name="Test spots empty", create_db=True
         )

@@ -841,7 +841,7 @@ def db_genome(  # noqa: C901
             if description is None:
                 # This covers literally empty (zero bytes), as well as
                 # whitespace only, but also things that are not FASTA at all.
-                msg = f"File {Path(fasta_filename).name} has no FASTA records"
+                msg = f"File {Path(fasta_filename).name} is not recognised as a FASTA record"
                 log_sys_exit(logger, msg)
             if not str(fasta_filename).endswith(".gz"):
                 msg = (

@@ -114,6 +114,23 @@ def test_fake_fastani() -> None:
         tools.get_fastani(cmd)
 
 
+def test_fake_skani() -> None:
+    """Confirm simple skani version parsing works."""
+    info = tools.get_skani("tests/fixtures/tools/mock_skani")  # outputs "skani 1.0.0"
+    assert info.exe_path == Path("tests/fixtures/tools/mock_skani").resolve()
+    assert info.version == "1.0.0"
+
+    cmd = Path("tests/fixtures/tools/version_one")  # outputs "version 1.0.0"
+    msg = f"Executable exists at {cmd.resolve()} but could not retrieve version"
+    with pytest.raises(RuntimeError, match=msg):
+        tools.get_skani(cmd)
+
+    cmd = Path("tests/fixtures/tools/just_one")  # outputs just "1.0.0"
+    msg = f"Executable exists at {cmd.resolve()} but could not retrieve version"
+    with pytest.raises(RuntimeError, match=msg):
+        tools.get_skani(cmd)
+
+
 def test_fake_nucmer() -> None:
     """Confirm simple nucmer version parsing works."""
     info = tools.get_nucmer("tests/fixtures/tools/just_one")  # parsed like mummer v4
@@ -170,18 +187,6 @@ def test_fake_dnadiff() -> None:
     msg = f"Executable exists at {cmd.resolve()} but could not retrieve version"
     with pytest.raises(RuntimeError, match=msg):
         tools.get_dnadiff(cmd)
-
-
-def test_fake_skani() -> None:
-    """Confirm simple skani version parsing works."""
-    info = tools.get_skani("tests/fixtures/tools/mock_skani")  # outputs "skani 1.0.0"
-    assert info.exe_path == Path("tests/fixtures/tools/mock_skani").resolve()
-    assert info.version == "1.0.0"
-
-    cmd = Path("tests/fixtures/tools/cutting_edge")  # no numerical output
-    msg = f"Executable exists at {cmd.resolve()} but could not retrieve version"
-    with pytest.raises(RuntimeError, match=msg):
-        tools.get_sourmash(cmd)
 
 
 def test_fake_sourmash() -> None:

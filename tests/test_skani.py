@@ -42,9 +42,9 @@ def test_skani_parsing(input_genomes_tiny: Path) -> None:
     ) == (
         "../fixtures/viral_example/MGV-GENOME-0264574.fas",
         "../fixtures/viral_example/MGV-GENOME-0264574.fas",
-        100.00,
-        99.65,
-        99.65,
+        0.01 * 100.00,
+        0.01 * 99.65,
+        0.01 * 99.65,
         "MGV_MGV-GENOME-0264574",
         "MGV_MGV-GENOME-0264574",
     )
@@ -57,9 +57,9 @@ def test_skani_parsing(input_genomes_tiny: Path) -> None:
     ) == (
         "../fixtures/viral_example/OP073605.fasta",
         "../fixtures/viral_example/MGV-GENOME-0266457.fna",
-        99.64,
-        68.28,
-        99.66,
+        0.01 * 99.64,
+        0.01 * 68.28,
+        0.01 * 99.66,
         "OP073605.1 MAG: Bacteriophage sp. isolate 0984_12761, complete genome",
         "MGV_MGV-GENOME-0266457",
     )
@@ -104,6 +104,52 @@ def test_running_skani(
         run,
         tmp_json,
         input_genomes_tiny,
+        hash_to_filename,
+        filename_to_hash,
+        query_hashes=hash_to_lengths,
+        subject_hash=list(hash_to_filename)[1],
+    )
+
+
+def test_running_skani_gzip(
+    tmp_path: str,
+    input_gzip_bacteria: Path,
+) -> None:
+    """Check that skani can be run on gzip test input genomes."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "new.sqlite"
+    assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "skani.json"
+
+    tool = tools.get_skani()
+
+    private_cli.log_run(
+        fasta=input_gzip_bacteria,
+        database=tmp_db,
+        cmdline="pyani-plus skani ...",
+        status="Testing",
+        name="Testing skani",
+        method="skani",
+        program=tool.exe_path.stem,
+        version=tool.version,
+        create_db=True,
+    )
+
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    run = session.query(db_orm.Run).one()
+    assert run.run_id == 1
+    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
+    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+    hash_to_lengths = {_.genome_hash: _.length for _ in run.genomes}
+
+    private_cli.compute_skani(
+        logger,
+        tmp_dir,
+        session,
+        run,
+        tmp_json,
+        input_gzip_bacteria,
         hash_to_filename,
         filename_to_hash,
         query_hashes=hash_to_lengths,

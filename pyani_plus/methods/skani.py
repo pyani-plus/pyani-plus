@@ -27,7 +27,9 @@ from pathlib import Path
 from pyani_plus import log_sys_exit
 
 
-def parse_skani(filename: Path) -> tuple[str, str, float, float, float, str, str]:
+def parse_skani(
+    filename: Path,
+) -> tuple[str, str, float | None, float | None, float | None, str, str]:
     """Parse the skani output files to return a pairwise ANI result.
 
     :param filename: Path to the skani output file to parse.
@@ -60,12 +62,18 @@ def parse_skani(filename: Path) -> tuple[str, str, float, float, float, str, str
             msg = f"Unexpected skani output file format in '{filename}'"
             log_sys_exit(logging.getLogger(__name__), msg)
         line = ifh.readline().rstrip("\n").split("\t")
+
+        if line == [
+            ""
+        ]:  # No data in output skani file, we assume identity out of range
+            return ("", "", None, None, None, "", "")
+        # Otherwise return the pairwise alignment contents
         return (
             line[1],  # query path
             line[0],  # subject path
-            float(line[2]),  # ANI percentage
-            float(line[4]),  # query AF
-            float(line[3]),  # subject AF
+            0.01 * float(line[2]),  # ANI percentage
+            0.01 * float(line[4]),  # query AF
+            0.01 * float(line[3]),  # subject AF
             line[6],  # query name
             line[5],  # subject name
         )

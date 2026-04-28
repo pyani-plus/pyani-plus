@@ -97,6 +97,7 @@ def test_running_skani(
         program=tool.exe_path.stem,
         version=tool.version,
         create_db=True,
+        mode=skani.MODE,
     )
 
     logger = setup_logger(None)
@@ -143,6 +144,7 @@ def test_running_skani_gzip(
         program=tool.exe_path.stem,
         version=tool.version,
         create_db=True,
+        mode=skani.MODE,
     )
 
     logger = setup_logger(None)

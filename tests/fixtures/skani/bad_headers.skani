@@ -1,0 +1,2 @@
+Ref_file_bork	Query_file	ANI	Align_fraction_ref	Align_fraction_query	Ref_name	Query_name
+../fixtures/bacterial_example/NC_014100.fna.gz	../fixtures/bacterial_example/NC_014100.fna.gz	100.00	99.99	99.99	gi|295687459|ref|NC_014100.1| Caulobacter segnis ATCC 21756 chromosome, complete genome	gi|295687459|ref|NC_014100.1| Caulobacter segnis ATCC 21756 chromosome, complete genome

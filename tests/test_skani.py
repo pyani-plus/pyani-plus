@@ -28,8 +28,16 @@ make test
 
 from pathlib import Path
 
+import pytest
+
 from pyani_plus import db_orm, private_cli, setup_logger, tools
 from pyani_plus.methods import skani
+
+
+@pytest.fixture
+def skani_bad_headers() -> Path:
+    """Path to skani output file with bad headers."""
+    return Path(__file__).parent / "fixtures" / "skani" / "bad_headers.skani"
 
 
 def test_skani_parsing(input_genomes_tiny: Path) -> None:
@@ -73,6 +81,12 @@ def test_skani_parsing_empty(input_gzip_bacteria: Path) -> None:
         / "skani"
         / "9a9e23bfc5a184b8149e07e267d133b0_vs_073194224aa8c13bebc1d14a3e74a3e7.skani"
     ) == ("", "", None, None, None, "", "")
+
+
+def test_skani_parsing_bad_headers(skani_bad_headers: Path) -> None:
+    """Check parsing of skani output files with bad headers."""
+    with pytest.raises(SystemExit, match="Unexpected skani output file format"):
+        skani.parse_skani(skani_bad_headers)
 
 
 def test_running_skani(

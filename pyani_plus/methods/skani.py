@@ -25,6 +25,9 @@ import logging
 from pathlib import Path
 
 from pyani_plus import log_sys_exit
+from pyani_plus.public_cli_args import EnumModeSkani
+
+MODE = EnumModeSkani.fast  # constant for CLI default
 
 
 def parse_skani(

@@ -56,7 +56,7 @@ from pyani_plus import (
     setup_logger,
     tools,
 )
-from pyani_plus.methods import anib, anim, fastani, sourmash
+from pyani_plus.methods import anib, anim, fastani, skani, sourmash
 from pyani_plus.public_cli_args import (
     NO_PATH,
     OPT_ARG_TYPE_ANIM_MODE,
@@ -74,6 +74,7 @@ from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_MINMATCH,
     OPT_ARG_TYPE_RUN_ID,
     OPT_ARG_TYPE_RUN_NAME,
+    OPT_ARG_TYPE_SKANI_MODE,
     OPT_ARG_TYPE_SOURMASH_SCALED,
     OPT_ARG_TYPE_TEMP,
     OPT_ARG_TYPE_TEMP_WORKFLOW,
@@ -514,6 +515,7 @@ def cli_skani(  # noqa: PLR0913
     *,
     # These are for the run table:
     name: OPT_ARG_TYPE_RUN_NAME = None,
+    mode: OPT_ARG_TYPE_SKANI_MODE = skani.MODE,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     cache: OPT_ARG_TYPE_CACHE = Path(),
@@ -540,6 +542,7 @@ def cli_skani(  # noqa: PLR0913
             "skani",
             fasta,
             tools.get_skani(),
+            mode=mode.value,  # turn the enum into a string
         )
     except Exception:  # pragma: nocover
         logger.exception("Unhandled exception.")

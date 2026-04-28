@@ -1876,7 +1876,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
         return 0
 
 
-def compute_skani(  # noqa: PLR0913
+def compute_skani(  # noqa: PLR0913, PLR0915, C901
     logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
@@ -1897,6 +1897,10 @@ def compute_skani(  # noqa: PLR0913
     uname_machine = uname.machine
 
     configuration = run.configuration
+    mode = configuration.mode
+    if not mode:
+        msg = f"skani run-id {run.run_id} is missing mode parameter"
+        log_sys_exit(logger, msg)
 
     skani = tools.get_skani()
     _check_tool_version(logger, skani, configuration)
@@ -1944,6 +1948,7 @@ def compute_skani(  # noqa: PLR0913
                     str(query_fasta),
                     "-o",
                     str(outpath),
+                    f"--{mode}",
                 ],
             )
             if not outpath.is_file():

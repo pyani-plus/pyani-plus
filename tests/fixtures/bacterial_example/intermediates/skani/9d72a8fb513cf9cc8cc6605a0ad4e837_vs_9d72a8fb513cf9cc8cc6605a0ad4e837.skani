@@ -1,0 +1,2 @@
+Ref_file	Query_file	ANI	Align_fraction_ref	Align_fraction_query	Ref_name	Query_name
+../fixtures/bacterial_example/NC_011916.fas.gz	../fixtures/bacterial_example/NC_011916.fas.gz	100.00	100.00	100.00	gi|221232939|ref|NC_011916.1| Caulobacter crescentus NA1000, complete genome	gi|221232939|ref|NC_011916.1| Caulobacter crescentus NA1000, complete genome

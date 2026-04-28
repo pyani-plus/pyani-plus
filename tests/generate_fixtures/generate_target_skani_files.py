@@ -56,7 +56,7 @@ skani = get_skani()
 print(f"Using skani {skani.version} at {skani.exe_path}")
 
 # skani writes to stdout.
-# To redirect using subprocess.run, we need to open the output file and
+# To redirect using subprocess.run, we can open the output file and
 # pipe from within the call to stdout
 for genomes in comparisons:
     stem = "_vs_".join(file_md5sum(inputs[_]) for _ in genomes)

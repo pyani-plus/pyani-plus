@@ -136,6 +136,53 @@ def test_running_skani(
     )
 
 
+def test_skani_missing_mode(
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Check that skani fails if mode argument missing."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "new.sqlite"
+    assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "skani.json"
+
+    tool = tools.get_skani()
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus skani ...",
+        status="Testing",
+        name="Testing skani",
+        method="skani",
+        program=tool.exe_path.stem,
+        version=tool.version,
+        create_db=True,
+    )
+
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    run = session.query(db_orm.Run).one()
+    assert run.run_id == 1
+    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
+    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+    hash_to_lengths = {_.genome_hash: _.length for _ in run.genomes}
+
+    with pytest.raises(SystemExit, match="skani run-id 1 is missing mode parameter"):
+        private_cli.compute_skani(
+            logger,
+            tmp_dir,
+            session,
+            run,
+            tmp_json,
+            input_genomes_tiny,
+            hash_to_filename,
+            filename_to_hash,
+            query_hashes=hash_to_lengths,
+            subject_hash=list(hash_to_filename)[1],
+        )
+
+
 def test_running_skani_gzip(
     tmp_path: str,
     input_gzip_bacteria: Path,

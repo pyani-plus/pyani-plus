@@ -709,6 +709,8 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
             tool = tools.get_nucmer()
         case "ANIb":
             tool = tools.get_blastn()
+        case "skani":
+            tool = tools.get_skani()
         case "sourmash":
             tool = tools.get_sourmash()
         case "external-alignment":

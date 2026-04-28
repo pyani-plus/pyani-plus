@@ -1023,6 +1023,7 @@ def test_skani(
         name="Spaces etc",
         create_db=True,
         temp=tmp_dir,
+        mode=EnumModeSkani.fast,
     )
     output = caplog.text
     assert "Database already has 0 of 3²=9 skani comparisons, 9 needed\n" in output
@@ -1035,6 +1036,7 @@ def test_skani(
         name="Simple names",
         create_db=False,
         temp=tmp_dir,
+        mode=EnumModeSkani.fast,
     )
     output = caplog.text
     assert "Database already has all 3²=9 skani comparisons\n" in output

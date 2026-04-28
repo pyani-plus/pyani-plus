@@ -56,6 +56,14 @@ class EnumModeANIm(str, Enum):
     maxmatch = "maxmatch"
 
 
+class EnumPresetMinimap2(str, Enum):
+    """Enum for the -x preset command line argument passed to ANIminimap2."""
+
+    asm5 = "asm5"  # asm-to-ref mapping, for ~0.1% sequence divergence
+    asm10 = "asm10"  # asm-to-ref mapping, for ~1% sequence divergence
+    asm20 = "asm20"  # asm-to-ref mapping, for ~5% sequence divergence
+
+
 class EnumModeClassify(str, Enum):
     """Enum for the --mode command line argument passed to classify."""
 
@@ -234,6 +242,13 @@ OPT_ARG_TYPE_MINMATCH = Annotated[
         rich_help_panel="Method parameters",
         min=0.0,
         max=1.0,
+    ),
+]
+OPT_ARG_TYPE_MINIMAP2_PRESET = Annotated[
+    EnumPresetMinimap2,
+    typer.Option(
+        help="Preset for minimap2 alignment.",
+        rich_help_panel="Method parameters",
     ),
 ]
 OPT_ARG_TYPE_ANIM_MODE = Annotated[

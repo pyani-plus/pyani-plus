@@ -71,6 +71,7 @@ from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_KMERSIZE,
     OPT_ARG_TYPE_LABEL,
     OPT_ARG_TYPE_LOG,
+    OPT_ARG_TYPE_MINIMAP2_PRESET,
     OPT_ARG_TYPE_MINMATCH,
     OPT_ARG_TYPE_RUN_ID,
     OPT_ARG_TYPE_RUN_NAME,
@@ -83,6 +84,7 @@ from pyani_plus.public_cli_args import (
     REQ_ARG_TYPE_FASTA_DIR,
     REQ_ARG_TYPE_OUTDIR,
     EnumModeClassify,
+    EnumPresetMinimap2,
 )
 from pyani_plus.utils import (
     check_db,
@@ -406,6 +408,48 @@ def cli_dnadiff(  # noqa: PLR0913
         return 1
 
 
+@app.command("animinimap2", rich_help_panel="ANI methods")
+def cli_animinimap2(  # noqa: PLR0913
+    fasta: REQ_ARG_TYPE_FASTA_DIR,
+    database: REQ_ARG_TYPE_DATABASE,
+    # These are for the run table:
+    *,
+    name: OPT_ARG_TYPE_RUN_NAME = None,
+    # These are all for the configuration table:
+    mode: OPT_ARG_TYPE_MINIMAP2_PRESET = EnumPresetMinimap2.asm10,  # will define as constant in module
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    temp: OPT_ARG_TYPE_TEMP = None,
+    wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
+    log: OPT_ARG_TYPE_COMP_LOG = LOG_FILE_DYNAMIC,
+    debug: OPT_ARG_TYPE_DEBUG = False,
+) -> int:
+    """Execute ANI minimap2 calculations, logged to a pyANI-plus SQLite3 database."""
+    if log == LOG_FILE_DYNAMIC:
+        log = Path("-") if executor == ToolExecutor.local else LOG_FILE
+    logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
+    check_db(logger, database, create_db)
+    tool = tools.get_minimap2()
+    try:
+        return start_and_run_method(
+            logger,
+            executor,
+            Path(),
+            temp,
+            wtemp,
+            database,
+            log,
+            name,
+            "ANIminimap2",
+            fasta,
+            tool,
+            mode=mode,
+        )
+    except Exception:  # pragma: nocover
+        logger.exception("Unhandled exception.")
+        return 1
+
+
 @app.command("anib", rich_help_panel="ANI methods")
 def cli_anib(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
@@ -708,6 +752,8 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
             tool = tools.get_fastani()
         case "ANIm":
             tool = tools.get_nucmer()
+        case "ANIminimap2":
+            tool = tools.get_minimap2()
         case "dnadiff":
             tool = tools.get_nucmer()
         case "ANIb":
@@ -846,7 +892,8 @@ def delete_run(
     *,
     force: Annotated[
         # Listing name(s) explicitly to avoid automatic matching --no-create-db
-        bool, typer.Option("-f", "--force", help="Delete without confirmation")
+        bool,
+        typer.Option("-f", "--force", help="Delete without confirmation"),
     ] = False,
     log: OPT_ARG_TYPE_LOG = NO_PATH,
     debug: OPT_ARG_TYPE_DEBUG = False,

@@ -65,6 +65,16 @@ def test_skani_parsing(input_genomes_tiny: Path) -> None:
     )
 
 
+def test_skani_parsing_empty(input_gzip_bacteria: Path) -> None:
+    """Check parsing of empty skani output files."""
+    assert skani.parse_skani(
+        input_gzip_bacteria
+        / "intermediates"
+        / "skani"
+        / "9a9e23bfc5a184b8149e07e267d133b0_vs_073194224aa8c13bebc1d14a3e74a3e7.skani"
+    ) == ("", "", None, None, None, "", "")
+
+
 def test_running_skani(
     tmp_path: str,
     input_genomes_tiny: Path,

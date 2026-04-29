@@ -1876,7 +1876,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
         return 0
 
 
-def compute_skani(  # noqa: PLR0913, PLR0915, C901
+def compute_skani(  # noqa: PLR0913, PLR0915
     logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
@@ -1911,7 +1911,12 @@ def compute_skani(  # noqa: PLR0913, PLR0915, C901
     from pyani_plus.utils import check_output, stage_file  # noqa: PLC0415
 
     subject_fasta = tmp_dir / f"{subject_hash}.fasta"
-    stage_file(logger, fasta_dir / hash_to_filename[subject_hash], subject_fasta)
+    stage_file(
+        logger,
+        fasta_dir / hash_to_filename[subject_hash],
+        subject_fasta,
+        decompress=False,
+    )
 
     db_entries = []
     new = 0
@@ -1924,7 +1929,10 @@ def compute_skani(  # noqa: PLR0913, PLR0915, C901
                 # - so make a unique name for the temp file:
                 query_fasta = tmp_dir / f"{query_hash}_vs_{subject_hash}.fasta"
                 stage_file(
-                    logger, fasta_dir / hash_to_filename[query_hash], query_fasta
+                    logger,
+                    fasta_dir / hash_to_filename[query_hash],
+                    query_fasta,
+                    decompress=False,
                 )
             else:
                 # Can reuse the subject's decompressed file/symlink
@@ -1972,11 +1980,6 @@ def compute_skani(  # noqa: PLR0913, PLR0915, C901
                     "uname_machine": uname_machine,
                 }
             )
-
-            if query_hash != subject_hash and hash_to_filename[query_hash].endswith(
-                ".gz"
-            ):
-                query_fasta.unlink()  # remove our decompressed copy
 
             new += 1
             if new and (not last_progress or time() - last_progress >= JSON_WINDOW):

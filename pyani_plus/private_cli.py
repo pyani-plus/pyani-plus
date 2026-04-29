@@ -898,6 +898,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
                 "ANIb": compute_anib,
                 "ANIm": compute_anim,
                 "dnadiff": compute_dnadiff,
+                "lzani": compute_lzani,
                 "skani": compute_skani,
                 "sourmash": compute_sourmash,
                 "external-alignment": compute_external_alignment,
@@ -2003,6 +2004,152 @@ def compute_skani(  # noqa: PLR0913, PLR0915
         return RECORDING_FAILED
     else:
         return 0
+
+
+def compute_lzani(  # noqa: PLR0913, PLR0915
+    logger: logging.Logger,
+    tmp_dir: Path,
+    session: Session,
+    run: db_orm.Run,
+    json_filename: Path,
+    fasta_dir: Path,
+    hash_to_filename: dict[str, str],
+    filename_to_hash: dict[str, str],  # noqa: ARG001
+    query_hashes: dict[str, int],
+    subject_hash: str,
+    *,
+    cache: Path = Path(),  # noqa: ARG001
+) -> int:
+    """Run lz-ani many-vs-subject and log column of comparisons to JSON."""
+    uname = platform.uname()
+    uname_system = uname.system
+    uname_release = uname.release
+    uname_machine = uname.machine
+
+    configuration = run.configuration
+
+    lzani = tools.get_lzani()
+    _check_tool_version(logger, lzani, configuration)
+
+    config_id = configuration.configuration_id
+
+    from pyani_plus.methods.lzani import parse_lzani  # noqa: PLC0415
+    from pyani_plus.utils import check_output, stage_file  # noqa: PLC0415
+
+    subject_fasta = tmp_dir / f"{subject_hash}.fasta"
+    stage_file(
+        logger,
+        fasta_dir / hash_to_filename[subject_hash],
+        subject_fasta,
+        decompress=False,
+    )
+
+    db_entries = []
+    new = 0
+    last_progress = 0.0
+
+    try:
+        for query_hash in query_hashes:
+            if query_hash != subject_hash:
+                # Another thread may create/delete that FASTA name for our query
+                # - so make a unique name for the temp file:
+                query_fasta = tmp_dir / f"{query_hash}_vs_{subject_hash}.fasta"
+                stage_file(
+                    logger,
+                    fasta_dir / hash_to_filename[query_hash],
+                    query_fasta,
+                    decompress=False,
+                )
+            else:
+                # Can reuse the subject's decompressed file/symlink
+                query_fasta = subject_fasta
+
+            # Path for lz-ani to read input list of FASTA files:
+            in_txt_path = tmp_dir / f"{query_hash}_vs_{subject_hash}_input.txt"
+            with in_txt_path.open("w") as ofh:
+                ofh.write(f"{query_fasta}\n{subject_fasta}\n")
+
+            # Path for lz-ani to write output
+            outpath = tmp_dir / f"{query_hash}_vs_{subject_hash}.tsv"
+
+            msg = (
+                f"Calling lzani for {hash_to_filename[query_hash]}"
+                f" vs {hash_to_filename[subject_hash]}"
+            )
+            logger.info(msg)
+            check_output(
+                logger,
+                [
+                    str(lzani.exe_path),
+                    "all2all",
+                    "--multisample-fasta",
+                    "false",
+                    "--in-dir",
+                    str(tmp_dir),
+                    "--in-txt",
+                    str(in_txt_path),
+                    "-o",
+                    str(outpath),
+                ],
+            )
+            if not outpath.is_file():
+                msg = f"lz-ani didn't make {outpath}"  # pragma: no cover
+                log_sys_exit(logger, msg)  # pragma: no cover
+
+            fcomp, rcomp = parse_lzani(outpath)
+
+            # Add forward comparison result
+            db_entries.append(
+                {
+                    "query_hash": query_hash,
+                    "subject_hash": subject_hash,
+                    "identity": fcomp[2],
+                    "cov_query": fcomp[3],
+                    "configuration_id": config_id,
+                    "uname_system": uname_system,
+                    "uname_release": uname_release,
+                    "uname_machine": uname_machine,
+                }
+            )
+            db_entries.append(
+                {
+                    "query_hash": subject_hash,
+                    "subject_hash": query_hash,
+                    "identity": rcomp[2],
+                    "cov_query": rcomp[3],
+                    "configuration_id": config_id,
+                    "uname_system": uname_system,
+                    "uname_release": uname_release,
+                    "uname_machine": uname_machine,
+                }
+            )
+
+            new += 1
+            if not last_progress or time() - last_progress >= JSON_WINDOW:
+                export_json_db_entries(logger, json_filename, configuration, db_entries)
+                new = 0
+                last_progress = time()
+
+    except KeyboardInterrupt:  # pragma: no cover
+        # Try to abort gracefully without wasting the work done.
+        msg = f"Interrupted with {len(db_entries)} completed lz-ani comparisons"
+        logger.error(msg)  # noqa: TRY400
+        run.status = "Worker interrupted"
+        session.commit()
+
+    if not new:  # pragma: no cover
+        return 0
+    try:
+        export_json_db_entries(logger, json_filename, configuration, db_entries)
+    except Exception:  # pragma: no cover
+        logger.exception("Unexpected exception saving JSON:")
+        return RECORDING_FAILED
+    else:
+        return 0
+
+
+if __name__ == "__main__":
+    sys.exit(app())  # pragma: no cover
 
 
 if __name__ == "__main__":

@@ -1241,7 +1241,7 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
                 query_fasta.unlink()  # remove our decompressed copy
 
             new += 1
-            if new and (not last_progress or time() - last_progress >= JSON_WINDOW):
+            if not last_progress or time() - last_progress >= JSON_WINDOW:
                 export_json_db_entries(logger, json_filename, configuration, db_entries)
                 new = 0
                 last_progress = time()
@@ -1406,7 +1406,7 @@ def compute_anib(  # noqa: PLR0913, PLR0915
                 }
             )
             new += 1
-            if new and (not last_progress or time() - last_progress >= JSON_WINDOW):
+            if not last_progress or time() - last_progress >= JSON_WINDOW:
                 export_json_db_entries(logger, json_filename, configuration, db_entries)
                 new = 0
                 last_progress = time()
@@ -1611,7 +1611,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
                 query_fasta.unlink()  # remove our decompressed copy
 
             new += 1
-            if new and (not last_progress or time() - last_progress >= JSON_WINDOW):
+            if not last_progress or time() - last_progress >= JSON_WINDOW:
                 export_json_db_entries(logger, json_filename, configuration, db_entries)
                 new = 0
                 last_progress = time()

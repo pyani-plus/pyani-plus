@@ -1989,7 +1989,7 @@ def compute_skani(  # noqa: PLR0913, PLR0915
 
     except KeyboardInterrupt:  # pragma: no cover
         # Try to abort gracefully without wasting the work done.
-        msg = f"Interrupted with {len(db_entries)} completed dnadiff comparisons"
+        msg = f"Interrupted with {len(db_entries)} completed skani comparisons"
         logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
         session.commit()

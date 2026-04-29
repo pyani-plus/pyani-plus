@@ -56,7 +56,7 @@ from pyani_plus import (
     setup_logger,
     tools,
 )
-from pyani_plus.methods import anib, anim, fastani, skani, sourmash
+from pyani_plus.methods import anib, anim, animinimap2, fastani, skani, sourmash
 from pyani_plus.public_cli_args import (
     NO_PATH,
     OPT_ARG_TYPE_ANIM_MODE,
@@ -84,7 +84,6 @@ from pyani_plus.public_cli_args import (
     REQ_ARG_TYPE_FASTA_DIR,
     REQ_ARG_TYPE_OUTDIR,
     EnumModeClassify,
-    EnumPresetMinimap2,
 )
 from pyani_plus.utils import (
     check_db,
@@ -416,7 +415,7 @@ def cli_animinimap2(  # noqa: PLR0913
     *,
     name: OPT_ARG_TYPE_RUN_NAME = None,
     # These are all for the configuration table:
-    mode: OPT_ARG_TYPE_MINIMAP2_PRESET = EnumPresetMinimap2.asm10,  # will define as constant in module
+    mode: OPT_ARG_TYPE_MINIMAP2_PRESET = animinimap2.DEFAULT_PRESET,
     create_db: OPT_ARG_TYPE_CREATE_DB = False,
     executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
     temp: OPT_ARG_TYPE_TEMP = None,

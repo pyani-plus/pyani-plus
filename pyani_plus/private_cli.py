@@ -897,6 +897,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
                 "fastANI": compute_fastani,
                 "ANIb": compute_anib,
                 "ANIm": compute_anim,
+                "ANIminimap2": compute_animinimap2,
                 "dnadiff": compute_dnadiff,
                 "skani": compute_skani,
                 "sourmash": compute_sourmash,
@@ -1415,6 +1416,156 @@ def compute_anib(  # noqa: PLR0913, PLR0915
     except KeyboardInterrupt:
         # Try to abort gracefully without wasting the work done.
         msg = f"Interrupted with {len(db_entries)} completed ANIb comparisons"
+        logger.error(msg)  # noqa: TRY400
+        run.status = "Worker interrupted"
+        session.commit()
+
+    if not new:  # pragma: no cover
+        return 0
+    try:
+        export_json_db_entries(logger, json_filename, configuration, db_entries)
+    except Exception:  # pragma: no cover
+        logger.exception("Unexpected exception saving JSON:")
+        return RECORDING_FAILED
+    else:
+        return 0
+
+
+def compute_animinimap2(  # noqa: PLR0913, PLR0915
+    logger: logging.Logger,
+    tmp_dir: Path,
+    session: Session,
+    run: db_orm.Run,
+    json_filename: Path,
+    fasta_dir: Path,
+    hash_to_filename: dict[str, str],
+    filename_to_hash: dict[str, str],  # noqa: ARG001
+    query_hashes: dict[str, int],
+    subject_hash: str,
+    *,
+    cache: Path = Path(),  # noqa: ARG001
+) -> int:
+    """Run ANI mimimap2 many-vs-subject and log column of comparisons to JSON."""
+    uname = platform.uname()
+    uname_system = uname.system
+    uname_release = uname.release
+    uname_machine = uname.machine
+
+    configuration = run.configuration
+
+    tool = tools.get_minimap2()
+    _check_tool_version(logger, tool, configuration)
+
+    config_id = run.configuration_id
+    preset = configuration.mode
+    if not preset:
+        msg = f"ANIminimap2 run-id {run.run_id} is missing preset parameter"
+        log_sys_exit(logger, msg)
+    subject_length = (
+        session.query(db_orm.Genome)
+        .where(db_orm.Genome.genome_hash == subject_hash)
+        .one()
+        .length
+    )
+
+    from pyani_plus.methods import animinimap2  # noqa: PLC0415
+    from pyani_plus.utils import check_output, stage_file  # noqa: PLC0415
+
+    subject_fasta = tmp_dir / f"{subject_hash}.fasta"
+    stage_file(
+        logger,
+        fasta_dir / hash_to_filename[subject_hash],
+        subject_fasta,
+        decompress=False,
+    )
+
+    tmp_mmi = tmp_dir / f"{subject_hash}.mmi"
+
+    msg = f"Calling minimap to index {hash_to_filename[subject_hash]}"
+    logger.info(msg)
+    check_output(
+        logger,
+        [
+            str(tool.exe_path),
+            "-x",
+            preset,
+            "-d",
+            str(tmp_mmi),
+            str(subject_fasta),
+        ],
+    )
+
+    db_entries = []
+    new = 0
+    last_progress = 0.0
+    try:
+        for query_hash, query_length in query_hashes.items():
+            if query_hash != subject_hash:
+                # Another thread may create/delete that FASTA name for our query
+                # - so make a unique name for the temp file:
+                query_fasta = tmp_dir / f"{query_hash}_vs_{subject_hash}.fasta"
+                stage_file(
+                    logger,
+                    fasta_dir / hash_to_filename[query_hash],
+                    query_fasta,
+                    decompress=False,
+                )
+            else:
+                # Can reuse the subject's decompressed file/symlink
+                query_fasta = subject_fasta
+
+            tmp_tsv = tmp_dir / f"{query_hash}_vs_{subject_hash}.tsv"
+
+            msg = (
+                f"Calling minimap2 for {hash_to_filename[query_hash]}"
+                f" vs {hash_to_filename[subject_hash]}"
+            )
+            logger.info(msg)
+            check_output(
+                logger,
+                [
+                    str(tool.exe_path),
+                    "-x",
+                    preset,
+                    "-o",
+                    str(tmp_tsv),
+                    str(tmp_mmi),
+                    str(subject_fasta),
+                ],
+            )
+
+            query_aligned_bases, subject_aligned_bases, identity = (
+                animinimap2.parse_minimap2_paf_file(tmp_tsv)
+            )
+
+            db_entries.append(
+                {
+                    "query_hash": query_hash,
+                    "subject_hash": subject_hash,
+                    "identity": identity,
+                    "aln_length": query_aligned_bases,
+                    "sim_errors": None,
+                    "cov_query": None
+                    if query_aligned_bases is None
+                    else float(query_aligned_bases) / query_length,
+                    "cov_subject": None
+                    if subject_aligned_bases is None
+                    else float(subject_aligned_bases) / subject_length,
+                    "configuration_id": config_id,
+                    "uname_system": uname_system,
+                    "uname_release": uname_release,
+                    "uname_machine": uname_machine,
+                }
+            )
+            new += 1
+            if new and (not last_progress or time() - last_progress >= JSON_WINDOW):
+                export_json_db_entries(logger, json_filename, configuration, db_entries)
+                new = 0
+                last_progress = time()
+
+    except KeyboardInterrupt:
+        # Try to abort gracefully without wasting the work done.
+        msg = f"Interrupted with {len(db_entries)} completed ANI minimap2 comparisons"
         logger.error(msg)  # noqa: TRY400
         run.status = "Worker interrupted"
         session.commit()

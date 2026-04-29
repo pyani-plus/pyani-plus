@@ -189,6 +189,18 @@ def test_fake_dnadiff() -> None:
         tools.get_dnadiff(cmd)
 
 
+def test_fake_lzani() -> None:
+    """Confirm simple lz-ani version parsing works."""
+    info = tools.get_lzani("tests/fixtures/tools/mock_lz-ani")  # outputs "1.0.0"
+    assert info.exe_path == Path("tests/fixtures/tools/mock_lz-ani").resolve()
+    assert info.version == "1.0.0"
+
+    cmd = Path("tests/fixtures/tools/cutting_edge")  # no numerical output
+    msg = f"Executable exists at {cmd.resolve()} but could not retrieve version"
+    with pytest.raises(RuntimeError, match=msg):
+        tools.get_sourmash(cmd)
+
+
 def test_fake_sourmash() -> None:
     """Confirm simple sourmash version parsing works."""
     info = tools.get_sourmash(
@@ -272,6 +284,14 @@ def test_find_dnadiff() -> None:
     # At the time of writing this dependency is installed for CI testing
     info = tools.get_dnadiff()
     assert info.exe_path.parts[-1] == "dnadiff"
+    assert info.version.startswith("1.")
+
+
+def test_find_lzani() -> None:
+    """Confirm can find lz-ani on $PATH."""
+    # At the time of writing this dependency is installed for CI testing
+    info = tools.get_lzani()
+    assert info.exe_path.parts[-1] == "lz-ani"
     assert info.version.startswith("1.")
 
 

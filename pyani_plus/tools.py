@@ -319,6 +319,33 @@ def get_dnadiff(cmd: str | Path = "dnadiff") -> ExternalToolData:
     return ExternalToolData(exe_path, version)
 
 
+def get_lzani(cmd: str | Path = "lz-ani") -> ExternalToolData:
+    """Return skani and version as a named tuple.
+
+    We expect the tool to behave as follows:
+
+    .. code-block:: bash
+
+        $ lz-ani --version
+        1.2.3
+
+    Here the function would return the binary path and "1.2.3" as the version.
+
+    Raises a RuntimeError if the command cannot be found, run, or if the
+    version cannot be inferred - this likely indicates a dramatically
+    different version of the tool with different behaviour.
+    """
+    exe_path, output = _get_path_and_version_output(cmd, ["--version"])
+
+    match = re.search(r"[0-9.]+", output)
+    version = match.group().strip() if match else None
+    if not version:
+        msg = f"Executable exists at {exe_path} but could not retrieve version."
+        raise RuntimeError(msg)
+
+    return ExternalToolData(exe_path, version)
+
+
 def get_skani(cmd: str | Path = "skani") -> ExternalToolData:
     """Return skani and version as a named tuple.
 

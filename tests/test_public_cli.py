@@ -1006,6 +1006,49 @@ def test_sourmash(
             ), f
 
 
+def test_lzani(
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    evil_example: Path,
+) -> None:
+    """Check lz-ani run (spaces, emoji, etc in filenames)."""
+    caplog.set_level(logging.INFO)
+    tmp_dir = (
+        Path(tmp_path) / "lz-ani's test"
+    )  # no emoji as it causes skani to fail on Linux
+    tmp_dir.mkdir()
+    tmp_db = tmp_dir / "lz-ani's test.sqlite"
+    public_cli.cli_lzani(
+        database=tmp_db,
+        fasta=evil_example,
+        name="Spaces etc",
+        create_db=True,
+        temp=tmp_dir,
+    )
+    output = caplog.text
+    assert "Database already has 0 of 3²=9 skani comparisons, 9 needed\n" in output
+
+    # Run it again, nothing to recompute but easier to check output
+    caplog.clear()
+    public_cli.cli_lzani(
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Simple names",
+        create_db=False,
+        temp=tmp_dir,
+    )
+    output = caplog.text
+    assert "Database already has all 3²=9 lz-ani comparisons\n" in output
+
+    # Confirm output matches
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
+    compare_matrix_files(
+        input_genomes_tiny / "matrices" / "lzani_identity.tsv",
+        tmp_dir / "lzani_identity.tsv",
+    )
+
+
 def test_skani(
     caplog: pytest.LogCaptureFixture,
     tmp_path: str,
@@ -1544,6 +1587,7 @@ def test_resume_complete(
             ("dnadiff", tools.get_nucmer()),
             ("ANIb", tools.get_blastn()),
             ("fastANI", tools.get_fastani()),
+            ("lzani", tools.get_lzani()),
             ("skani", tools.get_skani()),
             ("sourmash", tools.get_sourmash()),
         ]

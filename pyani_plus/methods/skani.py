@@ -39,6 +39,9 @@ def parse_skani(
 
     Returns (query path, subject path, ANI percentage, query AF, subject AF, query name, subject name).
 
+    Note: AF is the alignment fraction (same thing as coverage), the proportion of the query
+    (or subject) genome that is aligned to the subject (or query) genome.
+
     Example skani output file format (tab-delimited):
 
     ```

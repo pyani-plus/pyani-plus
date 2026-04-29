@@ -30,6 +30,7 @@ from pathlib import Path
 
 import pytest
 
+from pyani_plus import db_orm, private_cli, setup_logger, tools
 from pyani_plus.methods import lzani
 
 
@@ -56,3 +57,95 @@ def test_lzani_parsing_bad_headers(lzani_bad_headers: Path) -> None:
     """Check parsing of lz-ani output files with bad headers."""
     with pytest.raises(SystemExit, match="Unexpected lz-ani output file format"):
         lzani.parse_lzani(lzani_bad_headers)
+
+
+def test_running_lzani(
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Check that lz-ani can be run on test input genomes."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "new.sqlite"
+    assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "lzani.json"
+
+    tool = tools.get_lzani()
+
+    private_cli.log_run(
+        fasta=input_genomes_tiny,
+        database=tmp_db,
+        cmdline="pyani-plus lzani ...",
+        status="Testing",
+        name="Testing lz-ani",
+        method="lzani",
+        program=tool.exe_path.stem,
+        version=tool.version,
+        create_db=True,
+    )
+
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    run = session.query(db_orm.Run).one()
+    assert run.run_id == 1
+    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
+    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+    hash_to_lengths = {_.genome_hash: _.length for _ in run.genomes}
+
+    private_cli.compute_lzani(
+        logger,
+        tmp_dir,
+        session,
+        run,
+        tmp_json,
+        input_genomes_tiny,
+        hash_to_filename,
+        filename_to_hash,
+        query_hashes=hash_to_lengths,
+        subject_hash=list(hash_to_filename)[1],
+    )
+
+
+def test_running_lzani_gzip(
+    tmp_path: str,
+    input_gzip_bacteria: Path,
+) -> None:
+    """Check that lz-ani can be run on gzip test input genomes."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "new.sqlite"
+    assert not tmp_db.is_file()
+    tmp_json = tmp_dir / "lzani.json"
+
+    tool = tools.get_lzani()
+
+    private_cli.log_run(
+        fasta=input_gzip_bacteria,
+        database=tmp_db,
+        cmdline="pyani-plus lzani ...",
+        status="Testing",
+        name="Testing lz-ani",
+        method="lzani",
+        program=tool.exe_path.stem,
+        version=tool.version,
+        create_db=True,
+    )
+
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    run = session.query(db_orm.Run).one()
+    assert run.run_id == 1
+    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
+    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+    hash_to_lengths = {_.genome_hash: _.length for _ in run.genomes}
+
+    private_cli.compute_lzani(
+        logger,
+        tmp_dir,
+        session,
+        run,
+        tmp_json,
+        input_gzip_bacteria,
+        hash_to_filename,
+        filename_to_hash,
+        query_hashes=hash_to_lengths,
+        subject_hash=list(hash_to_filename)[1],
+    )

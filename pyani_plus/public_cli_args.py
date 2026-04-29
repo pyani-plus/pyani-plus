@@ -63,6 +63,15 @@ class EnumModeClassify(str, Enum):
     tani = "tANI"
 
 
+class EnumModeSkani(str, Enum):
+    """Enum for the command line preset argument passed to skani."""
+
+    fast = "fast"  # default
+    medium = "medium"
+    slow = "slow"
+    small_genomes = "small-genomes"
+
+
 # Reused required command line arguments (which have no default)
 # --------------------------------------------------------------
 # These are named REQ_ARG_TYPE_* short for required-argument type
@@ -231,6 +240,13 @@ OPT_ARG_TYPE_ANIM_MODE = Annotated[
     EnumModeANIm,
     typer.Option(
         help="Nucmer mode for ANIm.",
+        rich_help_panel="Method parameters",
+    ),
+]
+OPT_ARG_TYPE_SKANI_MODE = Annotated[
+    EnumModeSkani,
+    typer.Option(
+        help="Preset for skani dist.",
         rich_help_panel="Method parameters",
     ),
 ]

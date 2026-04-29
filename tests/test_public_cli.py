@@ -37,7 +37,7 @@ import pandas as pd
 import pytest
 
 from pyani_plus import GRAPHICS_FORMATS, db_orm, public_cli, setup_logger, tools
-from pyani_plus.public_cli_args import ToolExecutor
+from pyani_plus.public_cli_args import EnumModeSkani, ToolExecutor
 from pyani_plus.utils import file_md5sum
 
 
@@ -1006,6 +1006,71 @@ def test_sourmash(
             ), f
 
 
+def test_skani(
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    evil_example: Path,
+) -> None:
+    """Check skani run (spaces, emoji, etc in filenames)."""
+    caplog.set_level(logging.INFO)
+    tmp_dir = (
+        Path(tmp_path) / "skani's test"
+    )  # no emoji as it causes skani to fail on Linux
+    tmp_dir.mkdir()
+    tmp_db = tmp_dir / "skani's test.sqlite"
+    public_cli.cli_skani(
+        database=tmp_db,
+        fasta=evil_example,
+        name="Spaces etc",
+        create_db=True,
+        temp=tmp_dir,
+        mode=EnumModeSkani.fast,
+    )
+    output = caplog.text
+    assert "Database already has 0 of 3²=9 skani comparisons, 9 needed\n" in output
+
+    # Run it again, nothing to recompute but easier to check output
+    caplog.clear()
+    public_cli.cli_skani(
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Simple names",
+        create_db=False,
+        temp=tmp_dir,
+        mode=EnumModeSkani.fast,
+    )
+    output = caplog.text
+    assert "Database already has all 3²=9 skani comparisons\n" in output
+
+    # Confirm output matches
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
+    compare_matrix_files(
+        input_genomes_tiny / "matrices" / "skani_identity.tsv",
+        tmp_dir / "skani_identity.tsv",
+    )
+
+
+def test_skani_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
+    """Check skani run (gzipped bacteria)."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "skani's inputs are gzipped.sqlite"
+    public_cli.cli_skani(
+        database=tmp_db,
+        fasta=input_gzip_bacteria,
+        name="Test Run",
+        create_db=True,
+        temp=tmp_dir,
+    )
+
+    # Confirm output matches
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
+    compare_matrix_files(
+        input_gzip_bacteria / "matrices" / "skani_identity.tsv",
+        tmp_dir / "skani_identity.tsv",
+    )
+
+
 def test_fastani_dups(tmp_path: str) -> None:
     """Check fastANI run (duplicate FASTA inputs)."""
     tmp_dir = Path(tmp_path)
@@ -1236,6 +1301,77 @@ def test_resume_partial_anim(
     assert " ANIm   │    9 │    0 │    0 │  9=3² │ Done " in output, output
 
 
+def test_resume_partial_skani(
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Check list-runs and export-run with mock data including a partial skani run."""
+    caplog.set_level(logging.INFO)
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "resume_skani.sqlite"
+    tool = tools.get_skani()
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    config = db_orm.db_configuration(
+        session,
+        "skani",
+        tool.exe_path.stem,
+        tool.version,
+        mode=EnumModeSkani.fast,
+        create=True,
+    )
+
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(logger, session, filename, md5, create=True)
+
+    # Record 4 of the possible 9 comparisons,
+    # mimicking what might happen when a 2x2 run is expanded to 3x3
+    genomes = list(fasta_to_hash.values())
+    for query_hash in genomes[:-1]:
+        for subject_hash in genomes[:-1]:
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query_hash,
+                subject_hash,
+                1.0 if query_hash is subject_hash else 0.99,
+            )
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani-plus skani ...",
+        fasta_directory=input_genomes_tiny,
+        status="Partial",
+        name="Test Resuming A Run",
+        fasta_to_hash=fasta_to_hash,  # all 3/3 genomes, but only have 4/9 comparisons
+    )
+    public_cli.list_runs(database=tmp_db)
+    output = capsys.readouterr().out
+    assert " 1 analysis runs in " in output, output
+    assert " Method ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
+    assert " skani  │    4 │    0 │    5 │  9=3² │ Partial " in output, output
+
+    caplog.clear()
+    public_cli.resume(database=tmp_db, cache=tmp_dir)
+    output = caplog.text
+    assert "Resuming run-id 1\n" in output, output
+    assert "Database already has 4 of 3²=9 skani comparisons, 5 needed" in output, (
+        output
+    )
+
+    public_cli.list_runs(database=tmp_db)
+    output = capsys.readouterr().out
+    assert " 1 analysis runs in " in output, output
+    assert " skani  │    9 │    0 │    0 │  9=3² │ Done " in output, output
+
+
 def test_resume_partial_sourmash(
     caplog: pytest.LogCaptureFixture,
     capsys: pytest.CaptureFixture[str],
@@ -1408,6 +1544,7 @@ def test_resume_complete(
             ("dnadiff", tools.get_nucmer()),
             ("ANIb", tools.get_blastn()),
             ("fastANI", tools.get_fastani()),
+            ("skani", tools.get_skani()),
             ("sourmash", tools.get_sourmash()),
         ]
     ):

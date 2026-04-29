@@ -89,6 +89,16 @@ def sourmash_targets_compare_outdir(tmp_path: str) -> Path:
     return Path(tmp_path).resolve() / "sourmash_compare_output"
 
 
+@pytest.fixture
+def skani_targets_outdir(tmp_path: str) -> Path:
+    """Output directory for skani snakemake tests.
+
+    This path indicates the location to which skani should write
+    its output files during skani testing
+    """
+    return Path(tmp_path).resolve() / "skani_output"
+
+
 @pytest.fixture(scope="session")
 def input_genomes_tiny() -> Path:
     """Path to small set of three viral input genomes."""

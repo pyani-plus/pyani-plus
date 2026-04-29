@@ -898,6 +898,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
                 "ANIb": compute_anib,
                 "ANIm": compute_anim,
                 "dnadiff": compute_dnadiff,
+                "skani": compute_skani,
                 "sourmash": compute_sourmash,
                 "external-alignment": compute_external_alignment,
             }[method]
@@ -1866,6 +1867,135 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
         run.status = "Worker interrupted"
         session.commit()
 
+    try:
+        export_json_db_entries(logger, json_filename, configuration, db_entries)
+    except Exception:  # pragma: no cover
+        logger.exception("Unexpected exception saving JSON:")
+        return RECORDING_FAILED
+    else:
+        return 0
+
+
+def compute_skani(  # noqa: PLR0913, PLR0915
+    logger: logging.Logger,
+    tmp_dir: Path,
+    session: Session,
+    run: db_orm.Run,
+    json_filename: Path,
+    fasta_dir: Path,
+    hash_to_filename: dict[str, str],
+    filename_to_hash: dict[str, str],  # noqa: ARG001
+    query_hashes: dict[str, int],
+    subject_hash: str,
+    *,
+    cache: Path = Path(),  # noqa: ARG001
+) -> int:
+    """Run skani many-vs-subject and log column of comparisons to JSON."""
+    uname = platform.uname()
+    uname_system = uname.system
+    uname_release = uname.release
+    uname_machine = uname.machine
+
+    configuration = run.configuration
+    mode = configuration.mode
+    if not mode:
+        msg = f"skani run-id {run.run_id} is missing mode parameter"
+        log_sys_exit(logger, msg)
+
+    skani = tools.get_skani()
+    _check_tool_version(logger, skani, configuration)
+
+    config_id = configuration.configuration_id
+
+    from pyani_plus.methods.skani import parse_skani  # noqa: PLC0415
+    from pyani_plus.utils import check_output, stage_file  # noqa: PLC0415
+
+    subject_fasta = tmp_dir / f"{subject_hash}.fasta"
+    stage_file(
+        logger,
+        fasta_dir / hash_to_filename[subject_hash],
+        subject_fasta,
+        decompress=False,
+    )
+
+    db_entries = []
+    new = 0
+    last_progress = 0.0
+
+    try:
+        for query_hash in query_hashes:
+            if query_hash != subject_hash:
+                # Another thread may create/delete that FASTA name for our query
+                # - so make a unique name for the temp file:
+                query_fasta = tmp_dir / f"{query_hash}_vs_{subject_hash}.fasta"
+                stage_file(
+                    logger,
+                    fasta_dir / hash_to_filename[query_hash],
+                    query_fasta,
+                    decompress=False,
+                )
+            else:
+                # Can reuse the subject's decompressed file/symlink
+                query_fasta = subject_fasta
+
+            outpath = tmp_dir / f"{query_hash}_vs_{subject_hash}.skani"
+
+            msg = (
+                f"Calling skani for {hash_to_filename[query_hash]}"
+                f" vs {hash_to_filename[subject_hash]}"
+            )
+            logger.info(msg)
+            check_output(
+                logger,
+                [
+                    str(skani.exe_path),
+                    "dist",
+                    "-r",
+                    str(subject_fasta),
+                    "-q",
+                    str(query_fasta),
+                    "-o",
+                    str(outpath),
+                    f"--{mode}",
+                ],
+            )
+            if not outpath.is_file():
+                msg = f"skani didn't make {outpath}"  # pragma: no cover
+                log_sys_exit(logger, msg)  # pragma: no cover
+
+            _qpath, _rpath, identity, cov_query, cov_subject, _qname, _rname = (
+                parse_skani(outpath)
+            )
+
+            db_entries.append(
+                {
+                    "query_hash": query_hash,
+                    "subject_hash": subject_hash,
+                    "identity": identity,
+                    "cov_query": cov_query,
+                    "cov_subject": cov_subject,
+                    "configuration_id": config_id,
+                    "uname_system": uname_system,
+                    "uname_release": uname_release,
+                    "uname_machine": uname_machine,
+                }
+            )
+
+            new += 1
+            if not last_progress or time() - last_progress >= JSON_WINDOW:
+                export_json_db_entries(logger, json_filename, configuration, db_entries)
+                new = 0
+                last_progress = time()
+
+    except KeyboardInterrupt:  # pragma: no cover
+        # Try to abort gracefully without wasting the work done.
+        msg = f"Interrupted with {len(db_entries)} completed skani comparisons"
+        logger.error(msg)  # noqa: TRY400
+        run.status = "Worker interrupted"
+        session.commit()
+
+    if not new:  # pragma: no cover
+        return 0
     try:
         export_json_db_entries(logger, json_filename, configuration, db_entries)
     except Exception:  # pragma: no cover

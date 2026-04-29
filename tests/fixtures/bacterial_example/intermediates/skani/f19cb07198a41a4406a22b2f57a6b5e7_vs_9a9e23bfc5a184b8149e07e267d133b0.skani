@@ -1,0 +1,2 @@
+Ref_file	Query_file	ANI	Align_fraction_ref	Align_fraction_query	Ref_name	Query_name
+../fixtures/bacterial_example/NC_002696.fasta.gz	../fixtures/bacterial_example/NC_014100.fna.gz	85.57	28.22	24.35	NC_002696_part_1 gi|16124256|ref|NC_002696.2| Caulobacter crescentus CB15 chromosome, complete genome	gi|295687459|ref|NC_014100.1| Caulobacter segnis ATCC 21756 chromosome, complete genome

@@ -84,25 +84,25 @@ def test_running_lzani(
     )
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    run = session.query(db_orm.Run).one()
-    assert run.run_id == 1
-    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
-    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
-    hash_to_lengths = {_.genome_hash: _.length for _ in run.genomes}
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        run = session.query(db_orm.Run).one()
+        assert run.run_id == 1
+        filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
+        hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+        hash_to_lengths = {_.genome_hash: _.length for _ in run.genomes}
 
-    private_cli.compute_lzani(
-        logger,
-        tmp_dir,
-        session,
-        run,
-        tmp_json,
-        input_genomes_tiny,
-        hash_to_filename,
-        filename_to_hash,
-        query_hashes=hash_to_lengths,
-        subject_hash=list(hash_to_filename)[1],
-    )
+        private_cli.compute_lzani(
+            logger,
+            tmp_dir,
+            session,
+            run,
+            tmp_json,
+            input_genomes_tiny,
+            hash_to_filename,
+            filename_to_hash,
+            query_hashes=hash_to_lengths,
+            subject_hash=list(hash_to_filename)[1],
+        )
 
 
 def test_running_lzani_gzip(
@@ -130,22 +130,22 @@ def test_running_lzani_gzip(
     )
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    run = session.query(db_orm.Run).one()
-    assert run.run_id == 1
-    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
-    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
-    hash_to_lengths = {_.genome_hash: _.length for _ in run.genomes}
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        run = session.query(db_orm.Run).one()
+        assert run.run_id == 1
+        filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
+        hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+        hash_to_lengths = {_.genome_hash: _.length for _ in run.genomes}
 
-    private_cli.compute_lzani(
-        logger,
-        tmp_dir,
-        session,
-        run,
-        tmp_json,
-        input_gzip_bacteria,
-        hash_to_filename,
-        filename_to_hash,
-        query_hashes=hash_to_lengths,
-        subject_hash=list(hash_to_filename)[1],
-    )
+        private_cli.compute_lzani(
+            logger,
+            tmp_dir,
+            session,
+            run,
+            tmp_json,
+            input_gzip_bacteria,
+            hash_to_filename,
+            filename_to_hash,
+            query_hashes=hash_to_lengths,
+            subject_hash=list(hash_to_filename)[1],
+        )

@@ -37,12 +37,16 @@ import pandas as pd
 import pytest
 
 from pyani_plus import GRAPHICS_FORMATS, db_orm, public_cli, setup_logger, tools
+<<<<<<< HEAD
 from pyani_plus.public_cli_args import (
     EnumModeClassify,
     EnumModeSkani,
     EnumPresetMinimap2,
     ToolExecutor,
 )
+=======
+from pyani_plus.public_cli_args import EnumModeClassify, EnumModeSkani, ToolExecutor
+>>>>>>> db4ae3f (use Enum for classify test)
 from pyani_plus.utils import file_md5sum
 
 
@@ -2165,7 +2169,6 @@ def test_classify_normal(
             assert (
                 handle.readline() == "n_nodes\tmax_cov\tmin_-tANI\tmax_-tANI\tmembers\n"
             )
-
 
 def test_plot_run_comp(
     caplog: pytest.LogCaptureFixture,

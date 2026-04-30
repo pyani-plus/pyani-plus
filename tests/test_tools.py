@@ -212,7 +212,7 @@ def test_fake_lzani() -> None:
     cmd = Path("tests/fixtures/tools/cutting_edge")  # no numerical output
     msg = f"Executable exists at {cmd.resolve()} but could not retrieve version"
     with pytest.raises(RuntimeError, match=msg):
-        tools.get_sourmash(cmd)
+        tools.get_lzani(cmd)
 
 
 def test_fake_sourmash() -> None:

@@ -37,7 +37,7 @@ import pandas as pd
 import pytest
 
 from pyani_plus import GRAPHICS_FORMATS, db_orm, public_cli, setup_logger, tools
-from pyani_plus.public_cli_args import EnumModeSkani, ToolExecutor
+from pyani_plus.public_cli_args import EnumModeClassify, EnumModeSkani, ToolExecutor
 from pyani_plus.utils import file_md5sum
 
 
@@ -2025,7 +2025,9 @@ def test_classify_normal(
 
     caplog.clear()
     caplog.set_level(logging.INFO)
-    public_cli.cli_classify(database=tmp_db, outdir=tmp_dir, cov_min=0.9, mode="tANI")
+    public_cli.cli_classify(
+        database=tmp_db, outdir=tmp_dir, cov_min=0.9, mode=EnumModeClassify.tani
+    )
     output = caplog.text
     assert f"Wrote classify output to {tmp_path}" in output, output
     with (tmp_dir / "fastANI_classify.tsv").open() as handle:

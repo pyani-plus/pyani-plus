@@ -44,6 +44,25 @@ def test_animinimap2_parsing_empty(tmp_path: str) -> None:
         animinimap2.parse_minimap2_paf_file(tmp_empty)
 
 
+def test_animinimap2_parsing(input_genomes_tiny: Path) -> None:
+    """Check AIN_parsing of test minimap2 output files."""
+    # alignment as one line:
+    assert animinimap2.parse_minimap2_paf_file(
+        input_genomes_tiny
+        / "intermediates"
+        / "animinimap2"
+        / "689d3fd6881db36b5e08329cf23cecdd_vs_689d3fd6881db36b5e08329cf23cecdd.minimap2"
+    ) == (39251, 39251, 39250 * 2 / (39251 + 39251))
+
+    # alignment as two lines:
+    assert animinimap2.parse_minimap2_paf_file(
+        input_genomes_tiny
+        / "intermediates"
+        / "animinimap2"
+        / "5584c7029328dc48d33f95f0a78f7e57_vs_689d3fd6881db36b5e08329cf23cecdd.minimap2"
+    ) == (39182, 39179, (38959 + 42) * 2 / (39182 + 39179))
+
+
 def test_running_animinimap2(
     tmp_path: str,
     input_genomes_tiny: Path,

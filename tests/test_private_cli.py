@@ -470,7 +470,9 @@ def test_missing_db(tmp_path: str) -> None:
         )
 
     with pytest.raises(SystemExit, match="does not exist"):
-        private_cli.compute_column(database=tmp_db, run_id=1, subject=1, json=tmp_json)
+        private_cli.compute_column(
+            database=tmp_db, run_id=1, subject="1", json=tmp_json
+        )
 
 
 def test_prepare_genomes_bad_args(tmp_path: str, input_genomes_tiny: Path) -> None:

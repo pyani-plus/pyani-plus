@@ -68,6 +68,7 @@ from pyani_plus.public_cli_args import (
     OPT_ARG_TYPE_DEBUG,
     OPT_ARG_TYPE_EXECUTOR,
     OPT_ARG_TYPE_FRAGSIZE,
+    OPT_ARG_TYPE_HEATMAP_ANNOTATED_MODE,
     OPT_ARG_TYPE_KMERSIZE,
     OPT_ARG_TYPE_LABEL,
     OPT_ARG_TYPE_LOG,
@@ -84,12 +85,7 @@ from pyani_plus.public_cli_args import (
     REQ_ARG_TYPE_OUTDIR,
     EnumModeClassify,
 )
-from pyani_plus.utils import (
-    check_db,
-    check_fasta,
-    file_md5sum,
-    filename_stem,
-)
+from pyani_plus.utils import check_db, check_fasta, file_md5sum, filename_stem
 from pyani_plus.workflows import (
     ShowProgress,
     ToolExecutor,
@@ -1050,6 +1046,7 @@ def plot_run(  # noqa: PLR0913
     log: OPT_ARG_TYPE_LOG = NO_PATH,
     *,
     debug: OPT_ARG_TYPE_DEBUG = False,
+    annotated: OPT_ARG_TYPE_HEATMAP_ANNOTATED_MODE = False,
 ) -> int:
     """Plot heatmaps and distributions for any single run.
 
@@ -1076,7 +1073,9 @@ def plot_run(  # noqa: PLR0913
     try:
         from pyani_plus import plot_run  # noqa: PLC0415
 
-        count = plot_run.plot_single_run(logger, run, outdir, label)
+        count = plot_run.plot_single_run(
+            logger, run, outdir, label, annotated=annotated
+        )
         msg = f"Wrote {count} images to {outdir}/{run.configuration.method}_*.*"
         logger.info(msg)
         session.close()

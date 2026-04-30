@@ -2237,7 +2237,33 @@ def test_classify_normal(
                 handle.readline() == "n_nodes\tmax_cov\tmin_-tANI\tmax_-tANI\tmembers\n"
             )
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+            # Increment cov_increment if the hashes are not the same
+            if query_hash is not subject_hash:
+                cov_increment += 0.01
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani fastANI ...",
+        fasta_directory=input_genomes_tiny,
+        status="Complete",
+        name="Test classify when all data present",
+        fasta_to_hash=fasta_to_hash,
+    )
+
+    caplog.clear()
+    caplog.set_level(logging.INFO)
+    public_cli.cli_classify(
+        database=tmp_db, outdir=tmp_dir, cov_min=0.9, mode=EnumModeClassify.tani
+    )
+    output = caplog.text
+    assert f"Wrote classify output to {tmp_path}" in output, output
+    with (tmp_dir / "fastANI_classify.tsv").open() as handle:
+        assert handle.readline() == "n_nodes\tmax_cov\tmin_-tANI\tmax_-tANI\tmembers\n"
+>>>>>>> 0035042 (use Enum for classify test)
 
 >>>>>>> 63f5679 (use context management for database sessions)
 

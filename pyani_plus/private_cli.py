@@ -1076,10 +1076,10 @@ def compute_fastani(  # noqa: PLR0913, PLR0915, PLR0917
                     else round(configuration.fragsize * orthologous_matches),  # type: ignore[operator]
                     "sim_errors": None
                     if fragments is None or orthologous_matches is None
-                    else fragments - orthologous_matches,  # type: ignore
+                    else fragments - orthologous_matches,
                     "cov_query": None
                     if fragments is None or orthologous_matches is None
-                    else orthologous_matches / fragments,  # type: ignore
+                    else orthologous_matches / fragments,
                     "configuration_id": config_id,
                     "uname_system": uname_system,
                     "uname_release": uname_release,

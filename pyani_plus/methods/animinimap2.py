@@ -46,7 +46,7 @@ from pathlib import Path
 from pyani_plus.methods.anim import get_aligned_bases_count
 from pyani_plus.public_cli_args import EnumPresetMinimap2
 
-DEFAULT_PRESET = EnumPresetMinimap2.asm10
+DEFAULT_PRESET = EnumPresetMinimap2.asm20
 
 PAF_COL_QUERY_NAME = 0
 PAF_COL_QUERY_LENGTH = 1

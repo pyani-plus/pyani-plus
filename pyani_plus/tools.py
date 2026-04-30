@@ -164,6 +164,38 @@ def get_fastani(cmd: str | Path = "fastANI") -> ExternalToolData:
     return ExternalToolData(exe_path, version)
 
 
+def get_minimap2(cmd: str | Path = "minimap2") -> ExternalToolData:
+    """Return minimap2 path and version as a named tuple.
+
+    :param cmd: path to minimap2 executable.
+
+    We expect minimap2 to return a string on STDOUT as follows:
+
+    .. code-block:: bash
+
+        $ minimap2 --version
+        2.30-r1287
+
+    In this case the return value would be the full path of the
+    command, and "2.30" as the version.
+
+    Raises a RuntimeError if the command cannot be found, run, or if the
+    version cannot be inferred - this likely indicates a dramatically
+    different version of the tool with different behaviour.
+    """
+    exe_path, output = _get_path_and_version_output(cmd, ["-V"])
+
+    version = None
+    # Try nucmer v3 style
+    match = re.search(r"([0-9]*\.[0-9\.]*)(?=-r[0-9]*)", output)
+    version = match.group().strip() if match else None
+    if not version:
+        msg = f"Executable exists at {exe_path} but could not retrieve version"
+        raise RuntimeError(msg)
+
+    return ExternalToolData(exe_path, version)
+
+
 def get_nucmer(cmd: str | Path = "nucmer") -> ExternalToolData:
     """Return NUCmer path and version as a named tuple.
 

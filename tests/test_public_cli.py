@@ -37,7 +37,7 @@ import pandas as pd
 import pytest
 
 from pyani_plus import GRAPHICS_FORMATS, db_orm, public_cli, setup_logger, tools
-from pyani_plus.public_cli_args import EnumModeSkani, ToolExecutor
+from pyani_plus.public_cli_args import EnumModeSkani, EnumPresetMinimap2, ToolExecutor
 from pyani_plus.utils import file_md5sum
 
 
@@ -911,6 +911,36 @@ def test_fastani_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
     )
 
 
+def test_animinimap2_gzip(
+    tmp_path: str, input_genomes_tiny: Path, input_gzip_bacteria: Path
+) -> None:
+    """Check ANIminimap2 run (gzipped bacteria)."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "animinimap2's  inputs are gzipped.db"
+    public_cli.cli_animinimap2(
+        database=tmp_db,
+        fasta=input_gzip_bacteria,
+        name="Gzipped Run",
+        create_db=True,
+        temp=tmp_dir,
+    )
+
+    # The intermediate TSV files should match
+    for file in (input_genomes_tiny / "intermediates/ANIminimap2").glob(
+        "*_vs_*.minimap2"
+    ):
+        assert filecmp.cmp(file, tmp_dir / file), (
+            f"Wrong minimap2 output in {file.name}"
+        )
+
+    # Confirm output matches
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
+    compare_matrix_files(
+        input_gzip_bacteria / "matrices" / "ANIminimap2_identity.tsv",
+        tmp_dir / "ANIminimap2_identity.tsv",
+    )
+
+
 def test_sourmash_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
     """Check sourmash run (gzipped bacteria)."""
     tmp_dir = Path(tmp_path) / "sourmash's gzip test 🚅"
@@ -1299,6 +1329,77 @@ def test_resume_partial_anim(
     output = capsys.readouterr().out
     assert " 1 analysis runs in " in output, output
     assert " ANIm   │    9 │    0 │    0 │  9=3² │ Done " in output, output
+
+
+def test_resume_partial_animinimap2(
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Check list-runs and export-run with mock data including a partial ANIminimap2 run."""
+    caplog.set_level(logging.INFO)
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "resume_minimap.sqlite"
+    tool = tools.get_minimap2()
+    logger = setup_logger(None)
+    session = db_orm.connect_to_db(logger, tmp_db)
+    config = db_orm.db_configuration(
+        session,
+        "ANIminimap2",
+        tool.exe_path.stem,
+        tool.version,
+        mode=EnumPresetMinimap2.asm20,
+        create=True,
+    )
+
+    fasta_to_hash = {
+        filename: file_md5sum(filename)
+        for filename in sorted(input_genomes_tiny.glob("*.f*"))
+    }
+    for filename, md5 in fasta_to_hash.items():
+        db_orm.db_genome(logger, session, filename, md5, create=True)
+
+    # Record 4 of the possible 9 comparisons,
+    # mimicking what might happen when a 2x2 run is expanded to 3x3
+    genomes = list(fasta_to_hash.values())
+    for query_hash in genomes[:-1]:
+        for subject_hash in genomes[:-1]:
+            db_orm.db_comparison(
+                session,
+                config.configuration_id,
+                query_hash,
+                subject_hash,
+                1.0 if query_hash is subject_hash else 0.99,
+            )
+
+    db_orm.add_run(
+        session,
+        config,
+        cmdline="pyani-plus animinimap2 ...",
+        fasta_directory=input_genomes_tiny,
+        status="Partial",
+        name="Test Resuming A Run",
+        fasta_to_hash=fasta_to_hash,  # all 3/3 genomes, but only have 4/9 comparisons
+    )
+    public_cli.list_runs(database=tmp_db)
+    output = capsys.readouterr().out
+    assert " 1 analysis runs in " in output, output
+    assert " Method   ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
+    assert " ANImini… │    4 │    0 │    5 │  9=3² │ Partial " in output, output
+
+    caplog.clear()
+    public_cli.resume(database=tmp_db, cache=tmp_dir)
+    output = caplog.text
+    assert "Resuming run-id 1\n" in output, output
+    assert (
+        "Database already has 4 of 3²=9 ANIminimap2 comparisons, 5 needed" in output
+    ), output
+
+    public_cli.list_runs(database=tmp_db)
+    output = capsys.readouterr().out
+    assert " 1 analysis runs in " in output, output
+    assert " ANIminim… │    9 │    0 │    0 │  9=3² │ Done " in output, output
 
 
 def test_resume_partial_skani(

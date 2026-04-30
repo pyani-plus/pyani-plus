@@ -219,7 +219,7 @@ def run_method(  # noqa: PLR0913, PLR0915
     method = run.configuration.method
     workflow_name = "compute_column.smk"
     logger.debug("Counting pre-existing comparisons for this run...")
-    done = run.comparisons().count()
+    done = run.comparisons().count()  # type: ignore[attr-defined]
     n = len(filename_to_md5)
     if done == n**2:
         msg = f"Database already has all {n}²={n**2} {method} comparisons"
@@ -300,7 +300,7 @@ def run_method(  # noqa: PLR0913, PLR0915
             # Reconnect to the DB
             session = db_orm.connect_to_db(logger, database)
             run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-            done = run.comparisons().count()
+            done = run.comparisons().count()  # type: ignore[attr-defined]
 
             if done < n**2:  # pragma: no cover
                 logger.debug(
@@ -309,7 +309,7 @@ def run_method(  # noqa: PLR0913, PLR0915
                 # Can happen if progress-bar thread didn't finish in time
                 for json in target_paths:
                     private_cli.import_json_comparisons(logger, session, json)
-                done = run.comparisons().count()
+                done = run.comparisons().count()  # type: ignore[attr-defined]
 
     if done != n**2:
         # There is no obvious way to test this hypothetical failure:
@@ -740,11 +740,11 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
         logger.info(msg)
     config = run.configuration
     msg = (
-        f"This is a {config.method} run on {run.genomes.count()} genomes, "
+        f"This is a {config.method} run on {run.genomes.count()} genomes, "  # type: ignore[call-arg]
         f"using {config.program} version {config.version}"
     )
     logger.info(msg)
-    if not run.genomes.count():
+    if not run.genomes.count():  # type: ignore[call-arg]
         msg = f"No genomes recorded for run-id {run_id}, cannot resume."
         log_sys_exit(logger, msg)
 
@@ -863,9 +863,9 @@ def list_runs(
     # perhaps conditional on the terminal width?
     for run in runs:
         conf = run.configuration
-        n = run.genomes.count()
+        n = run.genomes.count()  # type: ignore[call-arg]
         total = n**2
-        done = run.comparisons().count()
+        done = run.comparisons().count()  # type: ignore[attr-defined]
         # Using is None does not work as expected, must use == None
         nulls = run.comparisons().where(db_orm.Comparison.identity == None).count()  # noqa: E711
         table.add_row(
@@ -926,8 +926,8 @@ def delete_run(
         confirm = True
 
     # Could use rish colours, match how list-runs colours the counts?
-    done = run.comparisons().count()
-    n = run.genomes.count()
+    done = run.comparisons().count()  # type: ignore[attr-defined]
+    n = run.genomes.count()  # type: ignore[call-arg]
     if n and done == n**2:
         msg = (
             f"Run {run_id} contains all {n**2}={n}²"
@@ -1037,7 +1037,7 @@ def export_run(  # noqa: C901, PLR0913
         handle.write(
             "#Query\tSubject\tIdentity\tQuery-Cov\tSubject-Cov\tHadamard\ttANI\tAlign-Len\tSim-Errors\n"
         )
-        for _ in run.comparisons():
+        for _ in run.comparisons():  # type: ignore[attr-defined]
             # Below for the matrix output we use the cached DataFrame for Hadamard.
             # Here compute it on the fly (we might be exporting partial results).
             hadamard = (
@@ -1189,7 +1189,7 @@ def plot_run_comp(  # noqa: PLR0913
     session = db_orm.connect_to_db(logger, database)
     ref_run = db_orm.load_run(session, run_id, check_complete=False)
 
-    if not ref_run.comparisons().count():
+    if not ref_run.comparisons().count():  # type: ignore[attr-defined]
         msg = f"Run {run_id} has no comparisons"
         log_sys_exit(logger, msg)
 
@@ -1273,8 +1273,8 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
         msg = f"Could not load run {method} matrix"  # pragma: no cover
         log_sys_exit(logger, msg)  # pragma: no cover
 
-    done = run.comparisons().count()
-    run_genomes = run.genomes.count()
+    done = run.comparisons().count()  # type: ignore[attr-defined]
+    run_genomes = run.genomes.count()  # type: ignore[call-arg]
 
     single_genome_run = False
     if done == 1 and run_genomes == 1:

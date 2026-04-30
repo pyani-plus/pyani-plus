@@ -196,9 +196,8 @@ def test_log_comparison_no_config(tmp_path: str, input_genomes_tiny: Path) -> No
     tmp_db = Path(tmp_path) / "empty.sqlite"
     assert not tmp_db.is_file()
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    session.commit()
-    session.close()
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        session.commit()
 
     with pytest.raises(
         SystemExit, match=r"empty\.sqlite does not contain configuration_id=1"
@@ -267,12 +266,12 @@ def test_log_comparison_duplicate(
     )
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    assert session.query(db_orm.Comparison).count() == 1
-    comp = session.query(db_orm.Comparison).one()
-    # first value should not be replaced:
-    assert comp.identity == 0.96  # noqa: PLR2004
-    session.close()
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        assert session.query(db_orm.Comparison).count() == 1
+        comp = session.query(db_orm.Comparison).one()
+        # first value should not be replaced:
+        assert comp.identity == 0.96  # noqa: PLR2004
+
     tmp_db.unlink()
 
 
@@ -348,14 +347,16 @@ def test_log_comparison_serial_and_skip_process_genomes(
     assert "Run identifier 1" in output
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    assert session.query(db_orm.Comparison).count() == len(fasta) ** 2
-    assert session.query(db_orm.Configuration).count() == 1
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        assert session.query(db_orm.Comparison).count() == len(fasta) ** 2
+        assert session.query(db_orm.Configuration).count() == 1
 
-    caplog.clear()
-    private_cli.prepare_genomes(database=tmp_db, run_id=1, cache=tmp_dir)
-    output = caplog.text
-    assert "Skipping preparation, run already has all 9=3² pairwise values" in output
+        caplog.clear()
+        private_cli.prepare_genomes(database=tmp_db, run_id=1, cache=tmp_dir)
+        output = caplog.text
+        assert (
+            "Skipping preparation, run already has all 9=3² pairwise values" in output
+        )
 
 
 def test_log_comparison_parallel(
@@ -452,8 +453,8 @@ def test_log_comparison_parallel(
     assert "Run identifier 1" in output
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    assert session.query(db_orm.Comparison).count() == len(fasta) ** 2
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        assert session.query(db_orm.Comparison).count() == len(fasta) ** 2
 
 
 def test_missing_db(tmp_path: str) -> None:
@@ -796,9 +797,8 @@ def test_compute_column_fastani(
     assert "Calling fastANI for 3 queries vs 5584c7029328dc48d33f95f0a78f7e57" in output
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    private_cli.import_json_comparisons(logger, session, tmp_json)
-    session.close()
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        private_cli.import_json_comparisons(logger, session, tmp_json)
 
     # This time should skip any computation:
     caplog.clear()

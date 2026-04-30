@@ -54,6 +54,7 @@ from pyani_plus.public_cli_args import (
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
 )
+from pyani_plus.utils import stage_file
 
 ASCII_GAP = ord("-")  # 45
 JSON_WINDOW = 5 * 60  # 5mins
@@ -2006,7 +2007,7 @@ def compute_skani(  # noqa: PLR0913, PLR0915
         return 0
 
 
-def compute_lzani(  # noqa: PLR0913
+def compute_lzani(  # noqa: PLR0913, PLR0915
     logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
@@ -2036,7 +2037,14 @@ def compute_lzani(  # noqa: PLR0913
     from pyani_plus.methods.lzani import parse_lzani  # noqa: PLC0415
     from pyani_plus.utils import check_output  # noqa: PLC0415
 
-    subject_fasta = fasta_dir / hash_to_filename[subject_hash]
+    subject_fasta = tmp_dir / hash_to_filename[subject_hash]
+    stage_file(
+        logger,
+        fasta_dir / hash_to_filename[subject_hash],
+        subject_fasta,
+        decompress=False,
+        copy=True,
+    )
 
     db_entries = []
     new = 0
@@ -2044,11 +2052,20 @@ def compute_lzani(  # noqa: PLR0913
 
     try:
         for query_hash in query_hashes:
-            query_fasta = (
-                fasta_dir / hash_to_filename[query_hash]
-                if query_hash != subject_hash
-                else subject_fasta
-            )
+            if query_hash != subject_hash:
+                # Another thread may create/delete that FASTA name for our query
+                # - so make a unique name for the temp file:
+                query_fasta = tmp_dir / f"{query_hash}_vs_{subject_hash}.fasta"
+                stage_file(
+                    logger,
+                    fasta_dir / hash_to_filename[query_hash],
+                    query_fasta,
+                    decompress=False,
+                    copy=True,
+                )
+            else:
+                # Can reuse the subject's decompressed file/symlink
+                query_fasta = subject_fasta
 
             # Path for lz-ani to read input list of FASTA files:
             in_txt_path = tmp_dir / f"{query_hash}_vs_{subject_hash}_input.txt"

@@ -1014,20 +1014,37 @@ def test_lzani(
 ) -> None:
     """Check lz-ani run (spaces, emoji, etc in filenames)."""
     caplog.set_level(logging.INFO)
-    tmp_dir = (
-        Path(tmp_path) / "lz-ani's test"
-    )  # no emoji as it causes skani to fail on Linux
+
+    # Catch lz-ani's failure to handle spaces in the temp directory
+    tmp_dir = Path(tmp_path) / "lz-ani's test 🏎️"
     tmp_dir.mkdir()
     tmp_db = tmp_dir / "lz-ani's test.sqlite"
+    with pytest.raises(
+        SystemExit,
+        match=f"Temporary directory path {tmp_dir} has spaces, which lz-ani cannot handle",
+    ):
+        public_cli.cli_lzani(
+            database=tmp_db,
+            fasta=evil_example,
+            name="Spaces etc",
+            create_db=True,
+            temp=tmp_dir,
+        )
+
+    # Now try again with a path without spaces.
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "lzani_test.sqlite"
+    caplog.clear()
     public_cli.cli_lzani(
         database=tmp_db,
-        fasta=evil_example,
+        fasta=input_genomes_tiny,
         name="Spaces etc",
         create_db=True,
+        cache=tmp_dir,
         temp=tmp_dir,
     )
     output = caplog.text
-    assert "Database already has 0 of 3²=9 skani comparisons, 9 needed\n" in output
+    assert "Database already has 0 of 3²=9 lzani comparisons, 9 needed\n" in output
 
     # Run it again, nothing to recompute but easier to check output
     caplog.clear()
@@ -1036,10 +1053,11 @@ def test_lzani(
         fasta=input_genomes_tiny,
         name="Simple names",
         create_db=False,
+        cache=tmp_dir,
         temp=tmp_dir,
     )
     output = caplog.text
-    assert "Database already has all 3²=9 lz-ani comparisons\n" in output
+    assert "Database already has all 3²=9 lzani comparisons\n" in output
 
     # Confirm output matches
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)

@@ -528,6 +528,16 @@ def cli_lzani(  # noqa: PLR0913
         log = Path("-") if executor == ToolExecutor.local else LOG_FILE
     logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
     check_db(logger, database, create_db)
+
+    # lz-ani cannot cope with spaces in filepaths, which includes temporary directory
+    # paths. Although we do avoid filename problems by using MD5 checksums with
+    # stage_file() we still need to stage the files in a temporary directory with
+    # simple paths. Until this issue is fixed in lz-ani, we will throw an error if the
+    # temporary directory path has spaces in it.
+    if temp and " " in str(temp):
+        msg = f"Temporary directory path {temp} has spaces, which lz-ani cannot handle"
+        log_sys_exit(logger, msg)
+
     try:
         return start_and_run_method(
             logger,

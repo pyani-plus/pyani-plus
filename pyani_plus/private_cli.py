@@ -2007,7 +2007,7 @@ def compute_skani(  # noqa: PLR0913, PLR0915
         return 0
 
 
-def compute_lzani(  # noqa: PLR0913, PLR0915
+def compute_lzani(  # noqa: PLR0913
     logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
@@ -2098,30 +2098,15 @@ def compute_lzani(  # noqa: PLR0913, PLR0915
             if not outpath.is_file():
                 msg = f"lz-ani didn't make {outpath}"  # pragma: no cover
                 log_sys_exit(logger, msg)  # pragma: no cover
-            fcomp, rcomp = parse_lzani(outpath)
-            print(f"{outpath=}")
-            print(f"{fcomp=}, {rcomp=}")
-            print(f"{fcomp[2]=}, {fcomp[3]=}, {rcomp[2]=}, {rcomp[3]=}")
+            fcomp, _rcomp = parse_lzani(outpath)
 
-            # Add forward comparison result
+            # Add forward comparison result only
             db_entries.append(
                 {
                     "query_hash": query_hash,
                     "subject_hash": subject_hash,
                     "identity": fcomp[2],
                     "cov_query": fcomp[3],
-                    "configuration_id": config_id,
-                    "uname_system": uname_system,
-                    "uname_release": uname_release,
-                    "uname_machine": uname_machine,
-                }
-            )
-            db_entries.append(
-                {
-                    "query_hash": subject_hash,
-                    "subject_hash": query_hash,
-                    "identity": rcomp[2],
-                    "cov_query": rcomp[3],
                     "configuration_id": config_id,
                     "uname_system": uname_system,
                     "uname_release": uname_release,

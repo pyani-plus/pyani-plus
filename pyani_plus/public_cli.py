@@ -220,7 +220,7 @@ def run_method(  # noqa: PLR0913, PLR0915, PLR0917
     method = run.configuration.method
     workflow_name = "compute_column.smk"
     logger.debug("Counting pre-existing comparisons for this run...")
-    done = run.comparisons().count()
+    done = run.comparisons().count()  # type: ignore[attr-defined]
     n = len(filename_to_md5)
     if done == n**2:
         msg = f"Database already has all {n}²={n**2} {method} comparisons"

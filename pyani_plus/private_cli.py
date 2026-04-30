@@ -387,24 +387,7 @@ def log_run(  # noqa: PLR0913, PLR0917
             run.cache_comparisons()
         run_id = run.run_id
 
-<<<<<<< HEAD
         session.commit()
-=======
-    run = db_orm.add_run(
-        session,
-        config,
-        cmdline,
-        fasta,
-        status,
-        name,
-        date=None,
-        fasta_to_hash=fasta_to_hash,
-    )
-    # No point caching empty matrices, even partial ones is debatable
-    if run.comparisons().count() == len(fasta_to_hash) ** 2:  # type: ignore
-        run.cache_comparisons()
-    run_id = run.run_id
->>>>>>> 8a54bf7 (suppress type error PGH003 for database mappings)
 
     msg = f"Run identifier {run_id}"
     logger.info(msg)
@@ -731,8 +714,8 @@ def prepare_genomes(
 
 def prepare(logger: logging.Logger, run: db_orm.Run, cache: Path) -> int:
     """Call prepare-genomes with a progress bar."""
-    n = run.genomes.count()  # type: ignore
-    done = run.comparisons().count()  # type: ignore
+    n = run.genomes.count()  # type: ignore[call-arg]
+    done = run.comparisons().count()  # type: ignore[attr-defined]
     if done == n**2:
         msg = f"Skipping preparation, run already has all {n**2}={n}² pairwise values"
         logger.info(msg)
@@ -1090,13 +1073,13 @@ def compute_fastani(  # noqa: PLR0913, PLR0915, PLR0917
                     # Proxy values:
                     "aln_length": None
                     if orthologous_matches is None
-                    else round(configuration.fragsize * orthologous_matches),  # type: ignore
+                    else round(configuration.fragsize * orthologous_matches),  # type: ignore[operator]
                     "sim_errors": None
                     if fragments is None or orthologous_matches is None
-                    else fragments - orthologous_matches,  # type: ignore
+                    else fragments - orthologous_matches,
                     "cov_query": None
                     if fragments is None or orthologous_matches is None
-                    else orthologous_matches / fragments,  # type: ignore
+                    else orthologous_matches / fragments,
                     "configuration_id": config_id,
                     "uname_system": uname_system,
                     "uname_release": uname_release,
@@ -1387,7 +1370,7 @@ def compute_anib(  # noqa: PLR0913, PLR0915, PLR0917
             anib.fragment_fasta_file(
                 fasta_dir / hash_to_filename[query_hash],
                 tmp_frag_query,
-                fragsize,
+                fragsize,  # type: ignore[arg-type]
             )
 
             msg = (
@@ -1968,7 +1951,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR091
     if not alignment.is_absolute():
         # If not absolute, assume MSA path relative to the DB.
         # Get the DB filename via the session connection binding
-        url = str(session.bind.url)  # type: ignore
+        url = str(session.bind.url)  # type: ignore[union-attr]
         if not url.startswith("sqlite:///"):
             msg = (  # pragma: nocover
                 f"Expected SQLite3 URL to start sqlite:/// not {url}"

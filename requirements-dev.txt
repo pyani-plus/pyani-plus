@@ -1,4 +1,5 @@
 coverage
+pandas-stubs
 pre-commit
 pytest
 pytest-cov

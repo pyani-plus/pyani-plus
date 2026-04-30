@@ -48,10 +48,8 @@ def do_comparison(
             **kwargs,
         )
         logger = setup_logger(None)
-        session = db_orm.connect_to_db(logger, tmp_db.name)
-        run = session.query(db_orm.Run).one()
-        session.close()
-        return run
+        with db_orm.connect_to_db(logger, tmp_db.name) as session:
+            return session.query(db_orm.Run).one()
 
 
 def test_coverage(tmp_path: str) -> None:

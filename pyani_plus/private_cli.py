@@ -1530,7 +1530,7 @@ def compute_animinimap2(  # noqa: PLR0913, PLR0915
                     "-o",
                     str(tmp_tsv),
                     str(tmp_mmi),
-                    str(subject_fasta),
+                    str(query_fasta),
                 ],
             )
 

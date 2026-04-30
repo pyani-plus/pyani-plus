@@ -911,6 +911,26 @@ def test_fastani_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
     )
 
 
+def test_animinimap2_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
+    """Check ANIminimap2 run (gzipped bacteria)."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "animinimap2's  inputs are gzipped.db"
+    public_cli.cli_animinimap2(
+        database=tmp_db,
+        fasta=input_gzip_bacteria,
+        name="Gzipped Run",
+        create_db=True,
+        temp=tmp_dir,
+    )
+
+    # Confirm output matches
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
+    compare_matrix_files(
+        input_gzip_bacteria / "matrices" / "ANIminimap2_identity.tsv",
+        tmp_dir / "ANIminimap2_identity.tsv",
+    )
+
+
 def test_sourmash_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
     """Check sourmash run (gzipped bacteria)."""
     tmp_dir = Path(tmp_path) / "sourmash's gzip test 🚅"

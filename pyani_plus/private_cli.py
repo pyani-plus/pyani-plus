@@ -1563,7 +1563,7 @@ def compute_animinimap2(  # noqa: PLR0913, PLR0915
                 new = 0
                 last_progress = time()
 
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:  # pragma: no cover
         # Try to abort gracefully without wasting the work done.
         msg = f"Interrupted with {len(db_entries)} completed ANI minimap2 comparisons"
         logger.error(msg)  # noqa: TRY400

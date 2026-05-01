@@ -1,0 +1,3 @@
+qidx	ridx	query	reference	tani	gani	ani	qcov	num_alns	len_ratio
+1	0	NC_014100.fna.gz	NC_010338.fna.gz	0.350701	0.376535	0.846262	0.444939	9994	0.8499
+0	1	NC_010338.fna.gz	NC_014100.fna.gz	0.350701	0.328745	0.843848	0.389578	11170	0.8499

@@ -219,7 +219,7 @@ def run_method(  # noqa: PLR0913, PLR0915
     method = run.configuration.method
     workflow_name = "compute_column.smk"
     logger.debug("Counting pre-existing comparisons for this run...")
-    done = run.comparisons().count()
+    done = run.comparisons().count()  # type: ignore[attr-defined]
     n = len(filename_to_md5)
     if done == n**2:
         msg = f"Database already has all {n}²={n**2} {method} comparisons"
@@ -300,7 +300,7 @@ def run_method(  # noqa: PLR0913, PLR0915
             # Reconnect to the DB
             session = db_orm.connect_to_db(logger, database)
             run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-            done = run.comparisons().count()
+            done = run.comparisons().count()  # type: ignore[attr-defined]
 
             if done < n**2:  # pragma: no cover
                 logger.debug(
@@ -309,7 +309,7 @@ def run_method(  # noqa: PLR0913, PLR0915
                 # Can happen if progress-bar thread didn't finish in time
                 for json in target_paths:
                     private_cli.import_json_comparisons(logger, session, json)
-                done = run.comparisons().count()
+                done = run.comparisons().count()  # type: ignore[attr-defined]
 
     if done != n**2:
         # There is no obvious way to test this hypothetical failure:
@@ -508,6 +508,55 @@ def cli_fastani(  # noqa: PLR0913
         return 1
 
 
+@app.command("lzani", rich_help_panel="ANI methods")
+def cli_lzani(  # noqa: PLR0913
+    fasta: REQ_ARG_TYPE_FASTA_DIR,
+    database: REQ_ARG_TYPE_DATABASE,
+    *,
+    # These are for the run table:
+    name: OPT_ARG_TYPE_RUN_NAME = None,
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    cache: OPT_ARG_TYPE_CACHE = Path(),
+    temp: OPT_ARG_TYPE_TEMP = None,
+    wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
+    log: OPT_ARG_TYPE_COMP_LOG = LOG_FILE_DYNAMIC,
+    debug: OPT_ARG_TYPE_DEBUG = False,
+) -> int:
+    """Execute lz-ani ANI calculations, logged to a pyANI-plus SQLite3 database."""
+    if log == LOG_FILE_DYNAMIC:
+        log = Path("-") if executor == ToolExecutor.local else LOG_FILE
+    logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
+    check_db(logger, database, create_db)
+
+    # lz-ani cannot cope with spaces in filepaths, which includes temporary directory
+    # paths. Although we do avoid filename problems by using MD5 checksums with
+    # stage_file() we still need to stage the files in a temporary directory with
+    # simple paths. Until this issue is fixed in lz-ani, we will throw an error if the
+    # temporary directory path has spaces in it.
+    if temp and " " in str(temp):
+        msg = f"Temporary directory path {temp} has spaces, which lz-ani cannot handle"
+        log_sys_exit(logger, msg)
+
+    try:
+        return start_and_run_method(
+            logger,
+            executor,
+            cache,
+            temp,
+            wtemp,
+            database,
+            log,
+            name,
+            "lzani",
+            fasta,
+            tools.get_lzani(),
+        )
+    except Exception:  # pragma: nocover
+        logger.exception("Unhandled exception.")
+        return 1
+
+
 @app.command("skani", rich_help_panel="ANI methods")
 def cli_skani(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
@@ -691,11 +740,11 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
         logger.info(msg)
     config = run.configuration
     msg = (
-        f"This is a {config.method} run on {run.genomes.count()} genomes, "
+        f"This is a {config.method} run on {run.genomes.count()} genomes, "  # type: ignore[call-arg]
         f"using {config.program} version {config.version}"
     )
     logger.info(msg)
-    if not run.genomes.count():
+    if not run.genomes.count():  # type: ignore[call-arg]
         msg = f"No genomes recorded for run-id {run_id}, cannot resume."
         log_sys_exit(logger, msg)
 
@@ -712,6 +761,8 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
             tool = tools.get_nucmer()
         case "ANIb":
             tool = tools.get_blastn()
+        case "lzani":
+            tool = tools.get_lzani()
         case "skani":
             tool = tools.get_skani()
         case "sourmash":
@@ -812,9 +863,9 @@ def list_runs(
     # perhaps conditional on the terminal width?
     for run in runs:
         conf = run.configuration
-        n = run.genomes.count()
+        n = run.genomes.count()  # type: ignore[call-arg]
         total = n**2
-        done = run.comparisons().count()
+        done = run.comparisons().count()  # type: ignore[attr-defined]
         # Using is None does not work as expected, must use == None
         nulls = run.comparisons().where(db_orm.Comparison.identity == None).count()  # noqa: E711
         table.add_row(
@@ -875,8 +926,8 @@ def delete_run(
         confirm = True
 
     # Could use rish colours, match how list-runs colours the counts?
-    done = run.comparisons().count()
-    n = run.genomes.count()
+    done = run.comparisons().count()  # type: ignore[attr-defined]
+    n = run.genomes.count()  # type: ignore[call-arg]
     if n and done == n**2:
         msg = (
             f"Run {run_id} contains all {n**2}={n}²"
@@ -986,7 +1037,7 @@ def export_run(  # noqa: C901, PLR0913
         handle.write(
             "#Query\tSubject\tIdentity\tQuery-Cov\tSubject-Cov\tHadamard\ttANI\tAlign-Len\tSim-Errors\n"
         )
-        for _ in run.comparisons():
+        for _ in run.comparisons():  # type: ignore[attr-defined]
             # Below for the matrix output we use the cached DataFrame for Hadamard.
             # Here compute it on the fly (we might be exporting partial results).
             hadamard = (
@@ -1138,7 +1189,7 @@ def plot_run_comp(  # noqa: PLR0913
     session = db_orm.connect_to_db(logger, database)
     ref_run = db_orm.load_run(session, run_id, check_complete=False)
 
-    if not ref_run.comparisons().count():
+    if not ref_run.comparisons().count():  # type: ignore[attr-defined]
         msg = f"Run {run_id} has no comparisons"
         log_sys_exit(logger, msg)
 
@@ -1222,8 +1273,8 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
         msg = f"Could not load run {method} matrix"  # pragma: no cover
         log_sys_exit(logger, msg)  # pragma: no cover
 
-    done = run.comparisons().count()
-    run_genomes = run.genomes.count()
+    done = run.comparisons().count()  # type: ignore[attr-defined]
+    run_genomes = run.genomes.count()  # type: ignore[call-arg]
 
     single_genome_run = False
     if done == 1 and run_genomes == 1:

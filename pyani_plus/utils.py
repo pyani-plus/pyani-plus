@@ -289,6 +289,7 @@ def stage_file(
     staged_filename: Path,
     *,
     decompress: bool = True,
+    copy: bool = False,
 ) -> None:
     """Prepare a symlink or decompressed copy of the given file.
 
@@ -315,6 +316,8 @@ def stage_file(
             staged_filename.open("wb") as f_out,
         ):
             shutil.copyfileobj(f_in, f_out)
+    elif copy:  # Make a copy of the original file, not a symlink
+        shutil.copy2(input_filename, staged_filename)
     else:
         # Make a symlink pointing to the original
         staged_filename.symlink_to(input_filename)

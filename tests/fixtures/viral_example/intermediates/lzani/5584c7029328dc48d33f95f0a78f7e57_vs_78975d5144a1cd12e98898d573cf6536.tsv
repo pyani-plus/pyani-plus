@@ -1,0 +1,3 @@
+qidx	ridx	query	reference	tani	gani	ani	qcov	num_alns	len_ratio
+1	0	MGV-GENOME-0266457.fna	OP073605.fasta	0.817388	0.994494	0.995022	0.999470	3	0.6851
+0	1	OP073605.fasta	MGV-GENOME-0266457.fna	0.817388	0.696053	0.983040	0.708062	28	0.6851

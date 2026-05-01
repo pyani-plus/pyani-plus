@@ -58,10 +58,9 @@ def do_self_compare(
         assert " run setup with 1 genomes in database\n" in output
 
         logger = setup_logger(None)
-        session = db_orm.connect_to_db(logger, tmp_db.name)
-        comp = session.query(db_orm.Comparison).one()
-        session.close()
-        return comp
+
+        with db_orm.connect_to_db(logger, tmp_db.name) as session:
+            return session.query(db_orm.Comparison).one()
 
 
 def test_self_vs_self_anim(caplog: pytest.LogCaptureFixture, tmp_path: str) -> None:

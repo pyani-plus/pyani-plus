@@ -548,7 +548,7 @@ def cli_lzani(  # noqa: PLR0913
             database,
             log,
             name,
-            "lzani",
+            "LZ-ANI",
             fasta,
             tools.get_lzani(),
         )

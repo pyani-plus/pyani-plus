@@ -1043,7 +1043,7 @@ def test_lzani(
         temp=tmp_dir,
     )
     output = caplog.text
-    assert "Database already has 0 of 3²=9 lzani comparisons, 9 needed\n" in output
+    assert "Database already has 0 of 3²=9 LZ-ANI comparisons, 9 needed\n" in output
 
     # Run it again, nothing to recompute but easier to check output
     caplog.clear()
@@ -1056,13 +1056,13 @@ def test_lzani(
         temp=tmp_dir,
     )
     output = caplog.text
-    assert "Database already has all 3²=9 lzani comparisons\n" in output
+    assert "Database already has all 3²=9 LZ-ANI comparisons\n" in output
 
     # Confirm output matches
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     compare_matrix_files(
         input_genomes_tiny / "matrices" / "lzani_identity.tsv",
-        tmp_dir / "lzani_identity.tsv",
+        tmp_dir / "LZ-ANI_identity.tsv",
     )
 
 
@@ -1380,7 +1380,7 @@ def test_resume_partial_lzani(
     with db_orm.connect_to_db(logger, tmp_db) as session:
         config = db_orm.db_configuration(
             session,
-            "lzani",
+            "LZ-ANI",
             tool.exe_path.stem,
             tool.version,
             create=True,
@@ -1409,30 +1409,31 @@ def test_resume_partial_lzani(
         db_orm.add_run(
             session,
             config,
-            cmdline="pyani-plus lzani ...",
+            cmdline="pyani-plus LZ-ANI ...",
             fasta_directory=input_genomes_tiny,
             status="Partial",
             name="Test Resuming A Run",
             fasta_to_hash=fasta_to_hash,  # all 3/3 genomes, but only have 4/9 comparisons
         )
+
         public_cli.list_runs(database=tmp_db)
         output = capsys.readouterr().out
         assert " 1 analysis runs in " in output, output
         assert " Method ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
-        assert " lzani  │    4 │    0 │    5 │  9=3² │ Partial " in output, output
+        assert " LZ-ANI │    4 │    0 │    5 │  9=3² │ Partial " in output, output
 
         caplog.clear()
         public_cli.resume(database=tmp_db, cache=tmp_dir)
         output = caplog.text
         assert "Resuming run-id 1\n" in output, output
-        assert "Database already has 4 of 3²=9 lzani comparisons, 5 needed" in output, (
-            output
-        )
+        assert (
+            "Database already has 4 of 3²=9 LZ-ANI comparisons, 5 needed" in output
+        ), output
 
         public_cli.list_runs(database=tmp_db)
         output = capsys.readouterr().out
         assert " 1 analysis runs in " in output, output
-        assert " lzani  │    9 │    0 │    0 │  9=3² │ Done " in output, output
+        assert " LZ-ANI │    9 │    0 │    0 │  9=3² │ Done " in output, output
 
 
 def test_resume_partial_skani(
@@ -1676,7 +1677,7 @@ def test_resume_complete(
                 ("dnadiff", tools.get_nucmer()),
                 ("ANIb", tools.get_blastn()),
                 ("fastANI", tools.get_fastani()),
-                ("lzani", tools.get_lzani()),
+                ("LZ-ANI", tools.get_lzani()),
                 ("skani", tools.get_skani()),
                 ("sourmash", tools.get_sourmash()),
             ]

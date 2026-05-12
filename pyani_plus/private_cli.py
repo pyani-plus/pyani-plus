@@ -54,7 +54,6 @@ from pyani_plus.public_cli_args import (
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
 )
-from pyani_plus.utils import stage_file
 
 ASCII_GAP = ord("-")  # 45
 JSON_WINDOW = 5 * 60  # 5mins
@@ -2035,7 +2034,7 @@ def compute_lzani(  # noqa: PLR0913
     config_id = configuration.configuration_id
 
     from pyani_plus.methods.lzani import parse_lzani  # noqa: PLC0415
-    from pyani_plus.utils import check_output  # noqa: PLC0415
+    from pyani_plus.utils import check_output, stage_file  # noqa: PLC0415
 
     subject_fasta = tmp_dir / hash_to_filename[subject_hash]
     stage_file(

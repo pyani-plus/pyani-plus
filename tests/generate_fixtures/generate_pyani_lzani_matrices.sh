@@ -22,7 +22,7 @@ set -euo pipefail
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-echo "This is intended to be used with pyani-plust v1+, we have:"
+echo "This is intended to be used with pyani-plus v1+, we have:"
 pyani-plus --version
 # Abort if not matched (via set -e above)
 pyani-plus --version 2>&1 | grep "pyANI-plus 1\." > /dev/null

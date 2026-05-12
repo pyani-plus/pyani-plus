@@ -2054,7 +2054,14 @@ def compute_lzani(  # noqa: PLR0913
             if query_hash != subject_hash:
                 # Another thread may create/delete that FASTA name for our query
                 # - so make a unique name for the temp file:
-                query_fasta = tmp_dir / f"{query_hash}_vs_{subject_hash}.fasta"
+                # We can accept compressed or uncompressed input, and lz-ani will silently return
+                # rubbish if the wrong file extension is passed, so we need to track the original
+                # suffix. We do this by replacing the query hash in the original filename, so we
+                # don't need to provide logic to accommodate a bunch of different extensions.
+                query_fasta = (
+                    tmp_dir
+                    / f"{hash_to_filename[query_hash].replace(query_hash, f'{query_hash}_vs_{subject_hash}')}"
+                )
                 stage_file(
                     logger,
                     fasta_dir / hash_to_filename[query_hash],

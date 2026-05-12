@@ -508,7 +508,7 @@ def cli_fastani(  # noqa: PLR0913
         return 1
 
 
-@app.command("lzani", rich_help_panel="ANI methods")
+@app.command("LZ-ANI", rich_help_panel="ANI methods")
 def cli_lzani(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
@@ -761,7 +761,7 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
             tool = tools.get_nucmer()
         case "ANIb":
             tool = tools.get_blastn()
-        case "lzani":
+        case "LZ-ANI":
             tool = tools.get_lzani()
         case "skani":
             tool = tools.get_skani()

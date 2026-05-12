@@ -54,7 +54,6 @@ from pyani_plus.public_cli_args import (
     REQ_ARG_TYPE_DATABASE,
     REQ_ARG_TYPE_FASTA_DIR,
 )
-from pyani_plus.utils import stage_file
 
 ASCII_GAP = ord("-")  # 45
 JSON_WINDOW = 5 * 60  # 5mins

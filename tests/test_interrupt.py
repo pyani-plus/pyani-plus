@@ -116,21 +116,21 @@ def test_compute_column_sigint_anib(
     output = capfd.readouterr().err
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    done = session.query(db_orm.Comparison).count()
-    genomes = session.query(db_orm.Genome).count()
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        done = session.query(db_orm.Comparison).count()
+        genomes = session.query(db_orm.Genome).count()
 
-    if done < genomes:
-        assert "Interrupted with " in output, output
-    else:
-        assert 0 < done < genomes, (
-            f"Expected partial ANIb progress, not {done}/{genomes} and return {rc}"
+        if done < genomes:
+            assert "Interrupted with " in output, output
+        else:
+            assert 0 < done < genomes, (
+                f"Expected partial ANIb progress, not {done}/{genomes} and return {rc}"
+            )
+        assert rc == 0, (
+            f"Expecting return 0 on clean interruption, got {rc} with {done} done"
         )
-    assert rc == 0, (
-        f"Expecting return 0 on clean interruption, got {rc} with {done} done"
-    )
-    run = db_orm.load_run(session)
-    assert run.status == "Worker interrupted"
+        run = db_orm.load_run(session)
+        assert run.status == "Worker interrupted"
 
 
 def test_compute_column_sigint_dnadiff(
@@ -181,21 +181,21 @@ def test_compute_column_sigint_dnadiff(
     output = capfd.readouterr().err
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    done = session.query(db_orm.Comparison).count()
-    genomes = session.query(db_orm.Genome).count()
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        done = session.query(db_orm.Comparison).count()
+        genomes = session.query(db_orm.Genome).count()
 
-    if done < genomes:
-        assert "Interrupted with " in output, output
-    else:
-        assert 0 < done < genomes, (
-            f"Expected partial dnadiff progress, not {done}/{genomes} and return {rc}"
+        if done < genomes:
+            assert "Interrupted with " in output, output
+        else:
+            assert 0 < done < genomes, (
+                f"Expected partial dnadiff progress, not {done}/{genomes} and return {rc}"
+            )
+        assert rc == 0, (
+            f"Expecting return 0 on clean interruption, got {rc} with {done} done"
         )
-    assert rc == 0, (
-        f"Expecting return 0 on clean interruption, got {rc} with {done} done"
-    )
-    run = db_orm.load_run(session)
-    assert run.status == "Worker interrupted"
+        run = db_orm.load_run(session)
+        assert run.status == "Worker interrupted"
 
 
 def test_compute_column_sigint_anim(
@@ -247,21 +247,21 @@ def test_compute_column_sigint_anim(
     output = capfd.readouterr().err
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    done = session.query(db_orm.Comparison).count()
-    genomes = session.query(db_orm.Genome).count()
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        done = session.query(db_orm.Comparison).count()
+        genomes = session.query(db_orm.Genome).count()
 
-    if done < genomes:
-        assert "Interrupted with " in output, output
-    else:
-        assert 0 < done < genomes, (
-            f"Expected partial ANIb progress, not {done}/{genomes} and return {rc}"
+        if done < genomes:
+            assert "Interrupted with " in output, output
+        else:
+            assert 0 < done < genomes, (
+                f"Expected partial ANIb progress, not {done}/{genomes} and return {rc}"
+            )
+        assert rc == 0, (
+            f"Expecting return 0 on clean interruption, got {rc} with {done} done"
         )
-    assert rc == 0, (
-        f"Expecting return 0 on clean interruption, got {rc} with {done} done"
-    )
-    run = db_orm.load_run(session)
-    assert run.status == "Worker interrupted"
+        run = db_orm.load_run(session)
+        assert run.status == "Worker interrupted"
 
 
 def test_compute_column_sigint_external_alignment(
@@ -328,19 +328,19 @@ def test_compute_column_sigint_external_alignment(
     output = capfd.readouterr().err
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    done = session.query(db_orm.Comparison).count()
-    genomes = session.query(db_orm.Genome).count()
-    full = genomes * 2 - 1  # does first column & row at once (symmetric matrix)
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        done = session.query(db_orm.Comparison).count()
+        genomes = session.query(db_orm.Genome).count()
+        full = genomes * 2 - 1  # does first column & row at once (symmetric matrix)
 
-    if done < full:
-        assert "Interrupted with " in output, output
-    else:
-        assert 0 < done < full, (
-            f"Expected partial external-alignment progress, not {done}/{full} and return {rc}"
+        if done < full:
+            assert "Interrupted with " in output, output
+        else:
+            assert 0 < done < full, (
+                f"Expected partial external-alignment progress, not {done}/{full} and return {rc}"
+            )
+        assert rc == 0, (
+            f"Expecting return 0 on clean interruption, got {rc} with {done} done"
         )
-    assert rc == 0, (
-        f"Expecting return 0 on clean interruption, got {rc} with {done} done"
-    )
-    run = db_orm.load_run(session)
-    assert run.status == "Worker interrupted"
+        run = db_orm.load_run(session)
+        assert run.status == "Worker interrupted"

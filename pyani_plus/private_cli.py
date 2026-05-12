@@ -898,7 +898,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
                 "ANIb": compute_anib,
                 "ANIm": compute_anim,
                 "dnadiff": compute_dnadiff,
-                "lzani": compute_lzani,
+                "LZ-ANI": compute_lzani,
                 "skani": compute_skani,
                 "sourmash": compute_sourmash,
                 "external-alignment": compute_external_alignment,
@@ -2033,7 +2033,7 @@ def compute_lzani(  # noqa: PLR0913
 
     config_id = configuration.configuration_id
 
-    from pyani_plus.methods.lzani import parse_lzani  # noqa: PLC0415
+    from pyani_plus.methods.lz_ani import parse_lzani  # noqa: PLC0415
     from pyani_plus.utils import check_output, stage_file  # noqa: PLC0415
 
     subject_fasta = tmp_dir / hash_to_filename[subject_hash]

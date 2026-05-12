@@ -31,7 +31,7 @@ from pathlib import Path
 import pytest
 
 from pyani_plus import db_orm, private_cli, setup_logger, tools
-from pyani_plus.methods import lzani
+from pyani_plus.methods import lz_ani
 
 
 @pytest.fixture
@@ -42,7 +42,7 @@ def lzani_bad_headers() -> Path:
 
 def test_lzani_parsing(input_genomes_tiny: Path) -> None:
     """Check parsing of test lz-ani output files."""
-    assert lzani.parse_lzani(
+    assert lz_ani.parse_lzani(
         input_genomes_tiny
         / "intermediates"
         / "lzani"
@@ -56,7 +56,7 @@ def test_lzani_parsing(input_genomes_tiny: Path) -> None:
 def test_lzani_parsing_bad_headers(lzani_bad_headers: Path) -> None:
     """Check parsing of lz-ani output files with bad headers."""
     with pytest.raises(SystemExit, match="Unexpected lz-ani output file format"):
-        lzani.parse_lzani(lzani_bad_headers)
+        lz_ani.parse_lzani(lzani_bad_headers)
 
 
 def test_running_lzani(

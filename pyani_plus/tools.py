@@ -337,7 +337,7 @@ def get_lzani(cmd: str | Path = "lz-ani") -> ExternalToolData:
     """
     exe_path, output = _get_path_and_version_output(cmd, ["--version"])
 
-    match = re.search(r"[0-9.]+", output)
+    match = re.search(r"^[0-9.]+$", output)
     version = match.group().strip() if match else None
     if not version:
         msg = f"Executable exists at {exe_path} but could not retrieve version."

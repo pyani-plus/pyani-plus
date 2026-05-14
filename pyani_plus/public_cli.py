@@ -137,69 +137,70 @@ def start_and_run_method(  # noqa: PLR0913
     # We should have caught all the obvious failures earlier,
     # including missing inputs or missing external tools.
     # Can now start talking to the DB.
-    session = db_orm.connect_to_db(logger, database)
+    with db_orm.connect_to_db(logger, database) as session:
+        # Reuse existing config, or log a new one
+        config = db_orm.db_configuration(
+            session,
+            method,
+            "" if tool is None else tool.exe_path.stem,
+            "" if tool is None else tool.version,
+            fragsize,
+            mode,
+            kmersize,
+            minmatch,
+            extra,
+            create=True,
+        )
 
-    # Reuse existing config, or log a new one
-    config = db_orm.db_configuration(
-        session,
-        method,
-        "" if tool is None else tool.exe_path.stem,
-        "" if tool is None else tool.version,
-        fragsize,
-        mode,
-        kmersize,
-        minmatch,
-        extra,
-        create=True,
-    )
+        n = len(fasta_names)
+        filename_to_md5 = {}
+        hashes = set()
+        with Progress(*PROGRESS_BAR_COLUMNS) as progress:
+            for filename in progress.track(fasta_names, description="Indexing FASTAs"):
+                try:
+                    md5 = file_md5sum(filename)
+                except ValueError as err:
+                    log_sys_exit(logger, str(err))
+                filename_to_md5[filename] = md5
+                if md5 in hashes:
+                    # This avoids hitting IntegrityError UNIQUE constraint failed
+                    dups = "\n" + "\n".join(
+                        sorted({str(k) for k, v in filename_to_md5.items() if v == md5})
+                    )
+                    msg = f"Multiple genomes with same MD5 checksum {md5}:{dups}"
+                    log_sys_exit(logger, msg)
+                hashes.add(md5)
+                db_orm.db_genome(logger, session, filename, md5, create=True)
 
-    n = len(fasta_names)
-    filename_to_md5 = {}
-    hashes = set()
-    with Progress(*PROGRESS_BAR_COLUMNS) as progress:
-        for filename in progress.track(fasta_names, description="Indexing FASTAs"):
-            try:
-                md5 = file_md5sum(filename)
-            except ValueError as err:
-                log_sys_exit(logger, str(err))
-            filename_to_md5[filename] = md5
-            if md5 in hashes:
-                # This avoids hitting IntegrityError UNIQUE constraint failed
-                dups = "\n" + "\n".join(
-                    sorted({str(k) for k, v in filename_to_md5.items() if v == md5})
-                )
-                msg = f"Multiple genomes with same MD5 checksum {md5}:{dups}"
-                log_sys_exit(logger, msg)
-            hashes.add(md5)
-            db_orm.db_genome(logger, session, filename, md5, create=True)
+        # New run
+        run = db_orm.add_run(
+            session,
+            config,
+            cmdline=" ".join(sys.argv),
+            fasta_directory=fasta,
+            status="Initialising",
+            name=f"{len(filename_to_md5)} genomes using {method}"
+            if name is None
+            else name,
+            date=None,
+            fasta_to_hash=filename_to_md5,
+        )
+        session.commit()  # Redundant?
+        msg = f"{method} run setup with {n} genomes in database"
+        logger.info(msg)
 
-    # New run
-    run = db_orm.add_run(
-        session,
-        config,
-        cmdline=" ".join(sys.argv),
-        fasta_directory=fasta,
-        status="Initialising",
-        name=f"{len(filename_to_md5)} genomes using {method}" if name is None else name,
-        date=None,
-        fasta_to_hash=filename_to_md5,
-    )
-    session.commit()  # Redundant?
-    msg = f"{method} run setup with {n} genomes in database"
-    logger.info(msg)
-
-    return run_method(
-        logger,
-        executor,
-        cache,
-        temp,
-        workflow_temp,
-        filename_to_md5,
-        database,
-        log,
-        session,
-        run,
-    )
+        return run_method(
+            logger,
+            executor,
+            cache,
+            temp,
+            workflow_temp,
+            filename_to_md5,
+            database,
+            log,
+            session,
+            run,
+        )
 
 
 def run_method(  # noqa: PLR0913, PLR0915
@@ -683,100 +684,102 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
         msg = f"Database {database} does not exist"
         log_sys_exit(logger, msg)
 
-    session = db_orm.connect_to_db(logger, database)
-    run = db_orm.load_run(session, run_id)
-    if run_id is None:
-        run_id = run.run_id  # relevant if was None
-        msg = f"Resuming run-id {run_id}"
+    with db_orm.connect_to_db(logger, database) as session:
+        run = db_orm.load_run(session, run_id)
+        if run_id is None:
+            run_id = run.run_id  # relevant if was None
+            msg = f"Resuming run-id {run_id}"
+            logger.info(msg)
+        config = run.configuration
+        msg = (
+            f"This is a {config.method} run on {run.genomes.count()} genomes, "
+            f"using {config.program} version {config.version}"
+        )
         logger.info(msg)
-    config = run.configuration
-    msg = (
-        f"This is a {config.method} run on {run.genomes.count()} genomes, "
-        f"using {config.program} version {config.version}"
-    )
-    logger.info(msg)
-    if not run.genomes.count():
-        msg = f"No genomes recorded for run-id {run_id}, cannot resume."
-        log_sys_exit(logger, msg)
-
-    # The params dict has two kinds of entries,
-    # - tool paths, which ought to be handled more neatly
-    # - config entries, which ought to be named consistently and done centrally
-    tool: tools.ExternalToolData | None = None  # make type explicit for mypy
-    match config.method:
-        case "fastANI":
-            tool = tools.get_fastani()
-        case "ANIm":
-            tool = tools.get_nucmer()
-        case "dnadiff":
-            tool = tools.get_nucmer()
-        case "ANIb":
-            tool = tools.get_blastn()
-        case "skani":
-            tool = tools.get_skani()
-        case "sourmash":
-            tool = tools.get_sourmash()
-        case "external-alignment":
-            tool = None
-        case _:
-            msg = f"Unknown method {config.method} for run-id {run_id} in {database}"
+        if not run.genomes.count():
+            msg = f"No genomes recorded for run-id {run_id}, cannot resume."
             log_sys_exit(logger, msg)
-    if not tool:
-        if config.program != "" or config.version != "":
+
+        # The params dict has two kinds of entries,
+        # - tool paths, which ought to be handled more neatly
+        # - config entries, which ought to be named consistently and done centrally
+        tool: tools.ExternalToolData | None = None  # make type explicit for mypy
+        match config.method:
+            case "fastANI":
+                tool = tools.get_fastani()
+            case "ANIm":
+                tool = tools.get_nucmer()
+            case "dnadiff":
+                tool = tools.get_nucmer()
+            case "ANIb":
+                tool = tools.get_blastn()
+            case "skani":
+                tool = tools.get_skani()
+            case "sourmash":
+                tool = tools.get_sourmash()
+            case "external-alignment":
+                tool = None
+            case _:
+                msg = (
+                    f"Unknown method {config.method} for run-id {run_id} in {database}"
+                )
+                log_sys_exit(logger, msg)
+        if not tool:
+            if config.program != "" or config.version != "":
+                msg = (
+                    "We expect no tool information, but"
+                    f" run-id {run_id} used {config.program} version {config.version} instead."
+                )
+                log_sys_exit(logger, msg)
+        elif tool.exe_path.stem != config.program or tool.version != config.version:
             msg = (
-                "We expect no tool information, but"
+                f"We have {tool.exe_path.stem} version {tool.version}, but"
                 f" run-id {run_id} used {config.program} version {config.version} instead."
             )
             log_sys_exit(logger, msg)
-    elif tool.exe_path.stem != config.program or tool.version != config.version:
-        msg = (
-            f"We have {tool.exe_path.stem} version {tool.version}, but"
-            f" run-id {run_id} used {config.program} version {config.version} instead."
-        )
-        log_sys_exit(logger, msg)
 
-    del tool
+        del tool
 
-    # Now we need to check the fasta files in the directory
-    # against those included in the run...
-    fasta = Path(run.fasta_directory)
-    if not fasta.is_dir():
-        msg = f"run-id {run_id} used input folder {fasta}, but that is not a directory (now)."
-        log_sys_exit(logger, msg)
-
-    # Recombine the fasta directory name from the runs table with the plain filename from
-    # the run-genome linking table
-    filename_to_md5 = {
-        fasta / link.fasta_filename: link.genome_hash for link in run.fasta_hashes
-    }
-    for filename, md5 in filename_to_md5.items():
-        if not filename.is_file():
-            msg = (
-                f"run-id {run_id} used {filename} with MD5 {md5}"
-                f" but this FASTA file no longer exists"
-            )
+        # Now we need to check the fasta files in the directory
+        # against those included in the run...
+        fasta = Path(run.fasta_directory)
+        if not fasta.is_dir():
+            msg = f"run-id {run_id} used input folder {fasta}, but that is not a directory (now)."
             log_sys_exit(logger, msg)
 
-    # Resuming
-    run.status = "Resuming"
-    session.commit()
+        # Recombine the fasta directory name from the runs table with the plain filename from
+        # the run-genome linking table
+        filename_to_md5 = {
+            fasta / link.fasta_filename: link.genome_hash for link in run.fasta_hashes
+        }
+        for filename, md5 in filename_to_md5.items():
+            if not filename.is_file():
+                msg = (
+                    f"run-id {run_id} used {filename} with MD5 {md5}"
+                    f" but this FASTA file no longer exists"
+                )
+                log_sys_exit(logger, msg)
 
-    try:
-        return run_method(
-            logger,
-            executor,
-            cache,
-            temp,
-            wtemp,
-            filename_to_md5,
-            database,
-            log,
-            session,
-            run,
-        )
-    except Exception:  # pragma: nocover
-        logger.exception("Unhandled exception.")
-        return 1
+        # Resuming
+        run.status = "Resuming"
+        session.commit()
+
+        try:
+            return run_method(
+                logger,
+                executor,
+                cache,
+                temp,
+                wtemp,
+                filename_to_md5,
+                database,
+                log,
+                session,
+                run,
+            )
+        except Exception:  # pragma: nocover
+            logger.exception("Unhandled exception.")
+            return 1
 
 
 @app.command()
@@ -792,46 +795,46 @@ def list_runs(
         msg = f"Database {database} does not exist"
         log_sys_exit(logger, msg)
 
-    session = db_orm.connect_to_db(logger, database)
-    runs = session.query(db_orm.Run)
+    with db_orm.connect_to_db(logger, database) as session:
+        runs = session.query(db_orm.Run)
 
-    table = Table(
-        title=f"{runs.count()} analysis runs in {database}",
-        row_styles=["dim", ""],  # alternating zebra stripes
-    )
-    table.add_column("ID", justify="right", no_wrap=True)
-    table.add_column("Date")
-    table.add_column("Method")
-    table.add_column(Text("Done", justify="left"), justify="right", no_wrap=True)
-    table.add_column(Text("Null", justify="left"), justify="right", no_wrap=True)
-    table.add_column(Text("Miss", justify="left"), justify="right", no_wrap=True)
-    table.add_column(Text("Total", justify="left"), justify="right", no_wrap=True)
-    table.add_column("Status")
-    table.add_column("Name")
-    # Would be nice to report {conf.program} {conf.version} too,
-    # perhaps conditional on the terminal width?
-    for run in runs:
-        conf = run.configuration
-        n = run.genomes.count()
-        total = n**2
-        done = run.comparisons().count()
-        # Using is None does not work as expected, must use == None
-        nulls = run.comparisons().where(db_orm.Comparison.identity == None).count()  # noqa: E711
-        table.add_row(
-            str(run.run_id),
-            str(run.date.date()),
-            conf.method,
-            Text(
-                f"{done - nulls}",
-                style="green" if done == total and not nulls else "yellow",
-            ),
-            Text(f"{nulls}", style="red" if nulls else "green"),
-            Text(f"{total - done}", style="yellow" if done < total else "green"),
-            f"{n**2}={n}²",
-            run.status,
-            run.name,
+        table = Table(
+            title=f"{runs.count()} analysis runs in {database}",
+            row_styles=["dim", ""],  # alternating zebra stripes
         )
-    session.close()
+        table.add_column("ID", justify="right", no_wrap=True)
+        table.add_column("Date")
+        table.add_column("Method")
+        table.add_column(Text("Done", justify="left"), justify="right", no_wrap=True)
+        table.add_column(Text("Null", justify="left"), justify="right", no_wrap=True)
+        table.add_column(Text("Miss", justify="left"), justify="right", no_wrap=True)
+        table.add_column(Text("Total", justify="left"), justify="right", no_wrap=True)
+        table.add_column("Status")
+        table.add_column("Name")
+        # Would be nice to report {conf.program} {conf.version} too,
+        # perhaps conditional on the terminal width?
+        for run in runs:
+            conf = run.configuration
+            n = run.genomes.count()
+            total = n**2
+            done = run.comparisons().count()
+            # Using is None does not work as expected, must use == None
+            nulls = run.comparisons().where(db_orm.Comparison.identity == None).count()  # noqa: E711
+            table.add_row(
+                str(run.run_id),
+                str(run.date.date()),
+                conf.method,
+                Text(
+                    f"{done - nulls}",
+                    style="green" if done == total and not nulls else "yellow",
+                ),
+                Text(f"{nulls}", style="red" if nulls else "green"),
+                Text(f"{total - done}", style="yellow" if done < total else "green"),
+                f"{n**2}={n}²",
+                run.status,
+                run.name,
+            )
+
     console = Console()
     console.print(table)
     msg = f"Reporting on {len(table.rows)} runs."
@@ -867,56 +870,56 @@ def delete_run(
 
     confirm = False
 
-    session = db_orm.connect_to_db(logger, database)
-    run = db_orm.load_run(session, run_id, check_complete=False)
-    if run_id is None:
-        run_id = run.run_id
-        logger.info("Deleting most recent run")
-        confirm = True
-
-    # Could use rish colours, match how list-runs colours the counts?
-    done = run.comparisons().count()
-    n = run.genomes.count()
-    if n and done == n**2:
-        msg = (
-            f"Run {run_id} contains all {n**2}={n}²"
-            f" {run.configuration.method} comparisons, status: {run.status}"
-        )
-        logger.info(msg)
-        confirm = True
-    else:
-        msg = (
-            f"Run {run_id} contains {done}/{n**2}={n}²"
-            f" {run.configuration.method} comparisons, status: {run.status}"
-        )
-        logger.info(msg)
-        if done:
+    with db_orm.connect_to_db(logger, database) as session:
+        run = db_orm.load_run(session, run_id, check_complete=False)
+        if run_id is None:
+            run_id = run.run_id
+            logger.info("Deleting most recent run")
             confirm = True
-    msg = f"Run name: {run.name}"
-    logger.info(msg)
 
-    if run.status == "Running":  # should be a constant or enum?
-        # Should we also look at the date of the run? If old probably it failed.
-        msg = "Deleting a run still being computed will cause it to fail!"
-        logger.warning(msg)
-        confirm = True
+        # Could use rish colours, match how list-runs colours the counts?
+        done = run.comparisons().count()
+        n = run.genomes.count()
+        if n and done == n**2:
+            msg = (
+                f"Run {run_id} contains all {n**2}={n}²"
+                f" {run.configuration.method} comparisons, status: {run.status}"
+            )
+            logger.info(msg)
+            confirm = True
+        else:
+            msg = (
+                f"Run {run_id} contains {done}/{n**2}={n}²"
+                f" {run.configuration.method} comparisons, status: {run.status}"
+            )
+            logger.info(msg)
+            if done:
+                confirm = True
+        msg = f"Run name: {run.name}"
+        logger.info(msg)
 
-    if confirm and not force:
-        click.confirm("Do you want to continue?", abort=True)  # pragma: no cover
+        if run.status == "Running":  # should be a constant or enum?
+            # Should we also look at the date of the run? If old probably it failed.
+            msg = "Deleting a run still being computed will cause it to fail!"
+            logger.warning(msg)
+            confirm = True
 
-    # Plan to offer an extended mode, perhaps --all, which will also
-    # delete orphaned entries in the configuration,  genomes, and
-    # comparisons tables. By default will just drop the runs entry
-    # and direct links in runs_genomes thanks to the relationship.
+        if confirm and not force:
+            click.confirm("Do you want to continue?", abort=True)  # pragma: no cover
 
-    # Explicitly delete the no longer wanted entries in runs_genomes
-    # (ought to be able to trigger this automatically in a cascade
-    # when the run itself is deleted, but that didn't work for me):
-    session.query(db_orm.RunGenomeAssociation).where(
-        db_orm.RunGenomeAssociation.run_id == run_id
-    ).delete()
-    session.delete(run)
-    session.commit()
+        # Plan to offer an extended mode, perhaps --all, which will also
+        # delete orphaned entries in the configuration,  genomes, and
+        # comparisons tables. By default will just drop the runs entry
+        # and direct links in runs_genomes thanks to the relationship.
+
+        # Explicitly delete the no longer wanted entries in runs_genomes
+        # (ought to be able to trigger this automatically in a cascade
+        # when the run itself is deleted, but that didn't work for me):
+        session.query(db_orm.RunGenomeAssociation).where(
+            db_orm.RunGenomeAssociation.run_id == run_id
+        ).delete()
+        session.delete(run)
+        session.commit()
     session.close()
     return 0
 
@@ -954,88 +957,88 @@ def export_run(  # noqa: C901, PLR0913
         logger.warning(msg)
         outdir.mkdir()
 
-    session = db_orm.connect_to_db(logger, database)
-    run = db_orm.load_run(session, run_id, check_empty=True)
-    if run_id is None:
-        run_id = run.run_id
-        msg = f"Exporting run-id {run_id}"
+    with db_orm.connect_to_db(logger, database) as session:
+        run = db_orm.load_run(session, run_id, check_empty=True)
+        if run_id is None:
+            run_id = run.run_id
+            msg = f"Exporting run-id {run_id}"
+            logger.info(msg)
+
+        # Question: Should we export a plain text of JSON summary of the configuration etc?
+        # Question: Should we include the run-id in the matrix filenames?
+        # Question: Should we match the property in filenames to old pyANI (e.g. coverage)?
+        method = run.configuration.method
+
+        def float_or_na(value: float | None) -> str:
+            """Format a float where represent None as NA (null in our DB)."""
+            # Should this allow configurable float formatting?
+            return "NA" if value is None else str(value)
+
+        if label == "md5":
+            mapping = lambda x: x  # noqa: E731
+        elif label == "filename":
+            mapping = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}.get
+        else:
+            mapping = {
+                _.genome_hash: filename_stem(_.fasta_filename) for _ in run.fasta_hashes
+            }.get
+
+        long_filename = f"{method}_run_{run_id}.tsv"
+        with (outdir / long_filename).open("w") as handle:
+            # Should the column names match our internal naming?
+            handle.write(
+                "#Query\tSubject\tIdentity\tQuery-Cov\tSubject-Cov\tHadamard\ttANI\tAlign-Len\tSim-Errors\n"
+            )
+            for _ in run.comparisons():
+                # Below for the matrix output we use the cached DataFrame for Hadamard.
+                # Here compute it on the fly (we might be exporting partial results).
+                hadamard = (
+                    None
+                    if _.identity is None or _.cov_query is None
+                    else _.identity * _.cov_query
+                )
+                tani = None if hadamard is None else -math_log(hadamard)
+                handle.write(
+                    f"{mapping(_.query_hash)}\t{mapping(_.subject_hash)}"
+                    f"\t{float_or_na(_.identity)}"
+                    f"\t{float_or_na(_.cov_query)}"
+                    f"\t{float_or_na(_.cov_subject)}"
+                    f"\t{float_or_na(hadamard)}"
+                    f"\t{float_or_na(tani)}"
+                    f"\t{float_or_na(_.aln_length)}"
+                    f"\t{float_or_na(_.sim_errors)}\n"
+                )
+        msg = f"Wrote long-form to {outdir}/{long_filename}"
         logger.info(msg)
 
-    # Question: Should we export a plain text of JSON summary of the configuration etc?
-    # Question: Should we include the run-id in the matrix filenames?
-    # Question: Should we match the property in filenames to old pyANI (e.g. coverage)?
-    method = run.configuration.method
+        # Reload the run checking it is complete (quick) (might abort here!),
+        # and caching the matrices if needed (slower):
+        run = db_orm.load_run(session, run_id, check_complete=True)
 
-    def float_or_na(value: float | None) -> str:
-        """Format a float where represent None as NA (null in our DB)."""
-        # Should this allow configurable float formatting?
-        return "NA" if value is None else str(value)
+        for matrix, filename in (
+            (run.identities, f"{method}_identity.tsv"),
+            (run.aln_length, f"{method}_aln_lengths.tsv"),
+            (run.sim_errors, f"{method}_sim_errors.tsv"),
+            (run.cov_query, f"{method}_query_cov.tsv"),
+            (run.hadamard, f"{method}_hadamard.tsv"),
+            (run.tani, f"{method}_tANI.tsv"),
+        ):
+            if matrix is None:  # pragma: no cover
+                # This is mainly for mypy to assert the matrix is not None
+                msg = f"Could not load run {method} matrix"
+                log_sys_exit(logger, msg)
+                return 1  # not called but mbpy doesn't understand that (yet)
 
-    if label == "md5":
-        mapping = lambda x: x  # noqa: E731
-    elif label == "filename":
-        mapping = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}.get
-    else:
-        mapping = {
-            _.genome_hash: filename_stem(_.fasta_filename) for _ in run.fasta_hashes
-        }.get
+            try:
+                matrix = run.relabelled_matrix(matrix, label)  # noqa: PLW2901
+            except ValueError as err:
+                msg = f"{err}"
+                log_sys_exit(logger, msg)
 
-    long_filename = f"{method}_run_{run_id}.tsv"
-    with (outdir / long_filename).open("w") as handle:
-        # Should the column names match our internal naming?
-        handle.write(
-            "#Query\tSubject\tIdentity\tQuery-Cov\tSubject-Cov\tHadamard\ttANI\tAlign-Len\tSim-Errors\n"
-        )
-        for _ in run.comparisons():
-            # Below for the matrix output we use the cached DataFrame for Hadamard.
-            # Here compute it on the fly (we might be exporting partial results).
-            hadamard = (
-                None
-                if _.identity is None or _.cov_query is None
-                else _.identity * _.cov_query
-            )
-            tani = None if hadamard is None else -math_log(hadamard)
-            handle.write(
-                f"{mapping(_.query_hash)}\t{mapping(_.subject_hash)}"
-                f"\t{float_or_na(_.identity)}"
-                f"\t{float_or_na(_.cov_query)}"
-                f"\t{float_or_na(_.cov_subject)}"
-                f"\t{float_or_na(hadamard)}"
-                f"\t{float_or_na(tani)}"
-                f"\t{float_or_na(_.aln_length)}"
-                f"\t{float_or_na(_.sim_errors)}\n"
-            )
-    msg = f"Wrote long-form to {outdir}/{long_filename}"
-    logger.info(msg)
+            matrix.to_csv(outdir / filename, sep="\t")
 
-    # Reload the run checking it is complete (quick) (might abort here!),
-    # and caching the matrices if needed (slower):
-    run = db_orm.load_run(session, run_id, check_complete=True)
-
-    for matrix, filename in (
-        (run.identities, f"{method}_identity.tsv"),
-        (run.aln_length, f"{method}_aln_lengths.tsv"),
-        (run.sim_errors, f"{method}_sim_errors.tsv"),
-        (run.cov_query, f"{method}_query_cov.tsv"),
-        (run.hadamard, f"{method}_hadamard.tsv"),
-        (run.tani, f"{method}_tANI.tsv"),
-    ):
-        if matrix is None:  # pragma: no cover
-            # This is mainly for mypy to assert the matrix is not None
-            msg = f"Could not load run {method} matrix"
-            log_sys_exit(logger, msg)
-            return 1  # not called but mbpy doesn't understand that (yet)
-
-        try:
-            matrix = run.relabelled_matrix(matrix, label)  # noqa: PLW2901
-        except ValueError as err:
-            msg = f"{err}"
-            log_sys_exit(logger, msg)
-
-        matrix.to_csv(outdir / filename, sep="\t")
-
-    msg = f"Wrote matrices to {outdir}/{method}_*.tsv"
-    logger.info(msg)
+        msg = f"Wrote matrices to {outdir}/{method}_*.tsv"
+        logger.info(msg)
 
     session.close()
     return 0
@@ -1066,24 +1069,24 @@ def plot_run(  # noqa: PLR0913
         logger.warning(msg)
         outdir.mkdir()
 
-    session = db_orm.connect_to_db(logger, database)
-    run = db_orm.load_run(session, run_id, check_complete=True)
-    if run_id is None:
-        run_id = run.run_id
-        msg = f"Plotting {run.configuration.method} run-id {run_id}"
-        logger.info(msg)
+    with db_orm.connect_to_db(logger, database) as session:
+        run = db_orm.load_run(session, run_id, check_complete=True)
+        if run_id is None:
+            run_id = run.run_id
+            msg = f"Plotting {run.configuration.method} run-id {run_id}"
+            logger.info(msg)
 
-    try:
-        from pyani_plus import plot_run  # noqa: PLC0415
+        try:
+            from pyani_plus import plot_run  # noqa: PLC0415
 
-        count = plot_run.plot_single_run(logger, run, outdir, label)
-        msg = f"Wrote {count} images to {outdir}/{run.configuration.method}_*.*"
-        logger.info(msg)
-        session.close()
-        return 0 if count else 1  # noqa: TRY300
-    except Exception:  # pragma: nocover
-        logger.exception("Unhandled exception.")
-        return 1
+            count = plot_run.plot_single_run(logger, run, outdir, label)
+            msg = f"Wrote {count} images to {outdir}/{run.configuration.method}_*.*"
+            logger.info(msg)
+            session.close()
+            return 0 if count else 1  # noqa: TRY300
+        except Exception:  # pragma: nocover
+            logger.exception("Unhandled exception.")
+            return 1
 
 
 @app.command()
@@ -1135,27 +1138,27 @@ def plot_run_comp(  # noqa: PLR0913
         msg = "Need at least two runs for a comparison"
         log_sys_exit(logger, msg)
 
-    session = db_orm.connect_to_db(logger, database)
-    ref_run = db_orm.load_run(session, run_id, check_complete=False)
+    with db_orm.connect_to_db(logger, database) as session:
+        ref_run = db_orm.load_run(session, run_id, check_complete=False)
 
-    if not ref_run.comparisons().count():
-        msg = f"Run {run_id} has no comparisons"
-        log_sys_exit(logger, msg)
+        if not ref_run.comparisons().count():
+            msg = f"Run {run_id} has no comparisons"
+            log_sys_exit(logger, msg)
 
-    try:
-        from pyani_plus import plot_run  # noqa: PLC0415
+        try:
+            from pyani_plus import plot_run  # noqa: PLC0415
 
-        done = plot_run.plot_run_comparison(
-            logger, session, ref_run, other_runs, outdir, columns
-        )
-        msg = f"Wrote {done} images to {outdir}/{ref_run.configuration.method}_identity_{run_id}_vs_*.*"
-        logger.info(msg)
-        session.close()
-    except Exception:  # pragma: nocover
-        logger.exception("Unhandled exception.")
-        return 1
-    else:
-        return 0
+            done = plot_run.plot_run_comparison(
+                logger, session, ref_run, other_runs, outdir, columns
+            )
+            msg = f"Wrote {done} images to {outdir}/{ref_run.configuration.method}_identity_{run_id}_vs_*.*"
+            logger.info(msg)
+            session.close()
+        except Exception:  # pragma: nocover
+            logger.exception("Unhandled exception.")
+            return 1
+        else:
+            return 0
 
 
 @app.command("classify", rich_help_panel="Commands")
@@ -1203,100 +1206,108 @@ def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
         logger.warning(msg)
         outdir.mkdir()
 
-    session = db_orm.connect_to_db(logger, database)
-    run = db_orm.load_run(session, run_id, check_complete=True)
-    if run_id is None:
-        run_id = run.run_id
-        msg = f"Exporting run-id {run_id}"
-        logger.info(msg)
+    with db_orm.connect_to_db(logger, database) as session:
+        run = db_orm.load_run(session, run_id, check_complete=True)
+        if run_id is None:
+            run_id = run.run_id
+            msg = f"Exporting run-id {run_id}"
+            logger.info(msg)
 
-    method = run.configuration.method
+        method = run.configuration.method
 
-    matrix = None
-    if mode == "identity":
-        matrix = run.identities
-    elif mode == "tANI" and run.tani is not None:
-        matrix = run.tani.where(run.tani.isna(), run.tani * -1)
+        matrix = None
+        if mode == "identity":
+            matrix = run.identities
+        elif mode == "tANI" and run.tani is not None:
+            matrix = run.tani.where(run.tani.isna(), run.tani * -1)
 
-    if matrix is None:
-        msg = f"Could not load run {method} matrix"  # pragma: no cover
-        log_sys_exit(logger, msg)  # pragma: no cover
+        if matrix is None:
+            msg = f"Could not load run {method} matrix"  # pragma: no cover
+            log_sys_exit(logger, msg)  # pragma: no cover
 
-    done = run.comparisons().count()
-    run_genomes = run.genomes.count()
+        done = run.comparisons().count()
+        run_genomes = run.genomes.count()
 
-    single_genome_run = False
-    if done == 1 and run_genomes == 1:
-        single_genome_run = True
-        msg = f"Run {run_id} has {done} comparison across {run_genomes} genome. Reporting single clique."
-        logger.warning(msg)
-    else:
-        msg = f"Run {run_id} has {done} comparisons across {run_genomes} genomes."
-        logger.info(msg)
-
-    cov = run.cov_query
-    if cov is None:  # pragma: no cover
-        msg = f"Could not load run {method} matrix"
-        log_sys_exit(logger, msg)
-
-    try:
-        score_matrix = run.relabelled_matrix(matrix, label)
-        cov = run.relabelled_matrix(cov, label)
-    except ValueError as err:
-        msg = f"{err}"
-        log_sys_exit(logger, msg)
-
-    try:
-        # Map the string inputs to callable functions
-        coverage_agg_func = classify.AGG_FUNCS[coverage_edges]
-        identity_agg_func = classify.AGG_FUNCS[score_edges]
-
-        # Construct the graph with the correct functions
-        complete_graph = classify.construct_graph(
-            cov, score_matrix, coverage_agg_func, identity_agg_func, cov_min
-        )
-        # Finding cliques
-        if len(list(nx.connected_components(complete_graph))) != 1:
-            initial_cliques = classify.find_initial_cliques(complete_graph)
+        single_genome_run = False
+        if done == 1 and run_genomes == 1:
+            single_genome_run = True
+            msg = f"Run {run_id} has {done} comparison across {run_genomes} genome. Reporting single clique."
+            logger.warning(msg)
         else:
-            initial_cliques = []
-        recursive_cliques = classify.find_cliques_recursively(complete_graph)
+            msg = f"Run {run_id} has {done} comparisons across {run_genomes} genomes."
+            logger.info(msg)
 
-        # Get a list of unique cliques to avoid duplicates. Prioritise initial_cliques
-        unique_cliques = classify.get_unique_cliques(initial_cliques, recursive_cliques)
+        cov = run.cov_query
+        if cov is None:  # pragma: no cover
+            msg = f"Could not load run {method} matrix"
+            log_sys_exit(logger, msg)
 
-        # Determine column name based on mode
-        suffix = "identity" if mode == EnumModeClassify.identity else "-tANI"
-        column_map = {
-            "min_score": f"min_{suffix}",
-            "max_score": f"max_{suffix}",
-        }
+        try:
+            score_matrix = run.relabelled_matrix(matrix, label)
+            cov = run.relabelled_matrix(cov, label)
+        except ValueError as err:
+            msg = f"{err}"
+            log_sys_exit(logger, msg)
 
-        # Writing the results to .tsv
-        _clique_data, clique_df = classify.compute_classify_output(
-            unique_cliques, method, outdir, column_map
-        )
-        msg = f"Wrote classify output to {outdir}"
-        logger.info(msg)
+        try:
+            # Map the string inputs to callable functions
+            coverage_agg_func = classify.AGG_FUNCS[coverage_edges]
+            identity_agg_func = classify.AGG_FUNCS[score_edges]
 
-        # Only plot classify if more than one genome in comparisons and the initial graph consist of at least one clique
-        if not single_genome_run:
-            if set(clique_df["n_nodes"]) == {1}:
-                msg = "All genomes are singletons. No plot can be generated."
-                logger.warning(msg)
+            # Construct the graph with the correct functions
+            complete_graph = classify.construct_graph(
+                cov, score_matrix, coverage_agg_func, identity_agg_func, cov_min
+            )
+            # Finding cliques
+            if len(list(nx.connected_components(complete_graph))) != 1:
+                initial_cliques = classify.find_initial_cliques(complete_graph)
             else:
-                logger.info("Plotting classify output...")
-                genome_groups = classify.get_genome_cligue_ids(clique_df, suffix)
-                genome_positions = classify.get_genome_order(genome_groups)
-                classify.plot_classify(
-                    genome_positions, clique_df, outdir, method, suffix, vertical_line
-                )
-        session.close()
-    except Exception:  # pragma: nocover
-        logger.exception("Unhandled exception.")
-        return 1
-    else:
-        return 0
+                initial_cliques = []
+            recursive_cliques = classify.find_cliques_recursively(complete_graph)
+
+            # Get a list of unique cliques to avoid duplicates. Prioritise initial_cliques
+            unique_cliques = classify.get_unique_cliques(
+                initial_cliques, recursive_cliques
+            )
+
+            # Determine column name based on mode
+            suffix = "identity" if mode == EnumModeClassify.identity else "-tANI"
+            column_map = {
+                "min_score": f"min_{suffix}",
+                "max_score": f"max_{suffix}",
+            }
+
+            # Writing the results to .tsv
+            _clique_data, clique_df = classify.compute_classify_output(
+                unique_cliques, method, outdir, column_map
+            )
+            msg = f"Wrote classify output to {outdir}"
+            logger.info(msg)
+
+            # Only plot classify if more than one genome in comparisons and
+            # the initial graph consist of at least one clique
+            if not single_genome_run:
+                if set(clique_df["n_nodes"]) == {1}:
+                    msg = "All genomes are singletons. No plot can be generated."
+                    logger.warning(msg)
+                else:
+                    logger.info("Plotting classify output...")
+                    genome_groups = classify.get_genome_cligue_ids(clique_df, suffix)
+                    genome_positions = classify.get_genome_order(genome_groups)
+                    classify.plot_classify(
+                        genome_positions,
+                        clique_df,
+                        outdir,
+                        method,
+                        suffix,
+                        vertical_line,
+                    )
+            session.close()
+        except Exception:  # pragma: nocover
+            logger.exception("Unhandled exception.")
+            return 1
+        else:
+            return 0
 
 
 if __name__ == "__main__":  # pragma: no cover

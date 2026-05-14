@@ -299,30 +299,33 @@ def run_method(  # noqa: PLR0913, PLR0915
             )
 
             # Reconnect to the DB
-            session = db_orm.connect_to_db(logger, database)
-            run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
-            done = run.comparisons().count()
-
-            if done < n**2:  # pragma: no cover
-                logger.debug(
-                    "Importing final JSON files, as not all comparisons in DB (yet)"
+            with db_orm.connect_to_db(logger, database) as _session:
+                run = (
+                    _session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
                 )
-                # Can happen if progress-bar thread didn't finish in time
-                for json in target_paths:
-                    private_cli.import_json_comparisons(logger, session, json)
                 done = run.comparisons().count()
 
-    if done != n**2:
-        # There is no obvious way to test this hypothetical failure:
-        msg = f"Only have {done} of {n}²={n**2} {method} comparisons needed"  # pragma: no cover
-        log_sys_exit(logger, msg)  # pragma: no cover
+                if done < n**2:  # pragma: no cover
+                    logger.debug(
+                        "Importing final JSON files, as not all comparisons in DB (yet)"
+                    )
+                    # Can happen if progress-bar thread didn't finish in time
+                    for json in target_paths:
+                        private_cli.import_json_comparisons(logger, _session, json)
+                    done = run.comparisons().count()
 
-    run.cache_comparisons()  # will this needs a progress bar too with large n?
-    run.status = "Done"
-    session.commit()
-    msg = f"Completed {method} run-id {run_id} with {n} genomes in database {database}"
-    logger.info(msg)
-    session.close()
+                if done != n**2:
+                    # There is no obvious way to test this hypothetical failure:
+                    msg = f"Only have {done} of {n}²={n**2} {method} comparisons needed"  # pragma: no cover
+                    log_sys_exit(logger, msg)  # pragma: no cover
+
+                run.cache_comparisons()  # will this needs a progress bar too with large n?
+                run.status = "Done"
+                _session.commit()
+
+            msg = f"Completed {method} run-id {run_id} with {n} genomes in database {database}"
+            logger.info(msg)
+
     return 0
 
 

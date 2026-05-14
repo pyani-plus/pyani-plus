@@ -248,23 +248,22 @@ def log_configuration(  # noqa: PLR0913
 
     msg = f"Logging configuration to '{database}'"
     logger.info(msg)
-    session = db_orm.connect_to_db(logger, database)
-    config = db_orm.db_configuration(
-        session=session,
-        method=method,
-        program=program,
-        version=version,
-        fragsize=fragsize,
-        mode=mode,
-        kmersize=kmersize,
-        minmatch=minmatch,
-        extra=extra,
-        create=True,
-    )
-    session.commit()  # should be redundant
-    msg = f"Configuration identifier {config.configuration_id}"
-    logger.info(msg)
-    session.close()
+    with db_orm.connect_to_db(logger, database) as session:
+        config = db_orm.db_configuration(
+            session=session,
+            method=method,
+            program=program,
+            version=version,
+            fragsize=fragsize,
+            mode=mode,
+            kmersize=kmersize,
+            minmatch=minmatch,
+            extra=extra,
+            create=True,
+        )
+        session.commit()  # should be redundant
+        msg = f"Configuration identifier {config.configuration_id}"
+        logger.info(msg)
 
     return 0
 
@@ -287,22 +286,21 @@ def log_genome(
 
     msg = f"Logging genome to '{database}'"
     logger.info(msg)
-    session = db_orm.connect_to_db(logger, database)
+    with db_orm.connect_to_db(logger, database) as session:
+        from rich.progress import Progress  # noqa: PLC0415
 
-    from rich.progress import Progress  # noqa: PLC0415
+        from pyani_plus import PROGRESS_BAR_COLUMNS  # noqa: PLC0415
+        from pyani_plus.utils import file_md5sum  # noqa: PLC0415
 
-    from pyani_plus import PROGRESS_BAR_COLUMNS  # noqa: PLC0415
-    from pyani_plus.utils import file_md5sum  # noqa: PLC0415
+        file_total = 0
+        if fasta:
+            with Progress(*PROGRESS_BAR_COLUMNS) as progress:
+                for filename in progress.track(fasta, description="Processing..."):
+                    file_total += 1
+                    md5 = file_md5sum(filename)
+                    db_orm.db_genome(logger, session, filename, md5, create=True)
+        session.commit()
 
-    file_total = 0
-    if fasta:
-        with Progress(*PROGRESS_BAR_COLUMNS) as progress:
-            for filename in progress.track(fasta, description="Processing..."):
-                file_total += 1
-                md5 = file_md5sum(filename)
-                db_orm.db_genome(logger, session, filename, md5, create=True)
-    session.commit()
-    session.close()
     msg = f"Processed {file_total} FASTA files"
     logger.info(msg)
     return 0
@@ -341,54 +339,55 @@ def log_run(  # noqa: PLR0913
 
     msg = f"Logging run to '{database}'"
     logger.info(msg)
-    session = db_orm.connect_to_db(logger, database)
+    with db_orm.connect_to_db(logger, database) as session:
+        # Reuse existing config, or log a new one
+        config = db_orm.db_configuration(
+            session=session,
+            method=method,
+            program=program,
+            version=version,
+            fragsize=fragsize,
+            mode=mode,
+            kmersize=kmersize,
+            minmatch=minmatch,
+            extra=extra,
+            create=True,
+        )
 
-    # Reuse existing config, or log a new one
-    config = db_orm.db_configuration(
-        session=session,
-        method=method,
-        program=program,
-        version=version,
-        fragsize=fragsize,
-        mode=mode,
-        kmersize=kmersize,
-        minmatch=minmatch,
-        extra=extra,
-        create=True,
-    )
+        from rich.progress import Progress  # noqa: PLC0415
 
-    from rich.progress import Progress  # noqa: PLC0415
+        from pyani_plus import PROGRESS_BAR_COLUMNS  # noqa: PLC0415
+        from pyani_plus.utils import check_fasta, file_md5sum  # noqa: PLC0415
 
-    from pyani_plus import PROGRESS_BAR_COLUMNS  # noqa: PLC0415
-    from pyani_plus.utils import check_fasta, file_md5sum  # noqa: PLC0415
+        fasta_to_hash = {}
+        fasta_names = check_fasta(logger, fasta)
+        if fasta_names:
+            # Reuse existing genome entries and/or log new ones
+            with Progress(*PROGRESS_BAR_COLUMNS) as progress:
+                for filename in progress.track(
+                    fasta_names, description="Processing..."
+                ):
+                    md5 = file_md5sum(filename)
+                    fasta_to_hash[filename] = md5
+                    db_orm.db_genome(logger, session, filename, md5, create=True)
 
-    fasta_to_hash = {}
-    fasta_names = check_fasta(logger, fasta)
-    if fasta_names:
-        # Reuse existing genome entries and/or log new ones
-        with Progress(*PROGRESS_BAR_COLUMNS) as progress:
-            for filename in progress.track(fasta_names, description="Processing..."):
-                md5 = file_md5sum(filename)
-                fasta_to_hash[filename] = md5
-                db_orm.db_genome(logger, session, filename, md5, create=True)
+        run = db_orm.add_run(
+            session,
+            config,
+            cmdline,
+            fasta,
+            status,
+            name,
+            date=None,
+            fasta_to_hash=fasta_to_hash,
+        )
+        # No point caching empty matrices, even partial ones is debatable
+        if run.comparisons().count() == len(fasta_to_hash) ** 2:
+            run.cache_comparisons()
+        run_id = run.run_id
 
-    run = db_orm.add_run(
-        session,
-        config,
-        cmdline,
-        fasta,
-        status,
-        name,
-        date=None,
-        fasta_to_hash=fasta_to_hash,
-    )
-    # No point caching empty matrices, even partial ones is debatable
-    if run.comparisons().count() == len(fasta_to_hash) ** 2:
-        run.cache_comparisons()
-    run_id = run.run_id
+        session.commit()
 
-    session.commit()
-    session.close()
     msg = f"Run identifier {run_id}"
     logger.info(msg)
     return 0
@@ -417,37 +416,38 @@ def log_comparison(  # noqa: PLR0913
 
     msg = f"Logging comparison to '{database}'"
     logger.info(msg)
-    session = db_orm.connect_to_db(logger, database)
-    # Give a better error message that if adding comparison fails:
-    if (
-        not session.query(db_orm.Configuration)
-        .where(db_orm.Configuration.configuration_id == config_id)
-        .count()
-    ):
-        msg = f"{database} does not contain configuration_id={config_id}"
-        log_sys_exit(logger, msg)
+    with db_orm.connect_to_db(logger, database) as session:
+        # Give a better error message that if adding comparison fails:
+        if (
+            not session.query(db_orm.Configuration)
+            .where(db_orm.Configuration.configuration_id == config_id)
+            .count()
+        ):
+            msg = f"{database} does not contain configuration_id={config_id}"
+            log_sys_exit(logger, msg)
 
-    from pyani_plus.utils import file_md5sum  # noqa: PLC0415
+        from pyani_plus.utils import file_md5sum  # noqa: PLC0415
 
-    query_md5 = file_md5sum(query_fasta)
-    db_orm.db_genome(logger, session, query_fasta, query_md5)
+        query_md5 = file_md5sum(query_fasta)
+        db_orm.db_genome(logger, session, query_fasta, query_md5)
 
-    subject_md5 = file_md5sum(subject_fasta)
-    db_orm.db_genome(logger, session, subject_fasta, subject_md5)
+        subject_md5 = file_md5sum(subject_fasta)
+        db_orm.db_genome(logger, session, subject_fasta, subject_md5)
 
-    db_orm.db_comparison(
-        session,
-        configuration_id=config_id,
-        query_hash=query_md5,
-        subject_hash=subject_md5,
-        identity=identity,
-        aln_length=aln_length,
-        sim_errors=sim_errors,
-        cov_query=cov_query,
-        cov_subject=cov_subject,
-    )
+        db_orm.db_comparison(
+            session,
+            configuration_id=config_id,
+            query_hash=query_md5,
+            subject_hash=subject_md5,
+            identity=identity,
+            aln_length=aln_length,
+            sim_errors=sim_errors,
+            cov_query=cov_query,
+            cov_subject=cov_subject,
+        )
 
-    session.commit()
+        session.commit()
+
     return 0
 
 
@@ -649,23 +649,28 @@ def import_comparisons(
 
     msg = f"Logging comparison to '{database}'"
     logger.info(msg)
-    session = db_orm.connect_to_db(logger, database)
+    with db_orm.connect_to_db(logger, database) as session:
+        if (
+            session.execute(
+                select(func.count()).select_from(db_orm.Configuration)
+            ).scalar()
+            == 0
+        ):
+            msg = f"{database} does not contain any configurations"
+            log_sys_exit(logger, msg)
 
-    if (
-        session.execute(select(func.count()).select_from(db_orm.Configuration)).scalar()
-        == 0
-    ):
-        msg = f"{database} does not contain any configurations"
-        log_sys_exit(logger, msg)
+        if (
+            session.execute(select(func.count()).select_from(db_orm.Genome)).scalar()
+            == 0
+        ):
+            msg = f"{database} does not contain any genomes"
+            log_sys_exit(logger, msg)
 
-    if session.execute(select(func.count()).select_from(db_orm.Genome)).scalar() == 0:
-        msg = f"{database} does not contain any genomes"
-        log_sys_exit(logger, msg)
+        for filename in json:
+            count = import_json_comparisons(logger, session, filename)
+            msg = f"Imported {count} from '{filename}'"
+            logger.info(msg)
 
-    for filename in json:
-        count = import_json_comparisons(logger, session, filename)
-        msg = f"Imported {count} from '{filename}'"
-        logger.info(msg)
     return 0
 
 
@@ -695,15 +700,15 @@ def prepare_genomes(
     if database != ":memory:" and not Path(database).is_file():
         msg = f"Database '{database}' does not exist"
         log_sys_exit(logger, msg)
-    session = db_orm.connect_to_db(logger, database)
-    run = db_orm.load_run(session, run_id)
-    try:
-        return prepare(logger, run, cache)
-    except Exception as err:  # pragma: nocover
-        logger.exception("Unhandled exception:")
-        msg = f"Unhandled exception preparing genomes: {err}"
-        log_sys_exit(logger, msg)
-        return 1  # for mypy
+    with db_orm.connect_to_db(logger, database) as session:
+        run = db_orm.load_run(session, run_id)
+        try:
+            return prepare(logger, run, cache)
+        except Exception as err:  # pragma: nocover
+            logger.exception("Unhandled exception:")
+            msg = f"Unhandled exception preparing genomes: {err}"
+            log_sys_exit(logger, msg)
+            return 1  # for mypy
 
 
 def prepare(logger: logging.Logger, run: db_orm.Run, cache: Path) -> int:

@@ -58,54 +58,55 @@ def progress_bar_via_db_comparisons(
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     logger = setup_logger(None)  # this is not on the main thead!
-    session = db_orm.connect_to_db(logger, database)
-    run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+    with db_orm.connect_to_db(logger, database) as session:
+        run = session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
 
-    already_done = run.comparisons().count()
-    total = run.genomes.count() ** 2 - already_done
+        already_done = run.comparisons().count()
+        total = run.genomes.count() ** 2 - already_done
 
-    json_time_stamps: dict[Path, float] = {}
-    json_counts: dict[Path, int] = {}
-    with Progress(*PROGRESS_BAR_COLUMNS) as progress:
-        task = progress.add_task("Comparing pairs", total=total)
-        while sum(json_counts.values()) < total:
-            time.sleep(interval)
+        json_time_stamps: dict[Path, float] = {}
+        json_counts: dict[Path, int] = {}
+        with Progress(*PROGRESS_BAR_COLUMNS) as progress:
+            task = progress.add_task("Comparing pairs", total=total)
+            while sum(json_counts.values()) < total:
+                time.sleep(interval)
 
-            # Have there been any JSON changes? Try to minimise disk access
-            for json in json_files:
-                try:
-                    if (
-                        # If new file import it
-                        json not in json_time_stamps and json.is_file()
-                    ):
-                        json_time_stamps[json] = time.time()
-                        count = import_json_comparisons(logger, session, json)
-                        msg = f"Loaded '{json.name}', {count} entries"
-                        logger.debug(msg)
-                        if count:
-                            progress.update(task, advance=count)
-                        json_counts[json] = count
-                    elif (
-                        json in json_time_stamps  # existing file
-                        and json_time_stamps[json] + 10
-                        < time.time()  # imported over 10s ago
-                        and json.is_file()  # and still there
-                    ):  # pragma: no cover
-                        last_checked = time.time()
-                        if json_time_stamps[json] < json.stat().st_mtime:
+                # Have there been any JSON changes? Try to minimise disk access
+                for json in json_files:
+                    try:
+                        if (
+                            # If new file import it
+                            json not in json_time_stamps and json.is_file()
+                        ):
+                            json_time_stamps[json] = time.time()
                             count = import_json_comparisons(logger, session, json)
-                            msg = f"Reloaded '{json.name}', now {count} entries"
+                            msg = f"Loaded '{json.name}', {count} entries"
                             logger.debug(msg)
                             if count:
-                                progress.update(task, advance=count - json_counts[json])
-                                json_counts[json] = count
-                        # Update last checked time (even if didn't reload file):
-                        json_time_stamps[json] = last_checked
-                except Exception:  # pragma: no cover
-                    # e.g. stat failed
-                    msg = f"Unhandled exception with '{json}':"
-                    logger.exception(msg)
-    session.close()
+                                progress.update(task, advance=count)
+                            json_counts[json] = count
+                        elif (
+                            json in json_time_stamps  # existing file
+                            and json_time_stamps[json] + 10
+                            < time.time()  # imported over 10s ago
+                            and json.is_file()  # and still there
+                        ):  # pragma: no cover
+                            last_checked = time.time()
+                            if json_time_stamps[json] < json.stat().st_mtime:
+                                count = import_json_comparisons(logger, session, json)
+                                msg = f"Reloaded '{json.name}', now {count} entries"
+                                logger.debug(msg)
+                                if count:
+                                    progress.update(
+                                        task, advance=count - json_counts[json]
+                                    )
+                                    json_counts[json] = count
+                            # Update last checked time (even if didn't reload file):
+                            json_time_stamps[json] = last_checked
+                    except Exception:  # pragma: no cover
+                        # e.g. stat failed
+                        msg = f"Unhandled exception with '{json}':"
+                        logger.exception(msg)
 
 
 def run_snakemake_with_progress_bar(  # noqa: PLR0913

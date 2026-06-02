@@ -29,9 +29,8 @@ the private and public API definitions without needed to import from each other
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
-import click
 import typer
 
 from pyani_plus import FASTA_EXTENSIONS, LOG_FILE, __version__
@@ -280,9 +279,8 @@ OPT_ARG_TYPE_CACHE = Annotated[
 ]
 # Would like to replace this with Literal["md5", "filename", "stem"] once typer updated
 OPT_ARG_TYPE_LABEL = Annotated[
-    str,
+    Literal["md5", "filename", "stem"],
     typer.Option(
-        click_type=click.Choice(["md5", "filename", "stem"]),
         help="How to label the genomes.",
     ),
 ]

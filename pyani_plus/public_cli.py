@@ -33,9 +33,8 @@ import tempfile
 from contextlib import nullcontext
 from math import log as math_log
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
-import click
 import networkx as nx
 import typer
 from rich.console import Console
@@ -618,11 +617,10 @@ def external_alignment(  # noqa: PLR0913
         ),
     ],
     label: Annotated[
-        str,
+        Literal["md5", "filename", "stem"],
         typer.Option(
-            click_type=click.Choice(["md5", "filename", "stem"]),
             rich_help_panel="Method parameters",
-            help="How are the sequences in the MSA labelled vs the FASTA genomes?",
+            help="How are the sequences in the MSA labeled vs the FASTA genomes?",
         ),
     ] = "stem",
 ) -> int:
@@ -902,7 +900,7 @@ def delete_run(
         confirm = True
 
     if confirm and not force:
-        click.confirm("Do you want to continue?", abort=True)  # pragma: no cover
+        typer.confirm("Do you want to continue?", abort=True)  # pragma: no cover
 
     # Plan to offer an extended mode, perhaps --all, which will also
     # delete orphaned entries in the configuration,  genomes, and

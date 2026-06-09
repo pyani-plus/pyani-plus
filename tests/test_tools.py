@@ -131,6 +131,20 @@ def test_fake_skani() -> None:
         tools.get_skani(cmd)
 
 
+def test_fake_minimap() -> None:
+    """Confirm simple minimap2 version parsing works."""
+    info = tools.get_minimap2(
+        "tests/fixtures/tools/mock_minimap2"
+    )  # outputs "3.1.4-r999"
+    assert info.exe_path == Path("tests/fixtures/tools/mock_minimap2").resolve()
+    assert info.version == "3.1.4"
+
+    cmd = Path("tests/fixtures/tools/cutting_edge")  # no numerical output
+    msg = f"Executable exists at {cmd.resolve()} but could not retrieve version"
+    with pytest.raises(RuntimeError, match=msg):
+        tools.get_minimap2(cmd)
+
+
 def test_fake_nucmer() -> None:
     """Confirm simple nucmer version parsing works."""
     info = tools.get_nucmer("tests/fixtures/tools/just_one")  # parsed like mummer v4
@@ -233,6 +247,14 @@ def test_find_fastani() -> None:
     info = tools.get_fastani()
     assert info.exe_path.parts[-1] == "fastANI"
     assert info.version.startswith("1.")
+
+
+def test_find_minimap2() -> None:
+    """Confirm can find minimap2 on $PATH and determine its version."""
+    # At the time of writing this dependency is installed for CI testing
+    info = tools.get_minimap2()
+    assert info.exe_path.parts[-1] == "minimap2"
+    assert info.version.startswith("2.")
 
 
 def test_find_nucmer() -> None:

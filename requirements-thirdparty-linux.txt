@@ -1,6 +1,7 @@
 blast
 fastani
 matplotlib-base>=3.10.0
+minimap2>=2.30
 mummer=3.23
 seaborn-base>=0.13.2
 skani

@@ -141,12 +141,12 @@ def test_simple_mock_alignment_stem(
     assert "external-alignment run setup with 3 genomes" in output, output
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
 
-    run = db_orm.load_run(session, 1, check_complete=True)
-    assert run.df_identity == MOCK_3_BY_11_DF_IDENTITY
-    assert run.df_cov_query == MOCK_3_BY_11_DF_COV_QUERY
+        run = db_orm.load_run(session, 1, check_complete=True)
+        assert run.df_identity == MOCK_3_BY_11_DF_IDENTITY
+        assert run.df_cov_query == MOCK_3_BY_11_DF_COV_QUERY
 
 
 def test_simple_mock_alignment_md5(
@@ -180,15 +180,15 @@ CGGAT
     assert "external-alignment run setup with 3 genomes" in output, output
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
-    run = db_orm.load_run(session, 1, check_complete=True)
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
+        run = db_orm.load_run(session, 1, check_complete=True)
 
-    assert run.df_identity == (
-        '{"columns":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
-        '"index":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
-        '"data":[[1.0,0.8,0.8],[0.8,1.0,0.8],[0.8,0.8,1.0]]}'
-    )
+        assert run.df_identity == (
+            '{"columns":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
+            '"index":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
+            '"data":[[1.0,0.8,0.8],[0.8,1.0,0.8],[0.8,0.8,1.0]]}'
+        )
 
 
 def test_simple_mock_alignment_filename(
@@ -226,14 +226,14 @@ def test_simple_mock_alignment_filename(
     assert "external-alignment run setup with 3 genomes" in output, output
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
-    run = db_orm.load_run(session, 1, check_complete=True)
-    assert run.df_identity == (
-        '{"columns":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
-        '"index":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
-        '"data":[[1.0,0.8,0.8],[0.8,1.0,0.8],[0.8,0.8,1.0]]}'
-    )
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
+        run = db_orm.load_run(session, 1, check_complete=True)
+        assert run.df_identity == (
+            '{"columns":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
+            '"index":["5584c7029328dc48d33f95f0a78f7e57","689d3fd6881db36b5e08329cf23cecdd","78975d5144a1cd12e98898d573cf6536"],'
+            '"data":[[1.0,0.8,0.8],[0.8,1.0,0.8],[0.8,0.8,1.0]]}'
+        )
 
 
 def test_resume(
@@ -273,11 +273,11 @@ def test_resume(
     ), output
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
-    run = db_orm.load_run(session, 1, check_complete=True)
-    assert run.df_identity == MOCK_3_BY_11_DF_IDENTITY
-    assert run.df_cov_query == MOCK_3_BY_11_DF_COV_QUERY
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
+        run = db_orm.load_run(session, 1, check_complete=True)
+        assert run.df_identity == MOCK_3_BY_11_DF_IDENTITY
+        assert run.df_cov_query == MOCK_3_BY_11_DF_COV_QUERY
 
 
 def test_resume_partial(
@@ -328,11 +328,11 @@ def test_resume_partial(
     ), output
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
-    run = db_orm.load_run(session, 1, check_complete=True)
-    assert run.df_identity == MOCK_3_BY_11_DF_IDENTITY
-    assert run.df_cov_query == MOCK_3_BY_11_DF_COV_QUERY
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        assert session.query(db_orm.Comparison).count() == 9  # noqa: PLR2004
+        run = db_orm.load_run(session, 1, check_complete=True)
+        assert run.df_identity == MOCK_3_BY_11_DF_IDENTITY
+        assert run.df_cov_query == MOCK_3_BY_11_DF_COV_QUERY
 
 
 def test_bad_resume(
@@ -418,17 +418,16 @@ def test_wrong_method(
     )
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    run = db_orm.load_run(session, 1)
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        run = db_orm.load_run(session, 1)
 
-    with pytest.raises(
-        SystemExit,
-        match="Run-id 1 expected guessing results",
-    ):
-        private_cli.compute_external_alignment(
-            logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
-        )
-    session.close()
+        with pytest.raises(
+            SystemExit,
+            match="Run-id 1 expected guessing results",
+        ):
+            private_cli.compute_external_alignment(
+                logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
+            )
 
 
 def test_bad_program(
@@ -454,17 +453,16 @@ def test_bad_program(
     )
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    run = db_orm.load_run(session, 1)
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        run = db_orm.load_run(session, 1)
 
-    with pytest.raises(
-        SystemExit,
-        match=r"configuration\.program='should-be-blank' unexpected",
-    ):
-        private_cli.compute_external_alignment(
-            logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
-        )
-    session.close()
+        with pytest.raises(
+            SystemExit,
+            match=r"configuration\.program='should-be-blank' unexpected",
+        ):
+            private_cli.compute_external_alignment(
+                logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
+            )
 
 
 def test_bad_version(
@@ -490,17 +488,16 @@ def test_bad_version(
     )
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    run = db_orm.load_run(session, 1)
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        run = db_orm.load_run(session, 1)
 
-    with pytest.raises(
-        SystemExit,
-        match=r"configuration\.version='should-be-blank' unexpected",
-    ):
-        private_cli.compute_external_alignment(
-            logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
-        )
-    session.close()
+        with pytest.raises(
+            SystemExit,
+            match=r"configuration\.version='should-be-blank' unexpected",
+        ):
+            private_cli.compute_external_alignment(
+                logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
+            )
 
 
 def test_no_config(
@@ -526,17 +523,16 @@ def test_no_config(
     )
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    run = db_orm.load_run(session, 1)
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        run = db_orm.load_run(session, 1)
 
-    with pytest.raises(
-        SystemExit,
-        match=r"Missing configuration\.extra setting",
-    ):
-        private_cli.compute_external_alignment(
-            logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
-        )
-    session.close()
+        with pytest.raises(
+            SystemExit,
+            match=r"Missing configuration\.extra setting",
+        ):
+            private_cli.compute_external_alignment(
+                logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
+            )
 
 
 def test_bad_config(
@@ -561,17 +557,16 @@ def test_bad_config(
     )
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    run = db_orm.load_run(session)
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        run = db_orm.load_run(session)
 
-    with pytest.raises(
-        SystemExit,
-        match=r"configuration\.extra='file=example\.fasta;md5=XXX;label=stem' unexpected",
-    ):
-        private_cli.compute_external_alignment(
-            logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
-        )
-    session.close()
+        with pytest.raises(
+            SystemExit,
+            match=r"configuration\.extra='file=example\.fasta;md5=XXX;label=stem' unexpected",
+        ):
+            private_cli.compute_external_alignment(
+                logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
+            )
 
 
 def test_missing_alignment(
@@ -597,17 +592,16 @@ def test_missing_alignment(
     )
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    run = db_orm.load_run(session)
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        run = db_orm.load_run(session)
 
-    with pytest.raises(
-        SystemExit,
-        match=r"Missing alignment file .*/does-not-exist\.fasta",
-    ):
-        private_cli.compute_external_alignment(
-            logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
-        )
-    session.close()
+        with pytest.raises(
+            SystemExit,
+            match=r"Missing alignment file .*/does-not-exist\.fasta",
+        ):
+            private_cli.compute_external_alignment(
+                logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
+            )
 
 
 def test_bad_checksum(
@@ -637,17 +631,16 @@ def test_bad_checksum(
     )
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    run = db_orm.load_run(session)
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        run = db_orm.load_run(session)
 
-    with pytest.raises(
-        SystemExit,
-        match=r"MD5 checksum of .*/example\.fasta didn't match.",
-    ):
-        private_cli.compute_external_alignment(
-            logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
-        )
-    session.close()
+        with pytest.raises(
+            SystemExit,
+            match=r"MD5 checksum of .*/example\.fasta didn't match.",
+        ):
+            private_cli.compute_external_alignment(
+                logger, tmp_dir, session, run, tmp_json, tmp_dir, {}, {}, {}, ""
+            )
 
 
 def test_bad_alignment(
@@ -686,33 +679,32 @@ AA
     )
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    run = db_orm.load_run(session)
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        run = db_orm.load_run(session)
 
-    with pytest.raises(
-        SystemExit,
-        match=(
-            "Bad external-alignment, different lengths 3 and 2"
-            " from MGV-GENOME-0266457 and MGV-GENOME-0264574"
-        ),
-    ):
-        private_cli.compute_external_alignment(
-            logger,
-            tmp_dir,
-            session,
-            run,
-            json_file,
-            tmp_dir,
-            {},
-            {},
-            {
-                "5584c7029328dc48d33f95f0a78f7e57": 57793,
-                "689d3fd6881db36b5e08329cf23cecdd": 39253,
-                "78975d5144a1cd12e98898d573cf6536": 39594,
-            },
-            "689d3fd6881db36b5e08329cf23cecdd",
-        )
-    session.close()
+        with pytest.raises(
+            SystemExit,
+            match=(
+                "Bad external-alignment, different lengths 3 and 2"
+                " from MGV-GENOME-0266457 and MGV-GENOME-0264574"
+            ),
+        ):
+            private_cli.compute_external_alignment(
+                logger,
+                tmp_dir,
+                session,
+                run,
+                json_file,
+                tmp_dir,
+                {},
+                {},
+                {
+                    "5584c7029328dc48d33f95f0a78f7e57": 57793,
+                    "689d3fd6881db36b5e08329cf23cecdd": 39253,
+                    "78975d5144a1cd12e98898d573cf6536": 39594,
+                },
+                "689d3fd6881db36b5e08329cf23cecdd",
+            )
 
 
 def test_partial_alignment(
@@ -749,30 +741,10 @@ AACT
     )
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    run = db_orm.load_run(session)
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        run = db_orm.load_run(session)
 
-    # This one should work...
-    private_cli.compute_external_alignment(
-        logger,
-        tmp_dir,
-        session,
-        run,
-        tmp_json,
-        tmp_dir,
-        {},
-        {},
-        {
-            "5584c7029328dc48d33f95f0a78f7e57": 57793,
-            "689d3fd6881db36b5e08329cf23cecdd": 39253,
-            "78975d5144a1cd12e98898d573cf6536": 39594,
-        },
-        "5584c7029328dc48d33f95f0a78f7e57",
-    )
-    with pytest.raises(
-        SystemExit,
-        match=r"Did not find subject 689d3fd6881db36b5e08329cf23cecdd in broken\.fasta",
-    ):
+        # This one should work...
         private_cli.compute_external_alignment(
             logger,
             tmp_dir,
@@ -787,6 +759,25 @@ AACT
                 "689d3fd6881db36b5e08329cf23cecdd": 39253,
                 "78975d5144a1cd12e98898d573cf6536": 39594,
             },
-            "689d3fd6881db36b5e08329cf23cecdd",
+            "5584c7029328dc48d33f95f0a78f7e57",
         )
-    session.close()
+        with pytest.raises(
+            SystemExit,
+            match=r"Did not find subject 689d3fd6881db36b5e08329cf23cecdd in broken\.fasta",
+        ):
+            private_cli.compute_external_alignment(
+                logger,
+                tmp_dir,
+                session,
+                run,
+                tmp_json,
+                tmp_dir,
+                {},
+                {},
+                {
+                    "5584c7029328dc48d33f95f0a78f7e57": 57793,
+                    "689d3fd6881db36b5e08329cf23cecdd": 39253,
+                    "78975d5144a1cd12e98898d573cf6536": 39594,
+                },
+                "689d3fd6881db36b5e08329cf23cecdd",
+            )

@@ -1,0 +1,3 @@
+qidx	ridx	query	reference	tani	gani	ani	qcov	num_alns	len_ratio
+1	0	NC_002696.fasta.gz	NC_002696.fasta.gz	0.999990	0.999990	0.999990	1	1	1
+0	1	NC_002696.fasta.gz	NC_002696.fasta.gz	0.999990	0.999990	0.999990	1	1	1

@@ -17,7 +17,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 dependencies = [
     "intervaltree",
-    "matplotlib",
+    "matplotlib !=3.11.0",
     "networkx>=3.4.2",
     "pandas",
     "rich",

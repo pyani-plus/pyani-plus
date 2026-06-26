@@ -174,10 +174,9 @@ def test_dnadiff(
         generated = next(tmp_dir.glob(f"*/{fname.name}"))
         assert compare_files_with_skip(fname, generated, skip=0)
 
-    session = connect_to_db(logger, db)
-    for json in json_targets:
-        import_json_comparisons(logger, session, json)
-    session.close()
+    with connect_to_db(logger, db) as session:
+        for json in json_targets:
+            import_json_comparisons(logger, session, json)
 
     compare_db_matrices(db, input_genomes_tiny / "matrices", absolute_tolerance=5e-5)
 
@@ -269,10 +268,9 @@ def test_dnadiff_bad_align(
         generated = next(tmp_dir.glob(f"*/{fname.name}"))
         assert compare_files_with_skip(fname, generated, skip=0)
 
-    session = connect_to_db(logger, db)
-    for json in json_targets:
-        import_json_comparisons(logger, session, json)
-    session.close()
+    with connect_to_db(logger, db) as session:
+        for json in json_targets:
+            import_json_comparisons(logger, session, json)
 
     compare_db_matrices(
         db, input_genomes_bad_alignments / "matrices", absolute_tolerance=5e-5

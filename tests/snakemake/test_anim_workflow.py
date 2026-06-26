@@ -142,10 +142,9 @@ def test_rule_ANIm(  # noqa: N802
         working_directory=tmp_dir,
         temp=tmp_dir,
     )
-    session = connect_to_db(logger, db)
-    for json in targets:
-        import_json_comparisons(logger, session, json)
-    session.close()
+    with connect_to_db(logger, db) as session:
+        for json in targets:
+            import_json_comparisons(logger, session, json)
 
     # Check the intermediate files
 
@@ -219,10 +218,9 @@ def test_rule_ANIm_bad_align(  # noqa: N802
         working_directory=tmp_dir,
         temp=tmp_dir,
     )
-    session = connect_to_db(logger, db)
-    for json in targets:
-        import_json_comparisons(logger, session, json)
-    session.close()
+    with connect_to_db(logger, db) as session:
+        for json in targets:
+            import_json_comparisons(logger, session, json)
 
     # Check delta-filter output against target fixtures
     for fname in (input_genomes_bad_alignments / "intermediates/ANIm").glob("*.filter"):

@@ -109,59 +109,59 @@ def test_running_anim(
     )
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    run = session.query(db_orm.Run).one()
-    assert run.run_id == 1
-    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
-    hash_to_length = {_.genome_hash: _.length for _ in run.genomes}
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        run = session.query(db_orm.Run).one()
+        assert run.run_id == 1
+        hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+        hash_to_length = {_.genome_hash: _.length for _ in run.genomes}
 
-    subject_hash = list(hash_to_filename)[1]
-    private_cli.compute_anim(
-        logger,
-        tmp_dir,
-        session,
-        run,
-        tmp_json,
-        input_genomes_tiny,
-        hash_to_filename,
-        {},  # not used for ANIm
-        query_hashes=hash_to_length,  # order should not matter!
-        subject_hash=subject_hash,
-    )
-
-    private_cli.import_json_comparisons(logger, session, tmp_json)
-
-    assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004
-    assert (
-        session.query(db_orm.Comparison)
-        .where(db_orm.Comparison.subject_hash == subject_hash)
-        .count()
-        == 3  # noqa: PLR2004
-    )
-
-    # Could check nucmer output against target fixtures?
-
-    # Check the intermediate delta-filter files
-    subject_stem = Path(hash_to_filename[subject_hash]).stem
-    for fname in (input_genomes_tiny / "intermediates/ANIb").glob(
-        f"*_vs_{subject_stem}.delta"
-    ):
-        assert (tmp_dir / fname.name).is_file(), list(tmp_dir.glob("*"))
-        assert filecmp.cmp(fname, tmp_dir / fname.name)
-
-    # No real need to test the ANI values here, will be done elsewhere.
-    for query_hash, query_filename in hash_to_filename.items():
-        pytest.approx(
-            get_matrix_entry(
-                input_genomes_tiny / "matrices/ANIm_identity.tsv",
-                Path(query_filename).stem,
-                Path(hash_to_filename[subject_hash]).stem,
-            )
-            == session.query(db_orm.Comparison)
-            .where(db_orm.Comparison.query_hash == query_hash)
-            .where(db_orm.Comparison.subject_hash == subject_hash)
-            .one()
-            .identity
+        subject_hash = list(hash_to_filename)[1]
+        private_cli.compute_anim(
+            logger,
+            tmp_dir,
+            session,
+            run,
+            tmp_json,
+            input_genomes_tiny,
+            hash_to_filename,
+            {},  # not used for ANIm
+            query_hashes=hash_to_length,  # order should not matter!
+            subject_hash=subject_hash,
         )
-    session.close()
+
+        private_cli.import_json_comparisons(logger, session, tmp_json)
+
+        assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004
+        assert (
+            session.query(db_orm.Comparison)
+            .where(db_orm.Comparison.subject_hash == subject_hash)
+            .count()
+            == 3  # noqa: PLR2004
+        )
+
+        # Could check nucmer output against target fixtures?
+
+        # Check the intermediate delta-filter files
+        subject_stem = Path(hash_to_filename[subject_hash]).stem
+        for fname in (input_genomes_tiny / "intermediates/ANIb").glob(
+            f"*_vs_{subject_stem}.delta"
+        ):
+            assert (tmp_dir / fname.name).is_file(), list(tmp_dir.glob("*"))
+            assert filecmp.cmp(fname, tmp_dir / fname.name)
+
+        # No real need to test the ANI values here, will be done elsewhere.
+        for query_hash, query_filename in hash_to_filename.items():
+            pytest.approx(
+                get_matrix_entry(
+                    input_genomes_tiny / "matrices/ANIm_identity.tsv",
+                    Path(query_filename).stem,
+                    Path(hash_to_filename[subject_hash]).stem,
+                )
+                == session.query(db_orm.Comparison)
+                .where(db_orm.Comparison.query_hash == query_hash)
+                .where(db_orm.Comparison.subject_hash == subject_hash)
+                .one()
+                .identity
+            )
+
     tmp_db.unlink()

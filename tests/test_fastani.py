@@ -68,29 +68,28 @@ def test_running_fastani(
     )
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    run = session.query(db_orm.Run).one()
-    assert run.run_id == 1
-    filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
-    hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
-    hash_to_lengths = {_.genome_hash: _.length for _ in run.genomes}
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        run = session.query(db_orm.Run).one()
+        assert run.run_id == 1
+        filename_to_hash = {_.fasta_filename: _.genome_hash for _ in run.fasta_hashes}
+        hash_to_filename = {_.genome_hash: _.fasta_filename for _ in run.fasta_hashes}
+        hash_to_lengths = {_.genome_hash: _.length for _ in run.genomes}
 
-    private_cli.compute_fastani(
-        logger,
-        tmp_dir,
-        session,
-        run,
-        tmp_json,
-        input_genomes_tiny,
-        hash_to_filename,
-        filename_to_hash,
-        query_hashes=hash_to_lengths,
-        subject_hash=list(hash_to_filename)[1],
-    )
+        private_cli.compute_fastani(
+            logger,
+            tmp_dir,
+            session,
+            run,
+            tmp_json,
+            input_genomes_tiny,
+            hash_to_filename,
+            filename_to_hash,
+            query_hashes=hash_to_lengths,
+            subject_hash=list(hash_to_filename)[1],
+        )
 
-    private_cli.import_json_comparisons(logger, session, tmp_json)
+        private_cli.import_json_comparisons(logger, session, tmp_json)
 
-    assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004
+        assert session.query(db_orm.Comparison).count() == 3  # noqa: PLR2004
 
-    session.close()
     tmp_db.unlink()

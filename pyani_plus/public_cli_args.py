@@ -29,9 +29,8 @@ the private and public API definitions without needed to import from each other
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
-import click
 import typer
 
 from pyani_plus import FASTA_EXTENSIONS, LOG_FILE, __version__
@@ -187,7 +186,7 @@ OPT_ARG_TYPE_TEMP_WORKFLOW = Annotated[
         " for debugging purposes will not be deleted. For clusters this must be"
         " on a shared drive. Default behaviour is to use a system specified"
         " temporary directory (for the local executor) or a temporary directory"
-        " under the present direct (for clusters), and remove this afterwards.",
+        " under the present directory (for clusters), and remove this afterwards.",
         rich_help_panel="Debugging",
         show_default=False,
         exists=True,
@@ -280,9 +279,8 @@ OPT_ARG_TYPE_CACHE = Annotated[
 ]
 # Would like to replace this with Literal["md5", "filename", "stem"] once typer updated
 OPT_ARG_TYPE_LABEL = Annotated[
-    str,
+    Literal["md5", "filename", "stem"],
     typer.Option(
-        click_type=click.Choice(["md5", "filename", "stem"]),
         help="How to label the genomes.",
     ),
 ]

@@ -50,7 +50,7 @@ def test_animinimap2_parsing(input_genomes_tiny: Path) -> None:
     assert animinimap2.parse_minimap2_paf_file(
         input_genomes_tiny
         / "intermediates"
-        / "animinimap2"
+        / "ANIminimap2"
         / "689d3fd6881db36b5e08329cf23cecdd_vs_689d3fd6881db36b5e08329cf23cecdd.minimap2"
     ) == (39251, 39251, 39250 * 2 / (39251 + 39251))
 
@@ -58,7 +58,7 @@ def test_animinimap2_parsing(input_genomes_tiny: Path) -> None:
     assert animinimap2.parse_minimap2_paf_file(
         input_genomes_tiny
         / "intermediates"
-        / "animinimap2"
+        / "ANIminimap2"
         / "5584c7029328dc48d33f95f0a78f7e57_vs_689d3fd6881db36b5e08329cf23cecdd.minimap2"
     ) == (39182, 39179, (38959 + 42) * 2 / (39182 + 39179))
 

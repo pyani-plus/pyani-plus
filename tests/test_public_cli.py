@@ -911,15 +911,41 @@ def test_fastani_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
     )
 
 
-def test_animinimap2_gzip(
-    tmp_path: str, input_genomes_tiny: Path, input_gzip_bacteria: Path
-) -> None:
+def test_animinimap2_gzip(tmp_path: str, input_gzip_bacteria: Path) -> None:
     """Check ANIminimap2 run (gzipped bacteria)."""
     tmp_dir = Path(tmp_path)
     tmp_db = tmp_dir / "animinimap2's  inputs are gzipped.db"
     public_cli.cli_animinimap2(
         database=tmp_db,
         fasta=input_gzip_bacteria,
+        name="Gzipped Run",
+        create_db=True,
+        temp=tmp_dir,
+    )
+
+    # The intermediate TSV files should match
+    for file in (input_gzip_bacteria / "intermediates/ANIminimap2").glob(
+        "*_vs_*.minimap2"
+    ):
+        assert filecmp.cmp(file, tmp_dir / file), (
+            f"Wrong minimap2 output in {file.name}"
+        )
+
+    # Confirm output matches
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
+    compare_matrix_files(
+        input_gzip_bacteria / "matrices" / "ANIminimap2_identity.tsv",
+        tmp_dir / "ANIminimap2_identity.tsv",
+    )
+
+
+def test_animinimap2_tiny(tmp_path: str, input_genomes_tiny: Path) -> None:
+    """Check ANIminimap2 run (viral example)."""
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "animinimap2 with viruses.db"
+    public_cli.cli_animinimap2(
+        database=tmp_db,
+        fasta=input_genomes_tiny,
         name="Gzipped Run",
         create_db=True,
         temp=tmp_dir,
@@ -936,7 +962,7 @@ def test_animinimap2_gzip(
     # Confirm output matches
     public_cli.export_run(database=tmp_db, outdir=tmp_dir)
     compare_matrix_files(
-        input_gzip_bacteria / "matrices" / "ANIminimap2_identity.tsv",
+        input_genomes_tiny / "matrices" / "ANIminimap2_identity.tsv",
         tmp_dir / "ANIminimap2_identity.tsv",
     )
 

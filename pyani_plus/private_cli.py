@@ -1487,6 +1487,7 @@ def compute_animinimap2(  # noqa: PLR0913, PLR0915
         logger,
         [
             str(tool.exe_path),
+            "--secondary=no",
             "-x",
             preset,
             "-d",

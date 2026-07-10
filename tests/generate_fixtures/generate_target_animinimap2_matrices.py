@@ -82,6 +82,7 @@ for query, subject in comparisons:
         subprocess.run(
             [
                 minimap2.exe_path,
+                "--secondary=no",
                 "-x",
                 "asm20",
                 "-o",

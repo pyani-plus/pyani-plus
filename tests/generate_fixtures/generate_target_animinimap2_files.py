@@ -63,6 +63,7 @@ for genomes in comparisons:
         subprocess.run(
             [
                 minimap2.exe_path,
+                "--secondary=no",
                 "-x",
                 "asm20",
                 inputs[genomes[1]],

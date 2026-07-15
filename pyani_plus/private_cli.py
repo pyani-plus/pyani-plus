@@ -2027,7 +2027,7 @@ def compute_lzani(  # noqa: PLR0913
     json_filename: Path,
     fasta_dir: Path,
     hash_to_filename: dict[str, str],
-    filename_to_hash: dict[str, str],  # noqa: ARG001
+    filename_to_hash: dict[str, str],
     query_hashes: dict[str, int],
     subject_hash: str,
     *,
@@ -2117,15 +2117,29 @@ def compute_lzani(  # noqa: PLR0913
             if not outpath.is_file():
                 msg = f"lz-ani didn't make {outpath}"  # pragma: no cover
                 log_sys_exit(logger, msg)  # pragma: no cover
-            fcomp, _rcomp = parse_lzani(outpath)
+            fcomp, rcomp = parse_lzani(outpath)
 
-            # Add forward comparison result only
+            # Add forward comparison result
             db_entries.append(
                 {
-                    "query_hash": query_hash,
-                    "subject_hash": subject_hash,
+                    "query_hash": filename_to_hash[fcomp[0]],
+                    "subject_hash": filename_to_hash[fcomp[1]],
                     "identity": fcomp[2],
                     "cov_query": fcomp[3],
+                    "configuration_id": config_id,
+                    "uname_system": uname_system,
+                    "uname_release": uname_release,
+                    "uname_machine": uname_machine,
+                }
+            )
+
+            # Add reverse comparison result
+            db_entries.append(
+                {
+                    "query_hash": filename_to_hash[rcomp[0]],
+                    "subject_hash": filename_to_hash[rcomp[1]],
+                    "identity": rcomp[2],
+                    "cov_query": rcomp[3],
                     "configuration_id": config_id,
                     "uname_system": uname_system,
                     "uname_release": uname_release,
@@ -2136,8 +2150,7 @@ def compute_lzani(  # noqa: PLR0913
             new += 1
             if not last_progress or time() - last_progress >= JSON_WINDOW:
                 export_json_db_entries(logger, json_filename, configuration, db_entries)
-                new = 0
-                last_progress = time()
+                new, last_progress = 0, time()
 
     except KeyboardInterrupt:  # pragma: no cover
         # Try to abort gracefully without wasting the work done.

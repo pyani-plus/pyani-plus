@@ -224,5 +224,5 @@ def test_json_import_errors(
     private_cli.import_comparisons(tmp_db, json=[tmp_json], debug=False, log=Path("-"))
 
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    assert session.query(db_orm.Comparison).count() == 1
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        assert session.query(db_orm.Comparison).count() == 1

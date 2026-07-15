@@ -906,7 +906,7 @@ def delete_run(
             confirm = True
 
         if confirm and not force:
-            click.confirm("Do you want to continue?", abort=True)  # pragma: no cover
+            typer.confirm("Do you want to continue?", abort=True)  # pragma: no cover
 
         # Plan to offer an extended mode, perhaps --all, which will also
         # delete orphaned entries in the configuration,  genomes, and

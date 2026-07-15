@@ -713,8 +713,8 @@ def prepare_genomes(
 
 def prepare(logger: logging.Logger, run: db_orm.Run, cache: Path) -> int:
     """Call prepare-genomes with a progress bar."""
-    n = run.genomes.count()  # type: ignore[call-arg]
-    done = run.comparisons().count()  # type: ignore[attr-defined]
+    n = run.genomes.count()
+    done = run.comparisons().count()
     if done == n**2:
         msg = f"Skipping preparation, run already has all {n**2}={n}² pairwise values"
         logger.info(msg)
@@ -1071,7 +1071,7 @@ def compute_fastani(  # noqa: PLR0913, PLR0915
                     # Proxy values:
                     "aln_length": None
                     if orthologous_matches is None
-                    else round(configuration.fragsize * orthologous_matches),  # type: ignore[operator]
+                    else round(configuration.fragsize * orthologous_matches),
                     "sim_errors": None
                     if fragments is None or orthologous_matches is None
                     else fragments - orthologous_matches,
@@ -1368,7 +1368,7 @@ def compute_anib(  # noqa: PLR0913, PLR0915
             anib.fragment_fasta_file(
                 fasta_dir / hash_to_filename[query_hash],
                 tmp_frag_query,
-                fragsize,  # type: ignore[arg-type]
+                fragsize,
             )
 
             msg = (
@@ -1798,7 +1798,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
     if not alignment.is_absolute():
         # If not absolute, assume MSA path relative to the DB.
         # Get the DB filename via the session connection binding
-        url = str(session.bind.url)  # type: ignore[union-attr]
+        url = str(session.bind.url)
         if not url.startswith("sqlite:///"):
             msg = (  # pragma: nocover
                 f"Expected SQLite3 URL to start sqlite:/// not {url}"

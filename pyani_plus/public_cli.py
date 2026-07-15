@@ -298,9 +298,9 @@ def run_method(  # noqa: PLR0913, PLR0915
             )
 
             # Reconnect to the DB
-            with db_orm.connect_to_db(logger, database) as _session:
+            with db_orm.connect_to_db(logger, database) as session2:
                 run = (
-                    _session.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
+                    session2.query(db_orm.Run).where(db_orm.Run.run_id == run_id).one()
                 )
                 done = run.comparisons().count()
 
@@ -310,7 +310,7 @@ def run_method(  # noqa: PLR0913, PLR0915
                     )
                     # Can happen if progress-bar thread didn't finish in time
                     for json in target_paths:
-                        private_cli.import_json_comparisons(logger, _session, json)
+                        private_cli.import_json_comparisons(logger, session2, json)
                     done = run.comparisons().count()
 
                 if done != n**2:
@@ -320,7 +320,7 @@ def run_method(  # noqa: PLR0913, PLR0915
 
                 run.cache_comparisons()  # will this needs a progress bar too with large n?
                 run.status = "Done"
-                _session.commit()
+                session2.commit()
 
             msg = f"Completed {method} run-id {run_id} with {n} genomes in database {database}"
             logger.info(msg)

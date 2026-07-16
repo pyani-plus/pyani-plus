@@ -84,7 +84,7 @@ def parse_minimap2_paf_file(filename: Path) -> tuple[int, int, float | None]:
     the overlapping regions with IntervalTree. Then, we calculate the total
     sum of all aligned regions.
     """
-    regions_ref = defaultdict(list)  # Hold a dictionary for query regions
+    regions_ref = defaultdict(list)  # Hold a dictionary for subject/ref regions
     regions_qry = defaultdict(list)  # Hold a dictionary for query regions
 
     aligned_bases = 0  # Hold a count of aligned bases for each sequence

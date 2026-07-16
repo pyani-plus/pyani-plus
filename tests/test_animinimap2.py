@@ -110,7 +110,7 @@ def test_running_animinimap2(
     )
 
 
-def test_skani_missing_preset(
+def test_animinimap2_missing_preset(
     tmp_path: str,
     input_genomes_tiny: Path,
 ) -> None:

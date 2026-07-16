@@ -45,7 +45,7 @@ def test_animinimap2_parsing_empty(tmp_path: str) -> None:
 
 
 def test_animinimap2_parsing(input_genomes_tiny: Path) -> None:
-    """Check AIN_parsing of test minimap2 output files."""
+    """Check ANI parsing of test minimap2 output files."""
     # alignment as one line:
     assert animinimap2.parse_minimap2_paf_file(
         input_genomes_tiny

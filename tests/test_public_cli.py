@@ -37,7 +37,12 @@ import pandas as pd
 import pytest
 
 from pyani_plus import GRAPHICS_FORMATS, db_orm, public_cli, setup_logger, tools
-from pyani_plus.public_cli_args import EnumModeClassify, EnumModeSkani, EnumPresetMinimap2, ToolExecutor
+from pyani_plus.public_cli_args import (
+    EnumModeClassify,
+    EnumModeSkani,
+    EnumPresetMinimap2,
+    ToolExecutor,
+)
 from pyani_plus.utils import file_md5sum
 
 

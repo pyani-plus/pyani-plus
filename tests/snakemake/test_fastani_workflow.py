@@ -139,9 +139,8 @@ def test_rule_fastani(
     for file in (input_genomes_tiny / "intermediates/fastANI").glob("*_vs_*.fastani"):
         assert filecmp.cmp(file, tmp_dir / file), f"Wrong fastANI output in {file.name}"
 
-    session = connect_to_db(logger, db)
-    for json in json_targets:
-        import_json_comparisons(logger, session, json)
-    session.close()
+    with connect_to_db(logger, db) as session:
+        for json in json_targets:
+            import_json_comparisons(logger, session, json)
 
     compare_db_matrices(db, input_genomes_tiny / "matrices")

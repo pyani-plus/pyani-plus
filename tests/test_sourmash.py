@@ -52,16 +52,16 @@ def test_prepare_genomes_bad_method(tmp_path: str, input_genomes_tiny: Path) -> 
         create_db=True,
     )
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    run = db_orm.load_run(session, run_id=1)
-    with pytest.raises(
-        SystemExit,
-        match="Expected run to be for sourmash, not method guessing",
-    ):
-        next(
-            sourmash.prepare_genomes(logger, run, tmp_dir)
-        )  # should error before checks cache
-    session.close()
+
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        run = db_orm.load_run(session, run_id=1)
+        with pytest.raises(
+            SystemExit,
+            match="Expected run to be for sourmash, not method guessing",
+        ):
+            next(
+                sourmash.prepare_genomes(logger, run, tmp_dir)
+            )  # should error before checks cache
 
 
 def test_prepare_genomes_bad_kmer(tmp_path: str, input_genomes_tiny: Path) -> None:
@@ -82,16 +82,16 @@ def test_prepare_genomes_bad_kmer(tmp_path: str, input_genomes_tiny: Path) -> No
         create_db=True,
     )
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    run = db_orm.load_run(session, run_id=1)
-    with pytest.raises(
-        SystemExit,
-        match=f"sourmash requires a k-mer size, default is {sourmash.KMER_SIZE}",
-    ):
-        next(
-            sourmash.prepare_genomes(logger, run, cache=tmp_dir)
-        )  # should error before checks cache
-    session.close()
+
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        run = db_orm.load_run(session, run_id=1)
+        with pytest.raises(
+            SystemExit,
+            match=f"sourmash requires a k-mer size, default is {sourmash.KMER_SIZE}",
+        ):
+            next(
+                sourmash.prepare_genomes(logger, run, cache=tmp_dir)
+            )  # should error before checks cache
 
 
 def test_prepare_genomes_bad_cache(tmp_path: str, input_genomes_tiny: Path) -> None:
@@ -113,16 +113,16 @@ def test_prepare_genomes_bad_cache(tmp_path: str, input_genomes_tiny: Path) -> N
         create_db=True,
     )
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    run = db_orm.load_run(session, run_id=1)
-    with pytest.raises(
-        ValueError,
-        match="Cache directory '/does/not/exist' does not exist",
-    ):
-        next(
-            sourmash.prepare_genomes(logger, run, cache=Path("/does/not/exist"))
-        )  # should error before checks cache
-    session.close()
+
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        run = db_orm.load_run(session, run_id=1)
+        with pytest.raises(
+            ValueError,
+            match="Cache directory '/does/not/exist' does not exist",
+        ):
+            next(
+                sourmash.prepare_genomes(logger, run, cache=Path("/does/not/exist"))
+            )  # should error before checks cache
 
 
 def test_prepare_genomes_bad_extra(
@@ -146,16 +146,16 @@ def test_prepare_genomes_bad_extra(
         create_db=True,
     )
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    run = db_orm.load_run(session, run_id=1)
-    with pytest.raises(
-        SystemExit,
-        match=f"sourmash requires extra setting, default is scaled={sourmash.SCALED}",
-    ):
-        next(
-            sourmash.prepare_genomes(logger, run, cache=tmp_dir)
-        )  # should error before checks cache
-    session.close()
+
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        run = db_orm.load_run(session, run_id=1)
+        with pytest.raises(
+            SystemExit,
+            match=f"sourmash requires extra setting, default is scaled={sourmash.SCALED}",
+        ):
+            next(
+                sourmash.prepare_genomes(logger, run, cache=tmp_dir)
+            )  # should error before checks cache
 
 
 def test_parser_with_bad_branchwater(tmp_path: str) -> None:
@@ -221,37 +221,38 @@ def test_compute_bad_args(tmp_path: str) -> None:
     tmp_db = tmp_dir / "bad args.db"
     tmp_json = tmp_dir / "bad args.json"
     logger = setup_logger(None)
-    session = db_orm.connect_to_db(logger, tmp_db)
-    run = db_orm.Run()  # empty
-    tool = tools.get_sourmash()
-    config = db_orm.Configuration(
-        method="sourmash",
-        program=tool.exe_path.name,
-        version=tool.version,
-        kmersize=31,
-        extra="scaled=1234",
-    )
-    run = db_orm.Run(configuration=config)
-    with pytest.raises(
-        SystemExit,
-        match=(
-            "Missing sourmash signatures directory"
-            f" '{tmp_dir}/sourmash_k=31_scaled=1234' - check cache setting."
-        ),
-    ):
-        private_cli.compute_sourmash(
-            logger,
-            tmp_dir,
-            session,
-            run,
-            tmp_json,
-            tmp_dir,
-            {},
-            {},
-            {"ABCDE": 12345},
-            "HIJKL",
-            cache=tmp_dir,
+
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        run = db_orm.Run()  # empty
+        tool = tools.get_sourmash()
+        config = db_orm.Configuration(
+            method="sourmash",
+            program=tool.exe_path.name,
+            version=tool.version,
+            kmersize=31,
+            extra="scaled=1234",
         )
+        run = db_orm.Run(configuration=config)
+        with pytest.raises(
+            SystemExit,
+            match=(
+                "Missing sourmash signatures directory"
+                f" '{tmp_dir}/sourmash_k=31_scaled=1234' - check cache setting."
+            ),
+        ):
+            private_cli.compute_sourmash(
+                logger,
+                tmp_dir,
+                session,
+                run,
+                tmp_json,
+                tmp_dir,
+                {},
+                {},
+                {"ABCDE": 12345},
+                "HIJKL",
+                cache=tmp_dir,
+            )
 
 
 def test_compute_tile_bad_args(tmp_path: str) -> None:

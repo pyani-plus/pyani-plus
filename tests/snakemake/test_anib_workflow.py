@@ -136,10 +136,9 @@ def test_rule_anib(
     for file in (input_genomes_tiny / "intermediates/ANIb").glob("*_vs_*.tsv"):
         assert filecmp.cmp(file, tmp_dir / file), f"Wrong blastn output in {file.name}"
 
-    session = connect_to_db(logger, db)
-    for json in json_targets:
-        import_json_comparisons(logger, session, json)
-    session.close()
+    with connect_to_db(logger, db) as session:
+        for json in json_targets:
+            import_json_comparisons(logger, session, json)
 
     # Check output against target fixtures
     compare_db_matrices(db, input_genomes_tiny / "matrices")

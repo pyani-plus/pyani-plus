@@ -2210,7 +2210,7 @@ def compute_lzani(  # noqa: PLR0913
         copy=True,
     )
 
-    db_entries = []
+    db_entries: list[dict] = []
     new = 0
     last_progress = 0.0
 
@@ -2269,37 +2269,23 @@ def compute_lzani(  # noqa: PLR0913
             if not outpath.is_file():
                 msg = f"lz-ani didn't make {outpath}"  # pragma: no cover
                 log_sys_exit(logger, msg)  # pragma: no cover
-            fcomp, rcomp = parse_lzani(outpath)
-
-            # Add forward comparison result
-            db_entries.append(
+            db_entries.extend(
                 {
-                    "query_hash": filename_to_hash[fcomp[0]],
-                    "subject_hash": filename_to_hash[fcomp[1]],
-                    "identity": fcomp[2],
-                    "cov_query": fcomp[3],
+                    "query_hash": filename_to_hash[comp[0]],
+                    "subject_hash": filename_to_hash[comp[1]],
+                    "identity": comp[2],
+                    "cov_query": comp[3],
                     "configuration_id": config_id,
                     "uname_system": uname_system,
                     "uname_release": uname_release,
                     "uname_machine": uname_machine,
                 }
+                for comp in parse_lzani(
+                    outpath
+                )  # we get (fcomp, rcomp) tuple of tuples
             )
 
-            # Add reverse comparison result
-            db_entries.append(
-                {
-                    "query_hash": filename_to_hash[rcomp[0]],
-                    "subject_hash": filename_to_hash[rcomp[1]],
-                    "identity": rcomp[2],
-                    "cov_query": rcomp[3],
-                    "configuration_id": config_id,
-                    "uname_system": uname_system,
-                    "uname_release": uname_release,
-                    "uname_machine": uname_machine,
-                }
-            )
-
-            new += 1
+            new += 2
             if not last_progress or time() - last_progress >= JSON_WINDOW:
                 export_json_db_entries(logger, json_filename, configuration, db_entries)
                 new, last_progress = 0, time()

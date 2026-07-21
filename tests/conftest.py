@@ -70,6 +70,16 @@ def dnadiff_targets_outdir(tmp_path: str) -> Path:
 
 
 @pytest.fixture
+def lzani_targets_outdir(tmp_path: str) -> Path:
+    """Output directory for lz-ani snakemake tests.
+
+    This path indicates the location to which lz-ani should write
+    its output files during dnadiff testing
+    """
+    return Path(tmp_path).resolve() / "lzani_targets_output"
+
+
+@pytest.fixture
 def sourmash_targets_signature_outdir(tmp_path: str) -> Path:
     """Output directory for sourmash sketch_dna snakemake tests.
 

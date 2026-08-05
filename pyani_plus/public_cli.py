@@ -112,7 +112,7 @@ def common(  # noqa: D103
     pass  # pragma: no cover
 
 
-def start_and_run_method(  # noqa: PLR0913
+def start_and_run_method(  # noqa: PLR0913, PLR0917
     logger: logging.Logger,
     executor: ToolExecutor,
     cache: Path,
@@ -203,7 +203,7 @@ def start_and_run_method(  # noqa: PLR0913
         )
 
 
-def run_method(  # noqa: PLR0913, PLR0915
+def run_method(  # noqa: PLR0913, PLR0915, PLR0917
     logger: logging.Logger,
     executor: ToolExecutor,
     cache: Path,
@@ -1209,7 +1209,7 @@ def plot_run_comp(  # noqa: PLR0913
 
 
 @app.command("classify", rich_help_panel="Commands")
-def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915
+def cli_classify(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917
     database: REQ_ARG_TYPE_DATABASE,
     outdir: REQ_ARG_TYPE_OUTDIR,
     coverage_edges: Annotated[

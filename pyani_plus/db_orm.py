@@ -702,7 +702,7 @@ def connect_to_db(
     raise NotImplementedError  # for mypy # pragma: no cover
 
 
-def db_configuration(  # noqa: PLR0913
+def db_configuration(  # noqa: PLR0913, PLR0917
     session: Session,
     method: str,
     program: str,
@@ -877,7 +877,7 @@ def db_genome(  # noqa: C901
     return genome
 
 
-def add_run(  # noqa: PLR0913
+def add_run(  # noqa: PLR0913, PLR0917
     session: Session,
     configuration: Configuration,
     cmdline: str,
@@ -975,7 +975,7 @@ def load_run(
     return run
 
 
-def db_comparison(  # noqa: PLR0913
+def db_comparison(  # noqa: PLR0913, PLR0917
     session: Session,
     configuration_id: int,
     query_hash: str,

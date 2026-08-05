@@ -72,7 +72,7 @@ colormaps.register(
 )
 
 
-def plot_heatmap(  # noqa: PLR0913
+def plot_heatmap(  # noqa: PLR0913, PLR0917
     matrix: pd.DataFrame,
     outdir: Path,
     name: str,  # e.g. tANI
@@ -386,7 +386,7 @@ def plot_single_run(
     return done
 
 
-def plot_run_comparison(  # noqa: C901, PLR0912, PLR0913, PLR0915
+def plot_run_comparison(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917
     logger: logging.Logger,
     session: Session,
     run: db_orm.Run,

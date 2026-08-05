@@ -30,7 +30,7 @@ from pyani_plus import log_sys_exit
 ASCII_GAP = ord("-")  # 45
 
 
-def compute_external_alignment_column(  # noqa: PLR0913
+def compute_external_alignment_column(  # noqa: PLR0913, PLR0917
     logger: logging.Logger,
     subject_hash: str,
     query_hashes: set[str],

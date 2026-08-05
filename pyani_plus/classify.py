@@ -233,7 +233,7 @@ def get_genome_order(genome_clique_ids: dict) -> dict:
     return {genome: idx for idx, genome in enumerate(sorted_genomes)}
 
 
-def plot_classify(  # noqa: PLR0913, PLR0915
+def plot_classify(  # noqa: PLR0913, PLR0915, PLR0917
     genome_positions: dict,
     dataframe: pd.DataFrame,
     outdir: Path,

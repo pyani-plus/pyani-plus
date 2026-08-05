@@ -144,7 +144,7 @@ def parse_sourmash_manysearch_csv(
         yield query_hash, subject_hash, None, None
 
 
-def compute_sourmash_tile(  # noqa: PLR0913
+def compute_sourmash_tile(  # noqa: PLR0913, PLR0917
     logger: logging.Logger,
     tool: tools.ExternalToolData,
     subject_hashes: set[str],

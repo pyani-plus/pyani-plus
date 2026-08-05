@@ -307,7 +307,7 @@ def log_genome(
 
 
 @app.command(rich_help_panel="Low-level logging")
-def log_run(  # noqa: PLR0913
+def log_run(  # noqa: PLR0913, PLR0917
     fasta: REQ_ARG_TYPE_FASTA_DIR,
     database: REQ_ARG_TYPE_DATABASE,
     # These are for the run table:
@@ -973,7 +973,7 @@ def compute_column(  # noqa: C901, PLR0913, PLR0912, PLR0915
             return 1  # for mypy
 
 
-def compute_fastani(  # noqa: PLR0913, PLR0915
+def compute_fastani(  # noqa: PLR0913, PLR0915, PLR0917
     logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
@@ -1117,7 +1117,7 @@ def compute_fastani(  # noqa: PLR0913, PLR0915
         return 0
 
 
-def compute_anim(  # noqa: C901, PLR0913, PLR0915
+def compute_anim(  # noqa: C901, PLR0913, PLR0915, PLR0917
     logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
@@ -1281,7 +1281,7 @@ def compute_anim(  # noqa: C901, PLR0913, PLR0915
         return 0
 
 
-def compute_anib(  # noqa: PLR0913, PLR0915
+def compute_anib(  # noqa: PLR0913, PLR0915, PLR0917
     logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
@@ -1444,7 +1444,7 @@ def compute_anib(  # noqa: PLR0913, PLR0915
         return 0
 
 
-def compute_animinimap2(  # noqa: PLR0913, PLR0915
+def compute_animinimap2(  # noqa: PLR0913, PLR0915, PLR0917
     logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
@@ -1595,7 +1595,7 @@ def compute_animinimap2(  # noqa: PLR0913, PLR0915
         return 0
 
 
-def compute_dnadiff(  # noqa: PLR0913, PLR0915
+def compute_dnadiff(  # noqa: PLR0913, PLR0915, PLR0917
     logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
@@ -1800,7 +1800,7 @@ def compute_dnadiff(  # noqa: PLR0913, PLR0915
         return 0
 
 
-def compute_sourmash(  # noqa: PLR0913
+def compute_sourmash(  # noqa: PLR0913, PLR0917
     logger: logging.Logger,
     tmp_dir: Path,
     session: Session,
@@ -1902,7 +1902,7 @@ def compute_sourmash(  # noqa: PLR0913
         return 0
 
 
-def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
+def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917
     logger: logging.Logger,
     tmp_dir: Path,  # noqa: ARG001
     session: Session,
@@ -2041,7 +2041,7 @@ def compute_external_alignment(  # noqa: C901, PLR0912, PLR0913, PLR0915
         return 0
 
 
-def compute_skani(  # noqa: PLR0913, PLR0915
+def compute_skani(  # noqa: PLR0913, PLR0915, PLR0917
     logger: logging.Logger,
     tmp_dir: Path,
     session: Session,

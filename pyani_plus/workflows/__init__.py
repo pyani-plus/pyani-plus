@@ -109,7 +109,7 @@ def progress_bar_via_db_comparisons(
                         logger.exception(msg)
 
 
-def run_snakemake_with_progress_bar(  # noqa: PLR0913
+def run_snakemake_with_progress_bar(  # noqa: PLR0913, PLR0917
     logger: logging.Logger,
     executor: ToolExecutor,
     workflow_name: str,

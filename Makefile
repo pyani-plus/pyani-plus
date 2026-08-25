@@ -56,6 +56,8 @@ fixtures:
 	cd tests/generate_fixtures/; ./generate_target_dnadiff_files.py ../fixtures/bad_alignments ../fixtures/bad_alignments/intermediates/dnadiff
 	cd tests/generate_fixtures/; ./generate_target_dnadiff_matrices.py ../fixtures/viral_example ../fixtures/viral_example/matrices
 	cd tests/generate_fixtures/; ./generate_target_dnadiff_matrices.py ../fixtures/bad_alignments ../fixtures/bad_alignments/matrices
+	cd tests/generate_fixtures/; ./generate_target_lzani_files.py ../fixtures/viral_example ../fixtures/viral_example/intermediates/lzani
+	cd tests/generate_fixtures/; ./generate_target_lzani_files.py ../fixtures/bacterial_example ../fixtures/bacterial_example/intermediates/lzani
 	cd tests/generate_fixtures/; ./generate_target_animinimap2_files.py ../fixtures/viral_example ../fixtures/viral_example/intermediates/ANIminimap2
 	cd tests/generate_fixtures/; ./generate_target_animinimap2_matrices.py ../fixtures/viral_example ../fixtures/viral_example/matrices
 	cd tests/generate_fixtures/; ./generate_target_animinimap2_matrices.py ../fixtures/bacterial_example ../fixtures/bacterial_example/matrices

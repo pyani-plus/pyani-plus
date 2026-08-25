@@ -1066,6 +1066,67 @@ def test_sourmash(
             ), f
 
 
+def test_lzani(
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: str,
+    input_genomes_tiny: Path,
+    evil_example: Path,
+) -> None:
+    """Check lz-ani run (spaces, emoji, etc in filenames)."""
+    caplog.set_level(logging.INFO)
+
+    # Catch lz-ani's failure to handle spaces in the temp directory
+    tmp_dir = Path(tmp_path) / "lz-ani's test 🏎️"
+    tmp_dir.mkdir()
+    tmp_db = tmp_dir / "lz-ani's test.sqlite"
+    with pytest.raises(
+        SystemExit,
+        match=f"Temporary directory path {tmp_dir} has spaces, which lz-ani cannot handle",
+    ):
+        public_cli.cli_lzani(
+            database=tmp_db,
+            fasta=evil_example,
+            name="Spaces etc",
+            create_db=True,
+            temp=tmp_dir,
+        )
+
+    # Now try again with a path without spaces.
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "lzani_test.sqlite"
+    caplog.clear()
+    public_cli.cli_lzani(
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Spaces etc",
+        create_db=True,
+        cache=tmp_dir,
+        temp=tmp_dir,
+    )
+    output = caplog.text
+    assert "Database already has 0 of 3²=9 LZ-ANI comparisons, 9 needed\n" in output
+
+    # Run it again, nothing to recompute but easier to check output
+    caplog.clear()
+    public_cli.cli_lzani(
+        database=tmp_db,
+        fasta=input_genomes_tiny,
+        name="Simple names",
+        create_db=False,
+        cache=tmp_dir,
+        temp=tmp_dir,
+    )
+    output = caplog.text
+    assert "Database already has all 3²=9 LZ-ANI comparisons\n" in output
+
+    # Confirm output matches
+    public_cli.export_run(database=tmp_db, outdir=tmp_dir)
+    compare_matrix_files(
+        input_genomes_tiny / "matrices" / "lzani_identity.tsv",
+        tmp_dir / "LZ-ANI_identity.tsv",
+    )
+
+
 def test_skani(
     caplog: pytest.LogCaptureFixture,
     tmp_path: str,
@@ -1361,6 +1422,77 @@ def test_resume_partial_anim(
         output = capsys.readouterr().out
         assert " 1 analysis runs in " in output, output
         assert " ANIm   │    9 │    0 │    0 │  9=3² │ Done " in output, output
+
+
+def test_resume_partial_lzani(
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: str,
+    input_genomes_tiny: Path,
+) -> None:
+    """Check list-runs and export-run with mock data including a partial lz-ani run."""
+    caplog.set_level(logging.INFO)
+    tmp_dir = Path(tmp_path)
+    tmp_db = tmp_dir / "resume_lzani.sqlite"
+    tool = tools.get_lzani()
+    logger = setup_logger(None)
+    with db_orm.connect_to_db(logger, tmp_db) as session:
+        config = db_orm.db_configuration(
+            session,
+            "LZ-ANI",
+            tool.exe_path.stem,
+            tool.version,
+            create=True,
+        )
+
+        fasta_to_hash = {
+            filename: file_md5sum(filename)
+            for filename in sorted(input_genomes_tiny.glob("*.f*"))
+        }
+        for filename, md5 in fasta_to_hash.items():
+            db_orm.db_genome(logger, session, filename, md5, create=True)
+
+        # Record 4 of the possible 9 comparisons,
+        # mimicking what might happen when a 2x2 run is expanded to 3x3
+        genomes = list(fasta_to_hash.values())
+        for query_hash in genomes[:-1]:
+            for subject_hash in genomes[:-1]:
+                db_orm.db_comparison(
+                    session,
+                    config.configuration_id,
+                    query_hash,
+                    subject_hash,
+                    1.0 if query_hash is subject_hash else 0.99,
+                )
+
+        db_orm.add_run(
+            session,
+            config,
+            cmdline="pyani-plus LZ-ANI ...",
+            fasta_directory=input_genomes_tiny,
+            status="Partial",
+            name="Test Resuming A Run",
+            fasta_to_hash=fasta_to_hash,  # all 3/3 genomes, but only have 4/9 comparisons
+        )
+
+        public_cli.list_runs(database=tmp_db)
+        output = capsys.readouterr().out
+        assert " 1 analysis runs in " in output, output
+        assert " Method ┃ Done ┃ Null ┃ Miss ┃ Total ┃ Status " in output, output
+        assert " LZ-ANI │    4 │    0 │    5 │  9=3² │ Partial " in output, output
+
+        caplog.clear()
+        public_cli.resume(database=tmp_db, cache=tmp_dir)
+        output = caplog.text
+        assert "Resuming run-id 1\n" in output, output
+        assert (
+            "Database already has 4 of 3²=9 LZ-ANI comparisons, 5 needed" in output
+        ), output
+
+        public_cli.list_runs(database=tmp_db)
+        output = capsys.readouterr().out
+        assert " 1 analysis runs in " in output, output
+        assert " LZ-ANI │    9 │    0 │    0 │  9=3² │ Done " in output, output
 
 
 def test_resume_partial_animinimap2(
@@ -1675,6 +1807,7 @@ def test_resume_complete(
                 ("dnadiff", tools.get_nucmer()),
                 ("ANIb", tools.get_blastn()),
                 ("fastANI", tools.get_fastani()),
+                ("LZ-ANI", tools.get_lzani()),
                 ("skani", tools.get_skani()),
                 ("sourmash", tools.get_sourmash()),
             ]

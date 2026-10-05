@@ -10,10 +10,10 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-15
     strategy:
       matrix:
-        python-version: ["3.11", "3.13"]
+        python-version: ["3.11", "3.14"]
 
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}

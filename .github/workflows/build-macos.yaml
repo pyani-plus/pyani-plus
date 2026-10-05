@@ -74,7 +74,7 @@ jobs:
         if: ${{ always() }}
 
       - name: Codecov Coverage Report
-        uses: codecov/codecov-action@v4.0.1
+        uses: codecov/codecov-action@v7.1.1
         with:
           fail_ci_if_error: true # optional (default = false)
           files: .coverage-macos-${{ matrix.python-version }}.xml # optional

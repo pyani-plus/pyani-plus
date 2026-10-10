@@ -45,6 +45,9 @@ cover/
 htmlcov/
 .coverage*
 
+# Miscellaneous test output
+sourmash_k=31_scaled=1000
+
 # Virtualenvs
 venv-*
 .python-version

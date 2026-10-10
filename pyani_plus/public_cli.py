@@ -220,7 +220,7 @@ def run_method(  # noqa: PLR0913, PLR0915, PLR0917
     method = run.configuration.method
     workflow_name = "compute_column.smk"
     logger.debug("Counting pre-existing comparisons for this run...")
-    done = run.comparisons().count()
+    done = run.comparisons().count()  # type: ignore[attr-defined]
     n = len(filename_to_md5)
     if done == n**2:
         msg = f"Database already has all {n}²={n**2} {method} comparisons"
@@ -554,6 +554,55 @@ def cli_fastani(  # noqa: PLR0913
         return 1
 
 
+@app.command("LZ-ANI", rich_help_panel="ANI methods")
+def cli_lzani(  # noqa: PLR0913
+    fasta: REQ_ARG_TYPE_FASTA_DIR,
+    database: REQ_ARG_TYPE_DATABASE,
+    *,
+    # These are for the run table:
+    name: OPT_ARG_TYPE_RUN_NAME = None,
+    create_db: OPT_ARG_TYPE_CREATE_DB = False,
+    executor: OPT_ARG_TYPE_EXECUTOR = ToolExecutor.local,
+    cache: OPT_ARG_TYPE_CACHE = Path(),
+    temp: OPT_ARG_TYPE_TEMP = None,
+    wtemp: OPT_ARG_TYPE_TEMP_WORKFLOW = None,
+    log: OPT_ARG_TYPE_COMP_LOG = LOG_FILE_DYNAMIC,
+    debug: OPT_ARG_TYPE_DEBUG = False,
+) -> int:
+    """Execute lz-ani ANI calculations, logged to a pyANI-plus SQLite3 database."""
+    if log == LOG_FILE_DYNAMIC:
+        log = Path("-") if executor == ToolExecutor.local else LOG_FILE
+    logger = setup_logger(log, terminal_level=logging.DEBUG if debug else logging.INFO)
+    check_db(logger, database, create_db)
+
+    # lz-ani cannot cope with spaces in filepaths, which includes temporary directory
+    # paths. Although we do avoid filename problems by using MD5 checksums with
+    # stage_file() we still need to stage the files in a temporary directory with
+    # simple paths. Until this issue is fixed in lz-ani, we will throw an error if the
+    # temporary directory path has spaces in it.
+    if temp and " " in str(temp):
+        msg = f"Temporary directory path {temp} has spaces, which lz-ani cannot handle"
+        log_sys_exit(logger, msg)
+
+    try:
+        return start_and_run_method(
+            logger,
+            executor,
+            cache,
+            temp,
+            wtemp,
+            database,
+            log,
+            name,
+            "LZ-ANI",
+            fasta,
+            tools.get_lzani(),
+        )
+    except Exception:  # pragma: nocover
+        logger.exception("Unhandled exception.")
+        return 1
+
+
 @app.command("skani", rich_help_panel="ANI methods")
 def cli_skani(  # noqa: PLR0913
     fasta: REQ_ARG_TYPE_FASTA_DIR,
@@ -759,6 +808,8 @@ def resume(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 tool = tools.get_minimap2()
             case "ANIb":
                 tool = tools.get_blastn()
+            case "LZ-ANI":
+                tool = tools.get_lzani()
             case "skani":
                 tool = tools.get_skani()
             case "sourmash":

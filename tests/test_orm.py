@@ -26,7 +26,7 @@ These tests are intended to be run from the repository root using:
 pytest -v
 """
 
-import datetime
+import datetime as dt
 import platform
 from pathlib import Path
 
@@ -204,7 +204,7 @@ def test_make_and_populate_runs(tmp_path: str) -> None:
             name="Test One",
             cmdline="pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite",
             fasta_directory="../my-genomes/",
-            date=datetime.date(2024, 9, 3),
+            date=dt.date(2024, 9, 3),
             status="Pending",
         )
         assert repr(run_one) == (
@@ -235,7 +235,7 @@ def test_make_and_populate_runs(tmp_path: str) -> None:
             name="Test Two",
             cmdline="pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite",
             fasta_directory="../my-genomes/",
-            date=datetime.date(2024, 9, 4),
+            date=dt.date(2024, 9, 4),
             status="Pending",
         )
         assert repr(run_two) == (
@@ -293,13 +293,14 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
             name="Empty",
             cmdline="pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite",
             fasta_directory="../my-genomes/",
-            date=datetime.date(2023, 12, 25),
+            date=dt.date(2023, 12, 25),
             status="Aborted",
         )
         assert repr(run) == (
             "Run(run_id=None, configuration_id=1,"
             " cmdline='pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite',"
-            " date=datetime.date(2023, 12, 25), status='Aborted',"
+            " date=datetime.date(2023, 12, 25),"
+            " status='Aborted',"
             " name='Empty', ...)"
         )
         session.add(run)
@@ -309,13 +310,14 @@ def test_make_and_populate_mock_example(tmp_path: str) -> None:
             name="Test Run",
             cmdline="pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite",
             fasta_directory="../my-genomes/",
-            date=datetime.date(2023, 12, 25),
+            date=dt.date(2023, 12, 25),
             status="Complete",
         )
         assert repr(run) == (
             "Run(run_id=None, configuration_id=1,"
             " cmdline='pyani_plus run -m guestimate --input ../my-genomes/ -d working.sqlite',"
-            " date=datetime.date(2023, 12, 25), status='Complete',"
+            " date=datetime.date(2023, 12, 25),"
+            " status='Complete',"
             " name='Test Run', ...)"
         )
         session.add(run)

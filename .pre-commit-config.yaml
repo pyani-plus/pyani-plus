@@ -48,7 +48,7 @@ repos:
         '--config=format.docstring-code-format=true'
       ]
     # Run the linter.
-    - id: ruff
+    - id: ruff-check
       types_or: [ python, pyi, jupyter ]
       args: [ --fix ]
 - repo: https://github.com/snakemake/snakefmt

@@ -26,7 +26,7 @@ database schema and the code to import/export the data as
 Python objects.
 """
 
-import datetime
+import datetime as dt
 import gzip
 import logging
 import platform
@@ -333,7 +333,7 @@ class Run(Base):
 
     cmdline: Mapped[str] = mapped_column()
     fasta_directory: Mapped[str] = mapped_column()  # can't use Mapped[Path] (yet)
-    date: Mapped[datetime.datetime] = mapped_column()
+    date: Mapped[dt.datetime] = mapped_column()
     status: Mapped[str] = mapped_column()
     name: Mapped[str] = mapped_column()
     df_identity: Mapped[str | None] = mapped_column()  # JSON-encoded Pandas dataframe
@@ -884,7 +884,7 @@ def add_run(  # noqa: PLR0913, PLR0917
     fasta_directory: Path,
     status: str,
     name: str,
-    date: datetime.datetime | None = None,
+    date: dt.datetime | None = None,
     fasta_to_hash: dict[Path, str] | None = None,
 ) -> Run:
     """Add and return a new run table entry.
@@ -897,7 +897,7 @@ def add_run(  # noqa: PLR0913, PLR0917
         fasta_directory=str(fasta_directory),
         status=status,
         name=name,
-        date=date or datetime.datetime.now(tz=datetime.UTC),
+        date=date or dt.datetime.now(tz=dt.UTC),
     )
     session.add(run)
     if fasta_to_hash:

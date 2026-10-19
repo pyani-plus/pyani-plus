@@ -34,12 +34,12 @@ repos:
         '--severity=info',
       ]
 - repo: https://github.com/asottile/pyupgrade
-  rev: v3.21.2
+  rev: v3.22.0
   hooks:
     - id: pyupgrade
 - repo: https://github.com/astral-sh/ruff-pre-commit
   # Ruff version.
-  rev: v0.16.10
+  rev: v0.17.1
   hooks:
     # Run the formatter.
     - id: ruff-format
@@ -52,7 +52,7 @@ repos:
       types_or: [ python, pyi, jupyter ]
       args: [ --fix ]
 - repo: https://github.com/snakemake/snakefmt
-  rev: v2.0.3
+  rev: v2.1.0
   hooks:
     - id: snakefmt
 - repo: https://github.com/codespell-project/codespell

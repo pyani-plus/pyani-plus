@@ -618,10 +618,11 @@ class Run(Base):
         else:
             msg = f"Unexpected label scheme {label!r}"
             raise ValueError(msg)
-        matrix.rename(index=mapping, columns=mapping, inplace=True)  # noqa: PD002
-        matrix.sort_index(axis=0, inplace=True)  # noqa: PD002
-        matrix.sort_index(axis=1, inplace=True)  # noqa: PD002
-        return matrix
+        return (
+            matrix.rename(index=mapping, columns=mapping)
+            .sort_index(axis=0)
+            .sort_index(axis=1)
+        )
 
     def __repr__(self) -> str:
         """Return abridged string representation of Run table object."""

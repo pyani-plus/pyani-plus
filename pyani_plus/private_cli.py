@@ -2171,7 +2171,7 @@ def compute_skani(  # noqa: PLR0913, PLR0915, PLR0917
         return 0
 
 
-def compute_lzani(  # noqa: PLR0913
+def compute_lzani(  # noqa: PLR0913, PLR0917
     logger: logging.Logger,
     tmp_dir: Path,
     session: Session,

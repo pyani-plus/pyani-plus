@@ -2310,7 +2310,3 @@ def compute_lzani(  # noqa: PLR0913, PLR0917
 
 if __name__ == "__main__":
     sys.exit(app())  # pragma: no cover
-
-
-if __name__ == "__main__":
-    sys.exit(app())  # pragma: no cover
